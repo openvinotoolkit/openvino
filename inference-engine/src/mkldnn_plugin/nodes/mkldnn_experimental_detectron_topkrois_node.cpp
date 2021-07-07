@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -51,14 +49,14 @@ void MKLDNNExperimentalDetectronTopKROIsNode::initSupportedPrimitiveDescriptors(
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronTopKROIsNode::execute(mkldnn::stream strm) {
-    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getDims()[0];
+    const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getShape().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());

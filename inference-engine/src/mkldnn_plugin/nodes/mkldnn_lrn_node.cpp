@@ -88,19 +88,20 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto parentDims = getParentEdgeAt(0)->getDims();
+    const auto &parentShape = getParentEdgeAt(0)->getShape();
+    const auto parentStaticDims = parentShape.getStaticMklDims();
 
-    for (auto format : getAvailableFormatsForDims(parentDims)) {
-        MKLDNNMemoryDesc in_candidate(parentDims, inputDataType, format);
-        createDescriptor({in_candidate}, {});
+    for (auto format : getAvailableFormatsForDims(parentShape)) {
+        auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentStaticDims, inputDataType, format);
+        createDescriptor({in_candidate.get()}, {});
     }
 }
 
-MKLDNNMemoryDesc MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::unique_ptr<MKLDNNMemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(getOriginalInputPrecisions()[idx],
-                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-                                                            TensorDesc::getLayoutByDims(getParentEdgeAt(idx)->getDims().ToSizeVector())));
+        return make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticMklDims(),
+                                             MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[idx]),
+                                             MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
     } else {
         return MKLDNNNode::getSrcMemDesc(primitive_desc_it, idx);
     }
@@ -123,12 +124,12 @@ bool MKLDNNLrnNode::created() const {
     return getType() == Lrn;
 }
 
-void MKLDNNLrnNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
-                                     const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
+void MKLDNNLrnNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
+                                     const std::vector<const MemoryDesc*> &outputDesc) {
     mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
-    MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
+            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, *inputDesc[0]->as<MKLDNNMemoryDesc>(),
+                                          size, alpha, beta, k)));
     descs.push_back(desc);
 }
 

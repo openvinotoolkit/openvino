@@ -67,32 +67,32 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::nspc, precision},
-                          {TensorDescCreatorTypes::ncsp},
-                          {TensorDescCreatorTypes::ncsp},
-                          {TensorDescCreatorTypes::ncsp}},
-                         {{TensorDescCreatorTypes::nspc, precision}},
+    addSupportedPrimDesc({{GeneralLayout::nspc, precision},
+                          {GeneralLayout::ncsp},
+                          {GeneralLayout::ncsp},
+                          {GeneralLayout::ncsp}},
+                         {{GeneralLayout::nspc, precision}},
                          impl_desc_type::ref_any);
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, precision},
-                          {TensorDescCreatorTypes::ncsp},
-                          {TensorDescCreatorTypes::ncsp},
-                          {TensorDescCreatorTypes::ncsp}},
-                         {{TensorDescCreatorTypes::ncsp, precision}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, precision},
+                          {GeneralLayout::ncsp},
+                          {GeneralLayout::ncsp},
+                          {GeneralLayout::ncsp}},
+                         {{GeneralLayout::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] % 8 == 0) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp8c, precision},
-                              {TensorDescCreatorTypes::ncsp},
-                              {TensorDescCreatorTypes::ncsp},
-                              {TensorDescCreatorTypes::ncsp}},
-                             {{TensorDescCreatorTypes::nCsp8c, precision}},
+        addSupportedPrimDesc({{GeneralLayout::nCsp8c, precision},
+                              {GeneralLayout::ncsp},
+                              {GeneralLayout::ncsp},
+                              {GeneralLayout::ncsp}},
+                             {{GeneralLayout::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] % 16 == 0) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp16c, precision},
-                              {TensorDescCreatorTypes::ncsp},
-                              {TensorDescCreatorTypes::ncsp},
-                              {TensorDescCreatorTypes::ncsp}},
-                             {{TensorDescCreatorTypes::nCsp16c, precision}},
+        addSupportedPrimDesc({{GeneralLayout::nCsp16c, precision},
+                              {GeneralLayout::ncsp},
+                              {GeneralLayout::ncsp},
+                              {GeneralLayout::ncsp}},
+                             {{GeneralLayout::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
 }
@@ -112,15 +112,15 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const auto layout = getParentEdgeAt(0)->getDesc().getLayout();
-    const bool blocked = layout != NCHW && layout != NCDHW && layout != NHWC && layout != NDHWC;
+    const bool blocked = getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c) ||
+                         getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D  = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (layout == NHWC || layout == NDHWC) {
+    if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -129,9 +129,10 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    const size_t blockSize = blocked ? getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims().back() : 1lu;
-    const size_t blockCountInput = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims()[1];
-    const size_t blockCountOutput = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims()[1];
+    const auto outBlkDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+    const size_t blockSize = blocked ? outBlkDims.back() : 1lu;
+    const size_t blockCountInput = outBlkDims[1];
+    const size_t blockCountOutput = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims()[1];
     const auto blockRemainder = inShape5D[1] % blockSize;
     const auto lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
 
@@ -172,7 +173,7 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
-            if (layout == NHWC || layout == NDHWC) {
+            if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -226,12 +227,13 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
 }
 
 void MKLDNNSpaceToBatchNode::execute(mkldnn::stream strm) {
-    switch (getParentEdgeAt(0)->getDesc().getPrecision().size()) {
+    switch (getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().size()) {
         case 1: SpaceToBatchKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: SpaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
         case 4: SpaceToBatchKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
         default:
-            IE_THROW() << "SpaceToBatch layer does not support precision '" + std::string(getParentEdgeAt(0)->getDesc().getPrecision().name()) + "'";
+            IE_THROW() << "SpaceToBatch layer does not support precision '" + std::string(getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name())
+                          + "'";
     }
 }
 

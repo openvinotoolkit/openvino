@@ -11,7 +11,6 @@
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <utils/general_utils.h>
-#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

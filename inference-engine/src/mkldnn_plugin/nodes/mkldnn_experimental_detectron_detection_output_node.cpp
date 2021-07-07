@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -253,22 +252,22 @@ void MKLDNNExperimentalDetectronDetectionOutputNode::initSupportedPrimitiveDescr
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::I32},
+                          {GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronDetectionOutputNode::execute(mkldnn::stream strm) {
-    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getDims()[0];
-    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getDims()[1]));
-    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getDims()[1]));
+    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getShape().getStaticDims()[0];
+    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getShape().getStaticDims()[1]));
+    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getShape().getStaticDims()[1]));
 
     const auto* boxes = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
     const auto* deltas = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());

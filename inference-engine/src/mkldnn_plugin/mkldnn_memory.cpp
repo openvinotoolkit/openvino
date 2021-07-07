@@ -1100,6 +1100,15 @@ bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
 }
 
 std::string MKLDNNMemoryDesc::serializeFormat() const {
+    if (desc.data.format_kind == dnnl_format_kind_wino) {
+        switch (desc.data.format_desc.wino_desc.wino_format) {
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOIoi: return "wino_aaOIoi";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOio: return "wino_aaOio";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOBiOo: return "wino_aaOBiOo";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_OBaaIBOIio: return "wino_OBaaIBOIio";
+            default: return "wino_undef";
+        }
+    }
     auto fmt = getFormat();
     return mkldnn::utils::fmt2str(fmt);
 }

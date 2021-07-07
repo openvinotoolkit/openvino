@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -141,17 +140,17 @@ void MKLDNNProposalNode::initSupportedPrimitiveDescriptors() {
         return;
 
     if (store_prob) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32}},
+                             {{GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32}},
                              impl_desc_type::ref_any);
     } else {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                              {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                             {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+        addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32},
+                              {GeneralLayout::ncsp, Precision::FP32}},
+                             {{GeneralLayout::ncsp, Precision::FP32}},
                              impl_desc_type::ref_any);
     }
 }
@@ -166,8 +165,8 @@ void MKLDNNProposalNode::execute(mkldnn::stream strm) {
         if (store_prob)
             outProbData = reinterpret_cast <float *>(getChildEdgesAtPort(PROBABILITIES_OUT_IDX)[0]->getMemoryPtr()->GetPtr());
 
-        auto inProbDims = getParentEdgeAt(0)->getDims().ToSizeVector();
-        const size_t imgInfoSize = getParentEdgeAt(2)->getDims()[0];
+        auto inProbDims = getParentEdgeAt(0)->getShape().getStaticDims();
+        const size_t imgInfoSize = getParentEdgeAt(2)->getShape().getStaticDims()[0];
 
         // input image height & width
         const float imgHeight = imgInfoData[0];

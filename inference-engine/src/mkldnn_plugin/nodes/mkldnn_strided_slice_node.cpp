@@ -19,7 +19,6 @@
 #include <algorithm>
 #include "caseless.hpp"
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
 
 #define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 

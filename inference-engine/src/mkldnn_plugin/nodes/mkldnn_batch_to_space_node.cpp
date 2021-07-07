@@ -11,7 +11,6 @@
 #include <mkldnn_selective_build.h>
 #include "mkldnn_batch_to_space_node.h"
 #include <nodes/common/blocked_desc_creator.h>
-#include <cpu_memory_desc_utils.h>
 #include <ngraph/opsets/opset2.hpp>
 
 using namespace MKLDNNPlugin;

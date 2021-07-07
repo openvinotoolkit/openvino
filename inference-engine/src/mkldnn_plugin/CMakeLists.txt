@@ -26,7 +26,6 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/op/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
-#        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
@@ -69,6 +68,36 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_cum_sum_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_math_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_lrn_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_log_softmax_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_detection_output_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_generate_proposals_single_image_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_priorgridgenerator_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_roifeatureextractor_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_topkrois_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_offset_sum_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_packed_sum_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_sum_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_segments_sum_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_space_to_batch_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_grn_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_tree_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_nd_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_elements_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_extract_image_patches_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_dft_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_detection_output_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depth_to_space_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_proposal_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_matmul_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
 )
@@ -82,7 +111,6 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.hpp
 #        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_input_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.h
@@ -125,6 +153,36 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_cum_sum_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_math_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_lrn_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_log_softmax_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_detection_output_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_generate_proposals_single_image_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_priorgridgenerator_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_roifeatureextractor_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_experimental_detectron_topkrois_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_offset_sum_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_packed_sum_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_bag_sum_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_embedding_segments_sum_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_space_to_batch_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_grn_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_tree_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_nd_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gather_elements_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_extract_image_patches_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_dft_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_detection_output_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depth_to_space_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_proposal_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_matmul_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/base.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h

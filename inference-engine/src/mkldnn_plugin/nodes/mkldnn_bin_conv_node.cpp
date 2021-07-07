@@ -19,7 +19,6 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
 
 // WA for xbyak.h
 #ifdef _WIN32

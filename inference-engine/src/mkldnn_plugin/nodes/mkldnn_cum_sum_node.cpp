@@ -12,7 +12,6 @@
 #include "ie_precision.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "mkldnn_cum_sum_node.h"
-#include "cpu_memory_desc_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;

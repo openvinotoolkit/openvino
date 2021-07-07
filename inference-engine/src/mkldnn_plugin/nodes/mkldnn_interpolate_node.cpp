@@ -1829,7 +1829,7 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    srcDim = getParentEdgeAt(DATA_ID)->getDims().ToSizeVector();
+    srcDim = getParentEdgeAt(DATA_ID)->getShape().getStaticDims();
     int dataRank = srcDim.size();
 
     // get pad
@@ -1868,7 +1868,7 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
     } else {
         srcDimPad = srcDim;
     }
-    dstDim = getChildEdgeAt(0)->getDims().ToSizeVector();
+    dstDim = getChildEdgeAt(0)->getShape().getStaticDims();
 }
 
 void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
@@ -1902,7 +1902,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     inputPrec = inputPrecision;
     outputPrec = outputPrecision;
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = false;
     if (isAxesSpecified) {
         config.inConfs.resize(4);
@@ -1916,22 +1916,25 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
     auto pushDesc = [&](memory::format_tag dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), inputDataType, dataFormat);
-        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(TARGET_SHAPE_ID)->getDims(), targetShapeType, memory::format_tag::x);
-        config.inConfs[SCALES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(SCALES_ID)->getDims(), scalesType, memory::format_tag::x);
+        config.inConfs[DATA_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(), inputDataType, dataFormat);
+        config.inConfs[TARGET_SHAPE_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticMklDims(),
+                                                                             targetShapeType, memory::format_tag::x);
+        config.inConfs[SCALES_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticMklDims(), scalesType,
+                                                                       memory::format_tag::x);
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXES_ID)->getDims(), axesType, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, dataFormat);
-        supportedPrimitiveDescriptors.push_back({config, implDetail, dataFormat});
+            config.inConfs[AXES_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticMklDims(), axesType,
+                                                                         memory::format_tag::x);
+        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, dataFormat);
+        supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 
-    auto channels = getParentEdgeAt(DATA_ID)->getDims().ndims() > 1 ? getParentEdgeAt(DATA_ID)->getDims()[1] : 1;
+    auto channels = getParentEdgeAt(DATA_ID)->getShape().getRank() > 1 ? getParentEdgeAt(DATA_ID)->getShape().getStaticDims()[1] : 1;
 
     if (!mayiuse(cpu::x64::sse41) || mode == InterpolateMode::linear) {
-        pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
+        pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), ref);
     } else {
         // blk and by_channel JIT kernel on sse41 or above machine
-        if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
+        if (getParentEdgeAt(DATA_ID)->getShape().getRank() == 4) {
             if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::nhwc, jit_avx512);
                 if (channels != 1)
@@ -1945,7 +1948,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
                 if (channels != 1)
                     pushDesc(memory::format_tag::nChw8c, jit_sse42);
             }
-        } else if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 5 && mode != InterpolateMode::cubic) {
+        } else if (getParentEdgeAt(DATA_ID)->getShape().getRank() == 5 && mode != InterpolateMode::cubic) {
             if (mayiuse(cpu::x64::avx512_common)) {
                 pushDesc(memory::format_tag::ndhwc, jit_avx512);
                 if (channels != 1)
@@ -1963,7 +1966,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
 
         // planar for 1.ref on machine without sse41(if no sse41, canFuse() is false). 2.JIT kernel for f32 && avx2(gather).(with fuse)
         if (mayiuse(cpu::x64::avx2) && inputPrec == Precision::FP32) {
-            pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), jit_avx2);
+            pushDesc(MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(DATA_ID)->getShape().getRank()), jit_avx2);
         }
     }
 }
@@ -1989,11 +1992,10 @@ void MKLDNNInterpolateNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
-    jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc.getPrecision());
-    jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc.getPrecision());
+    jcp.src_dt = getParentEdgeAt(0)->getMemory().GetDataType();
+    jcp.dst_dt = getChildEdgeAt(0)->getMemory().GetDataType();
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
     jcp.indices_size = sizeof(int);
@@ -2008,9 +2010,10 @@ void MKLDNNInterpolateNode::createPrimitive() {
     jcp.ID = srcDimPad5d[2];
     jcp.spatial_dim_size = spatialDimSize;
 
-    if (getChildEdgeAt(0)->getMemory().GetDesc().isPlainFormat()) {
+    if (getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp)) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if (getChildEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+    } else if (getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c) ||
+               getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c)) {
         jcp.layout = InterpolateLayoutType::block;
     } else {
         jcp.layout = InterpolateLayoutType::by_channel;
