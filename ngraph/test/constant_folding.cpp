@@ -567,16 +567,11 @@ TEST(constant_folding, shape_of_dynamic_v0)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
+    ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_as_concat =
-        as_type_ptr<op::Concat>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(result_as_concat);
-    ASSERT_EQ(result_as_concat->get_friendly_name(), "test");
-    ASSERT_EQ(result_as_concat->get_output_shape(0), Shape{7});
+    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_EQ(result_shape_of, shape_of);
+    ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
 TEST(constant_folding, shape_of_dynamic_v3)
@@ -592,17 +587,11 @@ TEST(constant_folding, shape_of_dynamic_v3)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
+    ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_as_concat =
-        as_type_ptr<op::Concat>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(result_as_concat);
-    ASSERT_EQ(result_as_concat->get_friendly_name(), "test");
-    ASSERT_EQ(result_as_concat->get_output_shape(0), Shape{7});
-    ASSERT_EQ(result_as_concat->get_output_element_type(0), element::i64);
+    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_EQ(result_shape_of, shape_of);
+    ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
 TEST(constant_folding, shape_of_dynamic_i32_v3)
@@ -618,17 +607,11 @@ TEST(constant_folding, shape_of_dynamic_i32_v3)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
+    ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_as_concat =
-        as_type_ptr<op::Concat>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(result_as_concat);
-    ASSERT_EQ(result_as_concat->get_friendly_name(), "test");
-    ASSERT_EQ(result_as_concat->get_output_shape(0), Shape{7});
-    ASSERT_EQ(result_as_concat->get_output_element_type(0), element::i32);
+    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_EQ(result_shape_of, shape_of);
+    ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
 // We need to be sure that constant folding won't be calculated endlessly.
@@ -646,16 +629,11 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v0)
     pass_manager.run_passes(f);
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
+    ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_as_concat =
-        as_type_ptr<op::Concat>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(result_as_concat);
-    ASSERT_EQ(result_as_concat->get_friendly_name(), "test");
-    ASSERT_EQ(result_as_concat->get_output_shape(0), Shape{7});
+    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_EQ(result_shape_of, shape_of);
+    ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
 TEST(constant_folding, shape_of_dynamic_double_folding_v3)
@@ -672,16 +650,11 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v3)
     pass_manager.run_passes(f);
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 8);
+    ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_as_concat =
-        as_type_ptr<op::Concat>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(result_as_concat);
-    ASSERT_EQ(result_as_concat->get_friendly_name(), "test");
-    ASSERT_EQ(result_as_concat->get_output_shape(0), Shape{7});
+    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    ASSERT_EQ(result_shape_of, shape_of);
+    ASSERT_EQ(result_shape_of->get_friendly_name(), "test");
 }
 
 // Constant folding will not succeed on ShapeOf if the argument rank is dynamic.

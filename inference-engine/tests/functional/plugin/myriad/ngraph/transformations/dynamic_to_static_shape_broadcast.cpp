@@ -74,7 +74,6 @@ protected:
         const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, targetShape);
 
         const auto shapeOfNode = std::make_shared<ngraph::opset3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
-        shapeOfNode->set_is_foldable(false);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
@@ -197,7 +196,6 @@ protected:
         const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset5::Parameter>(shapeType, targetShape);
 
         const auto shapeOfNode = std::make_shared<ngraph::opset5::ShapeOf>(tensorWithTargetShapeParam, shapeType);
-        shapeOfNode->set_is_foldable(false);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
