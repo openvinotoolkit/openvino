@@ -10,7 +10,6 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include "utils/debug_capabilities.h"
-#include "cpu_memory_desc_utils.h"
 #include <vector>
 #include <string>
 #include <memory>

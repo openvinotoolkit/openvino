@@ -13,7 +13,6 @@
 #include "ie_parallel.hpp"
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
-#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;

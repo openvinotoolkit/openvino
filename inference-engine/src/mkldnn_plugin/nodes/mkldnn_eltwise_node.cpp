@@ -29,7 +29,6 @@
 #include "ngraph_transformations/op/power_static.hpp"
 #include "ngraph_transformations/op/leaky_relu.hpp"
 #include "ngraph_transformations/op/swish_cpu.hpp"
-#include <cpu_memory_desc_utils.h>
 
 #include <string>
 #include <vector>

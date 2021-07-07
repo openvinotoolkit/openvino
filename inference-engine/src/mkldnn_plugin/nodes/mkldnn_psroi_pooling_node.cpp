@@ -13,7 +13,6 @@
 #include "mkldnn_psroi_pooling_node.h"
 #include <cpu/x64/jit_generator.hpp>
 #include <nodes/common/blocked_desc_creator.h>
-#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;

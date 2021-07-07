@@ -13,7 +13,6 @@
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;

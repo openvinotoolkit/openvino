@@ -253,7 +253,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
 
     size_t maxCount = 0;
     auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
-    GeneralLayout convertTo;
+    GeneralLayout convertTo = GeneralLayout::ncsp;
     for (auto &it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;

@@ -112,15 +112,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     effective_pad_begin = data_pad_begin;
     effective_pad_end.resize(data_pad_end.size());
 
-    auto parentDims = getParentEdgeAt(0)->getDims();
-    auto childDims = getChildEdgeAt(0)->getDims();
-    if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
+    auto parentDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
+    auto childDims = getChildEdgeAt(0)->getShape().getStaticMklDims();
+    const size_t inputRank = getParentEdgeAt(0)->getShape().getRank();
+
+    if ((inputRank < 4) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
     for (int i = 0; i < effective_pad_end.size(); i++) {
         int krn = kernel[i];
-        int src = getParentEdgeAt(0)->getDims()[2 + i];
-        int dst = getChildEdgeAt(0)->getDims()[2 + i];
+        int src = getParentEdgeAt(0)->getShape().getStaticDims()[2 + i];
+        int dst = getChildEdgeAt(0)->getShape().getStaticDims()[2 + i];
 
         int calc_dst = (src - krn + data_pad_begin[i]) / stride[i] + 1;
         effective_pad_end[i] = (dst - calc_dst) * stride[i];
@@ -130,24 +132,28 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
-        createDescriptor({ in_candidate }, { out_candidate });
-    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
+        const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+                                                                 memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+                                                                 memory::format_tag::ndhwc : memory::format_tag::nhwc);
+        createDescriptor({ in_candidate.get() }, { out_candidate.get() });
+    } else if ((inputRank == 4 || inputRank == 5) && parentDims[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
-        createDescriptor({ in_candidate }, { out_candidate });
+        const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+                                                                memory::format_tag::ncdhw : memory::format_tag::nchw);
+        const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+                                                                memory::format_tag::ncdhw : memory::format_tag::nchw);
+        createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else {
         if (inputDataType != memory::data_type::bf16) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }
         // It doesn't support any format
-        for (auto format : getAvailableFormatsForDims(parentDims)) {
-            MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};
-            MKLDNNMemoryDesc out_candidate{childDims, outputDataType, format};
-            createDescriptor({in_candidate}, {out_candidate});
+        for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
+            const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, format);
+            const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, format);
+            createDescriptor({in_candidate.get()}, {out_candidate.get()});
         }
     }
 }
@@ -172,10 +178,10 @@ bool MKLDNNPoolingNode::created() const {
     return getType() == Pooling;
 }
 
-void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
-                                         const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    MKLDNNMemoryDesc in_candidate(inputDesc[0]);
-    MKLDNNMemoryDesc out_candidate(outputDesc[0]);
+void MKLDNNPoolingNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
+                                         const std::vector<const MemoryDesc*> &outputDesc) {
+    MKLDNNMemoryDesc in_candidate = *inputDesc[0]->as<MKLDNNMemoryDesc>();
+    MKLDNNMemoryDesc out_candidate = *outputDesc[0]->as<MKLDNNMemoryDesc>();
 
     mkldnn::algorithm alg;
     if (algorithm == PoolingAvg) {
@@ -240,21 +246,25 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
     for (auto& desc : descs) {
         auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
         while (static_cast<bool>(itpd)) {
-            InferenceEngine::LayerConfig config;
+            NodeConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
+                PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getSrcMemDesc(itpd, i));
+                // TODO [DS]: inPlace
+                // dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getSrcMemDesc(itpd, i));
+                dataConfig.desc = getSrcMemDesc(itpd, i);
                 config.inConfs.push_back(dataConfig);
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
+                PortConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
+                // TODO [DS]: inPlace
+                // dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
+                dataConfig.desc = getDstMemDesc(itpd, i);
                 config.outConfs.push_back(dataConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -266,23 +276,23 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
+void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         return;
     }
-    std::vector<InferenceEngine::TensorDesc> inDescs;
+    std::vector<const MemoryDesc*> inDescs;
     for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.desc);
-    std::vector<InferenceEngine::TensorDesc> outDescs;
+        inDescs.push_back(inConf.desc.get());
+    std::vector<const MemoryDesc*> outDescs;
     for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.desc);
+        outDescs.push_back(outConf.desc.get());
     createDescriptor({inDescs}, {outDescs});
 
     mkldnn::primitive_attr attr;
     setPostOps(attr);
 
-    InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
+    NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         const auto &desc = descs[j];
@@ -291,10 +301,10 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
         itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
 
         while (itpd) {
-            InferenceEngine::LayerConfig cfg;
+            NodeConfig cfg;
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
+                PortConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getSrcMemDesc(itpd, i);
@@ -302,7 +312,7 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
             }
 
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                InferenceEngine::DataConfig dataConfig;
+                PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
                 dataConfig.desc = getDstMemDesc(itpd, i);
@@ -332,20 +342,18 @@ void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &confi
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (selectedConfig.inConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
-                !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.inConfs[i].desc, config.inConfs[i].desc))
+            if (!selectedConfig.inConfs[i].desc->isCompatible(*config.inConfs[i].desc))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (selectedConfig.outConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
-                !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.outConfs[i].desc, config.outConfs[i].desc))
+            if (!selectedConfig.outConfs[i].desc->isCompatible(*config.outConfs[i].desc))
                 IE_THROW() << "Incorrect descriptor for node: " << getName();
         }
         rightConfig = config;
     }
 
-    selectedPD->getConfig() = rightConfig;
+    selectedPD->setConfig(rightConfig);
 }
 
 void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {

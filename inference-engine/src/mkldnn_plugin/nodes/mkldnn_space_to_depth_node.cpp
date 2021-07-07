@@ -9,7 +9,6 @@
 #include "common/blocked_desc_creator.h"
 #include <utils/general_utils.h>
 #include <ngraph/opsets/opset1.hpp>
-#include <cpu_memory_desc_utils.h>
 
 #include <string>
 #include <cmath>

@@ -11,7 +11,6 @@
 
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
-#include <cpu_memory_desc_utils.h>
 
 #include <string>
 #include <cmath>

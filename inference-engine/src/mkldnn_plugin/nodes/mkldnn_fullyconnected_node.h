@@ -47,6 +47,9 @@ protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
 
 private:
+    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
+                                  const mkldnn::memory::desc &outputDesc);
+
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
 

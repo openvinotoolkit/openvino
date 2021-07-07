@@ -21,7 +21,6 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
-#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;

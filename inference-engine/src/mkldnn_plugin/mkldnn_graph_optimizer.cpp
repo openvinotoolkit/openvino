@@ -1200,10 +1200,8 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
         }
         if (!childNode->getFusedWith().empty())
             return false;
-        // TODO [mkutako]: uncomment
-//        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
-//        return interpolateNode->canFuse(childNode);
-          return false;
+        auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        return interpolateNode->canFuse(childNode);
     };
 
     auto parent = graphNodes.begin();
