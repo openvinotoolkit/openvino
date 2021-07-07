@@ -3,7 +3,6 @@
 #
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(ONNX_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -23,14 +22,7 @@ add_clang_format_target(onnx_ngraph_frontend_clang FOR_TARGETS onnx_ngraph_front
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME onnx_ngraph_frontend
-                           FILEDESCRIPTION "nGraph ONNX importer library")
-endif()
-
-if(COMMAND ie_faster_build)
-    ie_faster_build(onnx_ngraph_frontend
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
+                           FILEDESCRIPTION "nGraph ONNX frontend library")
 endif()
 
 target_link_libraries(onnx_ngraph_frontend PRIVATE onnx_editor onnx_importer frontend_manager)
