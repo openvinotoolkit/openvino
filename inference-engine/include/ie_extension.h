@@ -133,6 +133,13 @@ inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
 class INFERENCE_ENGINE_API_CLASS(NewExtension) {
 public:
     using Ptr = std::shared_ptr<NewExtension>;
+
+    virtual ~NewExtension() = default;
+};
+
+class INFERENCE_ENGINE_API_CLASS(OpsetExtension): public NewExtension {
+public:
+    virtual std::map<std::string, ngraph::OpSet> getOpSets() = 0;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ExtensionContainer) {
