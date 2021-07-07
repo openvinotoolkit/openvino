@@ -34,7 +34,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, tan)
+NGRAPH_TEST(${BACKEND_NAME}, tan_float)
 {
     Shape shape{11};
     auto A = make_shared<op::Parameter>(element::f32, shape);
@@ -61,4 +61,25 @@ NGRAPH_TEST(${BACKEND_NAME}, tan)
                                                 1.15782128f,
                                                 -1.15782128f},
                                   read_vector<float>(result)));
+}
+
+
+NGRAPH_TEST(${BACKEND_NAME}, tan_int32)
+{
+    Shape shape{5};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Tan>(A), ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::i32, shape);
+    vector<int32_t> input{-2, -1, 0, 1, 2};
+    copy_data(a, input);
+    auto result = backend->create_tensor(element::i32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    vector<int32_t> expected{2, -2, 0, 2, -2};
+    EXPECT_EQ(expected, read_vector<int32_t>(result));
 }

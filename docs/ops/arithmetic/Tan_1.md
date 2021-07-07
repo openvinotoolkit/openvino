@@ -6,31 +6,28 @@
 
 **Short description**: *Tan* performs element-wise tangent operation with given tensor.
 
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: An tensor of type *T*. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise tan operation. A tensor of type *T*.
-
-**Types**
-
-* *T*: any numeric type.
-
-*Tan* does the following with the input tensor *a*:
+**Detailed description**:  Operation takes one input tensor and performs the element-wise tangent function on a given input tensor, based on the following mathematical formula:
 
 \f[
 a_{i} = tan(a_{i})
 \f]
 
-**Examples**
+**Attributes**: *tan*  operation has no attributes.
 
-*Example 1*
+**Inputs**
+
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *tan* applied to the input tensor. A tensor of type *T* and same shape as the input tensor.
+
+**Types**
+
+* *T*: any supported numeric type.
+
+
+**Examples**
 
 ```xml
 <layer ... type="Tan">

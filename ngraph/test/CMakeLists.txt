@@ -221,6 +221,7 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
+    type_prop/tan.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -335,6 +336,7 @@ set(SRC
     visitors/op/strided_slice.cpp
     visitors/op/subtract.cpp
     visitors/op/swish.cpp
+    visitors/op/tan.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
