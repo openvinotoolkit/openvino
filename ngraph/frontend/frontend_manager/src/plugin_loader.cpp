@@ -80,9 +80,7 @@ std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_na
             continue;
         }
 
-        PluginHandle guard([shared_object, file]() {
-            DLCLOSE(shared_object);
-        });
+        PluginHandle guard([shared_object, file]() { DLCLOSE(shared_object); });
 
         auto info_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetAPIVersion"));
         if (!info_addr)

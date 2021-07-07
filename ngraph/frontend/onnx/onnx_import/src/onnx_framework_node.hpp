@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <core/graph.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/visibility.hpp>
 #include <ngraph_ops/framework_node.hpp>
-#include <core/graph.hpp>
 #include <onnx_import/core/node.hpp>
 
 namespace ONNX_NAMESPACE
@@ -43,14 +43,17 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node)
+            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                              const onnx_import::Node& node)
                 : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size())
                 , m_node(node)
                 , m_graph(graph)
             {
             }
 
-            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node, const OutputVector& inputs)
+            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                              const onnx_import::Node& node,
+                              const OutputVector& inputs)
                 : FrameworkNode(inputs, node.get_outputs_size())
                 , m_node(node)
                 , m_graph(graph)
@@ -92,15 +95,14 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node, const OutputVector& inputs)
+            ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                                      const onnx_import::Node& node,
+                                      const OutputVector& inputs)
                 : ONNXFrameworkNode(graph, node, inputs)
             {
             }
 
-            void infer_inputs_from_parent()
-            {
-                m_node.get_subgraph()->infer_inputs_from_parent();
-            }
+            void infer_inputs_from_parent() { m_node.get_subgraph()->infer_inputs_from_parent(); }
 
             std::shared_ptr<Function> get_subgraph_body() const
             {

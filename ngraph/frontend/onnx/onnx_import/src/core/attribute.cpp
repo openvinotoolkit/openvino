@@ -4,8 +4,8 @@
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
-#include "onnx_import/core/model.hpp"
 #include "ngraph/log.hpp"
+#include "onnx_import/core/model.hpp"
 
 namespace ngraph
 {

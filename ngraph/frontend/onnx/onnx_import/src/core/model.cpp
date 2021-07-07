@@ -4,9 +4,9 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "onnx_import/core/model.hpp"
 #include "ngraph/log.hpp"
 #include "onnx_framework_node.hpp"
+#include "onnx_import/core/model.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph

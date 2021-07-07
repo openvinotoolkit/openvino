@@ -7,16 +7,16 @@
 #include <numeric>
 #include <sstream>
 
-#include "default_opset.hpp"
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "core/value_info.hpp"
+#include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
-#include "onnx_import/core/node.hpp"
 #include "onnx_framework_node.hpp"
+#include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 #include "utils/provenance_tag.hpp"
 
@@ -54,8 +54,8 @@ namespace ngraph
                 return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
             }
 
-            void add_provenance_tag_to_initializer(
-                const Tensor& tensor, std::shared_ptr<default_opset::Constant> node)
+            void add_provenance_tag_to_initializer(const Tensor& tensor,
+                                                   std::shared_ptr<default_opset::Constant> node)
             {
                 if (!ngraph::get_provenance_enabled())
                 {
@@ -82,8 +82,7 @@ namespace ngraph
                 node->add_provenance_tag(tag);
             }
 
-            void add_provenance_tags(const Node& onnx_node,
-                                     const OutputVector& ng_node_vector)
+            void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector)
             {
                 if (!ngraph::get_provenance_enabled())
                 {
@@ -95,7 +94,9 @@ namespace ngraph
 
                 ngraph::traverse_nodes(
                     as_node_vector(ng_node_vector),
-                    [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
+                    [&tag](std::shared_ptr<ngraph::Node> ng_node) {
+                        ng_node->add_provenance_tag(tag);
+                    },
                     as_node_vector(ng_inputs));
             }
         } // namespace detail
@@ -105,7 +106,8 @@ namespace ngraph
         {
         }
 
-        Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::unique_ptr<GraphCache>&& cache)
+        Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                     std::unique_ptr<GraphCache>&& cache)
             : m_model{common::make_unique<Model>(model_proto)}
             , m_cache{std::move(cache)}
         {
@@ -220,10 +222,12 @@ namespace ngraph
                 {
                     const auto& name = (*param_it)->get_friendly_name();
                     const auto& onnx_outputs = m_model->get_graph().output();
-                    auto out_it = std::find_if(onnx_outputs.begin(), onnx_outputs.end(),
-                                               [&name] (const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
-                                                   return output.name() == name;
-                                               });
+                    auto out_it =
+                        std::find_if(onnx_outputs.begin(),
+                                     onnx_outputs.end(),
+                                     [&name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
+                                         return output.name() == name;
+                                     });
                     if (out_it == onnx_outputs.end())
                     {
                         m_cache->remove_node(name);
@@ -256,12 +260,13 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     for (const auto& input : subgraph->get_inputs_from_parent())
                         inputs.push_back(input);
-                    framework_node =
-                        std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(shared_from_this(), node, inputs);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(
+                        shared_from_this(), node, inputs);
                 }
                 else
                 {
-                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(shared_from_this(), node);
+                    framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(
+                        shared_from_this(), node);
                 }
                 OutputVector ng_nodes{framework_node->outputs()};
                 set_friendly_names(node, ng_nodes);
@@ -379,7 +384,8 @@ namespace ngraph
             return m_model->get_opset_imports();
         }
 
-        Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph& parent_graph)
+        Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                           const Graph& parent_graph)
             : Graph(model_proto, common::make_unique<GraphCache>())
             , m_parent_graph_cache(&parent_graph.get_graph_cache())
         {

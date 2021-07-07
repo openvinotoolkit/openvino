@@ -91,23 +91,26 @@ namespace ngraph
                 return function;
             }
 
-            void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path)
+            void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto,
+                                       const std::string& model_path)
             {
                 transform::expand_onnx_functions(model_proto);
                 transform::fixup_legacy_operators(model_proto);
                 transform::update_external_data_paths(model_proto, model_path);
             }
 
-            std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                        const std::string& model_path)
+            std::shared_ptr<Function>
+                import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                  const std::string& model_path)
             {
                 apply_transformations(*model_proto, model_path);
                 Graph graph{model_proto};
                 return graph.convert();
             }
 
-            std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                                const std::string& model_path)
+            std::shared_ptr<Function>
+                decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                          const std::string& model_path)
             {
                 apply_transformations(*model_proto, model_path);
                 auto graph = std::make_shared<Graph>(model_proto);

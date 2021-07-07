@@ -205,8 +205,9 @@ Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::str
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
 }
 
-Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
-                                                                   int output_port_index)
+Place::Ptr
+    InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                            int output_port_index)
 {
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
 }

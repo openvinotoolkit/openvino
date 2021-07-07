@@ -19,7 +19,8 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(stream));
+            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(
+                onnx_common::parse_from_istream(stream));
             return detail::import_onnx_model(model_proto, model_path);
         }
 

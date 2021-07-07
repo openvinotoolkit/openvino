@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/op/parameter.hpp"
 #include "core/graph_cache.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/core/operator_set.hpp"
 
@@ -41,7 +41,8 @@ namespace ngraph
             virtual ~Graph() = default;
 
         protected:
-            Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, std::unique_ptr<GraphCache>&& cache);
+            Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model,
+                  std::unique_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node,
                                     const OutputVector& ng_node_vector) const;

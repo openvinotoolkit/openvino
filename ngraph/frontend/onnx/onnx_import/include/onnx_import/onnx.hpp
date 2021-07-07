@@ -73,7 +73,8 @@ namespace ngraph
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
 
-        /// \brief     Converts a nGraph function (onnx model decoded to function with ONNXFrameworkNode(s))
+        /// \brief     Converts a nGraph function (onnx model decoded to function with
+        /// ONNXFrameworkNode(s))
         ///            to a complete function with actual compute operations
         ///
         /// \return    A nGraph function.

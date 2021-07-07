@@ -131,8 +131,8 @@ namespace ngraph
 
             /// \brief Get an operation node place that immediately produces data for this place
             ///
-            /// \param input_port_index If a given place is itself an operation node, this specifies a
-            /// port index
+            /// \param input_port_index If a given place is itself an operation node, this specifies
+            /// a port index
             ///
             /// \return An operation place that produces data for this place
             virtual Ptr get_producing_operation(int input_port_index) const;
@@ -200,7 +200,8 @@ namespace ngraph
             /// \param output_port_index Output port index
             ///
             /// \return Appropriate output port place
-            virtual Ptr get_output_port(const std::string& output_name, int output_port_index) const;
+            virtual Ptr get_output_port(const std::string& output_name,
+                                        int output_port_index) const;
 
             /// \brief Returns all input ports that consume data flows through this place
             virtual std::vector<Place::Ptr> get_consuming_ports() const;
