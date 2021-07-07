@@ -4,20 +4,25 @@
 
 **Category**: *Data movement*
 
-**Short description**: The *BatchToSpace* operation reshapes the "batch" dimension 0 into N - 1 dimensions of shape `block_shape` + [batch] and interleaves these blocks back into the grid defined by the spatial dimensions `[1, ..., N - 1]` to obtain a result with the same rank as `data` input. The spatial dimensions of this intermediate result are then optionally cropped according to `crops_begin` and `crops_end` to produce the output.
+**Short description**: *BatchToSpace* operation permutes the batch dimension on a given input `data` into blocks in the spatial dimensions specified by `block_shape` input. The spatial dimensions are then optionally cropped according to `crops_begin` and `crops_end` inputs to produce the output.
 
 **Detailed description**
 
-The operation is equivalent to the following transformation of the input tensor `data` with shape `[batch, D_1, D_2, ..., D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` of shape `[N]` to *y* output tensor.
+*BatchToSpace* operation is equivalent to the following operation steps on the input `data` with shape `[batch, D_1, D_2, ..., D_{N-1}]` and `block_shape`, `crops_begin`, `crops_end` inputs with shape `[N]` to produce the output tensor \f$y\f$.
 
-\f[x' = reshape(data, [B_1, \dots, B_{N - 1}, \frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1, D_2, \dots, D_{N - 1}])\f]
-\f[x'' = transpose(x', [N, N + 1, 0, N + 2, 1, \dots, N + N - 1, N - 1])\f]
-\f[x''' = reshape(x'', [\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, \dots, D_{N - 1} \times B_{N - 1}])\f]
+1. Reshape `data` input to produce a tensor of shape \f$[B_1, \dots, B_{N - 1}, \frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1, D_2, \dots, D_{N - 1}]\f$
+\f[x^{\prime} = reshape(data, [B_1, \dots, B_{N - 1}, \frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1, D_2, \dots, D_{N - 1}])\f]
 
-Crop the start and end of dimensions according to `crops_begin` and `crops_end` inputs to produce the output of shape:
-\f[shape_y = [\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, crop(D_1 \times B_1, CB_1, CE_1), crop(D_2 \times B_2, CB_2, CE_2), \dots , crop(D_{N - 1} \times B_{N - 1}, CB_{N - 1}, CE_{N - 1})]\f]
+2. Permute dimensions of \f$x^{\prime}\f$ to produce a tensor of shape \f$[\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1, B_1, D_2, B_2, \dots, D_{N-1}, B_{N - 1}]\f$
+\f[x^{\prime\prime} = transpose(x', [N, N + 1, 0, N + 2, 1, \dots, N + N - 1, N - 1])\f]
 
-where
+3. Reshape \f$x^{\prime\prime}\f$ to produce a tensor of shape \f$[\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, \dots, D_{N - 1} \times B_{N - 1}]\f$
+\f[x^{\prime\prime\prime} = reshape(x^{\prime\prime}, [\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, D_1 \times B_1, D_2 \times B_2, \dots, D_{N - 1} \times B_{N - 1}])\f]
+
+4. Crop the start and end of spatial dimensions of \f$x^{\prime\prime\prime}\f$ according to `crops_begin` and `crops_end` inputs to produce the output \f$y\f$ of shape:
+\f[\left[\frac{batch}{\left(B_1 \times \dots \times B_{N - 1}\right)}, crop(D_1 \times B_1, CB_1, CE_1), crop(D_2 \times B_2, CB_2, CE_2), \dots , crop(D_{N - 1} \times B_{N - 1}, CB_{N - 1}, CE_{N - 1})\right]\f]
+
+Where
 
 - \f$B_i\f$ = block_shape[i]
 - \f$B_0\f$ is expected to be 1
