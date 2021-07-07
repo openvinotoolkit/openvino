@@ -190,3 +190,4 @@ inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::P
 }
 
 }  // namespace InferenceEngine
+
