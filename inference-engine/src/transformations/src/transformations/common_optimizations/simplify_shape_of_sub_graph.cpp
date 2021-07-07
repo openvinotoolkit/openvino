@@ -51,16 +51,15 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto concat = m.get_match_root();
-        OutputVector inputs = concat->input_values(), new_inputs;
+        OutputVector inputs = concat->input_values();
         NodeVector new_ops;
-        for (size_t i = 1; i < inputs.size(); ++i) {
-            auto curr = inputs[i - 1].get_node_shared_ptr(), next = inputs[i].get_node_shared_ptr();
+        size_t i = 0, original_inputs_size = inputs.size();
+        while (inputs.size() > i + 1) {
+            auto curr = inputs[i].get_node_shared_ptr(), next = inputs[i + 1].get_node_shared_ptr();
             if (curr->get_type_info() != next->get_type_info() ||
                 (!is_type<opset1::Gather>(curr) && !is_type<opset7::Gather>(curr)) ||
                 (curr->input_value(0) != next->input_value(0))) {
-                new_inputs.push_back(inputs[i - 1]);
-                if (i == inputs.size() - 1)
-                    new_inputs.push_back(inputs[i]);
+                ++i;
                 continue;
             } // curr and next are the same type of gather which takes data from the same source
             auto joint_indices = ngraph::op::util::make_try_fold<opset1::Concat>(OutputVector{curr->input_value(1), next->input_value(1)}, 0);
@@ -68,12 +67,11 @@ ngraph::pass::GroupedGatherElimination::GroupedGatherElimination() {
                     {curr->input_value(0), joint_indices, ngraph::opset1::Constant::create(element::i64, {}, {0})});
             new_ops.push_back(joint_indices);
             new_ops.push_back(new_gather);
-            new_inputs.push_back(new_gather->output(0));
-            ++i;
+            inputs.erase(inputs.begin() + i);
+            inputs[i] = new_gather->output(0);
         }
-
-        if (!new_inputs.empty() && new_inputs.size() < inputs.size()) {
-            auto new_concat = std::make_shared<opset1::Concat>(new_inputs, 0);
+        if (original_inputs_size > inputs.size()) {
+            auto new_concat = std::make_shared<opset1::Concat>(inputs, 0);
             new_ops.push_back(new_concat);
             new_concat->set_friendly_name(concat->get_friendly_name());
             ngraph::copy_runtime_info(concat, new_ops);
