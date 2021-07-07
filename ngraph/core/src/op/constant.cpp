@@ -38,7 +38,7 @@ static inline string to_cpp_string(T value)
     return rc;
 }
 
-constexpr NodeTypeInfo op::Constant::type_info;
+NGRAPH_RTTI_DEFINITION(op::Constant, "Constant", 0);
 
 op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor)
     : Constant(tensor->get_element_type(), tensor->get_shape())
