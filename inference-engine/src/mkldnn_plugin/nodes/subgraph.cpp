@@ -89,7 +89,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         return false;
     };
 
-    auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
+    auto initDesc = [&] (LayoutType lt, bool InPlaceAllowed) -> PrimitiveDescInfo {
         auto div_up = [](const int a, const int b) -> int {
             if (!b)
                 return 0;
@@ -140,7 +140,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 
         for (auto k = 0; k < this->inDims.size(); k++) {
             InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = (!k && canBeInPlace() && inputPrecisions[k] == Precision(Precision::FP32)) ? 0 : -1;
+            dataConfig.inPlace = (!k && InPlaceAllowed && canBeInPlace() && inputPrecisions[k] == Precision(Precision::FP32)) ? 0 : -1;
             dataConfig.constant = false;
 
             dataConfig.desc = createMemoryDesc(getParentEdgesAtPort(k)[0], /*inputPrecisions[i]*/Precision(Precision::FP32), offset);
@@ -178,15 +178,43 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(j)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
         }
     }
-
+    auto support_layout = [&](LayoutType layoutType){
+        supportedPrimitiveDescriptors.emplace_back(initDesc(layoutType, true));
+        auto inConf = supportedPrimitiveDescriptors.back().getConfig().inConfs[0];
+        if (inConf.inPlace >= 0)
+            supportedPrimitiveDescriptors.emplace_back(initDesc(layoutType, false));
+    };
     if (isChannelsFirstApplicable)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+        support_layout(ChannelsFirst);
     if (isBlockedApplicable && !hasBroadcastByC())
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
-    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+        support_layout(Blocked);
+    support_layout(Planar);
 }
 
 void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
+    bool hasInplaceParents = false;
+    // Only zero port could be inPlace by construction => check only its parents
+    for (const auto& parentEdge : getParentEdgesAtPort(0)) {
+        auto parent = parentEdge->getParent();
+        auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
+        if (parent_pdesc == nullptr)
+            continue;
+        const auto &parent_config = parent_pdesc->getConfig();
+        int outputIndex = parentEdge->getInputNum();
+        if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
+            IE_THROW() << "Cannot find index of output node";
+        if (parent_config.outConfs[outputIndex].inPlace >= 0) {
+            hasInplaceParents = true;
+            break;
+        }
+    }
+    // remove inplace PDs if at least one parent is inplace => avoid inplace conflict reorder insertion
+    auto begin = supportedPrimitiveDescriptors.begin();
+    auto end = supportedPrimitiveDescriptors.end();
+    auto remove_from = std::remove_if(begin, end, [=](PrimitiveDescInfo& d){
+        return ( (d.getConfig().inConfs[0].inPlace >= 0) == hasInplaceParents );
+    });
+    supportedPrimitiveDescriptors.erase(remove_from, end);
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
