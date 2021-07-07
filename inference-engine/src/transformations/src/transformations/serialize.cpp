@@ -536,6 +536,18 @@ std::string get_precision_name(const ngraph::element::Type & elem_type) {
     }
 }
 
+std::string escape_delim(const std::string& name, const char delim = ',') {
+    std::string result_name = name;
+    const std::string escaped_delim = std::string("\\") + delim;
+    size_t index = result_name.find(delim, 0);
+    while (index != std::string::npos) {
+        result_name.replace(index, 1, escaped_delim);
+        index = result_name.find(delim, index + 2);
+    }
+    return result_name;
+}
+
+
 std::string generate_unique_name(
     const std::unordered_set<std::string>& unique_names, std::string base_name,
     int suffix) {
@@ -728,8 +740,8 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
-                    .set_value(get_output_precision_name(o).c_str());
-                
+                    .set_value(get_precision_name(o.get_element_type()).c_str());
+
                 // Sort tensor names
                 const auto & tensor_names = o.get_tensor().get_names();
                 std::vector<std::string> vector_names(tensor_names.begin(), tensor_names.end());
@@ -744,7 +756,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 if (!names.empty()) {
                     port.append_attribute("names").set_value(names.c_str());
                 }
-                
+
                 for (auto d : std::vector<Dimension>(o.get_partial_shape())) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)

@@ -24,6 +24,19 @@
 #include "graph.pb.h"
 
 #include "../include/tensorflow_frontend/tensorflow.hpp"
+#include <frontend_manager/frontend_manager.hpp>
 
 #include "ngraph_builder.h"
 
+extern "C" NGRAPH_HELPER_DLL_EXPORT ngraph::frontend::FrontEndVersion GetAPIVersion()
+{
+    return OV_FRONTEND_API_VERSION;
+}
+
+extern "C" NGRAPH_HELPER_DLL_EXPORT void* GetFrontEndData()
+{
+    auto res = new ngraph::frontend::FrontEndPluginInfo();
+    res->m_name = "tensorflow";
+    res->m_creator = [](ngraph::frontend::FrontEndCapFlags) { return std::make_shared<ngraph::frontend::FrontEndTensorflow>(); };
+    return res;
+}

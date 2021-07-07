@@ -18,7 +18,7 @@
 
 // TODO: include it by just frontend_manager.hpp without path
 //#include "../../include/frontend_manager/frontend_manager.hpp"
-#include "frontend_manager/frontend_manager.hpp"
+#include <frontend_manager/frontend.hpp>
 //#include "../../src/node_context.hpp"
 
 namespace tensorflow { class GraphDef; class NodeDef; namespace ngraph_bridge { class GraphIteratorProto; }  }
@@ -66,9 +66,9 @@ namespace ngraph
             InputModelTensorflow (std::shared_ptr<::tensorflow::GraphDef> _graph_def, std::vector<ngraph::PartialShape> _input_shapes = {});
             InputModelTensorflow (const std::vector<std::shared_ptr<::tensorflow::NodeDef>>& _nodes_def, std::vector<ngraph::PartialShape> _input_shapes = {});
 
-            std::vector<Place::Ptr> getInputs () const override;
+            std::vector<Place::Ptr> get_inputs () const override;
 
-            void setPartialShape (Place::Ptr place, const ngraph::PartialShape& pshape) override;
+            void set_partial_shape (Place::Ptr place, const ngraph::PartialShape& pshape) override;
         };
 
         class NGRAPH_API FrontEndTensorflow : public FrontEnd
@@ -83,7 +83,7 @@ namespace ngraph
             {
             }
 
-            virtual InputModel::Ptr loadFromFile (const std::string& path) const override
+            virtual InputModel::Ptr load_from_file (const std::string& path) const override
             {
                 return std::make_shared<InputModelTensorflow>(path);
             }

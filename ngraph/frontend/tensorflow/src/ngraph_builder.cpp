@@ -3132,7 +3132,7 @@ InputModelTensorflow::InputModelTensorflow (const std::vector<std::shared_ptr<::
     graph_impl = std::make_shared<::tensorflow::ngraph_bridge::GraphIteratorProto>(_nodes_def);
 }
 
-std::vector<Place::Ptr> InputModelTensorflow::getInputs () const {
+std::vector<Place::Ptr> InputModelTensorflow::get_inputs () const {
 // TODO: Cache results
 #if 1
     std::vector<Place::Ptr> result;
@@ -3150,7 +3150,7 @@ std::vector<Place::Ptr> InputModelTensorflow::getInputs () const {
 #endif
 }
 
-void InputModelTensorflow::setPartialShape (Place::Ptr place, const ngraph::PartialShape& pshape) {
+void InputModelTensorflow::set_partial_shape (Place::Ptr place, const ngraph::PartialShape& pshape) {
     auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
     partialShapes[place_tf->name] = pshape;
 }

@@ -372,9 +372,9 @@ int main(int argc, char* argv[]) {
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
 #else
             ngraph::frontend::FrontEndManager manager;
-            auto FE = manager.loadByFramework("tf");
-            auto inputModel = FE->loadFromFile(FLAGS_m);
-            inputModel->setPartialShape(inputModel->getInputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
+            auto FE = manager.load_by_framework("pdpd");
+            auto inputModel = FE->load_from_file(FLAGS_m);
+            inputModel->set_partial_shape(inputModel->get_inputs()[0], ngraph::PartialShape({1, 224, 224, 3}));
             auto ngFunc = FE->convert(inputModel);
             CNNNetwork cnnNetwork(ngFunc);
 #endif
