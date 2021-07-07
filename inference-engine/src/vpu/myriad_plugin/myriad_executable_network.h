@@ -33,18 +33,20 @@ public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
     ExecutableNetwork(const InferenceEngine::CNNNetwork& network, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
-                      const MyriadConfiguration& configuration, const ie::ICore* core);
+                      const MyriadConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
     ExecutableNetwork(std::istream& strm, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& configuration,
-                      const ie::ICore* core);
+                      const std::shared_ptr<ie::ICore> core);
 
     ExecutableNetwork(const std::string &blobFilename, std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool,
-                      const MyriadConfiguration& configuration, const ie::ICore* core);
+                      const MyriadConfiguration& configuration, const std::shared_ptr<ie::ICore> core);
 
 
     virtual ~ExecutableNetwork() {
         try {
-            _executor->deallocateGraph(_device, _graphDesc);
+            if (_device != nullptr) {
+                _executor->deallocateGraph(_device, _graphDesc);
+            }
         }
         catch (...) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
@@ -54,18 +56,19 @@ public:
 
     ie::IInferRequestInternal::Ptr CreateInferRequestImpl(ie::InputsDataMap networkInputs,
                                                          ie::OutputsDataMap networkOutputs) override {
-        if (_device == nullptr || !_device->isBooted()) {
+        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
 
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
-                                                    _graphMetaData.stagesMeta, _config, _log, _executor);
+                                                    _graphMetaData.stagesMeta, _config, _log, _executor,
+                                                    _constDatas, _isNetworkConstant);
     }
 
     ie::IInferRequestInternal::Ptr CreateInferRequest() override {
-        if (_device == nullptr || !_device->isBooted()) {
+        if (!_isNetworkConstant && (_device == nullptr || !_device->isBooted())) {
             IE_THROW() << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
@@ -73,7 +76,7 @@ public:
         auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _graphMetaData.stagesMeta, _config, _log,
-                                                                    _executor);
+                                                                    _executor, _constDatas, _isNetworkConstant);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         return std::make_shared<MyriadAsyncInferRequest>(
@@ -82,6 +85,16 @@ public:
 
     void Export(std::ostream& model) override {
         model.write(_graphBlob.data(), _graphBlob.size());
+    }
+
+    void Export(const std::string &modelFileName) override {
+        std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
+
+        if (modelFile.is_open()) {
+            Export(modelFile);
+        } else {
+            IE_THROW() << "The " << modelFileName << " file can not be opened for export";
+        }
     }
 
     ie::Parameter GetMetric(const std::string &name) const override;
@@ -98,9 +111,11 @@ private:
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
     MyriadConfiguration _config;
-    const ie::ICore* _core = nullptr;
+    bool _isNetworkConstant = false;
+    const std::shared_ptr<ie::ICore> _core = nullptr;
     int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
+    std::map<std::string, ie::Blob::Ptr> _constDatas;
 
     DataInfo _inputInfo;
     DataInfo _outputInfo;
@@ -108,7 +123,9 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc, std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config, const ie::ICore* core);
+    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
+        const MyriadConfiguration& config,
+        const std::shared_ptr<ie::ICore> core);
 
     ie::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();
@@ -121,6 +138,8 @@ private:
 
         return taskExecutor;
     }
+
+    void openDevice(std::vector<DevicePtr>& devicePool);
 };
 
 }  // namespace MyriadPlugin
