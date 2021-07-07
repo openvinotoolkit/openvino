@@ -160,20 +160,9 @@ IE::Parameter AutoInferencePlugin::GetConfig(const std::string& name,
 }
 
 void AutoInferencePlugin::SetConfig(const ConfigType& config) {
+    CheckConfig(config);
     for (auto && kvp : config) {
-        if (kvp.first.find("AUTO_") == 0) {
-            _config[kvp.first] = kvp.second;
-        } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
-            if (kvp.second == IE::PluginConfigParams::YES ||
-                kvp.second == IE::PluginConfigParams::NO) {
-                _config[kvp.first] = kvp.second;
-            } else {
-                IE_THROW() << "Unsupported config value: " << kvp.second
-                           << " for key: " << kvp.first;
-            }
-        } else {
-            IE_THROW() << "Unsupported config key: " << kvp.first;
-        }
+        _config[kvp.first] = kvp.second;
     }
 }
 
@@ -192,6 +181,7 @@ IE::Parameter AutoInferencePlugin::GetMetric(const std::string& name,
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys = {
             IE::KEY_AUTO_DEVICE_LIST,
+            IE::KEY_AUTO_STREAM_MODE,
             IE::PluginConfigParams::KEY_PERF_COUNT
         };
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
@@ -252,10 +242,13 @@ void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
         if (kvp.first.find("AUTO_") == 0) {
             continue;
         } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
-            if (kvp.second == IE::PluginConfigParams::YES ||
-                kvp.second == IE::PluginConfigParams::NO) {
-                continue;
-            } else {
+            if (kvp.second != IE::PluginConfigParams::YES &&
+                kvp.second != IE::PluginConfigParams::NO) {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
+            }
+        } else if (kvp.first == IE::KEY_AUTO_STREAM_MODE) {
+            if (kvp.second != "LATENCY" && kvp.second != "THROUGHPUT") {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
             }
