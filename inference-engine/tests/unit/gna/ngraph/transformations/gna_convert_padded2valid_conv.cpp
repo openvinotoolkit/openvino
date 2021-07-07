@@ -142,7 +142,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const modelType& model,
     auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
     auto result = createFunction(model, inputParams, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
         maxpool_stride, maxpool_shape, pad_type, &conv_data);
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ inputParams });
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{inputParams});
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -222,9 +222,9 @@ void ConvertPadded2ValidConvTestFixture::SetUp() {
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
     return std::make_shared<ngraph::opset7::StridedSlice>(
         input, // data
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset }), // begin sice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset + size }), // end slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)1, (size_t)1 }), // strides
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}), // begin sice index
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}), // end slice index
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}), // strides
         std::vector<int64_t>{1, 0},  // begin mask
         std::vector<int64_t>{1, 0}); // end mask
 }
@@ -261,7 +261,7 @@ std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>
             ngraph::Shape{1ull, shape_size(inputNode.get_shape())}), false);
 
     // Constant with zero padding
-    auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{ 1, biggest_padding }, 0);
+    auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{1, biggest_padding}, 0);
 
     std::shared_ptr<ngraph::Node> original_row = flat_input;
     ngraph::OutputVector input_rows_to_concat;
@@ -337,14 +337,14 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
     std::shared_ptr<ngraph::opset7::Result> result;
 
     if (padded_input_plane) {
-        auto shape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{ 4 },
-            ngraph::Shape{ static_cast<size_t>(1),
+        auto shape_const = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4},
+            ngraph::Shape{static_cast<size_t>(1),
             conv_data.pads_begin_height + conv_data.input_height + conv_data.pads_end_height,
             conv_data.pads_begin_width + conv_data.input_width + conv_data.pads_end_width,
-            conv_data.input_channel_count });
+            conv_data.input_channel_count});
         auto padded_input_plane_reshaped = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane, shape_const, false);
         result = createFunction(model, padded_input_plane_reshaped, filters_shape, conv_stride,
-            ngraph::CoordinateDiff{ 0, 0 }, ngraph::CoordinateDiff{ 0, 0 }, conv_dilation, bias_shape,
+            ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, conv_dilation, bias_shape,
             maxpool_stride, maxpool_shape, ngraph::op::PadType::EXPLICIT, nullptr);
     } else {
         // Valid padding
@@ -352,7 +352,7 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
             maxpool_stride, maxpool_shape, pad_type, nullptr);
     }
 
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ inputParams });
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{inputParams});
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -400,25 +400,25 @@ INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidCo
     ::testing::Values(
         std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
-            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::SAME_LOWER),
-        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::SAME_UPPER),
-        std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvTranspBcastAddAct, ngraph::PartialShape{ 1, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT)));
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_LOWER),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_UPPER),
+        std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvTranspBcastAddAct, ngraph::PartialShape{1, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT)));
 
 TEST_P(ConvertPadded2ValidConvTestInvalidFixture, CompareFunctions) {
     execute_test(model, function, reference_function);
@@ -426,27 +426,27 @@ TEST_P(ConvertPadded2ValidConvTestInvalidFixture, CompareFunctions) {
 
 INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvInvalidTestSuite, ConvertPadded2ValidConvTestInvalidFixture,
     ::testing::Values(
-        std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{ 2, 16, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 9, 1 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::SAME_LOWER),
-        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{ 1, 16, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 9, 1 }, ngraph::op::PadType::SAME_UPPER),
-        std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
-        std::make_tuple(modelType::TranspConvTranspBcastAddAct, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
-            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
-            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT)));
+        std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{2, 16, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{9, 1}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_LOWER),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{1, 16, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{9, 1}, ngraph::op::PadType::SAME_UPPER),
+        std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvTranspBcastAddAct, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT)));
 
 } // namespace
 
