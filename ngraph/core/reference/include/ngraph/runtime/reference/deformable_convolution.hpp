@@ -177,14 +177,13 @@ namespace ngraph
                                     for (int f_x = 0; f_x < filter_size_x; ++f_x)
                                     {
                                         int f_buf_idx = (f_y * filter_size_x) + f_x;
-                                        T y_offset = offsets[deformable_group_idx * offsets_size +
-                                                             f_buf_idx * 2 *
-                                                                 offsets_spatial_size +
-                                                             out_idx];
-                                        T x_offset = offsets[deformable_group_idx * offsets_size +
-                                                             (f_buf_idx * 2 + 1) *
-                                                                 offsets_spatial_size +
-                                                             out_idx];
+                                        T y_offset =
+                                            offsets[deformable_group_idx * offsets_size +
+                                                    f_buf_idx * 2 * offsets_spatial_size + out_idx];
+                                        T x_offset =
+                                            offsets[deformable_group_idx * offsets_size +
+                                                    (f_buf_idx * 2 + 1) * offsets_spatial_size +
+                                                    out_idx];
                                         T rel_i_y = i_y + (f_y * p.dilation[0]) + y_offset;
                                         T rel_i_x = i_x + (f_x * p.dilation[1]) + x_offset;
 
@@ -193,9 +192,9 @@ namespace ngraph
                                         {
                                             padding =
                                                 !((static_cast<int>(rel_i_x) > -1 &&
-                                                    static_cast<int>(rel_i_x) < input_size_x) &&
-                                                    (static_cast<int>(rel_i_y) > -1 &&
-                                                    static_cast<int>(rel_i_y) < input_size_y));
+                                                   static_cast<int>(rel_i_x) < input_size_x) &&
+                                                  (static_cast<int>(rel_i_y) > -1 &&
+                                                   static_cast<int>(rel_i_y) < input_size_y));
                                         }
                                         else
                                         {
@@ -206,8 +205,9 @@ namespace ngraph
                                         if (padding)
                                             continue;
 
-
-                                        T mask_scalar = mask[deformable_group_idx * mask_size + f_buf_idx * mask_spatial_size + out_idx];
+                                        T mask_scalar =
+                                            mask[deformable_group_idx * mask_size +
+                                                 f_buf_idx * mask_spatial_size + out_idx];
                                         sum += bilinear_interpolation(input_channel,
                                                                       rel_i_x,
                                                                       rel_i_y,
@@ -278,7 +278,8 @@ namespace ngraph
                 const Shape group_filter_shape = shape_reduce(f_shape);
                 const size_t group_filter_size = shape_size(group_filter_shape);
 
-                const Shape group_mask_shape = shape_scale(shape_reduce(m_shape), groups);
+                const Shape group_mask_shape =
+                    shape_scale(shape_reduce(m_shape), deformable_groups);
                 const size_t group_mask_batch_size = shape_size(shape_reduce(m_shape));
 
                 const size_t out_ch_size = shape_size(shape_reduce(shape_reduce(out_shape)));
