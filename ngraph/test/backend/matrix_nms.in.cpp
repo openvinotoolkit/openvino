@@ -13,22 +13,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i64)
 {
@@ -60,37 +54,18 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i64)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {0, 3, 1};
     std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
                                                    1.00, 0.8, 0.00, 10.00, 1.00, 11.00,
                                                    1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({3, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({3, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i32)
@@ -124,37 +99,18 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_output_type_i32)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int32_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int32_t>(valid_outputs);
-
     std::vector<int32_t> expected_selected_indices = {0, 3, 1};
     std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
                                                    1.00, 0.8, 0.00, 10.00, 1.00, 11.00,
                                                    1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
     std::vector<int32_t> expected_valid_outputs = {3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({3, 6}, expected_selected_scores);
+    test_case.add_expected_output<int32_t>({3, 1}, expected_selected_indices);
+    test_case.add_expected_output<int32_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_gaussian)
@@ -187,37 +143,18 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_gaussian)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {0, 3, 1};
     std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
                                                    1.00, 0.8, 0.00, 10.00, 1.00, 11.00,
                                                    1.00, 0.1966116, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({3, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({3, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes)
@@ -255,26 +192,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {0, 3, 1,
                                                       6, 9, 7};
     std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
@@ -285,11 +202,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes)
                                                    1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {3, 3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({6, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({6, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({2}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_score_cross_batch)
@@ -328,26 +246,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_score_cross_b
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6,
                                                       0, 6, 3, 9};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00, //3
@@ -360,11 +258,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_score_cross_b
                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 9
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({8, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({8, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({2}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_classid_cross_batch)
@@ -403,26 +302,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_classid_cross
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6,
                                                       0, 3, 6, 9};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00, //3
@@ -435,11 +314,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_two_batches_two_classes_by_classid_cross
                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 9
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({8, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({8, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({2}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_by_keep_top_k)
@@ -476,26 +356,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_by_keep_top_k)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {0, 3, 1,
                                                       6, 9, 7};
     std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
@@ -506,11 +366,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_by_keep_top_k)
                                                    1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {3, 3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({6, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({6, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({2}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_background)
@@ -543,26 +404,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_background)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3, 1, 1};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.0, 10.0, 1.0, 11.0,
                                                    1.00, 0.95, 0.0, 0.0, 1.0, 1.0,
@@ -572,11 +413,12 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_background)
                                                    1.00, 0.13636364, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {6};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({6, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({6, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_flipped_coordinates)
@@ -607,37 +449,18 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_flipped_coordinates)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-   handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0, 1};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.0, 10.0, 1.0, 11.0,
                                                    0.00, 0.9, 1.0, 1.0, 0.0, 0.0,
                                                    0.00, 0.75, 0.0, 0.1, 1.0, 1.1};
     std::vector<int64_t> expected_valid_outputs = {3};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({3, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({3, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_post_threshold)
@@ -669,36 +492,17 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_post_threshold)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
                                                    0.00, 0.9, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {2};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    for (uint64_t i = 0; i < expected_selected_scores.size(); ++i) {
-        EXPECT_NEAR(expected_selected_scores[i], selected_scores_value[i], 1e-5);
-    }
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({2, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({2, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_identical_boxes)
@@ -730,32 +534,16 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_identical_boxes)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
+    std::vector<int64_t> expected_selected_indices = {0};
     std::vector<float> expected_selected_scores = {0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
-    EXPECT_TRUE(selected_indeces_value[0] >= 0 && (size_t)selected_indeces_value[0] < scores_data.size());
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({1, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({1, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_nms_top_k)
@@ -786,34 +574,17 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_nms_top_k)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {3, 0};
     std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 };
     std::vector<int64_t> expected_valid_outputs = {2};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({2, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({2, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_single_box)
@@ -842,33 +613,16 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_single_box)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {0};
     std::vector<float> expected_selected_scores = {0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({1, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({1, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_no_output)
@@ -900,31 +654,14 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_no_output)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto selected_outputs = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    auto selected_indeces = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-    auto valid_outputs = backend->create_dynamic_tensor(element::i64, PartialShape::dynamic());
-
-    auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
-    auto backend_scores = backend->create_tensor(element::f32, scores_shape);
-    copy_data(backend_boxes, boxes_data);
-    copy_data(backend_scores, scores_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({selected_outputs, selected_indeces, valid_outputs},
-                 {backend_boxes, backend_scores});
-
-    auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
-    auto selected_scores_value = read_vector<float>(selected_outputs);
-    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
-
     std::vector<int64_t> expected_selected_indices = {};
     std::vector<float> expected_selected_scores = {};
     std::vector<int64_t> expected_valid_outputs = {0};
 
-    EXPECT_EQ(expected_selected_indices, selected_indeces_value);
-    EXPECT_EQ(expected_selected_scores, selected_scores_value);
-    EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
+    test_case.add_multiple_inputs<float>({boxes_data, scores_data});
+    test_case.add_expected_output<float>({0, 6}, expected_selected_scores);
+    test_case.add_expected_output<int64_t>({0, 1}, expected_selected_indices);
+    test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
+    test_case.run();
 }
