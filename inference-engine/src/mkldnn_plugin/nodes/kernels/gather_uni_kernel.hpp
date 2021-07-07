@@ -44,6 +44,8 @@ struct gatherJitExecArgs {
     const int* axisAndAfterAxisSize;
     const int* srcAfterBatchSize;
     const uint32_t* vecLen;
+    const int* permIdx;
+    const int* beforeAxisDiff;
     size_t idxIter = 0;
     size_t idxStartB = 0;
     size_t workAmount = 0;
@@ -100,7 +102,7 @@ protected:
     Xbyak::Reg64 regAux1 = r13;
     Xbyak::Reg64 regAux2 = r14;
     Xbyak::Reg64 regAux3 = r15;
-    Xbyak::Reg64 regBeforeAxisCounter = r15;
+    Xbyak::Reg64 regBetweenBatchAndAxisIter = r15;
     Xbyak::Reg64 regBetweenBatchAndAxisSize = rbx;
 //    Xbyak::Reg64 regSpecIndicesSize = rbp;
 
@@ -120,15 +122,20 @@ protected:
     Xbyak::Xmm xmmAux2 = Xbyak::Xmm(7);
     Xbyak::Xmm xmmAux3 = Xbyak::Xmm(8);
     Xbyak::Xmm xmmAux7 = Xbyak::Xmm(12);
+    Xbyak::Xmm xmmOnes = Xbyak::Xmm(13);
+    Xbyak::Xmm xmmDst = Xbyak::Xmm(15);
 
+    Xbyak::Ymm ymmAux0 = Xbyak::Ymm(0);
     Xbyak::Ymm ymmAux2 = Xbyak::Ymm(7);
     Xbyak::Ymm ymmAux10 = Xbyak::Ymm(16);
+
+    Xbyak::Zmm zmmDst = Xbyak::Zmm(15);
 
     Vmm vmmAux0 = Vmm(0);
     Vmm vmmAux1 = Vmm(1);
     Vmm vmmAxDimSum = Vmm(2);
     Vmm vmmAxisAndAfterAxisSize = Vmm(2);
-//    Vmm vmmSpecIndicesSize = Vmm(2);
+    Vmm vmmSrcAfterBatchSize = Vmm(2);
     Vmm vmmAxDim = Vmm(3);
     Vmm vmmBeforeAxisSum = Vmm(3);
     Vmm vmmDictTypeSize = Vmm(4);
@@ -137,10 +144,12 @@ protected:
     Vmm vmmZeros = Vmm(6);
     Vmm vmmVecLen = Vmm(7);
     Vmm vmmAux3 = Vmm(8);
+    Vmm vmmPermIdx = Vmm(8);
     Vmm vmmAux4 = Vmm(9);
     Vmm vmmSpecIndices = Vmm(9);
     Vmm vmmAux5 = Vmm(10);
     Vmm vmmIdxBatchSum = Vmm(10);
+    Vmm vmmBeforeAxisDiff = Vmm(10);
     Vmm vmmGatherMask = Vmm(11);
     Vmm vmmSpecIdxSize = Vmm(12);
     Vmm vmmAux8 = Vmm(13);
