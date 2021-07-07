@@ -4,11 +4,11 @@
 
 **Category**: *Normalization*
 
-**Short description**: *NormalizeL2* operation performs L2 normalization of the first input tensor in slices specified by the second input.
+**Short description**: *NormalizeL2* operation performs L2 normalization on a given input `data` along dimensions specified by `axes` input.
 
 **Detailed Description**
 
-Each element in the output is the result of division of corresponding element from the `data` input tensor by the result of L2 reduction along dimensions specified by the `axes` input:
+Each element in the output is the result of dividing the corresponding element of `data` input by the result of L2 reduction along dimensions specified by the `axes` input:
 
     output[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(eps_mode(sum[j0,..., jN](x[j0, ..., jN]**2), eps))
 
@@ -18,14 +18,14 @@ Where indices `i0, ..., iN` run through all valid indices for the `data` input a
 Particular cases:
 
 1. If `axes` is an empty list, then each input element is divided by itself resulting value `1` for all non-zero elements.
-2. If `axes` contains all dimensions of input `data`, a single L2 reduction value is calculated for entire input tensor and each input element is divided by that value.
+2. If `axes` contains all dimensions of input `data`, a single L2 reduction value is calculated for the entire input tensor and each input element is divided by that value.
 
 
 **Attributes**
 
 * *eps*
 
-  * **Description**: *eps* is the number to be added/maximized to/with the variance to avoid division by zero when normalizing the value. For example, *eps* equal to 0.001 means that 0.001 is used if all the values in normalization are equal to zero.
+  * **Description**: *eps* is the number applied by *eps_mode* function to the sum of squares to avoid division by zero when normalizing the value.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: None
@@ -47,7 +47,7 @@ Particular cases:
 
 **Outputs**
 
-* **1**: Normalized tensor of the same shape and type as the `data` input.
+* **1**: The result of *NormalizeL2* function applied to `data` input tensor. Normalized tensor of the same type and shape as the data input.
 
 **Types**
 
