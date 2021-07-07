@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior/infer_request_callback.hpp"
+#include "behavior2/infer_request/infer_request_callback.hpp"
 
 using namespace BehaviorTestsDefinitions;
 
