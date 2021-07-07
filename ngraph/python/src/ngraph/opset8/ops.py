@@ -43,3 +43,24 @@ _get_node_factory_opset8 = partial(_get_node_factory, "opset8")
 
 
 # -------------------------------------------- ops ------------------------------------------------
+
+@nameable_op
+def gather(
+        data: NodeInput,
+        indices: NodeInput,
+        axis: NodeInput,
+        batch_dims: Optional[int] = 0,
+) -> Node:
+    """Return a node which performs Gather with support of negative indices
+
+    @param data:         N-D tensor with data for gathering
+    @param indices:      N-D tensor with indices by which data is gathered
+    @param axis:         axis along which elements are gathered
+    @param batch_dims:   number of batch dimensions
+    @return:             The new node which performs Gather
+    """
+    inputs = as_nodes(data, indices, axis)
+    attributes = {
+        "batch_dims": batch_dims
+    }
+    return _get_node_factory_opset8().create("Gather", inputs, attributes)
