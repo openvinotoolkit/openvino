@@ -4,11 +4,14 @@
 
 **Category**: Infrastructure
 
-**Short description**: *If* operation contains two internal networks(subgraphs) such as `then_body` and `else_body`, and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body` will be executed if `cond` value is `False`. 
+**Short description**: *If* operation contains two internal networks(subgraphs) such as `then_body` and `else_body`, 
+and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body`
+ will be executed if `cond` value is `False`. 
 
 **Detailed description**
 
-*If* must not contain empty subgraphs. Each of them must have at least one operation `Result`. Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each subgraph.
+*If* must not contain empty subgraphs. Each of them must have at least one operation `Result`. 
+Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each subgraph.
 
 **If attributes**:
 
@@ -18,11 +21,13 @@
     The subgraph is described operation by operation as a typical IR network. 
     The subgraph has parameters (`Parameter` operations) and results (`Result` operations).
     
-    * **Subgraph's parameters** - inputs to the subgraph which associated with *If* inputs via *port_map*. The number of parameters for the subgraph can be any (even zero).
+    * **Subgraph's parameters** - inputs to the subgraph which associated with *If* inputs via *port_map*. 
+    The number of parameters for the subgraph can be any (even zero).
     
     * **Subgraph's results** - outputs from the subgraph which associated with *If* outputs via *port_map*.
     The subgraph must contain at least one result. Each *If* output is associated with one result from the subgraph. 
-    It follows that number of `then_body` results is the equal to the number of outputs from the *If* and the number of `else_body` results. 
+    It follows that number of `then_body` results is the equal to the number of outputs from the *If* and 
+    the number of `else_body` results. 
     Type of the subgraph result and type of the associated output from *If* must be equal.
     
 
@@ -43,7 +48,8 @@
 
         * *internal_layer_id*
 
-            * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside the subgraph to map to.
+            * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside 
+            the subgraph to map to.
             * **Range of values**: IDs of the `Parameter` or `Result` operations in the subgraph
             * **Type**: `unsigned int`
             * **Default value**: None
@@ -52,7 +58,8 @@
 **If Inputs**
 
 
-* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which an subgraph to execute. `True` value means to execute the `then_body`, `False` - `else_body`. *Required*.
+* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which an subgraph to execute. 
+`True` value means to execute the `then_body`, `False` - `else_body`. *Required*.
 
 * **Multiple other inputs**: tensors of different types and shapes. *Optional*.
 
