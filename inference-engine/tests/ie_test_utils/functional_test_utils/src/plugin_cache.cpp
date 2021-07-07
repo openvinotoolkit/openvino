@@ -49,6 +49,14 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
     }
     assert(0 != ie_core.use_count());
 
+    // register template plugin if it is needed
+    const auto& availableDevices = ie_core->GetAvailableDevices();
+    if (std::find(availableDevices.begin(), availableDevices.end(), "TEMPLATE") == availableDevices.end()) {
+        std::string pluginName = "templatePlugin";
+        pluginName += IE_BUILD_POSTFIX;
+        ie_core->RegisterPlugin(pluginName, "TEMPLATE");
+    }
+
     if (!deviceToCheck.empty()) {
         std::vector<std::string> metrics = ie_core->GetMetric(deviceToCheck, METRIC_KEY(SUPPORTED_METRICS));
 
