@@ -140,6 +140,8 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+    ngraph::PartialShape inputDynamicShape;
+    ngraph::Shape targetStaticShape;
 
     virtual void Validate();
 

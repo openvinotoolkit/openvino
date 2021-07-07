@@ -303,6 +303,17 @@ void LayerTestsCommon::ConfigureNetwork() {
             out.second->setPrecision(outPrc);
         }
     }
+
+    std::map<std::string, ngraph::PartialShape> shapes;
+    auto isdm = cnnNetwork.getInputsInfo();
+    for (auto&& idm : isdm) {
+        shapes[idm.first] = isdm[idm.first]->getInputData()->getPartialShape();
+        auto i = 0;
+        for (auto&& d : std::vector<ngraph::Dimension>(inputDynamicShape)) {
+            shapes[idm.first][i++] = d;
+        }
+    }
+    cnnNetwork.reshape(shapes);
 }
 
 void LayerTestsCommon::LoadNetwork() {

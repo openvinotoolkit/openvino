@@ -32,7 +32,8 @@ typedef std::tuple<
         InferenceEngine::Precision,     // Output precision
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
-        InferenceEngine::SizeVector,    // Input shapes
+        std::vector<std::vector<size_t>>, // Input shape
+        InferenceEngine::SizeVector,    // target shape
         LayerTestsUtils::TargetDevice   // Device name
 > convLayerTestParamsSet;
 
@@ -43,6 +44,8 @@ public:
 
 protected:
     void SetUp() override;
+    void GenerateInputs() override;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 };
 // ! [test_convolution:definition]
 
