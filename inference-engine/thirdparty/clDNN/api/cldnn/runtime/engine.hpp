@@ -16,6 +16,10 @@
 #include <utility>
 #include <string>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#endif
+
 namespace cldnn {
 
 class stream;
@@ -117,6 +121,11 @@ public:
 
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Returns onednn engine object which shares device and context with current engine
+    virtual std::shared_ptr<dnnl::engine> get_onednn_engine() const = 0;
+#endif
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type

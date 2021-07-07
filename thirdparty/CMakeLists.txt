@@ -107,13 +107,48 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
-    
+
     openvino_developer_export_targets(COMPONENT inference_engine_tests
                                       TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_gtest_libraries()
+endif()
+
+#
+# oneDNN for GPU plugin
+#
+set(ENABLE_ONEDNN_FOR_GPU ON CACHE BOOL "")
+if(ENABLE_ONEDNN_FOR_GPU)
+    function(build_onednn_gpu)
+        set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
+        set(DNNL_ENABLE_PRIMITIVE_CACHE ON CACHE BOOL "" FORCE)
+        set(DNNL_USE_RT_OBJECTS_IN_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE)
+        set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)
+        set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
+        set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(DNNL_GPU_RUNTIME "OCL" CACHE STRING "" FORCE)
+        set(DNNL_CPU_RUNTIME "NONE" CACHE STRING "" FORCE)
+        set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
+        set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+        if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
+            set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
+        endif()
+
+        # Workaround for TBB headers imported from IE
+        if(NOT WIN32)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-undef")
+        endif()
+
+        set(LIB_NAME onednn_gpu)
+        add_subdirectory(onednn_gpu "${LIB_NAME}" EXCLUDE_FROM_ALL)
+        set_property(GLOBAL PROPERTY DNNL_LIB_DEPS "")
+    endfunction()
+
+    build_onednn_gpu()
 endif()
 
 #

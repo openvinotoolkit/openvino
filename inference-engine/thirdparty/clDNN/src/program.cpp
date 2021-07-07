@@ -59,6 +59,9 @@
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "impls/onednn/register.hpp"
+#endif
 
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -132,6 +135,9 @@ void program_impl::init_primitives() {
         common::register_implementations_common();
         cpu::register_implementations_cpu();
         ocl::register_implementations_ocl();
+#if ENABLE_ONEDNN_FOR_GPU
+        onednn::register_implementations_onednn();
+#endif
         is_initialized = true;
     }
 }
