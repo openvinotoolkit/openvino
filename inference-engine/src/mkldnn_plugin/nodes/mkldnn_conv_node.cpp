@@ -492,7 +492,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<const MemoryDesc*
 
     MKLDNNDims blocked_weightDims(weightDims);
     MKLDNNDims blocked_biasesDims(biasesDims);
-    MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::format_tag::any};
+    mkldnn::memory::desc wgh_candidate(blocked_weightDims, wdt, memory::format_tag::any);
 
     std::vector<mkldnn::algorithm> algorithms;
 
@@ -504,7 +504,7 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<const MemoryDesc*
         try {
             std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
             if (withBiases) {
-                MKLDNNMemoryDesc bias_candidate{blocked_biasesDims, bdt, memory::format_tag::any};
+                mkldnn::memory::desc bias_candidate(blocked_biasesDims, bdt, memory::format_tag::any);
 
                 conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
                             *inDesc, wgh_candidate, bias_candidate, *outDesc,
@@ -711,34 +711,17 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1)) : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
-    return make_unique<MKLDNNMemoryDesc>(desc);
-//
-//    if (desc.getLayout() == InferenceEngine::Layout::ANY) {
-//        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                            getParentEdgeAt(idx)->getDims().ToSizeVector(),
-//                                                            desc.getLayout()));
-//    } else {
-//        if (getParentEdgeAt(idx)->getDims().ToSizeVector().size() != *std::max_element(desc.getBlockingDesc().getOrder().begin(),
-//                                                                                       desc.getBlockingDesc().getOrder().end()) + 1) {
-//            auto old_dims = getParentEdgeAt(idx)->getDims().ToSizeVector();
-//            auto new_dims = InferenceEngine::SizeVector({groupNum, div_up(old_dims[0], groupNum)});
-//            for (int i = 1; i < old_dims.size(); i++) {
-//                new_dims.push_back(old_dims[i]);
-//            }
-//
-//            auto td = InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                  new_dims,
-//                                                  desc.getBlockingDesc());
-//            if (new_dims.size() == desc.getBlockingDesc().getBlockDims().size()) {
-//                td.setLayout(BLOCKED);
-//            }
-//            return MKLDNNMemoryDesc(td);
-//        } else {
-//            return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                                getParentEdgeAt(idx)->getDims().ToSizeVector(),
-//                                                                desc.getBlockingDesc()));
-//        }
-//    }
+    if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
+        auto old_dims = getParentEdgeAt(idx)->getShape().getDims();
+        auto new_dims = InferenceEngine::SizeVector({groupNum, div_up(old_dims[0], groupNum)});
+        for (int i = 1; i < old_dims.size(); i++) {
+            new_dims.push_back(old_dims[i]);
+        }
+
+        return make_unique<MKLDNNMemoryDesc>(MKLDNNDims(new_dims), desc.getDataType(), desc.getFormat());
+    } else {
+        return make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    }
 }
 
 bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
