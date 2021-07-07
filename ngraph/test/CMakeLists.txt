@@ -157,11 +157,13 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/matrix_nms.cpp    
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mod.cpp
+    type_prop/multiclass_nms.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
@@ -231,6 +233,7 @@ set(SRC
     visitors/op/adaptive_max_pool.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
+    visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -259,9 +262,11 @@ set(SRC
     visitors/op/lstm_cell.cpp
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
+    visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
+    visitors/op/multiclass_nms.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
@@ -373,6 +378,7 @@ set(MULTI_TEST_SRC
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
+    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -428,11 +434,13 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
+    backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
+    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
@@ -643,7 +651,7 @@ add_subdirectory(frontend)
 ### END FRONTEND ###
 
 #PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
