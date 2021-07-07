@@ -32,7 +32,7 @@ where
 
 **Inputs**
 
-*   **1**: `data` - A tensor of type *T* and rank greater than or equal to 4. Layout is `[batch, D_1, D_2 ... D_{N-1}]` (number of batches, spatial axes). **Required.**
+*   **1**: `data` - A tensor of type *T* and rank greater than or equal to 2. Layout is `[batch, D_1, D_2 ... D_{N-1}]` (number of batches, spatial axes). **Required.**
 *   **2**: `block_shape` - Specifies the block sizes of `batch` axis of `data` input which are moved to the corresponding spatial axes. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 1.`block_shape[0]` is expected to be 1. **Required.**
 *   **3**: `crops_begin` - Specifies the amount to crop from the beginning along each axis of `data` input. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 0. `crops_begin[0]` is expected to be 0. **Required.**
 *   **4**: `crops_end` - Specifies the amount to crop from the ending along each axis of `data` input. A 1D tensor of type *T_INT* and shape `[N]`. All element values must be greater than or equal to 0. `crops_end[0]` is expected to be 0. **Required.**
@@ -49,7 +49,37 @@ where
 * *T*: any supported type.
 * *T_INT*: any supported integer type.
 
-**Example**
+**Examples**
+
+*Example: 2D input tensor `data`*
+
+```xml
+<layer type="BatchToSpace" ...>
+    <input>
+        <port id="0">       <!-- data -->
+            <dim>10</dim>   <!-- batch -->
+            <dim>2</dim>    <!-- spatial dimension 1 -->   
+        </port>
+        <port id="1">       <!-- block_shape value: [1, 5] -->
+            <dim>2</dim>  
+        </port>
+        <port id="2">       <!-- crops_begin value: [0, 2] -->
+            <dim>2</dim>
+        </port>
+        <port id="3">       <!-- crops_end value: [0, 0] -->
+            <dim>2</dim>
+        </port>
+    </input>
+    <output>
+        <port id="3">      
+            <dim>2</dim>    <!-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1]) -->
+            <dim>8</dim>    <!-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
+        </port>
+    </output>
+</layer>
+```
+
+*Example: 5D input tensor `data`*
 
 ```xml
 <layer type="BatchToSpace" ...>
