@@ -44,21 +44,18 @@ private:
     bool streamsSet = false;
 
     struct NetworkPerfStats {
-        float maxMemTolerance = -1;
+        float maxMemTolerance = memThresholdUnknown;
         float ratio_compute_convs = 0;
         float ratio_mem_limited_convs = 0;
         float ratio_compute_deconvs = 0;
 
-        static constexpr float memThresholdNotLimited = 1.0f;
-        static constexpr float memThresholdAssumeLimited = 0.5f;
-        static constexpr float memThresholdAssumeLimitedAVX512 = memThresholdAssumeLimited/2;
-        static constexpr float memThresholdAssumeLimitedMuch = memThresholdAssumeLimited/8;
         static constexpr float memThresholdUnknown = FLT_MAX;
-
-        static constexpr float memLimitedRatioThresholdAVX512 = 0.10;
         static constexpr float ALL = 1.0f;
+        static constexpr float NONE = 0.0f;
+        static constexpr float memThresholdAssumeLimited = 0.5f; //conservatively assume 0.5f cache utilization
     };
-    static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network);
+    static NetworkPerfStats NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network,
+            const float L2_size, const float L3_size, const float memThresholdAssumeLimited = NetworkPerfStats::memThresholdAssumeLimited);
 };
 
 }  // namespace MKLDNNPlugin
