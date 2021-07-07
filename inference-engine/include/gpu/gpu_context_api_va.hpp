@@ -36,8 +36,8 @@ public:
     using Ptr = std::shared_ptr<VAContext>;
 
     /**
-     * @brief VADisplay conversion operator for the VAContext object.
-     * @return Underlying VADisplay object handle 
+     * @brief `VADisplay` conversion operator for the VAContext object.
+     * @return Underlying `VADisplay` object handle
      */
     operator VADisplay() {
         return _ObjFromParams<VADisplay, gpu_handle_param>(getParams(),
@@ -67,7 +67,7 @@ public:
 
     /**
      * @brief VASurfaceID conversion operator for the VASurfaceBlob object.
-     * @return VA surface handle 
+     * @return `VASurfaceID` handle
      */
     operator VASurfaceID() {
         return _ObjFromParams<VASurfaceID, uint32_t>(getParams(),
@@ -77,6 +77,7 @@ public:
 
     /**
      * @brief Returns plane ID of underlying video decoder surface
+     * @return Plane ID
      */
     uint32_t plane() {
         return _ObjFromParams<uint32_t, uint32_t>(getParams(),
@@ -86,34 +87,38 @@ public:
 };
 
 /**
-* @brief This function is used to obtain a NV12 compound blob object from NV12 VA decoder output.
-* The resulting compound contains two remote blobs for Y and UV planes of the surface.
-*/
+ * @brief This function is used to obtain a NV12 compound blob object from NV12 VA decoder output.
+ * The resulting compound contains two remote blobs for Y and UV planes of the surface.
+ * @param height A height of Y plane
+ * @param width A width of Y plane
+ * @param ctx A remote context instance
+ * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
+ * @return A remote NV12 blob wrapping `VASurfaceID`
+ */
 static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, VASurfaceID nv12_surf) {
-    auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
-    }
-
-    // despite of layout, blob dimensions always follow in N,C,H,W order
+    // despite of layout, blob dimensions always follow in N, C, H, W order
     TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
     ParamMap blobParams = {
         { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE) },
         { GPU_PARAM_KEY(DEV_OBJECT_HANDLE), nv12_surf },
         { GPU_PARAM_KEY(VA_PLANE), uint32_t(0) }
     };
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
+    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(ydesc, blobParams));
 
     TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
     blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
+    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(uvdesc, blobParams));
 
     return InferenceEngine::make_shared_blob<NV12Blob>(y_blob, uv_blob);
 }
 
 /**
-* @brief This function is used to obtain remote context object from VA display handle
-*/
+ * @brief This function is used to obtain remote context object from VA display handle
+ * @param core Inference Engine Core object
+ * @param deviceName A device name to create a remote context for
+ * @param device A `VADisplay` to create remote context from
+ * @return A remote context wrapping `VADisplay`
+ */
 static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceName, VADisplay device) {
     ParamMap contextParams = {
         { GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED) },
@@ -123,8 +128,13 @@ static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceN
 }
 
 /**
-* @brief This function is used to obtain remote blob object from VA surface handle
-*/
+ * @brief This function is used to obtain remote blob object from VA surface handle
+ * @param desc Tensor descriptor
+ * @param ctx A remote context instance
+ * @param surface A `VASurfaceID` to create remote blob from
+ * @param plane An index of a plane inside `VASurfaceID` to create blob from
+ * @return A remote blob wrapping `VASurfaceID`
+ */
 static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, VASurfaceID surface, uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
     if (nullptr == casted) {
