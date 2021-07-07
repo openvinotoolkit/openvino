@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/grn.hpp"
 
-#include "api/grn.hpp"
+#include "cldnn/primitives/grn.hpp"
 
 namespace CLDNNPlugin {
 

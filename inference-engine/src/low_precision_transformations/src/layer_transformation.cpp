@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,9 @@ LayerTransformation::LayerTransformation(const Params& params) :
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
     precisionsOnActivations(params.precisionsOnActivations),
     precisionsOnWeights(params.precisionsOnWeights),
+    deqPrecision(params.deqPrecision),
+    support3DTensorOnActivations(params.support3DTensorOnActivations),
+    deconvolutionSpecificChannelsRatio(params.deconvolutionSpecificChannelsRatio),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
     minQuantizationLevels(2ul),
@@ -71,17 +74,35 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto rank = output.get_partial_shape().rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+        auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const Shape dataShape, Shape constShape) {
-            if ((dataShape.size() - constShape.size()) == 1ul) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+            if (ngraph::shape_size(constShape) == 1ul) {
+                return true;
+            }
+
+            const auto rank = dataPShape.rank();
+            if (rank.is_dynamic()) {
+                return false;
+            }
+
+            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
+            if ((dataShapeSize - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
 
@@ -98,14 +119,14 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         };
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
-            dequantization.subtract->output(0).get_shape(),
-            dequantization.subtract->input(1).get_shape()))) {
+            dequantization.subtract->get_output_partial_shape(0),
+            dequantization.subtract->get_input_shape(1)))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
-            dequantization.multiply->output(0).get_shape(),
-            dequantization.multiply->input(1).get_shape()))) {
+            dequantization.multiply->get_output_partial_shape(0),
+            dequantization.multiply->get_input_shape(1)))) {
             return false;
         }
     }
@@ -113,14 +134,24 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-bool LayerTransformation::canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer)) {
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto outPShape = output.get_partial_shape();
+        const auto rank = outPShape.rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
@@ -219,18 +250,20 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     bool hasZeroPoint = false;
     for (size_t i = 0; i < quantizationDetails.outputLowValues.size(); ++i) {
         const bool signedInterval = std::signbit(quantizationDetails.outputLowValues[i]) != std::signbit(quantizationDetails.outputHighValues[i]);
-        const bool boundaryValuesAreNotZero =
-            (std::fabs(quantizationDetails.outputLowValues[i]) >= zeroThreshold) &&
-            (std::fabs(quantizationDetails.outputHighValues[i]) >= zeroThreshold);
-        if (signedInterval && boundaryValuesAreNotZero) {
+        const bool outputLowValueIsNotZero = std::fabs(quantizationDetails.outputLowValues[i]) >= zeroThreshold;
+        if (signedInterval && outputLowValueIsNotZero) {
             // signed
             unsignedPrecision = false;
             hasNegative = true;
 
-            const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
-            const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
-            const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
-            if (actual > quantizationIntervalAsymmetryThreshold) {
+            if (quantizationDetails.outputHighValues[i] != 0.f) {
+                const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
+                const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
+                const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
+                if (actual > quantizationIntervalAsymmetryThreshold) {
+                    hasZeroPoint = true;
+                }
+            } else {
                 hasZeroPoint = true;
             }
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -242,8 +275,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
         } else {
             // unsigned
             signedPrecision = false;
-            if (boundaryValuesAreNotZero) {
-                hasZeroPoint = boundaryValuesAreNotZero;
+            if (outputLowValueIsNotZero) {
+                hasZeroPoint = outputLowValueIsNotZero;
             }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
@@ -18,8 +18,9 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/ngraph/query_network.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <ngraph/pass/manager.hpp>
+
+#include <vpu/configuration/options/log_level.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 #include "myriad_plugin.h"
 
@@ -29,36 +30,45 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.from(config);
+    executableNetworkConfiguration.validate();
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    _parsedConfig.update(config);
+    _parsedConfig.from(config);
 
+    // TODO: remove once all options are migrated
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        _parsedConfig.set(LogLevelOption::key(), envVar);
+    }
+#endif
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    auto supported_keys = _metrics->SupportedConfigKeys();
-    if (std::find(supported_keys.begin(),
-        supported_keys.end(), name) == supported_keys.end()) {
-        THROW_IE_EXCEPTION << "Unsupported config key : " << name;
-    }
+    // TODO: remove once all options are migrated
+    const auto& supportedKeys = _metrics->SupportedConfigKeys();
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(supportedKeys.count(name) == 1 || _parsedConfig.supports(name), "Unsupported configuration key: {}", name);
 
     Parameter result;
-    auto option = _config.find(name);
-    if (option != _config.end())
-        result = option->second;
+    if (_parsedConfig.supports(name)) {
+        result = _parsedConfig.asParameter(name);
+    } else if (_config.count(name)) {
+        // TODO: remove once all options are migrated
+        result = _config.at(name);
+    }
 
     return result;
 }
@@ -70,7 +80,7 @@ QueryNetworkResult Engine::QueryNetwork(
     QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    parsedConfigCopy.from(config);
 
     const auto deviceName = parsedConfigCopy.deviceName();
     if (!deviceName.empty()) {
@@ -80,13 +90,13 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto log = std::make_shared<Logger>(
             "GraphCompiler",
-            parsedConfigCopy.logLevel(),
+            _parsedConfig.get<LogLevelOption>(),
             defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
     const auto supportedLayers = getSupportedLayers(
             network,
-            static_cast<Platform>(parsedConfigCopy.platform()),
-            parsedConfigCopy.compileConfig(),
+            parsedConfigCopy.platform(),
+            parsedConfigCopy,
             log,
             GetCore());
 
@@ -111,6 +121,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+    // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
         { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
@@ -126,43 +137,33 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
 
-        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
         { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
 IE_SUPPRESS_DEPRECATED_END
+
+    _parsedConfig.registerOption<LogLevelOption>();
+    _parsedConfig.registerOption<CopyOptimizationOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
 }
 
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
+InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         std::istream& model,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.fromAtRuntime(config);
+    executableNetworkConfiguration.validate();
 
-    const auto executableNetwork =
-            std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
-
-    return make_executable_network(executableNetwork);
-}
-
-InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
-        const std::string& modelFileName,
-        const std::map<std::string, std::string>& config) {
-    VPU_PROFILE(ImportNetwork);
-
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << ie::details::as_status << NETWORK_NOT_READ;
-    }
-
-    return ImportNetwork(blobFile, config);
+    return executableNetwork;
 }
 
 InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
@@ -200,13 +201,20 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         const auto& supportedMetrics = _metrics->SupportedMetrics();
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        const auto& supportedConfigKeys = _metrics->SupportedConfigKeys();
+        // TODO: remove once all options are migrated
+        auto supportedConfigKeys = _metrics->SupportedConfigKeys();
+        const auto& publicKeys = _parsedConfig.getPublicKeys();
+        supportedConfigKeys.insert(publicKeys.cbegin(), publicKeys.cend());
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture(options));
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         const auto& device = getDeviceByName(getSpecifiedDeviceName());
         if (device != nullptr) {
@@ -215,5 +223,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+    IE_THROW(NotImplemented);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,9 +72,15 @@ void ConcatTransformation::validate() {
     const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
     const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
+    const auto previousLayer = output->get_input_node_shared_ptr(0);
+    const std::string typeName = previousLayer->get_type_name();
+
+    if (testValues.fqOnData1.quantizationLevel != 256ul ||
+        testValues.fqOnData2.quantizationLevel != 256ul) {
+        ASSERT_EQ("Concat", typeName);
+    } else {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    }
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,12 +19,12 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+
 /**
  * @brief This class represents the main Data representation node.
  *
  * The NN graphs are di-graphs consisting of data nodes and layer nodes.
  */
-
 class INFERENCE_ENGINE_API_CLASS(Data) {
     class Impl;
 public:
@@ -93,6 +93,7 @@ public:
 
     /**
      * @brief Gets the layout value for this Data instance
+     * @return Layout
      */
     Layout getLayout() const;
 

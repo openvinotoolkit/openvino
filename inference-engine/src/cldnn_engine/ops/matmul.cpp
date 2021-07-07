@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "api/gemm.hpp"
-#include "api/fully_connected.hpp"
-#include "api/reshape.hpp"
-#include "api/reorder.hpp"
-#include "api/permute.hpp"
+#include "cldnn/primitives/gemm.hpp"
+#include "cldnn/primitives/fully_connected.hpp"
+#include "cldnn/primitives/reshape.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/permute.hpp"
 
 namespace CLDNNPlugin {
 
@@ -43,7 +43,7 @@ static std::pair<ngraph::Shape, ngraph::Shape> get_aligned_shapes(const ngraph::
 
     for (size_t i = 0; i < max_size - 2; ++i) {
         if (shape_a_aligned[i] != shape_b_aligned[i] && shape_a_aligned[i] > 1 && shape_b_aligned[i] > 1) {
-            THROW_IE_EXCEPTION << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+            IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
         }
         size_t max_value = std::max(shape_a_aligned[i], shape_b_aligned[i]);
         shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -60,15 +60,14 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
     auto shape_a = op->get_input_shape(0);
     auto shape_b = op->get_input_shape(1);
 
-    bool is_fc = ngraph::is_type<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1)) ||
-                 ngraph::is_type<ngraph::op::v0::FakeQuantize>(op->get_input_node_shared_ptr(1));
+    bool is_fc = IsNodeOnConstPath(op->get_input_node_shared_ptr(1));
     is_fc &= std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) { return x != 1; }) <= 2;
 
     if (is_fc) {
         ngraph::Shape shape_a_aligned, shape_b_aligned;
         std::tie(shape_a_aligned, shape_b_aligned) = get_aligned_shapes(shape_a, shape_b, op);
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            THROW_IE_EXCEPTION << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
         }
         size_t K = *(shape_a_aligned.end() - 1);
 
@@ -84,10 +83,11 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
+            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_b";
             auto permutePrim = cldnn::permute(permuteName,
                                               weightsName,
-                                              transpose_order);
+                                              cldnn_permute_order);
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             weightsName = permuteName;
@@ -103,10 +103,11 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             for (auto o = transpose_order.size(); o < 4; o++)
                 transpose_order.push_back((uint16_t)o);
 
+            std::vector<uint16_t> cldnn_permute_order = ConvertPermuteOrder(transpose_order);
             auto permuteName = op->get_friendly_name() + "/transpose_a";
             auto permutePrim = cldnn::permute(permuteName,
                                               inputName,
-                                              transpose_order);
+                                              cldnn_permute_order);
             p.AddPrimitive(permutePrim);
             p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
             inputName = permuteName;
@@ -119,7 +120,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             std::vector<size_t> reshapeSize = { total / features, features };
 
             if (total != reshapeSize[0] * reshapeSize[1])
-                THROW_IE_EXCEPTION << "Inconsistent reshape in Matmul op: " << op->get_friendly_name();
+                IE_THROW() << "Inconsistent reshape in Matmul op: " << op->get_friendly_name();
 
             auto reshapeInName = op->get_friendly_name() + suffix;
             auto reshapeInPrim = cldnn::reshape(reshapeInName, inputName, CldnnTensorFromIEDims(reshapeSize));
@@ -167,7 +168,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
             case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
             case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
             case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-            default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for Gemm layer";
+            default: IE_THROW() << "Invalid dimensions size(" << dims.size() << ") for Gemm layer";
             }
         };
 

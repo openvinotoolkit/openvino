@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,27 +32,33 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
 
-    auto outputLowConst = fakeQuantize->get_input_node_shared_ptr(3);
-    auto outputHighConst = fakeQuantize->get_input_node_shared_ptr(4);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
 
-    const auto value =
-        outputLowConst->get_output_element_type(0) == subtractConstant->get_output_element_type(0) ?
+    const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
         subtractConstant :
-        fold<opset1::Convert>(subtractConstant, outputLowConst->get_output_element_type(0));
+        foldConvert(subtractConstant, deqPrecision);
 
-    outputLowConst = fold<opset1::Subtract>(outputLowConst, value);
-    outputHighConst = fold<opset1::Subtract>(outputHighConst, value);
+    outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32, value);
 
     const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
     const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
+    const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
+    const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantizeParent->output(parentIndex),
-            fakeQuantize->input_value(1),
-            fakeQuantize->input_value(2),
-            outputLowConst,
-            outputHighConst,
+            inputLow,
+            inputHigh,
+            outputLowConst_f32,
+            outputHighConst_f32,
             fakeQuantize->get_levels()),
         subtract->get_output_element_type(0));
 
@@ -72,12 +78,13 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
         return false;
     }
 
-    const auto childs = operation->get_output_target_inputs(0);
+    const auto children = operation->get_output_target_inputs(0);
 
-    for (const auto& target : childs) {
+    for (const auto& target : children) {
         const auto convolution = is_type<opset1::Convolution>(target.get_node());
         const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
-        if (convolution || groupConvolution) {
+        const auto convolutionBackpropData = is_type<opset1::ConvolutionBackpropData>(target.get_node());
+        if (convolution || groupConvolution || convolutionBackpropData) {
             return false;
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,9 @@
 
 #include "ngraph/op/select.hpp"
 
-#include "api/select.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/select.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -25,7 +25,7 @@ void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& o
 
     if (broadcast_type.m_type != ngraph::op::AutoBroadcastType::NONE &&
         broadcast_type.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        THROW_IE_EXCEPTION << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
+        IE_THROW() << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
     }
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {

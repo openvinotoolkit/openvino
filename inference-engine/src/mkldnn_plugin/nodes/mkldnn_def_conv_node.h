@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <memory>
 #include <string>
@@ -65,9 +64,9 @@ struct jit_uni_def_conv_kernel {
 
 class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNDeformableConvolutionNode() override = default;
+    MKLDNNDeformableConvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;

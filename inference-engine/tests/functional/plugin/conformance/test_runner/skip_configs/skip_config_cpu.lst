@@ -1,0 +1,65 @@
+# OMZ:
+# Hang:
+.*AvgPool_1199829.*
+.*AvgPool_1201153.*
+.*ROIPooling_1199827.*
+
+# DLB:
+# Hang:
+.*Convolution_1301086.*
+.*Convolution_1301186.*
+.*Convolution_1761288.*
+.*GroupConvolution_1761341.*
+.*GroupConvolution_1763142.*
+.*Interpolate_475913.*
+.*MVN_1761313.*
+.*ROIAlign_1016430.*
+.*ROIAlign_1016460.*
+.*ROIAlign_1016482.*
+.*ROIAlign_1016504.*
+.*ROIAlign_470931.*
+.*ROIAlign_470968.*
+.*ROIAlign_470993.*
+.*ROIAlign_471018.*
+.*Reshape_1302893.*
+.*Reshape_1302942.*
+.*Reshape_1762836.*
+.*Reshape_1763029.*
+.*Reshape_1763071.*
+.*ScatterNDUpdate_3475452.*
+
+# Crashed + Hang
+.*Abs_220198.*
+.*Abs_2673435.*
+.*Abs_3009423.*
+.*Abs_3464504.*
+.*ConvolutionBackpropData_1046455.*
+.*ConvolutionBackpropData_2489069.*
+.*Convolution_1301086.*
+.*Convolution_1301186.*
+.*Convolution_1761288.*
+.*Convolution_1761388.*
+.*Gelu.*
+.*GroupConvolution_1301139.*
+.*GroupConvolution_1303013.*
+.*GroupConvolution_1761341.*
+.*Interpolate_475913.*
+.*MVN_1301111.*
+.*MVN_1761313.*
+.*ROIAlign_1016430.*
+.*ROIAlign_1016460.*
+.*ROIAlign_1016482.*
+.*ROIAlign_1016504.*
+.*ROIAlign_470931.*
+.*ROIAlign_470968.*
+.*ROIAlign_470993.*
+.*ROIAlign_471018.*
+.*Reshape_1302893.*
+.*Reshape_1302942.*
+.*Reshape_1762836.*
+.*Reshape_1763029.*
+.*Reshape_1763071.*
+.*Reshape_2134296.*
+.*ScatterNDUpdate_3475452.*
+.*Transpose_1060948.*
+.*Transpose_1521092.*

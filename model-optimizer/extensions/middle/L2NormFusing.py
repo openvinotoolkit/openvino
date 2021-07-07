@@ -1,31 +1,24 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
 import numpy as np
 
 from extensions.ops.normalize_l2 import NormalizeL2Op
+from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, rename_node
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 
 
 class L2NormToNorm(MiddleReplacementPattern):
+    """
+    Transformation fuses sub-graph performing l2 normalization into the NormalizeL2 operation. IE plugins do not support
+    NormalizeL2 operation and there is a nGraph transformation which converts NormalizeL2 to NormalizeIE. The latter one
+    allows to normalize over just channel dimension or "channel + all spatial" dimensions for 2D, 3D or 4D cases.
+    """
     enabled = True
     force_clean_up = True
 
@@ -86,29 +79,33 @@ class L2NormToNorm(MiddleReplacementPattern):
         # reduction only along spatial and channel dimensions.
         input_rank = len(match['sum'].in_port(0).data.get_shape())
         if input_rank not in [2, 3, 4]:
-            log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors, skip fusing transformation.')
+            log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors.')
             return
 
         axes = match['sum'].in_port(1).data.get_value()
         axes = int64_array(axes)
         if axes.shape == ():
             axes = int64_array([axes])
+        axes = int64_array([axis if axis >= 0 else axis + input_rank for axis in axes])
         axes.sort()
 
-        if not np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
-            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
-                      ''.format(axes))
+        transformation_applicable = False
+        # check for case C + all spatial dims. Works for 2D (NC), 3D (NCH) and 4D (NCHW and NHWC)
+        if len(axes) + 1 == input_rank and np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
+            transformation_applicable = True
+
+        # check for pure C channel normalization
+        if len(axes) == 1 and ((input_rank == 4 and get_features_dim(graph.graph['layout'], input_rank) == axes[0]) or
+                               (input_rank != 4 and axes[0] == 1)):
+            transformation_applicable = True
+
+        if not transformation_applicable:
+            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}.'.format(axes))
             return
 
-        # rename l2_normalize node since it will be no longer output after the transformation
         output_name = match['l2_normalize'].soft_get('name', match['l2_normalize'].id)
-        normalizel2_name = output_name + '/normalizel2'
-        rename_node(match['l2_normalize'], normalizel2_name)
-
         normalize_node = create_op_node_with_second_input(graph, NormalizeL2Op, axes, {'name': output_name,
                                                                                        'eps_mode': 'max', 'eps': y})
-        rename_node(normalize_node, output_name)
-
         match['square'].in_port(0).get_source().connect(normalize_node.in_port(0))
 
         match['square'].in_port(0).disconnect()
@@ -118,3 +115,4 @@ class L2NormToNorm(MiddleReplacementPattern):
             match['l2_normalize'].in_port(0).disconnect()
 
         match['l2_normalize'].out_port(0).get_connection().set_source(normalize_node.out_port(0))
+        rename_nodes([(match['l2_normalize'], output_name + "/TBR"), (normalize_node, output_name)])

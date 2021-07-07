@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,10 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
 }
 
 TEST_P(ActivationParamLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(ActivationDynamicLayerTest, CompareWithRefs) {
     Run();
 }
 

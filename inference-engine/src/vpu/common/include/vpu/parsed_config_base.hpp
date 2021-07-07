@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,6 @@ VPU_DECLARE_ENUM(ConfigMode,
 
 class ParsedConfigBase {
 public:
-    LogLevel logLevel() const {
-        return _logLevel;
-    }
-
     bool exclusiveAsyncRequests() const {
         return _exclusiveAsyncRequests;
     }
@@ -37,11 +33,9 @@ public:
     ParsedConfigBase();
     virtual ~ParsedConfigBase();
 
-    void update(
-            const std::map<std::string, std::string>& config,
-            ConfigMode mode = ConfigMode::Any);
-
 protected:
+    void update(const std::map<std::string, std::string>& config, ConfigMode mode = ConfigMode::Any);
+
     virtual const std::unordered_set<std::string>& getCompileOptions() const;
     virtual const std::unordered_set<std::string>& getRunTimeOptions() const;
     virtual const std::unordered_set<std::string>& getDeprecatedOptions() const;
@@ -67,7 +61,7 @@ protected:
         if (value != config.end()) {
             const auto parsedValue = supported.find(value->second);
             if (parsedValue == supported.end()) {
-                THROW_IE_EXCEPTION
+                IE_THROW()
                         << "Unsupported value " << "\"" << value->second << "\""
                         << " for key " << key;
             }
@@ -87,7 +81,7 @@ protected:
             try {
                 dst = preprocess(value->second);
             } catch(const std::exception& e) {
-                THROW_IE_EXCEPTION
+                IE_THROW()
                         << "Invalid value " << "\"" << value->second << "\""
                         << " for key " << key
                         << " : " << e.what();
@@ -99,7 +93,7 @@ protected:
         try {
             return std::chrono::seconds(std::stoi(src));
         } catch (const std::exception& e) {
-            THROW_IE_EXCEPTION
+            IE_THROW()
                         << "Can not convert string:"
                         << src << " to seconds. "
                         << "Message : " << e.what();
@@ -130,7 +124,6 @@ protected:
     Logger::Ptr _log;
 
 private:
-    LogLevel _logLevel = LogLevel::None;
     bool _exclusiveAsyncRequests = false;
 };
 

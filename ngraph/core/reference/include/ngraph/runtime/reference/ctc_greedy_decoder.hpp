@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -35,10 +23,11 @@ namespace ngraph
                                     const Shape& out_shape,
                                     const bool ctc_merge_repeated)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 const auto max_seq_len = data_shape[0];
                 const auto batch_size = data_shape[1];
                 const auto class_count = data_shape[2];
-                const auto blank_index = class_count - 1;
+                const uint64_t blank_index = class_count - 1;
 
                 CoordinateTransform out_transform = CoordinateTransform(out_shape);
                 CoordinateTransform data_transform = CoordinateTransform(data_shape);
@@ -67,10 +56,10 @@ namespace ngraph
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
-                        unsigned int max_class_ind = std::distance(class_index, class_max_element);
+                        T max_class_ind = std::distance(class_index, class_max_element);
 
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
-                            max_class_ind < blank_index)
+                            static_cast<uint64_t>(max_class_ind) < blank_index)
                         {
                             tmp_out[out_index++] = max_class_ind;
                         }
@@ -78,6 +67,7 @@ namespace ngraph
                     }
                 }
                 std::copy(tmp_out.begin(), tmp_out.end(), out);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

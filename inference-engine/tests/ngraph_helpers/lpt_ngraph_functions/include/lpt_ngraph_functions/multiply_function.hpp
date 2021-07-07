@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace subgraph {
 
 class MultiplyBranch {
 public:
-    Shape inputShape;
+    PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
     ngraph::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
@@ -39,7 +39,9 @@ inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values)
 
 class MultiplyFunction {
 public:
-    static std::shared_ptr<ngraph::Function> get(const ngraph::Shape& inputShape, const MultiplyValues& actualValues);
+    static std::shared_ptr<ngraph::Function> get(
+            const element::Type precision,
+            const MultiplyValues& actualValues);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,

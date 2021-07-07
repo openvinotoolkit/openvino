@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,9 @@ namespace subgraph {
 class AvgPoolFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
@@ -30,8 +31,9 @@ public:
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

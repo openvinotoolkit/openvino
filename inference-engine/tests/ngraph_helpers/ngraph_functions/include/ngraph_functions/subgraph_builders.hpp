@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,12 +122,12 @@ inline std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32) {
-    // That which we iterate over
-    const size_t N = 32; // Batch size
-    const size_t L = 10; // Sequence length
-    const size_t I = 8;  // Input size
-    const size_t H = 32; // Hidden size
+inline std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(
+        ngraph::element::Type_t ngPRC = ngraph::element::Type_t::f32,
+        size_t N = 32,   // Batch size
+        size_t L = 10,   // Sequence length
+        size_t I = 8,    // Input size
+        size_t H = 32) { // Hidden size
     auto SENT = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, L, I});
 
     auto H_init = std::make_shared<ngraph::opset1::Parameter>(ngPRC, ngraph::Shape{N, 1, H});
@@ -192,8 +192,8 @@ inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
     return fn_ptr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24}) {
-    ngraph::element::Type type = ngraph::element::Type_t::f32;
+inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
+    ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);

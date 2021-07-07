@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/psroi_pooling.hpp"
 #include "itt.hpp"
@@ -21,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PSROIPooling::type_info;
+NGRAPH_RTTI_DEFINITION(op::PSROIPooling, "PSROIPooling", 0);
 
 op::PSROIPooling::PSROIPooling(const Output<Node>& input,
                                const Output<Node>& coords,
@@ -120,16 +108,17 @@ void op::PSROIPooling::validate_and_infer_types()
                                       "spatial_bins_x * spatial_bins_y");
                 NODE_VALIDATION_CHECK(
                     this,
-                    m_output_dim == num_input_channels / (m_spatial_bins_x * m_spatial_bins_y),
+                    m_output_dim == static_cast<size_t>(num_input_channels /
+                                                        (m_spatial_bins_x * m_spatial_bins_y)),
                     "output_dim must be equal to input channels divided by "
                     "spatial_bins_x * spatial_bins_y");
             }
         }
         std::vector<Dimension> output_shape{coords_pshape[0],
                                             static_cast<Dimension::value_type>(m_output_dim)};
-        for (size_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
+        for (int64_t i = 2; i < feat_map_pshape.rank().get_length(); i++)
         {
-            output_shape.push_back(m_group_size);
+            output_shape.emplace_back(m_group_size);
         }
         set_output_type(0, feat_maps_et, output_shape);
     }

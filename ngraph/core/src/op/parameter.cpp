@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <sstream>
 #include "itt.hpp"
@@ -23,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Parameter::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Parameter, "Parameter", 0);
 
 op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
     : m_partial_shape(pshape)
@@ -74,14 +62,14 @@ AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref)
 
 bool AttributeAdapter<ParameterVector>::visit_attributes(AttributeVisitor& visitor)
 {
-    int64_t size = m_ref.size();
+    size_t size = m_ref.size();
     visitor.on_attribute("size", size);
     if (size != m_ref.size())
     {
         m_ref.resize(size);
     }
     ostringstream index;
-    for (int64_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         index.str("");
         index << i;

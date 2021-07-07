@@ -1,19 +1,8 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
+
 import logging
 from typing import Dict, List, Union
 
@@ -130,7 +119,23 @@ class Computation(object):
 
     def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
-        return output_blobs[out_name].buffer
+        out_blob = output_blobs[out_name]
+
+        if out_blob.tensor_desc.layout == "SCALAR":
+            return out_blob.buffer.reshape(())
+        else:
+            return out_blob.buffer
+
+    def convert_buffers(self, source_buffers, target_dtypes):
+        converted_buffers = []
+        for i in range(len(source_buffers)):
+            target_dtype = target_dtypes[i]
+            # custom conversion for bf16
+            if self.results[i].get_output_element_type(0) == Type.bf16:
+                converted_buffers.append((source_buffers[i].view(np.uint32) >> 16).astype(np.uint16))
+            else:
+                converted_buffers.append(source_buffers[i].astype(target_dtype))
+        return converted_buffers
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
@@ -184,6 +189,5 @@ class Computation(object):
 
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
-        converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
-                             zip(result_buffers, original_dtypes)]
+        converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers

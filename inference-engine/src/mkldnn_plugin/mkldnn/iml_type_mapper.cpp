@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ using namespace MKLDNNPlugin;
 impl_desc_type MKLDNNPlugin::parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
-#define REPLACE_WORD(_wrd, _sub) int pos = impl_desc_name.find(#_wrd); \
+#define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
     if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
 
     REPLACE_WORD(simple, ref);

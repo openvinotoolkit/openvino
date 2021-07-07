@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/builder/autobroadcast.hpp"
 
@@ -25,9 +13,8 @@
 #include "ngraph/check.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/opsets/opset7.hpp"
 #include "ngraph/util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 
@@ -426,12 +413,18 @@ namespace ngraph
                 return axes_mapping;
             }
 
-            Output<Node> get_axes_mapping_output(const Shape& output_shape,
-                                                 const Shape& input_shape,
-                                                 size_t start_match_axis)
+            Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                                 const PartialShape& input_shape,
+                                                 std::size_t start_match_axis)
             {
-                NGRAPH_CHECK((input_shape.size() + start_match_axis <= output_shape.size()));
-                vector<size_t> mapping(input_shape.size());
+                NGRAPH_CHECK((input_shape.rank().is_static() && output_shape.rank().is_static()),
+                             "Tensor's rank has to be static.");
+                NGRAPH_CHECK(
+                    (input_shape.rank().get_length() + static_cast<int64_t>(start_match_axis) <=
+                     output_shape.rank().get_length()),
+                    "Unable to figure out axes mapping.");
+
+                vector<int64_t> mapping(input_shape.rank().get_length());
                 iota(begin(mapping), end(mapping), start_match_axis);
 
                 return op::Constant::create(element::i64, Shape{mapping.size()}, mapping);
@@ -442,6 +435,30 @@ namespace ngraph
             {
                 vector<size_t> axes_mapping{get_axes_mapping(output_shape, broadcast_axes)};
                 return op::Constant::create(element::i64, Shape{axes_mapping.size()}, axes_mapping);
+            }
+
+            Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                                 const Output<Node>& input_shape,
+                                                 std::size_t start_match_axis)
+            {
+                const auto one_node = opset7::Constant::create(element::i64, Shape{}, {1});
+                const auto zero_node = opset7::Constant::create(element::i64, Shape{}, {0});
+                const auto start_match_axis_node =
+                    opset7::Constant::create(element::i64, Shape{}, {start_match_axis});
+                const auto target_shape_rank_node = builder::opset1::reshape(
+                    std::make_shared<opset7::ShapeOf>(input_shape), Shape{});
+
+                const auto range_node = std::make_shared<opset7::Range>(
+                    zero_node, target_shape_rank_node, one_node, element::i64);
+
+                // workaround for GPU plugin type incompatibility
+                const auto range_node_converted = std::make_shared<opset7::Convert>(
+                    range_node, start_match_axis_node->get_element_type());
+                // end of workaround
+
+                const auto result =
+                    std::make_shared<opset7::Add>(range_node_converted, start_match_axis_node);
+                return result;
             }
 
             Output<Node> make_broadcast(const Output<Node>& node,
@@ -458,10 +475,11 @@ namespace ngraph
                                         const Shape& target_shape,
                                         size_t start_match_axis)
             {
+                const auto node_shape = std::make_shared<opset7::ShapeOf>(node);
                 return make_shared<op::v1::Broadcast>(
                     node,
                     op::Constant::create(element::i64, Shape{target_shape.size()}, target_shape),
-                    get_axes_mapping_output(target_shape, node.get_shape(), start_match_axis));
+                    get_axes_mapping_output(target_shape, node_shape, start_match_axis));
             }
 
         } // namespace opset1

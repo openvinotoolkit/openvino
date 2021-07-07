@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ protected:
     virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
 
     void SetUp() override {
+        // TODO: Replace CONSTANT_FOLDING to INTERPRETER
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         if (CommonTestUtils::vpu::CheckMyriad2()) {

@@ -1,6 +1,6 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 #include <gpu/gpu_context_api_va.hpp>
-#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 
 
 int main() {
@@ -27,27 +27,27 @@ VADisplay disp = get_VA_Device();
 auto shared_va_context = gpu::make_shared_context(ie, "GPU", disp);
 // compile network within a shared context
 ExecutableNetwork executable_network = ie.LoadNetwork(network,
-													  shared_va_context,
-													  { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS,
-													      PluginConfigParams::YES } });
+                                                      shared_va_context,
+                                                      { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS,
+                                                          PluginConfigParams::YES } });
 
 
 // decode/inference loop
 for (int i = 0; i < nframes; i++) {
-// 	...
-	// execute decoding and obtain decoded surface handle
-	decoder.DecodeFrame();
-	VASurfaceID va_surface = decoder.get_VA_output_surface();
-// 	...
-	//wrap decoder output into RemoteBlobs and set it as inference input
-	auto nv12_blob = gpu::make_shared_blob_nv12(ieInHeight,
-												ieInWidth,
-												shared_va_context,
-												va_surface
-												);
-	inferRequests[currentFrame].SetBlob(input_name, nv12_blob);
-	inferRequests[currentFrame].StartAsync();
-	inferRequests[prevFrame].Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+//     ...
+    // execute decoding and obtain decoded surface handle
+    decoder.DecodeFrame();
+    VASurfaceID va_surface = decoder.get_VA_output_surface();
+//     ...
+    //wrap decoder output into RemoteBlobs and set it as inference input
+    auto nv12_blob = gpu::make_shared_blob_nv12(ieInHeight,
+                                                ieInWidth,
+                                                shared_va_context,
+                                                va_surface
+                                                );
+    inferRequests[currentFrame].SetBlob(input_name, nv12_blob);
+    inferRequests[currentFrame].StartAsync();
+    inferRequests[prevFrame].Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 }
 //! [part2]
 return 0;

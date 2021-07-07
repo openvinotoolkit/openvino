@@ -51,6 +51,7 @@ Standard MXNet\* symbols:
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
 | _maximum | No |
 | _minimum | No |
+| _np_roll | No |
 | add_n | No |
 | arccosh | No |
 | arcsinh | No |
@@ -98,7 +99,7 @@ Standard MXNet\* symbols:
 | InstanceNorm | No |
 | L2Normalization | only 4D input is supported |
 | LRN | No |
-| LeakyReLU | No |
+| LeakyReLU | supported "act_type" = "prelu", "elu", "leaky", "gelu" |
 | Pad | No |
 | Pooling | No |
 | ROIPooling | No |
@@ -127,13 +128,15 @@ Standard TensorFlow\* operations:
 | AddV2 | No |
 | AddN | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
-| AvgPoolV2 | Supported only for constant kernel_size and strides inputs |
+| AvgPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
+| BroadcastTo | No |
 | Cast | No |
 | Ceil | No |
 | Concat | No |
@@ -157,6 +160,9 @@ Standard TensorFlow\* operations:
 | EuclideanNorm | No |
 | FakeQuantWithMinMaxVars | No |
 | FakeQuantWithMinMaxVarsPerChannel | No |
+| FFT | Supported only when it is part of a sub-graph of the special form |
+| FFT2D | Supported only when it is part of a sub-graph of the special form |
+| FFT3D | Supported only when it is part of a sub-graph of the special form |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
@@ -169,6 +175,9 @@ Standard TensorFlow\* operations:
 | Greater | No |
 | GreaterEqual | No |
 | Identity | Not needed for shape inference |
+| IFFT | Supported only when it is part of a sub-graph of the special form |
+| IFFT2D | Supported only when it is part of a sub-graph of the special form |
+| IFFT3D | Supported only when it is part of a sub-graph of the special form |
 | LRN | No |
 | Less | No |
 | Log | No |
@@ -181,7 +190,7 @@ Standard TensorFlow\* operations:
 | MatMul | No |
 | Max | No |
 | MaxPool | No |
-| MaxPoolV2 | Supported only for constant kernel_size and strides inputs |
+| MaxPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | Maximum | No |
 | Mean | No |
 | Merge | Supported only when it is fused to the TensorIterator layer |
@@ -212,6 +221,7 @@ Standard TensorFlow\* operations:
 | ResizeNearestNeighbor | No |
 | ResourceGather| No |
 | ReverseSequence | No |
+| Roll | No |
 | Round | No |
 | Rsqrt | No |
 | Shape | No |
@@ -233,7 +243,7 @@ Standard TensorFlow\* operations:
 | Square| No |
 | Squeeze | The case when squeeze axis is not specified is not supported |
 | StopGradient | Not needed for shape inference |
-| StridedSlice | Supported only for constant begin, end, and strides inputs |
+| StridedSlice | Supported only for constant-foldable begin, end, and strides inputs |
 | Sub | No |
 | Sum | No |
 | Swish | No |
@@ -253,6 +263,90 @@ Standard TensorFlow\* operations:
 | Where | No |
 | ZerosLike | No |
 
+
+## TensorFlow 2 Keras\* Supported Operations
+
+Standard TensorFlow 2 Keras\* operations:
+
+| Operation Name in TensorFlow 2 Keras\* | Limitations|
+| :----------| :----------|
+| ActivityRegularization | No |
+| Add | No |
+| AdditiveAttention | No |
+| AlphaDropout | No |
+| Attention | No |
+| Average | No |
+| AveragePooling1D | No |
+| AveragePooling2D | No |
+| AveragePooling3D | No |
+| BatchNormalization | No |
+| Bidirectional | No |
+| Concatenate | No |
+| Conv1D | No |
+| Conv1DTranspose | Not supported if dilation is not equal to 1 |
+| Conv2D | No |
+| Conv2DTranspose | No |
+| Conv3D | No |
+| Conv3DTranspose | No |
+| Cropping1D | No |
+| Cropping2D | No |
+| Cropping3D | No |
+| Dense | No |
+| DenseFeatures | Not supported for categorical and crossed features |
+| DepthwiseConv2D | No |
+| Dot | No |
+| Dropout | No |
+| ELU | No |
+| Embedding | No |
+| Flatten | No |
+| GRU | No |
+| GRUCell | No |
+| GaussianDropout | No |
+| GaussianNoise | No |
+| GlobalAveragePooling1D | No |
+| GlobalAveragePooling2D | No |
+| GlobalAveragePooling3D | No |
+| GlobalMaxPool1D | No |
+| GlobalMaxPool2D | No |
+| GlobalMaxPool3D | No |
+| LSTM | No |
+| LSTMCell | No |
+| Lambda | No |
+| LayerNormalization | No |
+| LeakyReLU | No |
+| LocallyConnected1D | No |
+| LocallyConnected2D | No |
+| MaxPool1D | No |
+| MaxPool2D | No |
+| MaxPool3D | No |
+| Maximum | No |
+| Minimum | No |
+| Multiply | No |
+| PReLU | No |
+| Permute | No |
+| RNN | Not supported for some custom cells |
+| ReLU | No |
+| RepeatVector | No |
+| Reshape | No |
+| Roll | No |
+| SeparableConv1D | No |
+| SeparableConv2D | No |
+| SimpleRNN | No |
+| SimpleRNNCell | No |
+| Softmax | No |
+| SpatialDropout1D | No |
+| SpatialDropout2D | No |
+| SpatialDropout3D | No |
+| StackedRNNCells | No |
+| Subtract | No |
+| ThresholdedReLU | No |
+| TimeDistributed | No |
+| UpSampling1D | No |
+| UpSampling2D | No |
+| UpSampling3D | No |
+| ZeroPadding1D | No |
+| ZeroPadding2D | No |
+| ZeroPadding3D | No |
 
 ## Kaldi\* Supported Layers
 
@@ -296,6 +390,7 @@ Standard Kaldi\* Layers:
 | splicecomponent | No |
 | tanhcomponent | No |
 | tdnncomponent | No |
+| timeheightconvolutioncomponent | No |
 
 
 ## ONNX\* Supported Operators
@@ -310,6 +405,7 @@ Standard ONNX\* operators:
 | Add | No |
 | Affine | No |
 | ArgMax | No |
+| ArgMin | No |
 | Asin | No |
 | Asinh | No |
 | Atan | No |
@@ -404,6 +500,7 @@ Standard ONNX\* operators:
 | Sigmoid | No |
 | Sign | No |
 | Sin | No |
+| Size | No |
 | Slice | No |
 | Softmax | No |
 | Softplus | No |

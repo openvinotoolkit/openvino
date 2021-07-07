@@ -1,4 +1,4 @@
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,9 +19,3 @@ endmacro()
 
 # need libusb 32-bits version
 _set_if_not_defined(ENABLE_VPU OFF)
-
-# _mm_loadl_epi64 is not defined
-_set_if_not_defined(ENABLE_SSE42 OFF)
-
-# fix conversion from uint64_t / int64_t to size_t
-_set_if_not_defined(NGRAPH_ONNX_IMPORT_ENABLE OFF)

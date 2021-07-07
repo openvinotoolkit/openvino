@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +29,7 @@ class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsT
                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj);
-    void Infer() override;
+    void GenerateInputs() override;
 
 protected:
     void SetUp() override;

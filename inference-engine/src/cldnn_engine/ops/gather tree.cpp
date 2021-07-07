@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 
 #include "ngraph/op/gather_tree.hpp"
 
-#include "api/gather_tree.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/gather_tree.hpp"
+#include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
 

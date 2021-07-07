@@ -1,20 +1,9 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/softplus.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -40,6 +29,13 @@ bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 void op::v4::SoftPlus::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_dynamic() || input_et.is_real(),
+                          "Input element type must be float. Got: ",
+                          input_et);
+
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
@@ -61,10 +57,11 @@ namespace softplus
         return true;
     }
 
-    bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count)
+    bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out)
     {
         bool rc = true;
         out->set_unary(arg);
+        size_t count = shape_size(arg->get_shape());
 
         switch (arg->get_element_type())
         {
@@ -75,11 +72,25 @@ namespace softplus
         }
         return rc;
     }
-}
+} // namespace softplus
 
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
-    return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    return softplus::evaluate_softplus(inputs[0], outputs[0]);
+}
+
+bool op::v4::SoftPlus::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_SoftPlus_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

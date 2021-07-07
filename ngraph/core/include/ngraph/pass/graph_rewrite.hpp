@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -95,6 +83,7 @@ namespace ngraph
             }
             void clear_new_nodes() { m_new_nodes.clear(); }
             std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
+
         protected:
             void register_matcher(
                 const std::shared_ptr<pattern::Matcher>& m,
@@ -156,11 +145,11 @@ namespace ngraph
             ///     anchor->add_matcher<MatcherPassB, false>();
             ///
             /// \return shared_ptr to the transformation instance
-            template <
-                typename T,
-                bool Enabled = true,
-                class... Args,
-                typename std::enable_if<std::is_base_of<pass::MatcherPass, T>{}, bool>::type = true>
+            template <typename T,
+                      bool Enabled = true,
+                      class... Args,
+                      typename std::enable_if<std::is_base_of<pass::MatcherPass, T>::value,
+                                              bool>::type = true>
             std::shared_ptr<T> add_matcher(Args&&... args)
             {
                 static_assert(std::is_base_of<pass::MatcherPass, T>::value,
@@ -200,7 +189,7 @@ namespace ngraph
             /// registered matchers.
             template <typename T,
                       class... Args,
-                      typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>{},
+                      typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>::value,
                                               bool>::type = true>
             void add_matcher(Args&&... args)
             {
@@ -230,9 +219,27 @@ namespace ngraph
             void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
         protected:
+            bool apply_matcher_passes(std::shared_ptr<Function> f,
+                                      std::deque<std::shared_ptr<Node>> nodes_to_run);
+
             bool m_enable_shape_inference = false;
 
             std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
+        };
+
+        class NGRAPH_API BackwardGraphRewrite : public ngraph::pass::GraphRewrite
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+
+            BackwardGraphRewrite() = default;
+
+            explicit BackwardGraphRewrite(const std::shared_ptr<MatcherPass>& pass)
+                : GraphRewrite(pass)
+            {
+            }
+
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
         };
 
         class NGRAPH_API RecurrentGraphRewrite : public ngraph::pass::FunctionPass

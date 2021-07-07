@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,7 @@ private:
             {ngraph::opset5::Maximum::type_info,          sliceBinaryEltwise},
 
             {ngraph::opset5::Relu::type_info,             sliceUnaryEltwise},
+            {ngraph::opset5::Clamp::type_info,            sliceUnaryEltwise},
         };
         return slicers;
     }

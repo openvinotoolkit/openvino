@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/gather_elements.hpp"
 #include "itt.hpp"
@@ -99,13 +87,12 @@ void op::v6::GatherElements::validate_and_infer_types()
     {
         if (i != axis)
         {
-            // if size of the current axis of indices is unknown it will retrieve it from data
-            // e.g., if data_shape = {4, 4, ?} indices_shape = {1, ?, 5} and axis = 0
+            // if size of the current dimension of indices is unknown it will be retrieved from data
+            // e.g., if data_shape = {4, 4, ?}, indices_shape = {1, ?, 5} and axis = 0
             // (and if intervals intersect) then output_pshape will be {1, 4, 5}
-            Dimension curr_dim = data_pshape[i] & indices_pshape[i];
 
             NODE_VALIDATION_CHECK(this,
-                                  !curr_dim.get_interval().empty(),
+                                  data_pshape[i].compatible(indices_pshape[i]),
                                   "Shapes ",
                                   data_pshape,
                                   " and ",
@@ -114,7 +101,7 @@ void op::v6::GatherElements::validate_and_infer_types()
                                   "intersecting sizes, except for axis ",
                                   m_axis);
 
-            output_pshape[i] = curr_dim;
+            output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
     }
     set_output_type(0, data_type, output_pshape);

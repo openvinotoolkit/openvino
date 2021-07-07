@@ -1,28 +1,18 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 #include "itt.hpp"
 
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 #include "ngraph/op/convert_like.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::ConvertLike::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::ConvertLike, "ConvertLike", 1);
 
 op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& like)
     : Op({data, like})
@@ -47,4 +37,18 @@ shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& 
     NGRAPH_OP_SCOPE(v1_ConvertLike_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
+}
+
+bool op::v1::ConvertLike::constant_fold(OutputVector& output_values,
+                                        const OutputVector& input_values)
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v1::ConvertLike::constant_fold");
+    if (auto data_const =
+            std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr()))
+    {
+        auto convert = make_shared<Convert>(input_values[0], input_values[1].get_element_type());
+        convert->constant_fold(output_values, OutputVector{data_const});
+        return true;
+    }
+    return false;
 }

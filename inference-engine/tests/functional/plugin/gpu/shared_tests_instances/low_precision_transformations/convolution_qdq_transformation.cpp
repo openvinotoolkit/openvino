@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {-128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -126,7 +126,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -177,7 +177,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {128.f}, ngraph::element::f32, {}, false, 1ul, ngraph::element::i8, true },
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 
@@ -228,7 +228,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             {},
             { {0.2f}, ngraph::element::f32, {}, false }
         },
-        "output_original",
+        "Convolution",
         "U8"
     },
 };
@@ -238,7 +238,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 4, 4 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionQDqTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),

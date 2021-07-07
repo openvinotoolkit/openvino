@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -20,7 +7,8 @@ import numpy as np
 
 from extensions.middle.TensorIterator_utils import delete_selects_from
 from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
-from mo.graph.graph import Graph
+from extensions.ops.identity import Identity
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -213,7 +201,7 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
         shape.
         """
         dynamic_seq_len = match['Enter_1_less_data'].value is None or match['Enter_2_less_data'].value is None or \
-                                not np.array_equal(match['Enter_1_less_data'].value, match['Enter_2_less_data'].value)
+                          not np.array_equal(match['Enter_1_less_data'].value, match['Enter_2_less_data'].value)
 
         return dynamic_seq_len
 
@@ -260,7 +248,7 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
                 # Add BackEdge for time iterator node
                 backedge = TensorIteratorBackEdge(graph, dict(name='/TimeIterator/TensorIteratorBackEdge_'))
                 backedge_data = backedge.create_node_with_data(inputs=[match['init_2_data'], match['add_2_data'],
-                                                               condition_data[0]],)
+                                                                       condition_data[0]], )
 
                 graph.remove_edge(match['add_2'].in_node(0).id, match['add_2'].id)
                 graph.add_edge(backedge_data.id, match['add_2'].id, **{'in': 0})
@@ -269,7 +257,8 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
                 graph.add_edge(backedge_data.id, greater_equal_id, **{'in': 0})
 
                 # nodes for time iterator
-                safe_nodes += ['init_2_data', 'init_2', 'Identity_2_data', 'add_2_data', 'add_2', 'add_2_y', 'add_2_y_data']
+                safe_nodes += ['init_2_data', 'init_2', 'Identity_2_data', 'add_2_data', 'add_2', 'add_2_y',
+                               'add_2_y_data']
 
                 # Manually reshape all iterator nodes (for time) from 0D to 1D
                 iterator_data_nodes = [backedge_data, match['add_2_data'], match['add_2_y_data'], match['add_2_y'],
@@ -377,6 +366,10 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
 
         match['loop_cond_data'].value = None
 
+        # compute destination (or consumer) ports for time node
+        identity_node_name = match['Identity_1'].soft_get('name', match['Identity_1'].id)
+        time_dsts = match['Identity_1'].out_port(0).get_destinations()
+
         # Create condition node and delete all useless nodes from condition pattern
         condition_attrs = dict(iter=dict(init=init_1, step=step_1),
                                name=match['loop_cond'].name + '/TensorIteratorCondition_')
@@ -384,8 +377,35 @@ class SimpleConditionMatcher(MiddleReplacementPattern):
         condition.create_node_with_data(inputs=[match['Strided_slice_data']],
                                         data_nodes=[match['loop_cond_data'], match['Identity_1_data']])
 
-        # Delete useless nodes
         safe_nodes = ['loop_cond_data', 'Identity_1_data', 'Strided_slice', 'Strided_slice_data']
+
+        # check if time node has other consumers  different from increment node,
+        # input slicing and output concatenation nodes
+        other_time_consumers = False
+        for time_consumer in time_dsts:
+            if time_consumer.node.soft_get('op') not in ['TensorIteratorInput', 'TensorIteratorOutput'] and \
+                    time_consumer.node.id != match['add_1'].id:
+                other_time_consumers = True
+                break
+        if other_time_consumers:
+            # save time related nodes since they have other consumers different from
+            # input slicing and output concatenation nodes
+            safe_nodes += ['init_1', 'init_1_data', 'Enter_1', 'Enter_1_data', 'Merge_1', 'Merge_1_data',
+                           'Switch_1', 'Switch_1_data', 'add_1', 'add_1_y', 'add_1_y_data', 'add_1_data',
+                           'NextIteration_1']
+            switch_node = match['Switch_1']
+            new_identity_node = Identity(graph, dict(name=identity_node_name)).create_node()
+            switch_node.out_port(1).connect(new_identity_node.in_port(0))
+
+            # make the graph consistent to avoid multiple producers by the same input port
+            graph.remove_nodes_from([match['Identity_1'].id])
+            rename_nodes([(new_identity_node, identity_node_name)])
+
+            for time_consumer in time_dsts:
+                if time_consumer.node.soft_get('op') not in ['TensorIteratorInput', 'TensorIteratorOutput']:
+                    time_consumer.get_connection().set_source(new_identity_node.out_port(0))
+
+        # Delete useless nodes
         nodes_for_remove = []
         for node in match.keys():
             if node not in safe_nodes:
@@ -436,13 +456,13 @@ class DynamicDecoderConditionMatcher(MiddleReplacementPattern):
                 ('add', dict(kind='op', op='Add')),
                 ('add_data', dict(kind='data')),
 
-                ('Less_enter',  dict(kind='op', op='Enter')),
+                ('Less_enter', dict(kind='op', op='Enter')),
                 ('Less_enter_data', dict(kind='data')),
 
                 ('And', dict(kind='op', op='LogicalAnd')),
                 ('And_data', dict(kind='data')),
 
-                ('Less',  dict(kind='op', op='Less')),
+                ('Less', dict(kind='op', op='Less')),
                 ('Less_data', dict(kind='data')),
 
                 ('TensorIteratorOutput', dict(kind='op', op='TensorIteratorOutput')),

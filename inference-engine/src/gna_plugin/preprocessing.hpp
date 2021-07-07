@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,4 +21,5 @@ void ConvertToFloat(float *ptr_dst,
                     const float scale_factor);
 
 int16_t ConvertFloatToInt16(float src);
+int8_t ConvertFloatToInt8(float src);
 }  // namespace GNAPluginNS

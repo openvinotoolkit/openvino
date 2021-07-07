@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -366,7 +366,7 @@ TEST_P(PThreadBinSemaphoreTest, PostWakeUpOnlyOneWaiterOfMany) {
     th3.join();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     PThreadParametrizedTests,
     PThreadBinSemaphoreTest,
     ::testing::Values(

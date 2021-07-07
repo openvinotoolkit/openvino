@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -95,7 +83,7 @@ namespace ngraph
                         --axis;
                     return axis;
                 }
-            }
+            } // namespace internal
 
             /// \brief Helper function to implement autobroadcasting elementwise binop references.
             ///
@@ -327,6 +315,7 @@ namespace ngraph
                             }
                         }
 
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         CoordinateTransform arg0_transform(arg0_shape);
                         CoordinateTransform arg1_transform(arg1_squeezed_shape);
                         CoordinateTransform output_transform(arg0_shape);
@@ -338,6 +327,7 @@ namespace ngraph
                                 elementwise_functor(arg0[arg0_transform.index(output_coord)],
                                                     arg1[arg1_transform.index(arg1_coord)]);
                         }
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                 }
             }
@@ -449,6 +439,7 @@ namespace ngraph
                                                              arg1_padded_shape[i]}));
                         }
 
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         CoordinateTransform arg0_transform(arg0_squeezed_shape);
                         CoordinateTransform arg1_transform(arg1_squeezed_shape);
                         CoordinateTransform arg2_transform(arg2_squeezed_shape);
@@ -464,6 +455,7 @@ namespace ngraph
                                                     arg1[arg1_transform.index(arg1_coord)],
                                                     arg2[arg2_transform.index(arg2_coord)]);
                         }
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                     break;
                 case op::AutoBroadcastType::PDPD:
@@ -533,6 +525,7 @@ namespace ngraph
                         }
                     }
 
+                    NGRAPH_SUPPRESS_DEPRECATED_START
                     CoordinateTransform arg0_transform(arg0_squeezed_shape);
                     CoordinateTransform arg1_transform(arg1_shape);
                     CoordinateTransform arg2_transform(arg2_squeezed_shape);
@@ -547,9 +540,10 @@ namespace ngraph
                                                 arg1[arg1_transform.index(output_coord)],
                                                 arg2[arg2_transform.index(arg2_coord)]);
                     }
+                    NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

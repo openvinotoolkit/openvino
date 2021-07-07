@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/reshape_permute_reshape.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -20,7 +22,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_reshape_permute_reshape, ReshapePermuteReshape,
+    INSTANTIATE_TEST_SUITE_P(smoke_reshape_permute_reshape, ReshapePermuteReshape,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),

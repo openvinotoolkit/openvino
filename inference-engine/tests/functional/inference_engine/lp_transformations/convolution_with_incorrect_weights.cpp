@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,12 +125,12 @@ const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
             {},
             ngraph::element::i8,
             {-126.f},
-            {{}, {}, {{ 0.1f }, ngraph::element::f32, { 1, 1, 1 }}},
+            {{}, {}, {{ 0.1f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         },
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::ValuesIn(testValues),

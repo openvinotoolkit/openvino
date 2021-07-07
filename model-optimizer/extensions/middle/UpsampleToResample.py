@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 import math
@@ -24,7 +11,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
@@ -92,10 +79,10 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         if input_shape_rank == 4:
             begin_value = int64_array([get_height_dim(layout, input_shape_rank)])
-            factor_value = np.array([height_scale, width_scale])
+            factor_value = float32_array([height_scale, width_scale])
         else:
             begin_value = int64_array([get_depth_dim(layout, input_shape_rank)])
-            factor_value = np.array([depth_scale, height_scale, width_scale])
+            factor_value = float32_array([depth_scale, height_scale, width_scale])
 
         ss = create_op_with_const_inputs(graph, StridedSlice,
                                          {1: begin_value,
@@ -141,7 +128,8 @@ class UpsampleToResample(MiddleReplacementPattern):
         mul.out_port(0).connect(interpolate.in_port(1))
         axes_node.out_port(0).connect(interpolate.in_port(3))
 
-        scales_node = Const(graph, {'name': upsample_name + '/scales', 'value': factor_value}).create_node()
+        scales_node = Const(graph, {'name': upsample_name + '/scales',
+                                    'value': factor_value}).create_node()
         scales_node.out_port(0).connect(interpolate.in_port(2))
 
         upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))

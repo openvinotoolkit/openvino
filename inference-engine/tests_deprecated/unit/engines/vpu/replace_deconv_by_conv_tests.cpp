@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ TEST_F(VPU_ReplaceDeconvByConvTest, deconvReplacedByConvIfKernelSizeFitsHWUnit) 
 }
 
 TEST_F(VPU_ReplaceDeconvByConvTest, deconvCannotBeReplacedByConvIfDisabledInConfig) {
-    config.hwBlackList.insert("deconv");
+    config.compileConfig().hwBlackList.insert("deconv");
     InitCompileEnv();
     InitDeconvStage(16, 15);
 

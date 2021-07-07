@@ -1,25 +1,12 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import ngraph as ng
 import numpy as np
 import pytest
 
-import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_40957
 
 
 def test_concat():
@@ -37,7 +24,6 @@ def test_concat():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_40957
 @pytest.mark.parametrize(
     "val_type, value", [(bool, False), (bool, np.empty((2, 2), dtype=bool))]
 )
@@ -50,16 +36,16 @@ def test_constant_from_bool(val_type, value):
 @pytest.mark.parametrize(
     "val_type, value",
     [
-        pytest.param(np.float32, np.float32(0.1234), marks=xfail_issue_40957),
-        pytest.param(np.float64, np.float64(0.1234), marks=xfail_issue_40957),
-        pytest.param(np.int8, np.int8(-63), marks=xfail_issue_40957),
-        pytest.param(np.int16, np.int16(-12345), marks=xfail_issue_40957),
-        pytest.param(np.int32, np.int32(-123456), marks=xfail_issue_40957),
-        pytest.param(np.int64, np.int64(-1234567), marks=xfail_issue_40957),
-        pytest.param(np.uint8, np.uint8(63), marks=xfail_issue_40957),
-        pytest.param(np.uint16, np.uint16(12345), marks=xfail_issue_40957),
-        pytest.param(np.uint32, np.uint32(123456), marks=xfail_issue_40957),
-        pytest.param(np.uint64, np.uint64(1234567), marks=xfail_issue_40957),
+        pytest.param(np.int16, np.int16(-12345)),
+        pytest.param(np.int64, np.int64(-1234567)),
+        pytest.param(np.uint16, np.uint16(12345)),
+        pytest.param(np.uint32, np.uint32(123456)),
+        pytest.param(np.uint64, np.uint64(1234567)),
+        pytest.param(np.float64, np.float64(0.1234)),
+        pytest.param(np.float32, np.float32(0.1234)),
+        pytest.param(np.int8, np.int8(-63)),
+        pytest.param(np.int32, np.int32(-123456)),
+        pytest.param(np.uint8, np.uint8(63)),
     ],
 )
 def test_constant_from_scalar(val_type, value):
@@ -71,8 +57,8 @@ def test_constant_from_scalar(val_type, value):
 @pytest.mark.parametrize(
     "val_type",
     [
-        pytest.param(np.float32, marks=xfail_issue_40957),
-        pytest.param(np.float64, marks=xfail_issue_40957),
+        pytest.param(np.float64),
+        pytest.param(np.float32),
     ],
 )
 def test_constant_from_float_array(val_type):
@@ -82,18 +68,17 @@ def test_constant_from_float_array(val_type):
     assert np.allclose(result, input_data)
 
 
-@xfail_issue_40957
 @pytest.mark.parametrize(
     "val_type, range_start, range_end",
     [
-        (np.int8, -8, 8),
-        (np.int16, -64, 64),
-        (np.int32, -1024, 1024),
-        (np.int64, -16383, 16383),
-        (np.uint8, 0, 8),
-        (np.uint16, 0, 64),
-        (np.uint32, 0, 1024),
-        (np.uint64, 0, 16383),
+        pytest.param(np.int16, -64, 64),
+        pytest.param(np.int64, -16383, 16383),
+        pytest.param(np.uint16, 0, 64),
+        pytest.param(np.uint32, 0, 1024),
+        pytest.param(np.uint64, 0, 16383),
+        pytest.param(np.int8, -8, 8),
+        pytest.param(np.int32, -1024, 1024),
+        pytest.param(np.uint8, 0, 8),
     ],
 )
 def test_constant_from_integer_array(val_type, range_start, range_end):
@@ -133,21 +118,6 @@ def test_broadcast_bidirectional():
 
     assert node.get_type_name() == "Broadcast"
     assert node.get_output_size() == 1
-
-
-def test_gather():
-    input_data = np.array(
-        [1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2], np.float32
-    ).reshape((3, 3))
-    input_indices = np.array([0, 2], np.int32).reshape(1, 2)
-    input_axes = np.array([1], np.int32)
-
-    expected = np.array([1.0, 1.2, 2.0, 2.2, 3.0, 3.2], dtype=np.float32).reshape(
-        (3, 1, 2)
-    )
-
-    result = run_op_node([input_data], ng.gather, input_indices, input_axes)
-    assert np.allclose(result, expected)
 
 
 def test_transpose():

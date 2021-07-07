@@ -1,20 +1,9 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import networkx as nx
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 from mo.ops.memoryoffset import MemoryOffset
@@ -57,6 +46,13 @@ class SplitRecurrentMemoryOffset(FrontReplacementSubgraph):
                 # MemoryOffset node is not in a recurrent block -- no splitting is needed
                 return
 
+            # check that node has information for future partial infer
+            # element_size is set in loader based on dimensions of previous layer from original Kaldi model
             if not offset_node.has_valid('element_size'):
-                raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
+                # check if previous layer contains information about its shape in out-size
+                # out-size is set in extractor of some nodes like affinecomponent based on weight's size
+                if offset_node.in_port(0).get_source().node.has_valid('out-size'):
+                    offset_node['element_size'] = int64_array([1, offset_node.in_port(0).get_source().node['out-size']])
+                else:
+                    raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
             SplitRecurrentMemoryOffset.split_offset(offset_node)

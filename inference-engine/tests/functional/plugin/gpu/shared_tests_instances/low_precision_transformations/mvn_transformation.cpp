@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@ using namespace InferenceEngine::details;
 
 namespace {
     const std::vector<element::Type> precisions = {
-        element::f32
+        element::f32,
+        element::f16
     };
 
     const std::vector<ngraph::Shape> inputAndQuantizationShapes = {
@@ -20,7 +21,7 @@ namespace {
 
     const std::vector<bool> normalizeVariance = { true, false };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, MVNTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, MVNTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),

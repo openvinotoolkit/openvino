@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,6 +178,13 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
                         valid_for_replacement = false;
                     if (ss_plan.second.strides[i] != 1)
                         valid_for_replacement = false;
+
+                    for (auto& target_input : ss_plan.first->output(0).get_target_inputs()) {
+                        if (is_type<op::Result>(target_input.get_node())) {
+                            valid_for_replacement = false;
+                            break;
+                        }
+                    }
                     output_to_partition.push_back({ss_plan.first->output(0), ss_plan.second.begins[i], ss_plan.second.ends[i]});
                 }
                 if (!valid_for_replacement) break;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
+        R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
@@ -54,6 +55,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)"
+        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
+        R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
+        // TODO: Issue 51528
+        R"(.*CachingSupport.*_(u8|i16)_.*)",
+        // TODO: Issue 51525
+        R"(.*CachingSupport.*KSOFunction.*)",
+        // TODO: Issue 57363 (Param -> Result subgraphs)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",
+        // TODO: Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
     };
 }

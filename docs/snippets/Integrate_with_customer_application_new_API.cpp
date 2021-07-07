@@ -1,4 +1,4 @@
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
 
 int main() {
 const std::string output_name = "output_name";
@@ -107,7 +107,7 @@ for (auto & item : input_info) {
 
 //! [part12]
 infer_request.StartAsync();
-infer_request.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+infer_request.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 //! [part12]
 
 auto sync_infer_request = executable_network.CreateInferRequest();

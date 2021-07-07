@@ -6,7 +6,7 @@ Optimization offers methods to accelerate inference with the convolution neural 
 
 ## Linear Operations Fusing
 
-Many convolution neural networks includes `BatchNormalization` and `ScaleShift` layers (for example, Resnet\*, Inception\*) that can be presented as a sequence of linear operations: additions and multiplications. For example ScaleShift layer can be presented as Mul → Add sequence. These layers can be fused into previous `Convolution` or `FullyConnected` layers, except that case when Convolution comes after Add operation (due to Convolution paddings).
+Many convolution neural networks includes `BatchNormalization` and `ScaleShift` layers (for example, Resnet\*, Inception\*) that can be presented as a sequence of linear operations: additions and multiplications. For example ScaleShift layer can be presented as Mul → Add sequence. These layers can be fused into previous `Convolution` or `FullyConnected` layers, except when Convolution comes after an Add operation (due to Convolution paddings).
 
 ### Usage
 
@@ -16,11 +16,11 @@ In the Model Optimizer, this optimization is turned on by default. To disable it
 
 This optimization method consists of three stages:
 
-1.  <strong>`BatchNormalization` and `ScaleShift` decomposition</strong>: on this stage, `BatchNormalization` layer is decomposed to `Mul → Add → Mul → Add` sequence, and `ScaleShift` layer is decomposed to `Mul → Add` layers sequence.
+1.  <strong>`BatchNormalization` and `ScaleShift` decomposition</strong>: in this stage, `BatchNormalization` layer is decomposed to `Mul → Add → Mul → Add` sequence, and `ScaleShift` layer is decomposed to `Mul → Add` layers sequence.
 
-2.  **Linear operations merge**: on this stage we merge sequences of `Mul` and `Add` operations to the single `Mul → Add` instance.  
-    For example, if we have `BatchNormalization → ScaleShift` sequence in our topology, it is replaced with `Mul → Add` (by the first stage). On the next stage, the latter will be replaced with `ScaleShift` layer in case if we have no available `Convolution` or `FullyConnected` layer to fuse into (next).
-3.  **Linear operations fusion**: on this stage, the tool fuses `Mul` and `Add` operations to `Convolution` or `FullyConnected` layers. Notice that it searches for `Convolution` and `FullyConnected` layers both backward and forward in the graph (except for `Add` operation that cannot be fused to `Convolution` layer in forward direction).
+2.  **Linear operations merge**: in this stage, the `Mul` and `Add` operations are merged into a single `Mul → Add` instance. 
+    For example, if there is a `BatchNormalization → ScaleShift` sequence in the topology, it is replaced with `Mul → Add` in the first stage. In the next stage, the latter is replaced with a `ScaleShift` layer if there is no available `Convolution` or `FullyConnected` layer to fuse into next.
+3.  **Linear operations fusion**: in this stage, the tool fuses `Mul` and `Add` operations to `Convolution` or `FullyConnected` layers. Notice that it searches for `Convolution` and `FullyConnected` layers both backward and forward in the graph (except for `Add` operation that cannot be fused to `Convolution` layer in forward direction).
 
 ### Usage Examples
 
@@ -36,11 +36,11 @@ ResNet optimization is a specific optimization that applies to Caffe ResNet topo
 
 ### Optimization Description
 
-On the picture below, you can see the original and optimized parts of a Caffe ResNet50 model. The main idea of this optimization is to move the stride that is greater than 1 from Convolution layers with the kernel size = 1 to upper Convolution layers. In addition, the Model Optimizer adds a Pooling layer to align the input shape for a Eltwise layer, if it was changed during the optimization. 
+In the picture below, you can see the original and optimized parts of a Caffe ResNet50 model. The main idea of this optimization is to move the stride that is greater than 1 from Convolution layers with the kernel size = 1 to upper Convolution layers. In addition, the Model Optimizer adds a Pooling layer to align the input shape for a Eltwise layer, if it was changed during the optimization. 
 
 ![ResNet50 blocks (original and optimized) from Netscope*](../img/optimizations/resnet_optimization.png)
 
-In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convolution layers moves to the `res2c_branch2b` Convolution layer. Also to align the input shape for `res2c` Eltwise, the optimization inserts the Pooling layer with kernel size = 1 and stride = 2.
+In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convolution layers moves to the `res2c_branch2b` Convolution layer. In addition, to align the input shape for `res2c` Eltwise, the optimization inserts the Pooling layer with kernel size = 1 and stride = 2.
 
 * * *
 

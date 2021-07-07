@@ -1,10 +1,9 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <details/ie_irelease.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <istream>
@@ -17,7 +16,7 @@ namespace InferenceEngine {
 /**
  * @brief IReader an abstract interface for Inference Engine readers
  */
-class IReader: public details::IRelease {
+class IReader: public std::enable_shared_from_this<IReader> {
 public:
     /**
      * @brief Checks that reader supports format of the model
@@ -49,15 +48,15 @@ public:
      * @return vector of file extensions, for example the reader for OpenVINO IR returns {"bin"}
      */
     virtual std::vector<std::string> getDataFileExtensions() const = 0;
+
+protected:
+    ~IReader() = default;
 };
 
 /**
  * @brief Creates the default instance of the reader
- *
- * @param reader Reader interface
- * @param resp Response description
- * @return Status code
+ * @return Reader interface
  */
-INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc* resp) noexcept;
+INFERENCE_PLUGIN_API(void) CreateReader(std::shared_ptr<IReader>& reader);
 
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
     // Regardless of layout, dimensions are stored in fixed order
     return std::make_pair(dims.back(), dims.at(size - 2));
   } else {
-    THROW_IE_EXCEPTION << "Tensor does not have height and width dimensions";
+    IE_THROW() << "Tensor does not have height and width dimensions";
   }
 }
 

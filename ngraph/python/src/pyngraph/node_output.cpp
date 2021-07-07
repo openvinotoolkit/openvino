@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <pybind11/stl.h>
 
@@ -28,10 +16,64 @@ void regclass_pyngraph_Output(py::module m)
         m, "Output", py::dynamic_attr());
     output.doc() = "ngraph.impl.Output wraps ngraph::Output<Node>";
 
-    output.def("get_node", &ngraph::Output<ngraph::Node>::get_node);
-    output.def("get_index", &ngraph::Output<ngraph::Node>::get_index);
-    output.def("get_element_type", &ngraph::Output<ngraph::Node>::get_element_type);
-    output.def("get_shape", &ngraph::Output<ngraph::Node>::get_shape);
-    output.def("get_partial_shape", &ngraph::Output<ngraph::Node>::get_partial_shape);
-    output.def("get_target_inputs", &ngraph::Output<ngraph::Node>::get_target_inputs);
+    output.def("get_node",
+               &ngraph::Output<ngraph::Node>::get_node,
+               R"(
+                Get node referenced by this output handle.
+
+                Returns
+                ----------
+                get_node : Node
+                    Node object referenced by this output handle.
+               )");
+    output.def("get_index",
+               &ngraph::Output<ngraph::Node>::get_index,
+               R"(
+                The index of the output referred to by this output handle.
+
+                Returns
+                ----------
+                get_index : int
+                    Index value as integer.
+               )");
+    output.def("get_element_type",
+               &ngraph::Output<ngraph::Node>::get_element_type,
+               R"(
+                The element type of the output referred to by this output handle.
+
+                Returns
+                ----------
+                get_element_type : Type
+                    Type of the output.
+               )");
+    output.def("get_shape",
+               &ngraph::Output<ngraph::Node>::get_shape,
+               R"(
+                The shape of the output referred to by this output handle.
+
+                Returns
+                ----------
+                get_shape : Shape
+                    Shape of the output.
+               )");
+    output.def("get_partial_shape",
+               &ngraph::Output<ngraph::Node>::get_partial_shape,
+               R"(
+                The partial shape of the output referred to by this output handle.
+
+                Returns
+                ----------
+                get_partial_shape : PartialShape
+                    PartialShape of the output.
+               )");
+    output.def("get_target_inputs",
+               &ngraph::Output<ngraph::Node>::get_target_inputs,
+               R"(
+                A set containing handles for all inputs targeted by the output
+                referenced by this output handle.
+                Returns
+                ----------
+                get_target_inputs : Set[Input]
+                    Set of Inputs.
+               )");
 }

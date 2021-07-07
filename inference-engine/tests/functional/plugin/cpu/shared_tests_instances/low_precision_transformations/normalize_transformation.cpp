@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ const std::vector<bool> fuseMultiplyValues = { true, false };
 
 const std::vector<bool> shiftValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeL2Transformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputAndQuantizationShapes),

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ const auto sequenceLengths = std::vector<int>{1, 10, 50, 100};
 
 const auto blankIndexes = std::vector<int>{0, 10, 100};
 
-INSTANTIATE_TEST_CASE_P(smoke, CTCGreedyDecoderSeqLenLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke, CTCGreedyDecoderSeqLenLayerTest,
         ::testing::Combine(
                         ::testing::ValuesIn(inputShape),
                         ::testing::ValuesIn(sequenceLengths),

@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
-
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -72,7 +71,7 @@ protected:
 TEST_P(EliminateUnsqueezeGatherTest, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, EliminateUnsqueezeGatherTest, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, EliminateUnsqueezeGatherTest, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,

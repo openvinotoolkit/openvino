@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 if (ENABLE_CLANG_FORMAT)
     set(CLANG_FORMAT_FILENAME clang-format-9 clang-format)
     find_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
@@ -16,10 +17,13 @@ if (ENABLE_CLANG_FORMAT)
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
         endif()
+    else()
+        message(WARNING "Supported clang-format version is not found!")
+        set(ENABLE_CLANG_FORMAT OFF)
     endif()
 endif()
 
-if(ENABLE_CLANG_FORMAT)
+if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all

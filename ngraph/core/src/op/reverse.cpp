@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <iterator>
@@ -30,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Reverse::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
 
 op::v1::Reverse::Reverse(const Output<Node>& data,
                          const Output<Node>& reversed_axes,
@@ -99,7 +87,7 @@ void op::v1::Reverse::validate_and_infer_types()
 
     if (input_rank.is_static())
     {
-        const auto rank = input_rank.get_length();
+        const size_t rank = input_rank.get_length();
 
         if (const auto& rev_axes_constant = get_constant_from_source(input_value(1)))
         {
@@ -159,12 +147,12 @@ namespace reverseop
         size_t axes_rank = in->get_element_count();
         std::copy(axes_indices, axes_indices + axes_rank, std::inserter(axes, axes.end()));
     }
-}
+} // namespace reverseop
 
 #define GET_AXES(a, ...)                                                                           \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(get_reverse_axes, _, a));                                       \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(get_reverse_axes, _, a));                                       \
         reverseop::get_axes<element::Type_t::a>(__VA_ARGS__);                                      \
     }                                                                                              \
     break;
@@ -213,6 +201,31 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Reverse_evaluate);
     return evaluate_reverse(outputs, inputs);
+}
+
+bool op::v1::Reverse::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Reverse_has_evaluate);
+
+    if (get_mode() == op::v1::Reverse::Mode::INDEX)
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: return true;
+        default: return false; ;
+        }
+    }
+    else
+    {
+        return true;
+    }
 }
 
 namespace ngraph

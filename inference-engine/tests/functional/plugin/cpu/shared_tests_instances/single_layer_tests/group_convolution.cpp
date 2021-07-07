@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,8 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::I32};
 
 /* ============= 1D GroupConvolution ============= */
 const std::vector<std::vector<size_t>> kernels1d = {{3}};
@@ -38,7 +39,7 @@ const auto groupConv1DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(numGroups1d),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution1D_ExplicitPadding, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv1DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -50,7 +51,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution1D_AutoPadValid, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv1DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -86,7 +87,7 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(numGroups),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -98,7 +99,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),
@@ -129,7 +130,7 @@ const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(dilations3d), ::testing::Values(4),
     ::testing::Values(2), ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv3DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -141,7 +142,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     GroupConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionLayerTest,
     ::testing::Combine(
         groupConv3DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

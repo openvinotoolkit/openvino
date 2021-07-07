@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,16 +43,17 @@ namespace ngraph
                 {
                     U actualLogitLen = logitsLength[b];
                     U actualTargetLen = labelsLength[b];
-                    if (actualLogitLen > maxTime || actualTargetLen > maxTime ||
+                    if (static_cast<size_t>(actualLogitLen) > maxTime ||
+                        static_cast<size_t>(actualTargetLen) > maxTime ||
                         actualTargetLen > actualLogitLen)
                     {
                         throw ngraph_error(
                             std::string("Logit or label length cannot greater than max sequence"
                                         "length. Also a label length cannot be greater than a"
                                         "logit length.\nMaxSeqLen: ") +
-                            std::to_string(maxTime) + "; Logit len: " +
-                            std::to_string(actualLogitLen) + "; Label len: " +
-                            std::to_string(actualTargetLen));
+                            std::to_string(maxTime) +
+                            "; Logit len: " + std::to_string(actualLogitLen) +
+                            "; Label len: " + std::to_string(actualTargetLen));
                     }
 
                     const U* target = &labels[b * maxTime];
@@ -63,7 +64,7 @@ namespace ngraph
                     if (unique)
                     {
                         std::unordered_set<U> uniqVals;
-                        for (size_t t = 0lu; t < actualTargetLen; t++)
+                        for (size_t t = 0lu; t < static_cast<size_t>(actualTargetLen); t++)
                         {
                             if (uniqVals.find(target[t]) != uniqVals.end())
                             {
@@ -77,7 +78,7 @@ namespace ngraph
                     {
                         U prevValue = target[0];
                         targetD[decodedTargetLen++] = target[0];
-                        for (size_t t = 1lu; t < actualTargetLen; t++)
+                        for (size_t t = 1lu; t < static_cast<size_t>(actualTargetLen); t++)
                         {
                             if (target[t] == prevValue)
                             {
@@ -97,7 +98,7 @@ namespace ngraph
 
                     std::vector<std::unordered_map<size_t, T>> logProbabilities(actualLogitLen);
                     T logProb = 0.f, kExp = 0.f;
-                    for (size_t t = 0; t < actualLogitLen; t++)
+                    for (size_t t = 0; t < static_cast<size_t>(actualLogitLen); t++)
                     {
                         kExp = 0.f;
                         const size_t btcT = BTC + classesNum * t;
@@ -118,85 +119,88 @@ namespace ngraph
                     T res = -type_inf;
 
                     // Looking for aligned paths
-                    std::function<void(size_t, size_t, size_t, T)> findPaths = [&](
-                        size_t targetIdx, size_t start, size_t end, T prevLogProb) {
-                        if (end > actualLogitLen)
-                        {
-                            if (res == -type_inf)
+                    std::function<void(size_t, size_t, size_t, T)> findPaths =
+                        [&](size_t targetIdx, size_t start, size_t end, T prevLogProb) {
+                            if (end > static_cast<size_t>(actualLogitLen))
                             {
-                                res = prevLogProb;
+                                if (res == -type_inf)
+                                {
+                                    res = prevLogProb;
+                                }
+                                else if (prevLogProb != -type_inf)
+                                {
+                                    if (res > prevLogProb)
+                                        res = res + std::log1pf(std::exp(prevLogProb - res));
+                                    else
+                                        res =
+                                            prevLogProb + std::log1pf(std::exp(res - prevLogProb));
+                                }
+                                return;
                             }
-                            else if (prevLogProb != -type_inf)
-                            {
-                                if (res > prevLogProb)
-                                    res = res + std::log1pf(std::exp(prevLogProb - res));
-                                else
-                                    res = prevLogProb + std::log1pf(std::exp(res - prevLogProb));
-                            }
-                            return;
-                        }
 
-                        size_t nextIdx = targetIdx + 1;
-                        int64_t st64 = start;
-                        T newLogProb = prevLogProb;
-                        if (!ctcMergeRepeated)
-                        {
-                            for (size_t pos = start; pos < end; pos++)
+                            size_t nextIdx = targetIdx + 1;
+                            int64_t st64 = start;
+                            T newLogProb = prevLogProb;
+                            if (!ctcMergeRepeated)
                             {
-                                newLogProb = prevLogProb;
-                                for (size_t bl = start; bl < pos; bl++)
+                                for (size_t pos = start; pos < end; pos++)
                                 {
-                                    newLogProb += logProbabilities[bl].find(blankIndex)->second;
-                                }
-                                newLogProb +=
-                                    logProbabilities[pos].find(targetD[targetIdx])->second;
-                                if (end == actualLogitLen)
-                                {
-                                    for (int64_t ble = pos + 1; ble < actualLogitLen; ble++)
+                                    newLogProb = prevLogProb;
+                                    for (size_t bl = start; bl < pos; bl++)
                                     {
-                                        newLogProb +=
-                                            logProbabilities[ble].find(blankIndex)->second;
+                                        newLogProb += logProbabilities[bl].find(blankIndex)->second;
                                     }
-                                }
-                                findPaths(nextIdx, pos + 1, end + 1, newLogProb);
-                            }
-                        }
-                        else
-                        {
-                            for (size_t pos = start; pos < end; pos++)
-                            {
-                                newLogProb = prevLogProb;
-                                size_t next_start = pos + 1;
-                                for (size_t bl = start; bl < pos; bl++)
-                                {
-                                    newLogProb += logProbabilities[bl].find(blankIndex)->second;
-                                }
-                                if (end == actualLogitLen)
-                                {
-                                    for (int64_t ble = pos + 1; ble < actualLogitLen; ble++)
+                                    newLogProb +=
+                                        logProbabilities[pos].find(targetD[targetIdx])->second;
+                                    if (end == static_cast<size_t>(actualLogitLen))
                                     {
-                                        newLogProb +=
-                                            logProbabilities[ble].find(blankIndex)->second;
+                                        for (size_t ble = pos + 1;
+                                             ble < static_cast<size_t>(actualLogitLen);
+                                             ble++)
+                                        {
+                                            newLogProb +=
+                                                logProbabilities[ble].find(blankIndex)->second;
+                                        }
                                     }
-                                }
-                                if (targetIdx < decodedTargetLen - 1 &&
-                                    targetD[targetIdx] == targetD[targetIdx + 1])
-                                {
-                                    newLogProb +=
-                                        logProbabilities[next_start++].find(blankIndex)->second;
-                                }
-                                for (int64_t bl = pos; bl >= st64; bl--)
-                                {
-                                    newLogProb +=
-                                        logProbabilities[bl].find(targetD[targetIdx])->second;
-                                    findPaths(nextIdx, next_start, end + 1, newLogProb);
-                                    if (bl > 0)
-                                        newLogProb -=
-                                            logProbabilities[bl - 1].find(blankIndex)->second;
+                                    findPaths(nextIdx, pos + 1, end + 1, newLogProb);
                                 }
                             }
-                        }
-                    }; // findPaths
+                            else
+                            {
+                                for (size_t pos = start; pos < end; pos++)
+                                {
+                                    newLogProb = prevLogProb;
+                                    size_t next_start = pos + 1;
+                                    for (size_t bl = start; bl < pos; bl++)
+                                    {
+                                        newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                                    }
+                                    if (end == static_cast<size_t>(actualLogitLen))
+                                    {
+                                        for (int64_t ble = pos + 1; ble < actualLogitLen; ble++)
+                                        {
+                                            newLogProb +=
+                                                logProbabilities[ble].find(blankIndex)->second;
+                                        }
+                                    }
+                                    if (targetIdx < decodedTargetLen - 1 &&
+                                        targetD[targetIdx] == targetD[targetIdx + 1])
+                                    {
+                                        newLogProb +=
+                                            logProbabilities[next_start++].find(blankIndex)->second;
+                                    }
+                                    for (int64_t bl = pos; bl >= st64; bl--)
+                                    {
+                                        newLogProb +=
+                                            logProbabilities[bl].find(targetD[targetIdx])->second;
+                                        findPaths(nextIdx, next_start, end + 1, newLogProb);
+                                        if (bl > 0)
+                                            newLogProb -=
+                                                logProbabilities[bl - 1].find(blankIndex)->second;
+                                    }
+                                }
+                            }
+                        }; // findPaths
 
                     findPaths(0lu, 0lu, actualLogitLen - decodedTargetLen + 1lu, 0.f);
 
@@ -204,6 +208,6 @@ namespace ngraph
 
                 } // for (size_t b = 0; b < batchNum; b++)
             }     // CTCLoss
-        }         // reference
-    }             // runtime
-} // ngraph
+        }         // namespace reference
+    }             // namespace runtime
+} // namespace ngraph

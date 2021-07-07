@@ -1,18 +1,7 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <onnx/onnx_pb.h> // onnx types
 
 #include "default_opset.hpp"
@@ -42,35 +31,7 @@ namespace ngraph
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT32: return element::u32;
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT64: return element::u64;
                 case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED: return element::dynamic;
-                }
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-                throw ngraph_error("unsupported element type");
-#else
-                throw ngraph_error(
-                    "unsupported element type: " +
-                    ONNX_NAMESPACE::TensorProto_DataType_Name(
-                        static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
-#endif
-            }
-
-            size_t get_onnx_data_size(int32_t onnx_type)
-            {
-                switch (onnx_type)
-                {
-                case ONNX_NAMESPACE::TensorProto_DataType_BOOL: return sizeof(char);
-                case ONNX_NAMESPACE::TensorProto_DataType_COMPLEX128: return 2 * sizeof(double);
-                case ONNX_NAMESPACE::TensorProto_DataType_COMPLEX64: return 2 * sizeof(float);
-                case ONNX_NAMESPACE::TensorProto_DataType_DOUBLE: return sizeof(double);
-                case ONNX_NAMESPACE::TensorProto_DataType_FLOAT16: return 2;
-                case ONNX_NAMESPACE::TensorProto_DataType_FLOAT: return sizeof(float);
-                case ONNX_NAMESPACE::TensorProto_DataType_INT8: return sizeof(int8_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_INT16: return sizeof(int16_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_INT32: return sizeof(int32_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_INT64: return sizeof(int64_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_UINT8: return sizeof(uint8_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_UINT16: return sizeof(uint16_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_UINT32: return sizeof(uint32_t);
-                case ONNX_NAMESPACE::TensorProto_DataType_UINT64: return sizeof(uint64_t);
+                case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16: return element::bf16;
                 }
 #ifdef NGRAPH_USE_PROTOBUF_LITE
                 throw ngraph_error("unsupported element type");
@@ -124,6 +85,53 @@ namespace ngraph
                                  input->get_element_type());
                 }
             }
+
+            template <typename T>
+            OutputVector handle_opset6_binary_op(const Node& node)
+            {
+                const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
+                Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
+                const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
+                if (broadcast)
+                {
+                    if (node.has_attribute("axis"))
+                    {
+                        NGRAPH_CHECK(lhs_node.get_partial_shape().rank().is_static() &&
+                                         rhs_node.get_partial_shape().rank().is_static(),
+                                     "Input's rank has to be static.");
+                        auto axis = node.get_attribute_value<std::int64_t>("axis");
+                        auto lhs_rank = lhs_node.get_partial_shape().rank().get_length();
+                        auto rhs_rank = rhs_node.get_partial_shape().rank().get_length();
+                        if (axis < 0)
+                            axis += lhs_rank;
+                        if (lhs_rank > axis + rhs_rank)
+                        {
+                            auto ones = default_opset::Constant::create(
+                                element::i64,
+                                Shape{static_cast<size_t>(lhs_rank - axis - rhs_rank)},
+                                std::vector<int64_t>(lhs_rank - axis - rhs_rank, 1));
+                            auto rhs_shape = std::make_shared<default_opset::ShapeOf>(rhs_node);
+                            auto new_shape = std::make_shared<default_opset::Concat>(
+                                OutputVector{rhs_shape, ones}, 0);
+                            rhs_node = std::make_shared<default_opset::Reshape>(
+                                rhs_node, new_shape, false);
+                        }
+                    }
+                    else
+                    {
+                        rhs_node = std::make_shared<default_opset::Broadcast>(
+                            rhs_node, std::make_shared<default_opset::ShapeOf>(lhs_node));
+                    }
+                }
+                return {std::make_shared<T>(lhs_node, rhs_node)};
+            }
+
+            template OutputVector handle_opset6_binary_op<default_opset::Add>(const Node& node);
+            template OutputVector handle_opset6_binary_op<default_opset::Divide>(const Node& node);
+            template OutputVector
+                handle_opset6_binary_op<default_opset::Multiply>(const Node& node);
+            template OutputVector
+                handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
 
         } // namespace  common
     }     // namespace onnx_import

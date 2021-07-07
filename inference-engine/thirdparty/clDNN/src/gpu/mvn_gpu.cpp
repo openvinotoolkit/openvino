@@ -1,23 +1,11 @@
-/*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "mvn_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "mvn/mvn_kernel_selector.h"
 #include "mvn/mvn_kernel_base.h"
@@ -33,6 +21,10 @@ struct mvn_gpu : typed_primitive_gpu_impl<mvn> {
     using parent = typed_primitive_gpu_impl<mvn>;
     using parent::parent;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<mvn_gpu>(*this);
+    }
+
 public:
     static primitive_impl* create(const mvn_node& arg) {
         auto mvn_params = get_default_params<kernel_selector::mvn_params>(arg);
@@ -42,6 +34,9 @@ public:
                                                                   : kernel_selector::mvn_mode::WITHIN_CHANNELS;
         mvn_params.mvnNormalizeVariance = arg.get_primitive()->normalize_variance;
         mvn_params.epsilon = arg.get_primitive()->epsilon;
+
+        mvn_params.mvnEpsMode = arg.get_primitive()->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
+                                                                     : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
 
         auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);

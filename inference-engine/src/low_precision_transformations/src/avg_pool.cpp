@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,19 +34,10 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
     const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(pooling);
 
     bool updatePrecision;
-    // issue #40768
     if ((children.size() == 1ul) && (!this->layerTransformationsManager->isQuantized(children[0]))) {
         updatePrecision = false;
     } else {
-        updatePrecision = false;
-        // NOTE: This check was added for models that don't have FQ after AvgPool
-        //       They will have transparent precision as it was in old LPT.
-        for (const auto& child : children) {
-            if (!is_type<opset1::FakeQuantize>(child)) {
-                updatePrecision = true;
-                break;
-            }
-        }
+        updatePrecision = NetworkHelper::notAllChildrensAreFQ(children);
     }
 
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), updatePrecision);
@@ -60,19 +51,12 @@ bool AvgPoolTransformation::canBeTransformed(const TransformationContext& contex
 
     auto dequantization = NetworkHelper::getDequantization(operation);
 
-    return !!dequantization.multiply;
+    return !dequantization.empty();
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(layer);
-    // NOTE: This check was added for models that don't have FQ after AvgPool
-    //       They will have transparent precision as it was in old LPT.
-    for (const auto& child : children) {
-        if (!is_type<opset1::FakeQuantize>(child)) {
-            return true;
-        }
-    }
-    return false;
+    return NetworkHelper::notAllChildrensAreFQ(children);
 }
 
 } // namespace low_precision

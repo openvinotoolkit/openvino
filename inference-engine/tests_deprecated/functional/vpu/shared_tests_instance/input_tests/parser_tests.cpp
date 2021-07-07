@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,6 @@ ir_test_params ir_test_cases[] = {
     ir_test_params("MYRIAD", "FP16", negative_norm_k_case)
 };
 
-INSTANTIATE_TEST_CASE_P(FunctionalTest_nightly, IncorrectIRTests,
+INSTANTIATE_TEST_SUITE_P(FunctionalTest_nightly, IncorrectIRTests,
         ::testing::ValuesIn(ir_test_cases),
         getTestName);

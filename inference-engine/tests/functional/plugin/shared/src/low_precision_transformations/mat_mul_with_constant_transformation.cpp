@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,14 +31,15 @@ std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParam
         precision << "_" <<
         targetDevice << "_" <<
         testValues.fqOnData << "_" <<
-        testValues.fqOnWeights;
+        testValues.fqOnWeights << "_" <<
+        testValues.deqOnWeights;
 
     return result.str();
 }
 
 InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
-        THROW_IE_EXCEPTION << "unexpected layer name " << info.name();
+        IE_THROW() << "unexpected layer name " << info.name();
     }
 
     size_t low;
@@ -50,7 +51,7 @@ InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const
         low = 5ul;
         high = 10ul;
     } else {
-        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+        IE_THROW() << "unexpected input name " << info.name();
     }
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
@@ -65,12 +66,15 @@ void MatMulWithConstantTransformation::SetUp() {
         precision,
         testValues.inputShape,
         testValues.fqOnData,
-        testValues.weightsConstShape,
-        testValues.weightsConstValues,
-        testValues.fqOnWeights);
+        testValues.weights,
+        testValues.fqOnWeights,
+        testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
+
+    if (testValues.deqOnWeights.empty()) {
+        validate();
+    }
 }
 
 void MatMulWithConstantTransformation::validate() {
@@ -92,9 +96,12 @@ void MatMulWithConstantTransformation::Run() {
     LayerTestsCommon::Run();
 
     const auto params = std::get<2>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
-
-    EXPECT_EQ(actualType, params.expectedKernelType);
+    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    auto expectedPrecision = params.expectedKernelType;
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+        expectedPrecision = "FP16";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {

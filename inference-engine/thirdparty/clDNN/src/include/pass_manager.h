@@ -1,29 +1,24 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #pragma once
 
 #include "program_impl.h"
 #include "layout_optimizer.h"
+#include "split_inst.h"
+#include "lstm_inst.h"
+#include "lstm_dynamic_inst.h"
+#include "quantize_inst.h"
+#include "eltwise_inst.h"
+#include "convolution_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
 #include <list>
 #include <utility>
 #include <set>
+#include <functional>
 
 #include <fstream>
 
@@ -114,9 +109,9 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void replace_nodes(program_impl& p);
-    void handle_lstm(program_impl& p);
-    void handle_dynamic_lstm(program_impl& p);
+    void handle_split_node(program_impl& p, split_node& node);
+    void handle_lstm_node(program_impl& p, lstm_node& node);
+    void handle_dynamic_lstm_node(program_impl& p, lstm_dynamic_node& node);
     void set_outputs(program_impl& p);
 };
 
@@ -142,8 +137,6 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void mark_constants(program_impl& p);
-    void mark_data_flow(program_impl& p);
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -160,11 +153,12 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void prepare_packed_quantize(program_impl& p);
-    void prepare_scale_shift_opt(program_impl& p);
-    void prepare_dequantize_merge(program_impl& p);
-    void remove_fake_reorders(program_impl& p);
-    void prepare_asymmetric_quantization(program_impl& p);
+    void handle_quantize_node(program_impl& p, quantize_node& quantize_node);
+    void prepare_packed_quantize(program_impl& p, quantize_node& quantize_node);
+    void prepare_dequantize_merge(program_impl& p, eltwise_node& eltwise_node);
+    void remove_fake_reorders(program_impl& p, reorder_node& reorder_node);
+    void prepare_asymmetric_quantization(program_impl& p, convolution_node& convolution_node);
+    void prepare_scale_shift_opt(program_impl &p, quantize_node& quantize_node);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
@@ -276,7 +270,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program_impl& prog, program_node& node);
     void add_constant(program_impl& prog, program_node& node);
@@ -387,6 +381,14 @@ public:
 class oooq_memory_dependencies : public memory_dependency_pass {
 public:
     oooq_memory_dependencies() : memory_dependency_pass("oooq_memory_dependencies") {}
+    void run(program_impl& p) override;
+};
+
+class update_loop_primitive_map : public base_pass {
+public:
+    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+
+private:
     void run(program_impl& p) override;
 };
 

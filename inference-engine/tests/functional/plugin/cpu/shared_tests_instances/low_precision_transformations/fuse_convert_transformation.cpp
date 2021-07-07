@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperat
 
 const std::vector<bool> constInput = { true, false };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseConvertTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseConvertTransformation,
     ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),

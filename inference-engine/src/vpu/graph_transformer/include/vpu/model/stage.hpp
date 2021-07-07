@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -400,7 +400,9 @@ class StageNode :
     // Bindings with IE
     //
 
+    IE_SUPPRESS_DEPRECATED_START
     VPU_MODEL_ATTRIBUTE(ie::CNNLayerPtr, origLayer, nullptr)
+    IE_SUPPRESS_DEPRECATED_END
 
     //
     // Edges
@@ -410,6 +412,9 @@ class StageNode :
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageOutputVector, outputEdges)
 
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageTempBufferVector, tempBufferEdges)
+
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, parentDependencyEdges)
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, childDependencyEdges)
 
     VPU_MODEL_ATTRIBUTE(Injection, parentStageEdge, nullptr)
     VPU_MODEL_ATTRIBUTE(Injection, injectedStageEdge, nullptr)
@@ -570,7 +575,9 @@ public:
     //
 
     inline std::string origLayerName() const {
+        IE_SUPPRESS_DEPRECATED_START
         return _origLayer != nullptr ? _origLayer->name : std::string();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     //

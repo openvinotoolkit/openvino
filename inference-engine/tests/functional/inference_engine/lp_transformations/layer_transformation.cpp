@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) 
 
 std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type& type,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result << type << "_" << shape << "_" << toString(params);
@@ -99,10 +99,12 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
         subtract = dequantization.subtractConstant != nullptr ?
             ngraph::builder::subgraph::DequantizationOperations::Subtract(
                 dequantization.subtractConstant->cast_vector<float>(),
-                dequantization.subtractConstant->output(0).get_element_type(),
+                dequantization.subtract->output(0).get_element_type(),
                 dequantization.subtractConstant->output(0).get_shape(),
                 addDequantizationAttribute,
-                constantIndex) :
+                constantIndex,
+                dequantization.subtractConstant->output(0).get_element_type(),
+                dequantization.subtractConvert != nullptr) :
             ngraph::builder::subgraph::DequantizationOperations::Subtract();
     }
 

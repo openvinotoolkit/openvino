@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A file containing ngraph implementation of public ICNNNetwork interface
+ * @brief A file containing ngraph implementation of public CNNNetwork wrapper
  * @file cnn_network_ngraph_impl.hpp
  */
 
@@ -33,15 +33,16 @@
 namespace InferenceEngine {
 namespace details {
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
- * @brief Ngraph-based implementation of the ICNNNetwork interface.
+ * @brief Ngraph-based implementation of the CNNNetwork.
  */
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
                          const std::vector<IExtensionPtr>& exts = {});
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
-    ~CNNNetworkNGraphImpl() override = default;
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
@@ -63,10 +64,6 @@ public:
 
     void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
         return _ngraph_function;
     }
@@ -84,19 +81,15 @@ public:
 
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
 
-    StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
-
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 protected:
-    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
-    std::unordered_map<std::string, std::string> _opNames;
     std::unordered_map<std::string, std::string> _tensorNames;
 
     /**
@@ -112,18 +105,11 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
-    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
+    void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
+    void validateFunctionNames() const;
 };
 
-class TINGraphBody : public CNNNetworkNGraphImpl {
-public:
-    explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
-
-protected:
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
-        return _ngraph_function;
-    }
-};
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace details
 }  // namespace InferenceEngine

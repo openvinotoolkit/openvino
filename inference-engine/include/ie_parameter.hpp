@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <details/ie_exception.hpp>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -51,22 +50,6 @@ public:
     }
 
     /**
-     * @brief Creates parameter from variant.
-     * This method creates empty parameter if variant doesn't contain Parameter
-     *
-     * @param var ngraph variant
-     */
-    Parameter(const std::shared_ptr<ngraph::Variant>& var);
-
-    /**
-     * @brief Creates parameter from variant.
-     * This method creates empty parameter if variant doesn't contain Parameter
-     *
-     * @param var ngraph variant
-     */
-    Parameter(std::shared_ptr<ngraph::Variant>& var);
-
-    /**
      * @brief Copy constructor
      *
      * @param parameter Parameter object
@@ -83,7 +66,8 @@ public:
      * @param parameter object
      */
     template <class T,
-              typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value>::type>
+              typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value &&
+                                                 !std::is_abstract<typename std::decay<T>::type>::value>::type>
     Parameter(T&& parameter) {  // NOLINT
         static_assert(!std::is_same<typename std::decay<T>::type, Parameter>::value, "To prevent recursion");
         ptr = new RealData<typename std::decay<T>::type>(std::forward<T>(parameter));
@@ -201,22 +185,6 @@ public:
     }
 
     /**
-     * @brief Converts parameter to shared pointer on ngraph::Variant
-     *
-     * @return shared pointer on ngraph::Variant
-     */
-    std::shared_ptr<ngraph::Variant> asVariant() const;
-
-    /**
-     * @brief Casts to shared pointer on ngraph::Variant
-     *
-     * @return shared pointer on ngraph::Variant
-     */
-    operator std::shared_ptr<ngraph::Variant>() const {
-        return asVariant();
-    }
-
-    /**
      * Dynamic cast to specified type
      * @tparam T type
      * @return casted object
@@ -245,6 +213,21 @@ public:
         return !(*this == rhs);
     }
 
+    /**
+     * @brief Prints underlying object to the given output stream.
+     * Uses operator<< if it is defined, leaves stream unchanged otherwise.
+     * In case of empty parameter or nullptr stream immediately returns.
+     *
+     * @param object Object to be printed to the given output stream.
+     * @param stream Output stream object will be printed to.
+     */
+    friend void PrintTo(const Parameter& object, std::ostream* stream) {
+        if (object.empty() || !stream) {
+            return;
+        }
+        object.ptr->print(*stream);
+    }
+
 private:
     template <class T, class EqualTo>
     struct CheckOperatorEqual {
@@ -264,15 +247,34 @@ private:
     template <class T, class EqualTo = T>
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
+    template <class T, class U>
+    struct CheckOutputStreamOperator {
+        template <class V, class W>
+        static auto test(W*) -> decltype(std::declval<V&>() << std::declval<W>(), std::true_type()) {
+            return {};
+        }
+
+        template <typename, typename>
+        static auto test(...) -> std::false_type {
+            return {};
+        }
+
+        using type = typename std::is_same<std::true_type, decltype(test<T, U>(nullptr))>::type;
+    };
+
+    template <class T>
+    struct HasOutputStreamOperator : CheckOutputStreamOperator<std::ostream, T>::type {};
+
     struct Any {
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#ifdef __ANDROID__
         virtual ~Any();
 #else
         virtual ~Any() = default;
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
+        virtual void print(std::ostream&) const = 0;
     };
 
     template <class T>
@@ -297,7 +299,7 @@ private:
         template <class U>
         typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
         equal(const Any& left, const Any& rhs) const {
-            THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
+            IE_THROW() << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
@@ -309,24 +311,43 @@ private:
         bool operator==(const Any& rhs) const override {
             return rhs.is(typeid(T)) && equal<T>(*this, rhs);
         }
+
+        template <class U>
+        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type
+        print(std::ostream& stream, const U& object) const {}
+
+        template <class U>
+        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type
+        print(std::ostream& stream, const U& object) const {
+            stream << object;
+        }
+
+        void print(std::ostream& stream) const override {
+            print<T>(stream, get());
+        }
     };
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) THROW_IE_EXCEPTION << "Parameter is empty!";
+        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 
     Any* ptr = nullptr;
 };
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+/**
+ * @brief An std::map object containing parameters
+  */
+using ParamMap = std::map<std::string, Parameter>;
+
+#ifdef __ANDROID__
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -341,6 +362,6 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif
 
 }  // namespace InferenceEngine

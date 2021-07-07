@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -36,6 +24,7 @@ namespace ngraph
                                   size_t sequence_axis,
                                   const U* sequence_lengths)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform input_transform(arg_shape);
                 for (const Coordinate& in_coord : input_transform)
                 {
@@ -63,7 +52,8 @@ namespace ngraph
                     out_coord[sequence_axis] = sequence_index;
                     out[input_transform.index(out_coord)] = arg[input_transform.index(in_coord)];
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph

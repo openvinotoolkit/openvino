@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 #include <map>
 #include <ie_common.h>
-#include "gna_plugin_policy.hpp"
 
 namespace GNAPluginNS {
 /**
@@ -29,7 +28,7 @@ class IPassManager {
 public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
-    virtual const Policy &getPolicy() const = 0;
+    virtual const bool& isLowPrecision() const = 0;
     virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
 };
 
@@ -75,17 +74,6 @@ DECL_PASS(InsertIdentityLayer);
 DECL_PASS(SubstituteScaleShiftBroadCast);
 
 /**
- * @brief GNA convolution layers have deinterleaved layout, while affine one doesn't
- * so between convolution and affine layers permute layers need to be inserted,
- * current MO approach is to insert such permutations
- * since GNA-HW already support conv->affine in permuted for, this pass inverses MO behavior
- * so its remove permutations of certain form conv->conv, and between conv->affine
- * and insert permutation between conv->affine if they are missed in IR
- * @param layers
- */
-DECL_PASS(ReversePermutations);
-
-/**
  * @brief Pass support --disable_nhwc_to_nchw option in MO
  * @param layers
  */
@@ -116,6 +104,7 @@ DECL_PASS(InsertDiagonalLayer);
  * it means maxpool receives 4 bytes, and produces 4 bytes
  */
 DECL_PASS(ReorderMaxPool);
+
 /**
  * @brief GNA doesn't support multiple activations fused with functional layer
  * currently for n activations for the layer X, it will be 1 PWL identity inserted, and n diagonal layers.
@@ -209,11 +198,18 @@ DECL_PASS(FuseFQIntoWeights);
 */
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
+/**
+* @brief convert FullyConnected, ScaleShift and Eltwise layers weights order from NCHW to NHWC.
+* Information for transposition is found from convolution/pooling input or output dimensions.
+* Convolution weights are transposed in finalizeConvolution1DPrimitive() method (gna_graph_compiler.cpp).
+* They are transposed for the both, NCHW and NHWC models since MO always stores them in NCHW layout.
+*/
+DECL_PASS(TransposeWeightsFromNCHWToNHWC);
 
 struct PassManagerSettings {
-    Policy policy;
     /// @brief whether to run passes before copy
     bool runBeforeCopy;
+    bool lowPrecision;
 };
 
 
@@ -235,8 +231,8 @@ public:
     int & getIntVar(std::string name) override {
         return intMap[name];
     }
-    const Policy & getPolicy() const override {
-        return settings.policy;
+    const bool& isLowPrecision() const override {
+        return settings.lowPrecision;
     }
     InferenceEngine::CNNNetwork& getNetwork() override {
         return network;

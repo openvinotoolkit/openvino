@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2021 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
 
@@ -123,12 +110,12 @@ class GroupNormToMVN(MiddleReplacementPattern):
         mvn_node.in_port(0).connect(reshape_for_mvn_node.out_port(0))
 
         # MVN axes
-        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0), return_as_a_scalar=True)
+        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0).get_connection().get_source(),
+                                                   return_as_a_scalar=True)
         rng = create_op_with_const_inputs(graph, Range, {0: int64_array(1), 2: int64_array(1)},
                                           {'name': group_norm_node.name + '/Range', 'output_type': np.int64})
         mvn_node.in_port(1).connect(rng.out_port(0))
         rng.in_port(1).connect(rank.out_port(0))
-        mvn_node.in_port(0).get_connection().add_destination(rank.in_port(0))
 
         # reshape to the initial shape before multiplying with gamma and adding beta
         reshape_to_initial_shape_node = Reshape(graph, {}).create_node()

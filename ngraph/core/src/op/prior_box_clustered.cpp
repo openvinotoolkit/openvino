@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
@@ -26,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClustered::type_info;
+NGRAPH_RTTI_DEFINITION(op::PriorBoxClustered, "PriorBoxClustered", 0);
 
 op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                          const Output<Node>& image_shape,
@@ -164,11 +152,29 @@ namespace prior_box_clustered
         }
         return rc;
     }
-}
+} // namespace prior_box_clustered
 
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_evaluate);
     return prior_box_clustered::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+}
+
+bool op::v0::PriorBoxClustered::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
 }

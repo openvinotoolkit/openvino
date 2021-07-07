@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <exception>
 #include <functional>
@@ -64,8 +52,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
-            : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()))
+        Graph::Graph(std::unique_ptr<Model>&& model)
+            : Graph(std::move(model), common::make_unique<GraphCache>())
         {
             // Remove dangling Parameters
             for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
@@ -88,16 +76,13 @@ namespace ngraph
             }
         }
 
-        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
-                     Model& model,
-                     std::unique_ptr<GraphCache>&& cache)
-            : m_graph_proto{&graph_proto}
-            , m_model{&model}
+        Graph::Graph(std::unique_ptr<Model>&& model, std::unique_ptr<GraphCache>&& cache)
+            : m_model{std::move(model)}
             , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
             // Process all initializers in the graph
-            for (const auto& initializer_tensor : m_graph_proto->initializer())
+            for (const auto& initializer_tensor : m_model->get_graph().initializer())
             {
                 if (initializer_tensor.has_name())
                 {
@@ -135,7 +120,7 @@ namespace ngraph
             }
 
             // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
-            for (const auto& input : m_graph_proto->input())
+            for (const auto& input : m_model->get_graph().input())
             {
                 m_inputs.emplace_back(input);
 
@@ -152,7 +137,7 @@ namespace ngraph
             }
 
             // Process all graph outputs
-            for (const auto& output : m_graph_proto->output())
+            for (const auto& output : m_model->get_graph().output())
             {
                 m_outputs.emplace_back(output);
             }
@@ -160,7 +145,7 @@ namespace ngraph
             // Verify that ONNX graph contains only nodes of available operator types
             std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>>
                 unknown_operators;
-            for (const auto& node_proto : m_graph_proto->node())
+            for (const auto& node_proto : m_model->get_graph().node())
             {
                 if (!m_model->is_operator_available(node_proto))
                 {
@@ -191,7 +176,7 @@ namespace ngraph
                          detail::to_string(unknown_operators));
 
             // Process ONNX graph nodes, convert to nGraph nodes
-            for (const auto& node_proto : m_graph_proto->node())
+            for (const auto& node_proto : m_model->get_graph().node())
             {
                 m_nodes.emplace_back(node_proto, *this);
                 const Node& node{m_nodes.back()};
@@ -221,7 +206,7 @@ namespace ngraph
         OutputVector Graph::get_ng_outputs() const
         {
             OutputVector results;
-            for (const auto& output : m_graph_proto->output())
+            for (const auto& output : m_model->get_graph().output())
             {
                 const auto& ng_output = get_ng_node_from_cache(output.name());
                 if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
@@ -268,7 +253,7 @@ namespace ngraph
         void Graph::set_friendly_names(const Node& onnx_node,
                                        const OutputVector& ng_node_vector) const
         {
-            for (int i = 0; i < ng_node_vector.size(); ++i)
+            for (size_t i = 0; i < ng_node_vector.size(); ++i)
             {
                 // Trailing optional outputs may not be specified in the ONNX model.
                 // Other optional outputs should have name set to an empty string.
@@ -277,15 +262,7 @@ namespace ngraph
                     break;
                 }
 
-                auto onnx_node_name = onnx_node.get_name();
-                if (onnx_node_name.empty())
-                {
-                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
-                }
-                else
-                {
-                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
-                }
+                ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
 
                 // null node does not have tensor
                 if (!ngraph::op::is_null(ng_node_vector[i]))
@@ -345,17 +322,14 @@ namespace ngraph
             return m_model->get_opset_imports();
         }
 
-        Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
-                           Model& model,
-                           const Graph& parent_graph)
+        Subgraph::Subgraph(std::unique_ptr<Model>&& model, const Graph& parent_graph)
             : Graph(
-                  proto,
-                  model,
+                  std::move(model),
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
             // find all nodes on edge parent graph-subgraph
             // (it means input of node from parent graph, output from subgraph)
-            for (const auto& node_proto : proto.node())
+            for (const auto& node_proto : m_model->get_graph().node())
             {
                 int input_index = 0;
                 for (const auto& in_name : node_proto.input())

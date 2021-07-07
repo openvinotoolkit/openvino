@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "ngraph/op/depth_to_space.hpp"
 
-#include "api/depth_to_space.hpp"
+#include "cldnn/primitives/depth_to_space.hpp"
 
 namespace CLDNNPlugin {
 
@@ -17,7 +17,7 @@ static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::Dep
             return cldnn::depth_to_space_mode::blocks_first;
         case ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
             return cldnn::depth_to_space_mode::depth_first;
-        default: THROW_IE_EXCEPTION << "Unsupported DepthToSpaceMode value: " << static_cast<int>(mode);
+        default: IE_THROW() << "Unsupported DepthToSpaceMode value: " << static_cast<int>(mode);
     }
     return cldnn::depth_to_space_mode::blocks_first;
 }

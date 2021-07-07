@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,15 +16,18 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
+    const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const auto dequantization = makeDequantization(input, dequantizationBefore);
+    auto deqBeforeStructure = dequantizationBefore;
+    deqBeforeStructure.multiply.outPrecision = precision;
+    const auto dequantization = makeDequantization(input, deqBeforeStructure);
 
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
         dequantization,
@@ -48,7 +51,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, ngraph::element::f32, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");
@@ -81,25 +84,28 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
+    const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
-    const auto deqBefore = makeDequantization(input, dequantizationBefore);
+    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
+    auto outPrecision = precisionAfterOperation;
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
-        deqBefore,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, precisionAfterOperation);
+        opset1::AvgPool(
+            deqBefore,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 0, 0 },
+            Shape{ 2, 2 },
+            true,
+            op::RoundingType::FLOOR),
+        outPrecision);
 
     std::shared_ptr<Node> lastLayer = avgPool;
     if (additionalLayer == "maxpool") {
@@ -111,12 +117,13 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
             Shape{ 2, 2 },
             op::RoundingType::FLOOR);
     }
-
-    lastLayer = makeDequantization(lastLayer, dequantizationAfter);
+    auto deqAfterStructure = dequantizationAfter;
+    deqAfterStructure.multiply.outPrecision = precision;
+    lastLayer = makeDequantization(lastLayer, deqAfterStructure);
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, ngraph::element::f32, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");

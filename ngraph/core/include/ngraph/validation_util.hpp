@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {
@@ -46,6 +35,37 @@ namespace ngraph
                                                        const Strides& window_dilation,
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
+
+    void validate_conv_params_spatial_dimensions(const Node* node,
+                                                 const size_t num_spatial_dims,
+                                                 const op::PadType auto_pad,
+                                                 Strides& strides,
+                                                 Strides& dilations,
+                                                 CoordinateDiff& pads_begin,
+                                                 CoordinateDiff& pads_end);
+
+    /// \brief      Validates input shape ranks and infers convolution forward output shape.
+    ///
+    /// \param[in] node              Node with convolution operation.
+    /// \param[in] data_batch_pshape Partial shape of data batch input.
+    /// \param[in] filters_pshape    Partial shape of filters input.
+    /// \param[in] auto_pad          Type of padding.
+    /// \param     strides           Strides.
+    /// \param     dilations         Dilations.
+    /// \param     pads_begin        Pads begin.
+    /// \param     pads_end          Pads end.
+    ///
+    /// \return Partial shape of the output.
+    PartialShape
+        validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const Rank& result_ps_rank,
+                                                            const PartialShape& data_batch_pshape,
+                                                            const PartialShape& filters_pshape,
+                                                            const op::PadType auto_pad,
+                                                            Strides& strides,
+                                                            Strides& dilations,
+                                                            CoordinateDiff& pads_begin,
+                                                            CoordinateDiff& pads_end);
 
     NGRAPH_API
     PartialShape infer_convolution_forward(const Node* node,
@@ -214,6 +234,9 @@ namespace ngraph
     /// \brief Try to compute the maximum value of value
     /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
     /// if not.
+    /// \deprecated Use evaluate_upper_bound instead
+    NGRAPH_DEPRECATED(
+        "Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
     NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
     /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
@@ -222,9 +245,13 @@ namespace ngraph
     /// function.
     /// \param output_tensor_map Tensors to use for particular outputs
     /// \param outputs Root set of values to try to compute
-    NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                                   std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                                   const OutputVector& outputs);
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    NGRAPH_API void
+        evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                       std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                       const OutputVector& outputs,
+                       const EvaluationContext& evaluation_context = EvaluationContext());
 
     /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
     /// estimation through it.

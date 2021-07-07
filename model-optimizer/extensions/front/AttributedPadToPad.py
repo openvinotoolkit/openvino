@@ -1,20 +1,9 @@
-"""
- Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
-
+from extensions.ops.ConvertLike import ConvertLike
 from mo.front.common.replacement import FrontReplacementPattern
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.ops.pad import Pad
@@ -39,7 +28,11 @@ class AttributedPadToPad(FrontReplacementPattern):
             new_pad.in_port(1).connect(Const(graph, {'value': attr_pad.pads[:, 0]}).create_node().out_port(0))
             new_pad.in_port(2).connect(Const(graph, {'value': attr_pad.pads[:, 1]}).create_node().out_port(0))
             if attr_pad.soft_get('mode') == 'constant':
-                new_pad.in_port(3).connect(Const(graph, {'value': attr_pad.fill_value}).create_node().out_port(0))
+                # create Constant node of proper data type (equal to the data type of the Pad first input)
+                convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: attr_pad.fill_value},
+                                                                {'name': original_name + '/pad_value_convert'})
+                convert_pad_value.in_port(1).connect(new_pad.in_port(0).get_source())
+                new_pad.in_port(3).connect(convert_pad_value.out_port(0))
 
             attr_pad.out_port(0).get_connection().set_source(new_pad.out_port(0))
             graph.remove_node(attr_pad.id)

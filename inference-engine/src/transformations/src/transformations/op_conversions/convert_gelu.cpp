@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 #include <memory>
 #include <ngraph/opsets/opset2.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/rt_info.hpp>

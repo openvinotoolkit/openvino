@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,14 +14,6 @@ add_subdirectory(common)
 
 if(ENABLE_MYRIAD)
     add_subdirectory(graph_transformer)
-    add_subdirectory(
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"
-            "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/movidius")
-
-    #
-    # Build plugins
-    #
-
     add_subdirectory(myriad_plugin)
 
     if(DEFINED VPU_CLC_MA2X8X_ROOT)

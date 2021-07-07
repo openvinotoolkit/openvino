@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <memory>
 
@@ -67,7 +55,7 @@ namespace topk
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a));                                         \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(exec_topk_eval, _, a));                                         \
         rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break
@@ -189,7 +177,7 @@ namespace topk
 #define CASE_GET_K(a, ...)                                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a));                                             \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(topk_get_k, _, a));                                             \
         k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__);                                \
     }                                                                                              \
     break
@@ -214,10 +202,10 @@ namespace topk
         }
         return k;
     }
-}
+} // namespace topk
 
 // v1 version starts
-constexpr NodeTypeInfo op::v1::TopK::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::TopK, "TopK", 1);
 
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
@@ -283,11 +271,10 @@ void op::v1::TopK::validate_and_infer_types()
                           "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
                           m_index_element_type);
 
-    size_t k = 0;
     if (op::is_constant(input_value(1).get_node()))
     {
-        k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
-                                      get_input_element_type(1));
+        // Check k value
+        read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
     }
 
     PartialShape output_shape{input_partial_shape};
@@ -319,7 +306,8 @@ void op::v1::TopK::validate_and_infer_types()
         }
         else
         {
-            output_shape[m_normalized_axis] = -1;
+            output_shape[m_normalized_axis] =
+                Dimension(0, input_partial_shape[m_normalized_axis].get_max_length());
         }
     }
 
@@ -504,6 +492,50 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                get_index_element_type());
 }
 
+bool op::v1::TopK::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_TopK_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: break;
+    default: return false;
+    }
+
+    if (op::is_constant(input_value(1).get_node()))
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i32:
+        case ngraph::element::i64: break;
+        default: return false;
+        }
+    }
+    else
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: break;
+        default: return false;
+        }
+    }
+
+    return true;
+}
+
 // v3 version starts
 constexpr NodeTypeInfo op::v3::TopK::type_info;
 
@@ -586,4 +618,48 @@ bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 {
     NGRAPH_OP_SCOPE(v3_TopK_evaluate);
     return op::v1::TopK::evaluate(outputs, inputs);
+}
+
+bool op::v3::TopK::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_TopK_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: break;
+    default: return false;
+    }
+
+    if (op::is_constant(input_value(1).get_node()))
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i32:
+        case ngraph::element::i64: break;
+        default: return false;
+        }
+    }
+    else
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: break;
+        default: return false;
+        }
+    }
+
+    return true;
 }

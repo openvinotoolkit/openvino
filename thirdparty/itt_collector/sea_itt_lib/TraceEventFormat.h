@@ -21,20 +21,20 @@
 #include "Utils.h"
 
 #ifndef _WIN32
-    #include <unistd.h>
     #include <sys/syscall.h>
+    #include <unistd.h>
 #endif
 
 #ifdef _WIN32
-    static const int64_t g_PID = (int64_t)GetCurrentProcessId();
+static const int64_t g_PID = (int64_t)GetCurrentProcessId();
 #else
-    static const int64_t g_PID = (int64_t)getpid();
+static const int64_t g_PID = (int64_t)getpid();
     #if defined(__APPLE__)
-    inline int64_t GetTidFromPThread() {
-        uint64_t tid64 = 0;
-        pthread_threadid_np(NULL, &tid64);
-        return (int64_t)tid64;
-    }
+inline int64_t GetTidFromPThread() {
+    uint64_t tid64 = 0;
+    pthread_threadid_np(NULL, &tid64);
+    return (int64_t)tid64;
+}
     #endif
 #endif
 
@@ -59,29 +59,29 @@ public:
     };
 
     enum EventPhase {
-        Begin = 'B', //name, pid, tid, ts
-        End = 'E', //name, pid, tid, ts
-        Complete = 'X', //name, pid, tid, ts, dur
-        Instant = 'i', //name, pid, tid, ts, s = (g, p, t) //vertical line
-        Counter = 'C', //name, pid, tid, ts //"args": {"cats":  0, "dogs": 7}
-        AsyncBegin = 'b', //name, pid, tid, ts, id
-        AsyncInstant = 'n', //name, pid, tid, ts, id
-        AsyncEnd = 'e', //name, pid, tid, ts, id
+        Begin = 'B',         // name, pid, tid, ts
+        End = 'E',           // name, pid, tid, ts
+        Complete = 'X',      // name, pid, tid, ts, dur
+        Instant = 'i',       // name, pid, tid, ts, s = (g, p, t) //vertical line
+        Counter = 'C',       // name, pid, tid, ts //"args": {"cats":  0, "dogs": 7}
+        AsyncBegin = 'b',    // name, pid, tid, ts, id
+        AsyncInstant = 'n',  // name, pid, tid, ts, id
+        AsyncEnd = 'e',      // name, pid, tid, ts, id
         //'S', 'T', 'F',
         //'s', 't', 'f', //Flow events, with arrows: cool but unclear
         FlowStart = 's',
         FlowInstant = 't',
         FlowFinish = 'f',
         Metadata = 'M',
-        Sample = 'P', //pid, tid, ts
-        ObjectNew = 'N', //name, pid, tid, ts, id but no args!
-        ObjectDelete = 'D', //name, pid, tid, ts, id but no args!
-        ObjectSnapshot = 'O', //name, pid, tid, ts, id, can have args! See snapshot.basetype for deeper.
+        Sample = 'P',          // pid, tid, ts
+        ObjectNew = 'N',       // name, pid, tid, ts, id but no args!
+        ObjectDelete = 'D',    // name, pid, tid, ts, id but no args!
+        ObjectSnapshot = 'O',  // name, pid, tid, ts, id, can have args! See snapshot.basetype for deeper.
     };
 
     static uint64_t GetTimeNS() {
 #ifdef _WIN32
-        return SHiResClock::now64(); //in nanoseconds
+        return SHiResClock::now64();  // in nanoseconds
 #elif defined(__linux__)
         static struct timespec res = {};
         if (!res.tv_nsec && !res.tv_sec) {
@@ -94,24 +94,24 @@ public:
         struct timespec ts = {};
         clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
         return uint64_t((1000000000. * ts.tv_sec + ts.tv_nsec) / (1000000000. * res.tv_sec + res.tv_nsec));
-#else // FIXME: use mach_absolute_time for APPLE
+#else  // FIXME: use mach_absolute_time for APPLE
         using namespace std::chrono;
         return (uint64_t)duration_cast<nanoseconds>(SHiResClock::now().time_since_epoch()).count();
 #endif
     }
 
     static SRegularFields GetRegularFields() {
-        return SRegularFields{
-    #if defined(_WIN32)
+        return SRegularFields {
+#if defined(_WIN32)
             g_PID, (int64_t)GetCurrentThreadId(),
-    #elif defined(__linux__)
+#elif defined(__linux__)
             g_PID, (int64_t)syscall(SYS_gettid),
-    #elif defined(__APPLE__)
+#elif defined(__APPLE__)
             g_PID, GetTidFromPThread(),
-    #else
+#else
             g_PID, (int64_t)syscall(SYS_thread_selfid),
-    #endif
-            GetTimeNS()
+#endif
+                GetTimeNS()
         };
     }
 
@@ -122,7 +122,7 @@ public:
 
     public:
         CArgs() {}
-        template<class T>
+        template <class T>
         CArgs(const std::string& name, const T& value) {
             Add(name, value);
         }
@@ -130,13 +130,14 @@ public:
             m_args[name] = value ? value : "";
             return *this;
         }
-        template<class T>
+        template <class T>
         CArgs& Add(const std::string& name, const T& value) {
             m_args[name] = std::to_string(value);
             return *this;
         }
-        operator bool() const { return !m_args.empty(); }
-
+        operator bool() const {
+            return !m_args.empty();
+        }
 
         std::string Str() const {
             std::string res;
@@ -147,7 +148,8 @@ public:
             }
             return res;
         }
-        const TMap& GetMap() const {return m_args;}
+        const TMap& GetMap() const {
+            return m_args;
+        }
     };
 };
-

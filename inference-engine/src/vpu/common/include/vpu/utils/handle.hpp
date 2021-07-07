@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <details/ie_exception.hpp>
+#include <ie_common.h>
 
 namespace vpu {
 

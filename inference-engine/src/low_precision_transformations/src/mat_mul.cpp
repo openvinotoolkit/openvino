@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020-2021 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
+    if (!support3DTensorOnActivations) {
+        const auto inputRank = matMul->get_input_partial_shape(0).rank();
+        if (inputRank.is_dynamic() || inputRank.get_length() == 3) {
+            return false;
+        }
+    }
 
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
@@ -51,13 +57,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         dequantization2 = NetworkHelper::getDequantization(matMul, 1);
     }
 
-    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<op::TypeRelaxed<opset1::MatMul>>(
-        std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
-        op::TemporaryReplaceOutputType(dequantization1.data, element::f32).get(),
-        op::TemporaryReplaceOutputType(dequantization2.data, element::f32).get(),
+    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
+        std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
-    NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
     NetworkHelper::copyInfo(matMul, newMatMul);
 
     std::shared_ptr<Node> parent = newMatMul;
@@ -65,10 +70,13 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     // dequantization with subtract on activations & constant weights
     if (dequantization1.subtract) {
         auto broadcastShape = NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.subtractConstant)) ?
-            Shape(dequantization1.subtract->get_shape().size(), 1) :
+            Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
-        const size_t lastIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
-        broadcastShape[lastIdx] = dequantization1.subtract->get_shape()[lastIdx];
+
+        const auto weightsShape = newMatMul->get_input_shape(1);
+        const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
+        const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
+        broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
 
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<opset1::Broadcast>(
@@ -78,7 +86,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
             broadcastedConst,
-            fold<opset1::Convert>(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
@@ -110,12 +118,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     if (NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(mulConst2))) {
         mulConst2 = NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(mulConst2));
     } else {
-        auto constShape = mulConst2->get_shape();
-        auto inputShape = matMul->get_input_shape(0);
+        const auto constShape = mulConst2->get_shape();
+        const size_t inputRank = matMul->get_input_partial_shape(0).rank().get_length();
 
         // unsqueeze from the left side to make both shapes of the same rank
-        if (constShape.size() < inputShape.size()) {
-            Shape unsqueezeConstantShape(inputShape.size() - constShape.size());
+        if (constShape.size() < inputRank) {
+            Shape unsqueezeConstantShape(inputRank - constShape.size());
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
             mulConst2 = fold<opset1::Unsqueeze>(
@@ -124,8 +132,16 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<opset1::Multiply>(mulConst1, mulConst2));
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(parent, newMulConst);
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(
+            mulConst1,
+            foldConvert(mulConst2, element::f32)));
+
+    const auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        std::vector<element::Type>{ deqPrecision, deqPrecision },
+        std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
+        ngraph::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
+        ngraph::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
+
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
     replace_node(matMul, newMultiply);
@@ -153,7 +169,11 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpecialDimension(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
+        return false;
+    }
+
+    if (NetworkHelper::isDQByDynamicDimension(layer, 1)) {
         return false;
     }
 
@@ -170,13 +190,19 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         if (!NetworkHelper::isScalarLike(dequantization1.multiplyConstant)) {
             const auto constantShape = dequantization1.multiplyConstant->get_shape();
-            const auto mulShape = dequantization1.multiply->get_shape();
-            const size_t columnsIdx = matMul->get_transpose_a() ? mulShape.size() - 2ul : mulShape.size() - 1ul;
+            const auto mulShape = dequantization1.multiply->get_output_partial_shape(0);
+            const size_t rank = mulShape.rank().get_length();
+
+            const size_t columnsIdx = matMul->get_transpose_a() ? rank - 2 : rank - 1;
 
             // dequantization scales by columns in tensor A can't be propagate
-            if ((constantShape.size() == mulShape.size()) && (constantShape[columnsIdx] != 1)) {
+            if ((constantShape.size() == rank) && (constantShape[columnsIdx] != 1)) {
                 return false;
             }
+        }
+
+        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
+            return false;
         }
     }
 
@@ -195,11 +221,13 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         if (!NetworkHelper::isScalarLike(dequantization2.multiplyConstant)) {
             const auto constantShape = dequantization2.multiplyConstant->get_shape();
-            const auto mulShape = dequantization2.multiply->get_shape();
-            const size_t rowsIdx = matMul->get_transpose_b() ? mulShape.size() - 1ul : mulShape.size() - 2ul;
+            const auto mulShape = dequantization2.multiply->get_output_partial_shape(0);
+            const size_t rank = mulShape.rank().get_length();
+
+            const size_t rowsIdx = matMul->get_transpose_b() ? rank - 1ul : rank - 2ul;
 
             // dequantization scales by rows in tensor B can't be propagate
-            if ((constantShape.size() == mulShape.size()) && (constantShape[rowsIdx] != 1)) {
+            if ((constantShape.size() == rank) && (constantShape[rowsIdx] != 1)) {
                 return false;
             }
         }
@@ -219,12 +247,14 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
 
         const auto outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
         const auto outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
-        const auto fakeQuantizeShape = fakeQuantize->get_shape();
-        const size_t rowsIdx = matMul->get_transpose_b() ? fakeQuantizeShape.size() - 1 : fakeQuantizeShape.size() - 2;
+        const auto fakeQuantizeShape = fakeQuantize->get_output_partial_shape(0);
+        const size_t rank = fakeQuantizeShape.rank().get_length();
+
+        const size_t rowsIdx = matMul->get_transpose_b() ? rank - 1 : rank - 2;
 
         // dequantization scales by rows in tensor B can't be propagate
-        if (((outLowShape.size() == fakeQuantizeShape.size()) && (outLowShape[rowsIdx] != 1)) ||
-            ((outHighShape.size() == fakeQuantizeShape.size()) && (outHighShape[rowsIdx] != 1))) {
+        if (((outLowShape.size() == rank) && (outLowShape[rowsIdx] != 1)) ||
+            ((outHighShape.size() == rank) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
     }

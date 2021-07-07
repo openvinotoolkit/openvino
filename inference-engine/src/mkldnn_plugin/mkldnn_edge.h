@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_blob.h>
-
+#include <memory>
 #include "mkldnn_memory.h"
 #include "mkldnn_dims.h"
+#include "mkldnn_weights_cache.hpp"
 #include "mkldnn/ie_mkldnn.h"
 
 #include <map>
@@ -22,7 +23,7 @@ class MKLDNNEdge;
 using MKLDNNEdgePtr = std::shared_ptr<MKLDNNEdge>;
 using MKLDNNEdgeWeakPtr = std::weak_ptr<MKLDNNEdge>;
 
-class MKLDNNEdge : public InferenceEngine::details::no_copy {
+class MKLDNNEdge {
 public:
     MKLDNNEdge(const std::shared_ptr<MKLDNNNode>& parent,
                const std::shared_ptr<MKLDNNNode>& child,
@@ -42,9 +43,11 @@ public:
 
     void changeStatus(Status state);
 
-    virtual void init();
-    virtual void allocate(const void* mem_ptr = nullptr);
-    virtual void validate();
+    void init();
+    void allocate(const void* mem_ptr = nullptr);
+    void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void reuse(MKLDNNMemoryPtr ptr);
+    void validate();
     void drop();
 
     const std::shared_ptr<MKLDNNNode> getParent() const;
@@ -58,20 +61,30 @@ public:
     MKLDNNMemoryPtr& getMemoryPtr();
 
     bool needReorder();
-    bool isDropped();
+    bool isDropped() const;
+    bool isUseExternalMemory() const;
 
-    int getInputNum();
-    int getOutputNum();
+    int getInputNum() const;
+    int getOutputNum() const;
+
+    void setChildPort(const size_t port) { child_port = port; }
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
+    MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
+
+    const InferenceEngine::TensorDesc& getInputDescRO() const;
+    const InferenceEngine::TensorDesc& getOutputDescRO() const;
 
 private:
+    std::string name();
+
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;
     int child_port;
 
+    bool externalMemoryPtr = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
     MKLDNNDims dims;
     MKLDNNMemoryPtr memoryPtr;

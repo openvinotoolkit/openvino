@@ -20,11 +20,6 @@ clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
 - *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
-## Documentation
-There is inline documentation available that can be [generated with Doxygen](#generating-documentation).
-
-Accelerate Deep Learning Inference with Intel® Processor Graphics whitepaper [link](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
-
 ## Support
 Please report issues and suggestions
 [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
@@ -34,7 +29,7 @@ We welcome community contributions to clDNN. If you have an idea how to improve 
 
 - Share your proposal via
  [GitHub issues](https://github.com/openvinotoolkit/openvino/issues)
-- Ensure you can build the product and run all the examples with your patch
+- Ensure you can build the product and run all the tests with your patch
 - In the case of a larger feature, create a test
 - Submit a [pull request](https://github.com/openvinotoolkit/openvino/pulls)
 
@@ -45,7 +40,7 @@ request will be merged into our GitHub repository.
 ## System Requirements
 clDNN supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized for Gen9-Gen12LP architectures
 
-clDNN currently uses OpenCL™ with multiple Intel® OpenCL™ extensions and requires Intel® Graphics Driver to run.
+clDNN currently uses OpenCL™ with multiple Intel OpenCL™ extensions and requires Intel® Graphics Driver to run.
 
 clDNN requires CPU with Intel® SSE/Intel® AVX support.
 
@@ -62,32 +57,20 @@ The software dependencies are:
 > Intel® CPU intrinsics header (`<immintrin.h>`) must be available during compilation.
 
 - [python™](https://www.python.org/downloads/) 2.7 or later (scripts are both compatible with python™ 2.7.x and python™ 3.x)
-- *(optional)* [Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) 1.8.13 or later
-    Needed for manual generation of documentation from inline comments or running `docs` custom target which will generate it automatically.
 
-> [GraphViz\*](http://www.graphviz.org/Download..php) (2.38 or later) is also recommended to generate documentation with all embedded diagrams.
-(Make sure that `dot` application is visible in the `PATH` environment variable.)
+# Trademark Information
 
-
-### Generating documentation
-
-Documentation is provided inline and can be generated in HTML format with Doxygen. We recommend to use latest
-[Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) and [GraphViz\*](http://www.graphviz.org/Download..php).
-
-Documentation templates and configuration files are stored in `docs` subdirectory. You can simply call:
-
-```shellscript
-    cd docs && doxygen
-```
-to generate HTML documentation in `docs/html` subdirectory.
-
-There is also custom CMake target named `docs` which will generate documentation in `CLDNN__OUTPUT_BIN_DIR/html` directory. For example, when using Unix makefiles, you can run:
-```
-    make docs
-```
-in order to create it.
-
+Intel, the Intel logo, Intel Atom, Intel Core, Intel Xeon Phi, Iris, OpenVINO,
+the OpenVINO logo, Pentium, VTune, and Xeon are trademarks
+of Intel Corporation or its subsidiaries.
 
 \* Other names and brands may be claimed as the property of others.
 
-Copyright © 2020, Intel® Corporation
+Microsoft, Windows, and the Windows logo are trademarks, or registered
+trademarks of Microsoft Corporation in the United States and/or other
+countries.
+
+OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission
+by Khronos.
+
+Copyright © 2021, Intel Corporation

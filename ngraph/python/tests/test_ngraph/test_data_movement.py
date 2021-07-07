@@ -1,18 +1,6 @@
-# ******************************************************************************
-# Copyright 2017-2021 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 
 import ngraph as ng
@@ -75,17 +63,17 @@ def test_reverse_sequence():
         ],
         dtype=np.int32,
     ).reshape([2, 3, 4, 2])
-    seq_lenghts = np.array([1, 2, 1, 2], dtype=np.int32)
+    seq_lengths = np.array([1, 2, 1, 2], dtype=np.int32)
     batch_axis = 2
     sequence_axis = 1
 
     input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    seq_lengths_param = ng.parameter(seq_lenghts.shape, name="sequence lengths", dtype=np.int32)
+    seq_lengths_param = ng.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
     model = ng.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param, seq_lengths_param)
-    result = computation(input_data, seq_lenghts)
+    result = computation(input_data, seq_lengths)
 
     expected = np.array(
         [

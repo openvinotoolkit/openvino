@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ namespace InferenceEngine {
 /**
  * @brief This class stores pre-process information for exact input
  */
-class IPreProcessData : public details::IRelease {
+class IPreProcessData : public std::enable_shared_from_this<IPreProcessData> {
 public:
     /**
      * @brief Sets ROI blob to be resized and placed to the default input blob during pre-processing.
@@ -58,9 +58,12 @@ public:
 
     //FIXME: rename to verifyAplicable
     virtual void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) = 0;
+
+protected:
+    ~IPreProcessData() = default;
 };
 
-INFERENCE_PRERPOC_PLUGIN_API(StatusCode) CreatePreProcessData(IPreProcessData *& data, ResponseDesc *resp) noexcept;
+INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
 namespace details {
 
@@ -89,11 +92,11 @@ inline PreProcessDataPtr CreatePreprocDataHelper() {
     FileUtils::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
     if (!FileUtils::fileExist(preprocLibraryPath)) {
-        THROW_IE_EXCEPTION << "Please, make sure that pre-processing library "
+        IE_THROW() << "Please, make sure that pre-processing library "
             << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
             << getIELibraryPath();
     }
-    return PreProcessDataPtr(preprocLibraryPath);
+    return {preprocLibraryPath};
 }
 
 }  // namespace InferenceEngine

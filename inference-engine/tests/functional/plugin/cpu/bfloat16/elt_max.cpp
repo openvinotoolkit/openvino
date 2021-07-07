@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,11 +126,13 @@ protected:
 };
 
 TEST_P(Elt_max, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_max,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, Elt_max,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -139,7 +141,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_max,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Elt_max::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Elt_max,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, Elt_max,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

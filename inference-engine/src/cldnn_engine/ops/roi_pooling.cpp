@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 
-#include "api/roi_pooling.hpp"
+#include "cldnn/primitives/roi_pooling.hpp"
 
 namespace CLDNNPlugin {
 

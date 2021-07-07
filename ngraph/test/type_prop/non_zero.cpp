@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -26,8 +14,23 @@ TEST(type_prop, non_zero)
     auto data = make_shared<op::Parameter>(element::f32, Shape{3, 3, 224, 224});
     auto non_zero = make_shared<op::v3::NonZero>(data);
     EXPECT_EQ(non_zero->get_element_type(), element::i64);
-    EXPECT_TRUE(
-        non_zero->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{4, {0, 451584}}));
+}
+
+TEST(type_prop, non_zero_partial_input)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{3, 4}, {5, 6}, {7, 8}});
+    auto non_zero = make_shared<op::v3::NonZero>(data);
+    EXPECT_EQ(non_zero->get_element_type(), element::i64);
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{3, {0, 192}}));
+}
+
+TEST(type_prop, non_zero_partial_with_negative)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{3, 4}, {5, 6}, -1});
+    auto non_zero = make_shared<op::v3::NonZero>(data);
+    EXPECT_EQ(non_zero->get_element_type(), element::i64);
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{3, -1}));
 }
 
 TEST(type_prop, non_zero_dynamic)
@@ -45,8 +48,7 @@ TEST(type_prop, non_zero_output_type)
     auto non_zero = make_shared<op::v3::NonZero>(data, element::i32);
 
     ASSERT_EQ(non_zero->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(
-        non_zero->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{4, {0, 24}}));
 }
 
 TEST(type_prop, non_zero_string_output_type)
@@ -55,8 +57,16 @@ TEST(type_prop, non_zero_string_output_type)
     auto non_zero = make_shared<op::v3::NonZero>(data, "i32");
 
     ASSERT_EQ(non_zero->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(
-        non_zero->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{4, {0, 24}}));
+}
+
+TEST(type_prop, non_zero_bool_input_type)
+{
+    auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 2, 3, 4});
+    auto non_zero = make_shared<op::v3::NonZero>(data, element::i32);
+
+    ASSERT_EQ(non_zero->get_output_element_type(0), element::i32);
+    ASSERT_EQ(non_zero->get_output_partial_shape(0), (PartialShape{4, {0, 24}}));
 }
 
 TEST(type_prop, non_zero_fail_index_element_type)

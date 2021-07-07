@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 #include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/compile_env.hpp>
+#include <vpu/configuration/options/copy_optimization.hpp>
 
 namespace vpu {
 
@@ -78,7 +79,7 @@ void PassImpl::run(const Model& model) {
 
     std::queue<Stage> copyToRemove;
 
-    if (!env.config.copyOptimization.hasValue()) {
+    if (!env.config.get<CopyOptimizationOption>()) {
         int nCopyStages = 0;
         for (const auto& stage : model->getStages()) {
             if (stage->type() == StageType::Copy) {
