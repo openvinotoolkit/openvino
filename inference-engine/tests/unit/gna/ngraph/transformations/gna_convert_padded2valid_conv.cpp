@@ -127,40 +127,77 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const modelType& model,
     return std::make_shared<ngraph::opset7::Result>(last_op);
 }
 
+std::shared_ptr<ngraph::Function> get_initial_function(const modelType& model,
+    const ngraph::PartialShape& input_shape,
+    const ngraph::Shape& filters_shape,
+    const ngraph::Strides& conv_stride,
+    const ngraph::CoordinateDiff& pads_begin,
+    const ngraph::CoordinateDiff& pads_end,
+    const ngraph::Strides& conv_dilation,
+    const ngraph::Shape& bias_shape,
+    const ngraph::Strides& maxpool_stride,
+    const ngraph::Shape& maxpool_shape,
+    const ngraph::op::PadType& pad_type,
+    ConvData& conv_data) {
+    auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto result = createFunction(model, inputParams, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
+        maxpool_stride, maxpool_shape, pad_type, &conv_data);
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ inputParams });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+class ConvertPadded2ValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+    public ::testing::WithParamInterface<std::tuple<modelType, ngraph::PartialShape, ngraph::Shape, ngraph::Strides,
+    ngraph::CoordinateDiff, ngraph::CoordinateDiff,
+    ngraph::Strides, ngraph::Shape,
+    ngraph::Strides, ngraph::Shape,
+    ngraph::op::PadType>> {
+public:
+    void SetUp() override;
+public:
+    std::shared_ptr<ngraph::Function> function, reference_function;
+    modelType model;
+};
+
+void ConvertPadded2ValidConvTestInvalidFixture::SetUp() {
+    ngraph::PartialShape input_shape;
+    ngraph::Shape filters_shape, bias_shape, maxpool_shape;
+    ngraph::Strides conv_stride, conv_dilation, maxpool_stride;
+    ngraph::CoordinateDiff pads_begin, pads_end;
+    ngraph::op::PadType pad_type;
+    ConvData conv_data;
+    std::tie(model, input_shape, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation,
+        bias_shape, maxpool_stride, maxpool_shape, pad_type) = this->GetParam();
+
+    function = get_initial_function(model, input_shape, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation,
+        bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
+    reference_function = get_initial_function(model, input_shape, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation,
+        bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 
 class ConvertPadded2ValidConvTestFixture: public CommonTestUtils::TestsCommon,
-                               public ::testing::WithParamInterface<std::tuple<modelType, ngraph::PartialShape, ngraph::Shape, ngraph::Strides,
-                                                                               ngraph::CoordinateDiff, ngraph::CoordinateDiff,
-                                                                               ngraph::Strides, ngraph::Shape,
-                                                                               ngraph::Strides, ngraph::Shape,
-                                                                               ngraph::op::PadType>> {
+    public ::testing::WithParamInterface<std::tuple<modelType, ngraph::PartialShape, ngraph::Shape, ngraph::Strides,
+        ngraph::CoordinateDiff, ngraph::CoordinateDiff,
+        ngraph::Strides, ngraph::Shape,
+        ngraph::Strides, ngraph::Shape,
+        ngraph::op::PadType>> {
 public:
     void SetUp() override;
-    std::shared_ptr<ngraph::Function> get_initial_function(const modelType& model,
-                                                   const ngraph::PartialShape& input_shape,
-                                                   const ngraph::Shape& filters_shape,
-                                                   const ngraph::Strides& conv_stride,
-                                                   const ngraph::CoordinateDiff& pads_begin,
-                                                   const ngraph::CoordinateDiff& pads_end,
-                                                   const ngraph::Strides& conv_dilation,
-                                                   const ngraph::Shape& bias_shape,
-                                                   const ngraph::Strides& maxpool_stride,
-                                                   const ngraph::Shape& maxpool_shape,
-                                                   const ngraph::op::PadType& pad_type,
-                                                   ConvData& conv_data);
     std::shared_ptr<ngraph::Function> get_reference(const modelType& model,
-                                                   const ngraph::PartialShape& input_shape,
-                                                   const ngraph::Shape& filters_shape,
-                                                   const ngraph::Strides& conv_stride,
-                                                   const ngraph::CoordinateDiff& pads_begin,
-                                                   const ngraph::CoordinateDiff& pads_end,
-                                                   const ngraph::Strides& conv_dilation,
-                                                   const ngraph::Shape& bias_shape,
-                                                   const ngraph::Strides& maxpool_stride,
-                                                   const ngraph::Shape& maxpool_shape,
-                                                   const ngraph::op::PadType& pad_type,
-                                                   const ConvData& conv_data);
+        const ngraph::PartialShape& input_shape,
+        const ngraph::Shape& filters_shape,
+        const ngraph::Strides& conv_stride,
+        const ngraph::CoordinateDiff& pads_begin,
+        const ngraph::CoordinateDiff& pads_end,
+        const ngraph::Strides& conv_dilation,
+        const ngraph::Shape& bias_shape,
+        const ngraph::Strides& maxpool_stride,
+        const ngraph::Shape& maxpool_shape,
+        const ngraph::op::PadType& pad_type,
+        const ConvData& conv_data);
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
     modelType model;
@@ -177,27 +214,9 @@ void ConvertPadded2ValidConvTestFixture::SetUp() {
         bias_shape, maxpool_stride, maxpool_shape, pad_type) = this->GetParam();
 
     function = get_initial_function(model, input_shape, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation,
-                                    bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
+        bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
     reference_function = get_reference(model, input_shape, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation,
-                                    bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
-}
-
-std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_initial_function(const modelType& model,
-                                                   const ngraph::PartialShape& input_shape,
-                                                   const ngraph::Shape& filters_shape,
-                                                   const ngraph::Strides& conv_stride,
-                                                   const ngraph::CoordinateDiff& pads_begin,
-                                                   const ngraph::CoordinateDiff& pads_end,
-                                                   const ngraph::Strides& conv_dilation,
-                                                   const ngraph::Shape& bias_shape,
-                                                   const ngraph::Strides& maxpool_stride,
-                                                   const ngraph::Shape& maxpool_shape,
-                                                   const ngraph::op::PadType& pad_type,
-                                                   ConvData& conv_data) {
-    auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
-    auto result =  createFunction(model, inputParams, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
-        maxpool_stride, maxpool_shape, pad_type, &conv_data);
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ inputParams });
+        bias_shape, maxpool_stride, maxpool_shape, pad_type, conv_data);
 }
 
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
@@ -291,17 +310,17 @@ std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>
 }
 
 std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_reference(const modelType& model,
-                                                   const ngraph::PartialShape& input_shape,
-                                                   const ngraph::Shape& filters_shape,
-                                                   const ngraph::Strides& conv_stride,
-                                                   const ngraph::CoordinateDiff& pads_begin,
-                                                   const ngraph::CoordinateDiff& pads_end,
-                                                   const ngraph::Strides& conv_dilation,
-                                                   const ngraph::Shape& bias_shape,
-                                                   const ngraph::Strides& maxpool_stride,
-                                                   const ngraph::Shape& maxpool_shape,
-                                                   const ngraph::op::PadType& pad_type,
-                                                   const ConvData& conv_data) {
+    const ngraph::PartialShape& input_shape,
+    const ngraph::Shape& filters_shape,
+    const ngraph::Strides& conv_stride,
+    const ngraph::CoordinateDiff& pads_begin,
+    const ngraph::CoordinateDiff& pads_end,
+    const ngraph::Strides& conv_dilation,
+    const ngraph::Shape& bias_shape,
+    const ngraph::Strides& maxpool_stride,
+    const ngraph::Shape& maxpool_shape,
+    const ngraph::op::PadType& pad_type,
+    const ConvData& conv_data) {
     auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
 
     // Add padding where neccessary
@@ -401,7 +420,33 @@ INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidCo
             ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
             ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT)));
 
-//TODO: add negative tests?
+TEST_P(ConvertPadded2ValidConvTestInvalidFixture, CompareFunctions) {
+    execute_test(model, function, reference_function);
+}
+
+INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvInvalidTestSuite, ConvertPadded2ValidConvTestInvalidFixture,
+    ::testing::Values(
+        std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{ 2, 16, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 9, 1 }, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::SAME_LOWER),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{ 1, 16, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 4, 1, 1 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 9, 1 }, ngraph::op::PadType::SAME_UPPER),
+        std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT),
+        std::make_tuple(modelType::TranspConvTranspBcastAddAct, ngraph::PartialShape{ 2, 1, 16, 8 }, ngraph::Shape{ 1, 2 }, ngraph::Strides{ 1, 1 },
+            ngraph::CoordinateDiff{ 0, 2 }, ngraph::CoordinateDiff{ 0, 3 }, ngraph::Strides{ 1, 1 },
+            ngraph::Shape{ 1, 1, 1, 4 }, ngraph::Strides{ 1, 1 }, ngraph::Shape{ 1, 2 }, ngraph::op::PadType::EXPLICIT)));
 
 } // namespace
 
