@@ -349,7 +349,7 @@ int main(int argc, char *argv[]) {
 #endif
             cnnNetwork.serialize("benchmark_app_loaded_network.xml");
             ngraph::output_dynamic_statistics(cnnNetwork.getFunction(), std::cerr, true);
-            return 1;
+            //return 1;
 
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
