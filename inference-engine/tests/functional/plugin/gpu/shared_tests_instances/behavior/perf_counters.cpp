@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/perf_counters.hpp"
+#include "behavior2/infer_request/perf_counters.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

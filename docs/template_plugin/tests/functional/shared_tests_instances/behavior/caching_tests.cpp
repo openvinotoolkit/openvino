@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/caching_tests.hpp"
+#include "behavior2/caching/caching_tests.hpp"
 
 using namespace LayerTestsDefinitions;
 

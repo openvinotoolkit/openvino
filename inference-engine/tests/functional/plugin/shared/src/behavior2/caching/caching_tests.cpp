@@ -6,7 +6,7 @@
 #include <ie_common.h>
 #include <thread>
 
-#include "behavior/caching_tests.hpp"
+#include "behavior2/caching/caching_tests.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"

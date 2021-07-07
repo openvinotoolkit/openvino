@@ -27,23 +27,22 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 namespace BehaviorTestsDefinitions {
-    typedef std::tuple<
-            InferenceEngine::Precision,             // Network precision
-            std::string,                            // Target device name
-            std::map<std::string, std::string>,     // Target config
-            InferenceEngine::Layout,                // Layout
-            std::vector<size_t>>                    // InputShapes
-    LayoutParams;
+typedef std::tuple<
+        InferenceEngine::Precision,             // Network precision
+        std::string,                            // Target device name
+        std::map<std::string, std::string>,     // Target config
+        InferenceEngine::Layout,                // Layout
+        std::vector<size_t>>                    // InputShapes
+LayoutParams;
 
 class LayoutTest : public CommonTestUtils::TestsCommon,
         public ::testing::WithParamInterface<LayoutParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayoutParams> obj);
-
     void SetUp() override;
-
     void TearDown() override;
 
+protected:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     InferenceEngine::Layout layout;
     std::vector<size_t> inputShapes;

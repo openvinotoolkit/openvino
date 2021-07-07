@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/layout.hpp"
+#include "behavior2/infer_request/layout.hpp"
 
 using namespace BehaviorTestsDefinitions;
 

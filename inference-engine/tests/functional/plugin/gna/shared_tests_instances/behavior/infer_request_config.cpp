@@ -3,7 +3,7 @@
 //
 
 #include "gna/gna_config.hpp"
-#include "behavior/infer_request_config.hpp"
+#include "behavior2/infer_request/infer_request_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -36,11 +36,11 @@ namespace {
                                     ::testing::ValuesIn(configs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::ValuesIn(Inconfigs)),
-                            InferConfigInTests::getTestCaseName);
+//    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
+//                            ::testing::Combine(
+//                                    ::testing::ValuesIn(netPrecisions),
+//                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
+//                                    ::testing::ValuesIn(Inconfigs)),
+//                            InferConfigInTests::getTestCaseName);
 
 }  // namespace

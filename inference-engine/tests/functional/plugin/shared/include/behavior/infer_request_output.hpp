@@ -22,15 +22,12 @@
 #include "behavior/infer_request_output.hpp"
 
 namespace BehaviorTestsDefinitions {
-using InferRequestOutputTests = BehaviorTestsUtils::BehaviorTestsBasic;
+using InferRequestOutputTests = BehaviorTestsUtils::InferRequestTests;
 
+// iefode: Duplications?
 TEST_P(InferRequestOutputTests, canGetInputBlobForSyncRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -45,10 +42,6 @@ TEST_P(InferRequestOutputTests, canGetInputBlobForSyncRequest) {
 TEST_P(InferRequestOutputTests, canInferWithSetInOut) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -64,10 +57,6 @@ TEST_P(InferRequestOutputTests, canInferWithSetInOut) {
 TEST_P(InferRequestOutputTests, canGetOutputBlob_deprecatedAPI) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -89,10 +78,6 @@ TEST_P(InferRequestOutputTests, canGetOutputBlob_deprecatedAPI) {
 TEST_P(InferRequestOutputTests, getOutputAfterSetOutputDoNotChangeOutput) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     std::shared_ptr<InferenceEngine::Blob> OutputBlob = FuncTestUtils::createAndFillBlob(
@@ -106,10 +91,6 @@ TEST_P(InferRequestOutputTests, getOutputAfterSetOutputDoNotChangeOutput) {
 TEST_P(InferRequestOutputTests, canInferWithGetInOut) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -121,10 +102,6 @@ TEST_P(InferRequestOutputTests, canInferWithGetInOut) {
 TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    InferenceEngine::CNNNetwork cnnNet(function);
-    // Load CNNNetwork to target plugins
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());

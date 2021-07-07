@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/infer_request_cancellation.hpp"
+#include "behavior2/infer_request/infer_request_cancellation.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

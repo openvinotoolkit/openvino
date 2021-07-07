@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/infer_request_config.hpp"
+#include "behavior2/infer_request/infer_request_config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -60,18 +60,18 @@ namespace {
                                     ::testing::ValuesIn(multiConfigs)),
                             InferConfigTests::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::ValuesIn(InConfigs)),
-                            InferConfigTests::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferConfigInTests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiInConfigs)),
-                            InferConfigInTests::getTestCaseName);
+//    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferConfigInTests,
+//                            ::testing::Combine(
+//                                    ::testing::ValuesIn(netPrecisions),
+//                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+//                                    ::testing::ValuesIn(InConfigs)),
+//                            InferConfigTests::getTestCaseName);
+//
+//    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferConfigInTests,
+//                            ::testing::Combine(
+//                                    ::testing::ValuesIn(netPrecisions),
+//                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+//                                    ::testing::ValuesIn(MultiInConfigs)),
+//                            InferConfigInTests::getTestCaseName);
 
 }  // namespace
