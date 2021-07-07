@@ -277,7 +277,8 @@ std::string MKLDNNMemory::formatToString(memory::format_tag fmt) {
 
 void *MKLDNNMemory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    mkldnn::impl::memory_desc_wrapper wrapper(GetDescriptor().data);
+    auto md = GetDescriptor().data;
+    mkldnn::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
 }
