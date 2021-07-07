@@ -29,9 +29,9 @@ AutoInferRequest::AutoInferRequest(const InputsDataMap&              networkInpu
 }
 
 AutoInferRequest::~AutoInferRequest() {
-    // valid id is from 1 to N
+    // valid id is > 0, and should be collected if AutoInferRequest is destoried
     if (_id > 0) {
-        _autoExecutableNetwork->PushRequest(_id);
+        _autoExecutableNetwork->PushRequest();
     }
 }
 
@@ -89,6 +89,7 @@ void AutoInferRequest::HotSwapRequests() {
             _alreadyActualNetwork = true;
             _inferRequest = {tempSoExecNetwork, tempSoExecNetwork->CreateInferRequest()};
             _inferRequest->SetCallback(_callback);
+            // printf("!!! DEBUG: Hot swap happened !!!\n");
         }
     }
 }
@@ -117,7 +118,7 @@ void AutoInferRequest::GetAvailableWorker() {
         if (_callback) {
             _callback(e);
         }
-        _autoExecutableNetwork->PushRequest(_id);
+        _autoExecutableNetwork->PushRequest();
         _id = -1;
     });
 }

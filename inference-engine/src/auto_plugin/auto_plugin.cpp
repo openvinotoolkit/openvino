@@ -84,11 +84,13 @@ std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(cons
         [core, modelPath, network](const std::string& device)
             -> IE::SoExecutableNetworkInternal {
             IE::SoExecutableNetworkInternal executableNetwork;
+            // std::cout << "!!! DEBUG: Starting Async loading to the " << device <<  " !!!" << std::endl;
             if (!modelPath.empty()) {
                 executableNetwork = core->LoadNetwork(modelPath, device, {});
             } else {
                 executableNetwork = core->LoadNetwork(network, device, {});
             }
+            // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
             return executableNetwork;
         };
 

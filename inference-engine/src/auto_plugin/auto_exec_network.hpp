@@ -111,13 +111,15 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
-    void PushRequest(int32_t id);
+    void PushRequest() const;
     void PopRequest(int32_t& id);
 
     ~AutoExecutableNetwork();
 
 private:
     void WaitForActualDevice() const;
+    void SetRequestQueue();
+    void ResetRequestQueue() const;
 
 private:
     InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
@@ -127,7 +129,7 @@ private:
     bool _enablePerfCount;
     mutable std::atomic<bool> _alreadyActualNetwork = {false};
     std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
-    ThreadSafeBoundedQueue<int32_t> _requests;
+    mutable ThreadSafeBoundedQueue<int32_t> _requests;
 };
 
 }  // namespace AutoPlugin
