@@ -15,19 +15,7 @@ if(ngraph_FOUND)
     message("ngraph version = {${ngraph_VERSION}}")
 endif()
 
-include(FetchContent)
-
-FetchContent_Declare(
-    pybind11
-    GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
-    GIT_TAG        "v2.6.2"
-)
-
-FetchContent_GetProperties(pybind11)
-if(NOT pybind11_POPULATED)
-    FetchContent_Populate(pybind11)
-    add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
-endif()
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
