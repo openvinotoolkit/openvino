@@ -36,18 +36,18 @@ Congratulations, you have installed DL Workbench. Your next step is to [Get Star
   <tr>
     <td>
 \endhtmlonly
-<iframe width="220" src="https://www.youtube.com/embed/on8xSSTKCt8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="320" src="https://www.youtube.com/embed/on8xSSTKCt8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 \htmlonly
 </td>
 <td>
 \endhtmlonly
-    <iframe width="220" src="https://www.youtube.com/embed/JBDG2g5hsoM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe width="320" src="https://www.youtube.com/embed/JBDG2g5hsoM" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 \htmlonly
 </td>
   </tr>
   <tr>
     <td><strong>What is the OpenVINO™ toolkit DL Workbench</strong>. <br>Duration: 1:31</td>
-    <td><strong>How to Install the OpenVINO™ toolkit DL Workbench</strong>. <br>Duration: 8:20.</td>
+    <td><strong>How to Install the OpenVINO™ toolkit DL Workbench</strong>. <br>Duration: 8:20</td>
   </tr>
 </table>
 \endhtmlonly
