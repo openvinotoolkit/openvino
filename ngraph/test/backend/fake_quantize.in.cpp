@@ -31,110 +31,15 @@ using namespace ngraph;
 static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_smoke_fake_quantize_f32)
+namespace
 {
-    const Shape data_shape{1, 30, 1024, 10240};
-    const size_t levels = 256;
-    const auto data = std::make_shared<op::Parameter>(element::f32, data_shape);
-    const auto input_low = op::Constant::create(element::f32, Shape{}, {0.f});
-    const auto input_high = op::Constant::create(element::f32, Shape{}, {23.f});
-    const auto output_low = op::Constant::create(element::f32, Shape{}, {2.f});
-    const auto output_high = op::Constant::create(element::f32, Shape{}, {16.f});
-
-    const auto quantize = std::make_shared<op::FakeQuantize>(
-        data, input_low, input_high, output_low, output_high, levels);
-    const auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
-
-    // expected result
-    test_case.add_expected_output<float>(data_shape, input_data);
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_smoke_fake_quantize_with_clip_across_channels_f32)
-{
-    Shape data_shape{1, 3, 1024, 102400};
-    size_t levels = 256;
-    auto data = std::make_shared<op::Parameter>(element::f32, data_shape);
-    auto input_low = op::Constant::create(element::f32, Shape{3, 1, 1}, {5.f, 30.f, 10.f});
-    auto input_high = op::Constant::create(element::f32, Shape{3, 1, 1}, {10.f, 40.f, 20.f});
-    auto output_low = op::Constant::create(element::f32, Shape{3, 1, 1}, {0.f, 50.f, 70.f});
-    auto output_high = op::Constant::create(element::f32, Shape{3, 1, 1}, {20.f, 70.f, 120.f});
-
-    auto quantize = std::make_shared<op::FakeQuantize>(
-        data, input_low, input_high, output_low, output_high, levels);
-    auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
-    // expected result
-    test_case.add_expected_output<float>(data_shape, input_data);
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_smoke_fake_quantize_i16)
-{
-    const Shape data_shape{1, 3, 1024, 1024};
-    const size_t levels = 256;
-    const auto data = std::make_shared<op::Parameter>(element::i16, data_shape);
-    const auto input_low = op::Constant::create(element::i16, Shape{}, {0});
-    const auto input_high = op::Constant::create(element::i16, Shape{}, {23});
-    const auto output_low = op::Constant::create(element::i16, Shape{}, {2});
-    const auto output_high = op::Constant::create(element::i16, Shape{}, {16});
-
-    const auto quantize = std::make_shared<op::FakeQuantize>(
-        data, input_low, input_high, output_low, output_high, levels);
-    const auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    const size_t n_elements = shape_size(data_shape);
-    std::vector<int16_t> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<int16_t>(input_data);
-
-    // expected result
-    test_case.add_expected_output<int16_t>(data_shape, input_data);
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_smoke_fake_quantize_with_clip_across_channels_i16)
-{
-    Shape data_shape{1, 3, 1024, 1024};
-    size_t levels = 256;
-    auto data = std::make_shared<op::Parameter>(element::i16, data_shape);
-    auto input_low = op::Constant::create(element::i16, Shape{3, 1, 1}, {5, 30, 10});
-    auto input_high = op::Constant::create(element::i16, Shape{3, 1, 1}, {10, 40, 20});
-    auto output_low = op::Constant::create(element::i16, Shape{3, 1, 1}, {0, 50, 70});
-    auto output_high = op::Constant::create(element::i16, Shape{3, 1, 1}, {20, 70, 120});
-
-    auto quantize = std::make_shared<op::FakeQuantize>(
-        data, input_low, input_high, output_low, output_high, levels);
-    auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    size_t n_elements = shape_size(data_shape);
-    std::vector<int16_t> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<int16_t>(input_data);
-    // expected result
-    test_case.add_expected_output<int16_t>(data_shape, input_data);
-
-    test_case.run();
+    template <typename T>
+    std::vector<T> iota_vector(size_t size, T first_value = {})
+    {
+        std::vector<T> d;
+        std::iota(begin(d), end(d), first_value);
+        return d;
+    }
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fake_quantize)
@@ -152,11 +57,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize)
     const auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    const size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(iota_vector<float>(shape_size(data_shape)));
 
     // expected result
     test_case.add_expected_output<float>(
@@ -185,11 +86,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip)
     const auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    const size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(iota_vector<float>(shape_size(data_shape)));
 
     // expected result
     test_case.add_expected_output<float>(
@@ -215,11 +112,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip_across_channels)
     auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(iota_vector<float>(shape_size(data_shape)));
 
     // expected result
     test_case.add_expected_output<float>(
@@ -233,28 +126,23 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_with_clip_across_channels)
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_pdpd)
 {
     Shape data_shape{1, 2, 5, 5};
     size_t levels = 5;
     const auto broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
     auto data = std::make_shared<op::Parameter>(element::f32, data_shape);
-    auto input_low = op::Constant::create(element::f32, Shape{2}, {5.f, 30.f});
-    auto input_high = op::Constant::create(element::f32, Shape{2}, {10.f, 40.f});
-    auto output_low = op::Constant::create(element::f32, Shape{2}, {0.f, 50.f});
-    auto output_high = op::Constant::create(element::f32, Shape{2}, {20.f, 70.f});
+    auto input_low = op::Constant::create(element::f32, Shape{2, 1, 1, 1, 1}, {5.f, 30.f});
+    auto input_high = op::Constant::create(element::f32, Shape{2, 1, 1, 1, 1}, {10.f, 40.f});
+    auto output_low = op::Constant::create(element::f32, Shape{2, 1, 1, 1, 1}, {0.f, 50.f});
+    auto output_high = op::Constant::create(element::f32, Shape{2, 1, 1, 1, 1}, {20.f, 70.f});
 
     auto quantize = std::make_shared<op::FakeQuantize>(
         data, input_low, input_high, output_low, output_high, levels, broadcast);
     auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(iota_vector<float>(shape_size(data_shape)));
 
     // expected result
     test_case.add_expected_output<float>(
@@ -274,21 +162,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fake_quantize_pdpd_default_axis)
     size_t levels = 5;
     const auto broadcast = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1);
     auto data = std::make_shared<op::Parameter>(element::f32, data_shape);
-    auto input_low = op::Constant::create(element::f32, Shape{2,1,1}, {5.f, 30.f});
-    auto input_high = op::Constant::create(element::f32, Shape{2,1,1}, {10.f, 40.f});
-    auto output_low = op::Constant::create(element::f32, Shape{2,1,1}, {0.f, 50.f});
-    auto output_high = op::Constant::create(element::f32, Shape{2,1,1}, {20.f, 70.f});
+    auto input_low = op::Constant::create(element::f32, Shape{2, 1, 1}, {5.f, 30.f});
+    auto input_high = op::Constant::create(element::f32, Shape{2, 1, 1}, {10.f, 40.f});
+    auto output_low = op::Constant::create(element::f32, Shape{2, 1, 1}, {0.f, 50.f});
+    auto output_high = op::Constant::create(element::f32, Shape{2, 1, 1}, {20.f, 70.f});
 
     auto quantize = std::make_shared<op::FakeQuantize>(
         data, input_low, input_high, output_low, output_high, levels, broadcast);
     auto function = std::make_shared<Function>(NodeVector{quantize}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(function);
 
-    size_t n_elements = shape_size(data_shape);
-    std::vector<float> input_data(n_elements);
-    iota(begin(input_data), end(input_data), 0);
-
-    test_case.add_input<float>(input_data);
+    test_case.add_input<float>(iota_vector<float>(shape_size(data_shape)));
 
     // expected result
     test_case.add_expected_output<float>(

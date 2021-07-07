@@ -88,7 +88,10 @@ namespace ngraph
                                                 : static_cast<size_t>(broadcast.m_axis);
 
                         s = Shape(target_shape.size(), 1);
-                        std::copy(begin(shape), end(shape), next(begin(s), axis));
+                        const auto axis_to_copy = target_shape.size() - axis;
+                        const auto b = begin(shape);
+                        const auto e = b + axis_to_copy; // from e to end(shape) should be only ones
+                        std::copy(b, e, next(begin(s), axis));
                         break;
                     }
                     }
@@ -114,6 +117,12 @@ namespace ngraph
                 class QuantizationBound
                 {
                 public:
+                    enum class Bound
+                    {
+                        trivial,
+                        aligned,
+                        broadcast,
+                    };
                     QuantizationBound(const T* const bound_data,
                                       const Shape& bound_shape,
                                       const Shape& arg_shape,
@@ -138,12 +147,6 @@ namespace ngraph
                                                                       unsqueezed_bound_shape);
                         }
                     }
-                    enum class Bound
-                    {
-                        trivial,
-                        aligned,
-                        broadcast,
-                    };
                     T get_value(const std::vector<size_t>& current_dim, size_t idx) const
                     {
                         T val{};
@@ -207,7 +210,7 @@ namespace ngraph
                                    const Shape& out_low_shape,
                                    const Shape& out_high_shape,
                                    size_t levels,
-                                   const op::AutoBroadcastSpec& broadcast_spec)
+                                   const op::AutoBroadcastSpec& broadcast)
                 {
                     using namespace fake_quantize_details;
 
@@ -236,13 +239,13 @@ namespace ngraph
                                      arg_shape.size());
 
                         const QuantizationBound<T> in_low_bound(
-                            in_low, in_low_shape, arg_shape, broadcast_spec);
+                            in_low, in_low_shape, arg_shape, broadcast);
                         const QuantizationBound<T> in_high_bound(
-                            in_high, in_high_shape, arg_shape, broadcast_spec);
+                            in_high, in_high_shape, arg_shape, broadcast);
                         const QuantizationBound<T> out_low_bound(
-                            out_low, out_low_shape, arg_shape, broadcast_spec);
+                            out_low, out_low_shape, arg_shape, broadcast);
                         const QuantizationBound<T> out_high_bound(
-                            out_high, out_high_shape, arg_shape, broadcast_spec);
+                            out_high, out_high_shape, arg_shape, broadcast);
 
                         std::vector<size_t> current_dim(arg_shape.size(), 0);
                         const auto arg_shape_size = shape_size(arg_shape);
