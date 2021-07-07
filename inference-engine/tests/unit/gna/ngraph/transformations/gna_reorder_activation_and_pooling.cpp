@@ -194,7 +194,7 @@ const std::vector<ActivationFactoryPtr> activationFactories = {
 
 INSTANTIATE_TEST_SUITE_P(ConvolutionActivationPoolTestSuite, ConvolutionActivationPoolTestFixture,
                          ::testing::Combine(::testing::ValuesIn(activationFactories),
-                                            ::testing::ValuesIn({true, false})));
+                                            ::testing::ValuesIn(std::vector<bool>{true, false})));
 
 //-----------------------------------------------------------------------------------------------------------
 
