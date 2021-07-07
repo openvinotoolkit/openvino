@@ -77,7 +77,7 @@ docker run -it --rm <image_name>
 
 If you want to try some demos then run image with the root privileges (some additional 3-rd party dependencies will be installed):
 ~~~
-docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deployment_tools\demo && demo_security_barrier_camera.bat -d CPU -sample-options -no_show"
+docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd extras\open_model_zoo\demo && demo_security_barrier_camera.bat -d CPU -sample-options -no_show"
 ~~~
 
 ## Build and Run the Docker* Image for GPU
@@ -135,7 +135,7 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
    ~~~
 3. For example, run the `demo_security_barrier_camera` demo with the command below:  
    ~~~
-   cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
+   setupvars.bat && cd ../ && cd extras\open_model_zoo\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
    ~~~
    > **NOTE**: Addittional third-party dependencies will be installed.
 

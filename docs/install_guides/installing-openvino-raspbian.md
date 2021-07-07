@@ -97,12 +97,12 @@ CMake is installed. Continue to the next section to set the environment variable
 
 You must update several environment variables before you can compile and run OpenVINO toolkit applications. Run the following script to temporarily set the environment variables:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ```
 
 **(Optional)** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 ```sh
-echo "source /opt/intel/openvino_2021/bin/setupvars.sh" >> ~/.bashrc
+echo "source /opt/intel/openvino_2021/setupvars.sh" >> ~/.bashrc
 ```
 
 To test your change, open a new terminal. You will see the following:
@@ -120,7 +120,7 @@ This task applies only if you have an Intel® Neural Compute Stick 2 device.
    Log out and log in for it to take effect.
 2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ```
 3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
    ```sh
@@ -140,7 +140,7 @@ Follow the next steps to use the pre-trained face detection model using Inferenc
    ```
 2. Build the Object Detection Sample:
    ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/deployment_tools/inference_engine/samples/cpp
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2021/samples/cpp
    ```
    ```sh
    make -j2 object_detection_sample_ssd

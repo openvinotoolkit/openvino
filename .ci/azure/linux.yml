@@ -32,7 +32,7 @@ jobs:
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -131,11 +131,11 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 

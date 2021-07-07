@@ -38,9 +38,9 @@ Additionally, new acoustic and language models are available in the OpenVINO&tra
 
 To download pre-trained models and build all dependencies:
 
-* On Linux* OS, use the shell script `<INSTALL_DIR>/deployment_tools/demo/demo_speech_recognition.sh`
+* On Linux* OS, use the shell script `<INSTALL_DIR>/extras/open_model_zoo/demo/demo_speech_recognition.sh`
 
-* On Windows* OS, use the batch file `<INSTALL_DIR>\deployment_tools\demo\demo_speech_recognition.bat`
+* On Windows* OS, use the batch file `<INSTALL_DIR>\extras\open_model_zoo\demo\demo_speech_recognition.bat`
 
 The script follows the steps below:
 

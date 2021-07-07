@@ -4,7 +4,7 @@ The GPU codepath abstracts many details about OpenCL\*. You need to provide the 
 
 There are two options of using the custom operation configuration file:
 
-* Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/deployment_tools/inference_engine/bin/intel64/{Debug/Release}` folder
+* Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/runtime/bin` folder
 * Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 @snippet snippets/GPU_Kernel.cpp part0

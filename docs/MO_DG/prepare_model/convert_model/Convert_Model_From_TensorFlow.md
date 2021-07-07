@@ -178,7 +178,7 @@ There are three ways to store non-frozen TensorFlow models and load them to the 
 
     To convert such a TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model and an output directory where you have write permissions:
 
     * If input model is in `.pb` format:<br>
@@ -200,7 +200,7 @@ python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT
 
     To convert such TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with a path to the MetaGraph `.meta` file and a writable output directory to convert a model:<br>
 ```sh
 python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT_MODEL_DIR>
@@ -212,7 +212,7 @@ python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT
 
     To convert such TensorFlow model:
 
-    1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+    1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
     2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory to convert a model:<br>
 ```sh
 python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
@@ -251,7 +251,7 @@ Where:
 
 To convert a TensorFlow model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
 2. Use the `mo_tf.py` script to simply convert a model with the path to the input model `.pb` file and a writable output directory:
 ```sh
 python3 mo_tf.py --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
@@ -342,7 +342,7 @@ Below are the instructions on how to convert each of them.
 
 A model in the SavedModel format consists of a directory with a `saved_model.pb` file and two subfolders: `variables` and `assets`. 
 To convert such a model:
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
 2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory:
 ```sh
 python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>

@@ -31,7 +31,7 @@ For simplicity, a symbolic link to the latest installation is also created: `/ho
 
 If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `/opt/intel` or `/home/<USER>/` with the directory in which you installed the software. 
 
-The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/deployment_tools` directory.
+The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>/tools` directory.
 <details>
     <summary><strong>Click for the Intel® Distribution of OpenVINO™ toolkit directory structure</strong></summary>
    
@@ -66,7 +66,7 @@ The simplified OpenVINO™ workflow is:
 
 ## Use the Demo Scripts to Learn the Workflow
 
-The demo scripts in `<INSTALL_DIR>/deployment_tools/demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps let you see how to: 
+The demo scripts in `<INSTALL_DIR>/extras/open_model_zoo/demo` give you a starting point to learn the OpenVINO workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps let you see how to: 
 * Compile several samples from the source files delivered as part of the OpenVINO toolkit
 * Download trained models
 * Perform pipeline steps and see the output on the console
@@ -108,7 +108,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image /opt/intel/openvino_2021/deployment_tools/demo/car.png
+Image /opt/intel/openvino_2021/extras/open_model_zoo/demo/car.png
 
 classid probability label
 ------- ----------- -----
@@ -219,7 +219,7 @@ This guide uses the Model Downloader to get pre-trained models. You can use one 
 
 * **List the models available in the downloader**: 
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/tools/model_downloader/
+cd /opt/intel/openvino_2021/tools/model_downloader/
 ```
 ```sh
 python3 info_dumper.py --print_all
@@ -326,7 +326,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 
 3. Run the Model Optimizer script:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model <model_dir>/<model_file> --data_type <model_precision> --output_dir <ir_dir>
@@ -339,7 +339,7 @@ The `vehicle-license-plate-detection-barrier-0106`, `vehicle-attributes-recognit
 The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP16 IR and saves to the `~/models/public/squeezenet1.1/ir` output directory:
 
 ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer
+   cd /opt/intel/openvino_2021/tools/model_optimizer
    ```
    ```sh  
    python3 ./mo.py --input_model ~/models/public/squeezenet1.1/squeezenet1.1.caffemodel --data_type FP16 --output_dir ~/models/public/squeezenet1.1/ir
@@ -347,9 +347,9 @@ The following command converts the public SqueezeNet 1.1 Caffe\* model to the FP
 
 After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `~/models/public/squeezenet1.1/ir` directory.
 
-Copy the `squeezenet1.1.labels` file from the `/opt/intel/openvino_2021/deployment_tools/demo/` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
+Copy the `squeezenet1.1.labels` file from the `/opt/intel/openvino_2021/extras/open_model_zoo/demo/` to `<ir_dir>`. This file contains the classes that ImageNet uses. Therefore, the inference results show text instead of classification numbers:
    ```sh   
-   cp /opt/intel/openvino_2021/deployment_tools/demo/squeezenet1.1.labels <ir_dir>
+   cp /opt/intel/openvino_2021/extras/open_model_zoo/demo/squeezenet1.1.labels <ir_dir>
    ```
 </details>
 
@@ -360,8 +360,8 @@ Many sources are available from which you can download video media to use the co
 - https://images.google.com
 
 As an alternative, the Intel® Distribution of OpenVINO™ toolkit includes two sample images that you can use for running code samples and demo applications:
-* `/opt/intel/openvino_2021/deployment_tools/demo/car.png`
-* `/opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp`
+* `/opt/intel/openvino_2021/extras/open_model_zoo/demo/car.png`
+* `/opt/intel/openvino_2021/extras/open_model_zoo/demo/car_1.bmp`
 
 ### <a name="run-image-classification"></a>Step 4: Run the Image Classification Code Sample
 
@@ -371,7 +371,7 @@ To run the **Image Classification** code sample with an input image on the IR:
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ``` 
 2. Go to the code samples build directory:
    ```sh
@@ -384,11 +384,11 @@ To run the **Image Classification** code sample with an input image on the IR:
 <details>
     <summary><strong>Click for examples of running the Image Classification code sample on different devices</strong></summary>
 
-The following commands run the Image Classification Code Sample using the `car.png` file from the `/opt/intel/openvino_2021/deployment_tools/demo/` directory as an input image, the IR of your model from `~/models/public/squeezenet1.1/ir` and on different hardware devices:
+The following commands run the Image Classification Code Sample using the `car.png` file from the `/opt/intel/openvino_2021/extras/open_model_zoo/demo/` directory as an input image, the IR of your model from `~/models/public/squeezenet1.1/ir` and on different hardware devices:
 
 **CPU:**
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/extras/open_model_zoo/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d CPU
    ```
 
    
@@ -396,14 +396,14 @@ The following commands run the Image Classification Code Sample using the `car.p
    
    > **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-macos.md).
    ```sh   
-   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample_async -i /opt/intel/openvino_2021/extras/open_model_zoo/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you see the label and confidence for the top-10 categories on the display. Below is a sample output with inference results on CPU:    
 ```sh
 Top 10 results:
 
-Image /opt/intel/openvino_2021/deployment_tools/demo/car.png
+Image /opt/intel/openvino_2021/extras/open_model_zoo/demo/car.png
 
 classid probability label
 ------- ----------- -----
@@ -431,7 +431,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 1. Set up the OpenVINO environment variables:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2021/setupvars.sh
    ``` 
 2. Go to the demo application build directory:
    ```sh
@@ -448,7 +448,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 **CPU:**
 
 ```sh
-./security_barrier_camera_demo -i /opt/intel/openvino_2021/deployment_tools/demo/car_1.bmp -m ~/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml -m_va ~/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml -m_lpr ~/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml -d CPU
+./security_barrier_camera_demo -i /opt/intel/openvino_2021/extras/open_model_zoo/demo/car_1.bmp -m ~/models/intel/vehicle-license-plate-detection-barrier-0106/FP16/vehicle-license-plate-detection-barrier-0106.xml -m_va ~/models/intel/vehicle-attributes-recognition-barrier-0039/FP16/vehicle-attributes-recognition-barrier-0039.xml -m_lpr ~/models/intel/license-plate-recognition-barrier-0001/FP16/license-plate-recognition-barrier-0001.xml -d CPU
 ```
 
 **MYRIAD:** 
@@ -466,7 +466,7 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 
 1. Before using the OpenVINO™ samples, always set up the environment: 
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ``` 
 2. Have the directory path for the following:
 - Code Sample binaries located in `~/inference_engine_cpp_samples_build/intel64/Release`
@@ -484,7 +484,7 @@ To build all the demos and samples:
 cd $INTEL_OPENVINO_DIR/inference_engine_samples/cpp
 # to compile C samples, go here also: cd <INSTALL_DIR>/inference_engine/samples/c
 build_samples.sh
-cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos
+cd $INTEL_OPENVINO_DIR/extras/open_model_zoo/demos
 build_demos.sh
 ```
 
@@ -503,7 +503,7 @@ Template to call sample code or a demo application:
 With the sample information specified, the command might look like this:
 
 ```sh
-cd $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/demos/object_detection_demo
+cd $INTEL_OPENVINO_DIR/extras/open_model_zoo/demos/object_detection_demo
 ./object_detection_demo -i ~/Videos/catshow.mp4 -m ~/ir/fp32/mobilenet-ssd.xml -d CPU
 ```
 

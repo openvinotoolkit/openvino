@@ -60,7 +60,7 @@ The application outputs top-10 inference results.
 ```sh
 Top 10 results:
 
-Image /opt/intel/openvino/deployment_tools/demo/car.png
+Image /opt/intel/openvino/extras/open_model_zoo/demo/car.png
 
 classid probability
 ------- -----------

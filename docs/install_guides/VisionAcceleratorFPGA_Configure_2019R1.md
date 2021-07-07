@@ -233,7 +233,7 @@ cd /home/<user>/squeezenet1.1_FP16
 
 3. Use the Model Optimizer to convert the FP32 SqueezeNet Caffe* model into an FP16 optimized Intermediate Representation (IR). The model files were downloaded when you ran the the Image Classification verification script while [installing the Intel® Distribution of OpenVINO™ toolkit for Linux* with FPGA Support](installing-openvino-linux-fpga.md). To convert, run the Model Optimizer script with the following arguments:	
 ```sh
-python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model /home/<user>/openvino_models/models/FP32/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir .
+python3 /opt/intel/openvino/tools/model_optimizer/mo.py --input_model /home/<user>/openvino_models/models/FP32/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir .
 ```
 	
 4. The `squeezenet1.1.labels` file contains the classes `ImageNet` uses. This file is included so that the inference results show text instead of classification numbers. Copy `squeezenet1.1.labels` to the your optimized model location:
@@ -243,7 +243,7 @@ cp /home/<user>/openvino_models/ir/FP32/classification/squeezenet/1.1/caffe/sque
 	
 5. Copy a sample image to the release directory. You will use this with your optimized model:
 ```sh
-sudo cp /opt/intel/openvino/deployment_tools/demo/car.png  ~/inference_engine_samples_build/intel64/Release
+sudo cp /opt/intel/openvino/extras/open_model_zoo/demo/car.png  ~/inference_engine_samples_build/intel64/Release
 ```
 	
 ## 4. Run a Sample Application

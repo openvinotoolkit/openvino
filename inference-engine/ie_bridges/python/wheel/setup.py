@@ -26,9 +26,7 @@ PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 # The following variables can be defined in environment or .env file
 CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', '.')
-CORE_LIBS_DIR = config('CORE_LIBS_DIR', '')
-PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
-NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
+OV_RUNTIME_LIBS_DIR = config('OV_RUNTIME_LIBS_DIR', '')
 TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
 PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
 LIBS_RPATH = '$ORIGIN' if sys.platform == 'linux' else '@loader_path'
@@ -37,49 +35,49 @@ LIB_INSTALL_CFG = {
     'ie_libs': {
         'name': 'core',
         'prefix': 'libs.core',
-        'install_dir': CORE_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'hetero_plugin': {
         'name': 'hetero',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'gpu_plugin': {
         'name': 'gpu',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'cpu_plugin': {
         'name': 'cpu',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'multi_plugin': {
         'name': 'multi',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'auto_plugin': {
         'name': 'auto',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'myriad_plugin': {
         'name': 'myriad',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'ngraph_libs': {
         'name': 'ngraph',
         'prefix': 'libs.ngraph',
-        'install_dir': NGRAPH_LIBS_DIR,
+        'install_dir': OV_RUNTIME_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     'tbb_libs': {

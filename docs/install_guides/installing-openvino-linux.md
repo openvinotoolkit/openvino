@@ -170,7 +170,7 @@ sudo -E ./install_openvino_dependencies.sh
 You must update several environment variables before you can compile and run OpenVINO™ applications. Run the following script to temporarily set your environment variables:
 
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ```  
 
 **Optional:** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
@@ -182,7 +182,7 @@ vi <user_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino_2021/bin/setupvars.sh
+source /opt/intel/openvino_2021/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key and type `:wq`.
@@ -218,7 +218,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -232,7 +232,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -340,7 +340,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino_2021/deployment_tools/demo
+cd /opt/intel/openvino_2021/extras/open_model_zoo/demo
 ```
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.

@@ -55,8 +55,8 @@ target_image_path="$ROOT_DIR/car_1.bmp"
 
 run_again="Then run the script again\n\n"
 
-if [ -e "$ROOT_DIR/../../bin/setupvars.sh" ]; then
-    setupvars_path="$ROOT_DIR/../../bin/setupvars.sh"
+if [ -e "$ROOT_DIR/../../../bin/setupvars.sh" ]; then
+    setupvars_path="$ROOT_DIR/../../../bin/setupvars.sh"
 else
     echo -ne "Error: setupvars.sh is not found\n"
 fi
@@ -112,7 +112,7 @@ fi
 
 . "$VENV_DIR/bin/activate"
 python -m pip install -U pip
-python -m pip install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
+python -m pip install -r "$INTEL_OPENVINO_DIR/extras/open_model_zoo/tools/downloader/requirements.in"
 
 # Step 1. Downloading Intel models
 echo -ne "\n###############|| Downloading Intel models ||###############\n\n"
@@ -121,7 +121,7 @@ target_precision="FP16"
 
 echo -ne "target_precision = ${target_precision}\n"
 
-downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
+downloader_dir="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/tools/downloader"
 
 downloader_path="$downloader_dir/downloader.py"
 models_path="$HOME/openvino_models/ir"
@@ -143,7 +143,7 @@ done < "$ROOT_DIR/demo_security_barrier_camera.conf"
 # Step 2. Build samples
 echo -ne "\n###############|| Build Inference Engine demos ||###############\n\n"
 
-demos_path="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/demos"
+demos_path="${INTEL_OPENVINO_DIR}/extras/open_model_zoo/demos"
 
 if ! command -v cmake &>/dev/null; then
     echo -ne "\n\nCMAKE is not installed. It is required to build Inference Engine demos. Please install it. ${run_again}"

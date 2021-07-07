@@ -82,23 +82,6 @@ endif()
 message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
 
 #-----------------------------------------------------------------------------------------------
-# Installation logic...
-#-----------------------------------------------------------------------------------------------
-
-if (LINUX)
-    include(GNUInstallDirs)
-else()
-    set(CMAKE_INSTALL_BINDIR "bin" CACHE STRING "User executables (bin)")
-    set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Object code libraries (lib)")
-    set(CMAKE_INSTALL_INCLUDEDIR "include" CACHE STRING "C header files (include)")
-endif()
-
-# Destinations
-set(NGRAPH_INSTALL_LIB "deployment_tools/ngraph/${CMAKE_INSTALL_LIBDIR}")
-set(NGRAPH_INSTALL_INCLUDE "deployment_tools/ngraph/${CMAKE_INSTALL_INCLUDEDIR}")
-set(NGRAPH_INSTALL_BIN "deployment_tools/ngraph/${CMAKE_INSTALL_BINDIR}")
-
-#-----------------------------------------------------------------------------------------------
 # Compile Flags for nGraph...
 #-----------------------------------------------------------------------------------------------
 
@@ -139,7 +122,7 @@ if(BUILD_SHARED_LIBS)
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
         NAMESPACE ngraph::
-        DESTINATION "deployment_tools/ngraph/cmake"
+        DESTINATION "runtime/cmake"
         COMPONENT ngraph_dev)
 endif()
 
@@ -153,7 +136,7 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
-    DESTINATION "deployment_tools/ngraph/cmake"
+    DESTINATION "runtime/cmake"
     COMPONENT ngraph_dev)
 
 set(USE_STATIC_PROTOBUF OFF)
@@ -202,6 +185,6 @@ add_subdirectory(frontend)
 
 add_subdirectory(test)
 
-if (NGRAPH_PYTHON_BUILD_ENABLE)
+if(NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()

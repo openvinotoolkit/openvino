@@ -167,10 +167,10 @@ export ALTERAOCLSDKROOT="$INTELFPGAOCLSDKROOT"
 export AOCL_BOARD_PACKAGE_ROOT="$OPAE_PLATFORM_ROOT/opencl/opencl_bsp"
 $AOCL_BOARD_PACKAGE_ROOT/linux64/libexec/setup_permissions.sh
 source $INTELFPGAOCLSDKROOT/init_opencl.sh
-export IE_INSTALL="/opt/intel/openvino/deployment_tools"
-source $IE_INSTALL/../bin/setupvars.sh
+export IE_INSTALL="/opt/intel/openvino"
+source $IE_INSTALL/setupvars.sh
 export PATH="$PATH:$HOME/inference_engine_samples_build/intel64/Release"
-alias mo="python3.6 $IE_INSTALL/model_optimizer/mo.py"
+alias mo="python3.6 $IE_INSTALL/tools/model_optimizer/mo.py"
 ```
 For Ubuntu systems, it is recommended to use python3.5 above instead of python3.6.
 

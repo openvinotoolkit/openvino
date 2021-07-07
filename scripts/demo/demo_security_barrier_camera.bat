@@ -43,8 +43,8 @@ set TARGET_PRECISION=FP16
 
 echo target_precision = !TARGET_PRECISION!
 
-if exist "%ROOT_DIR%..\..\bin\setupvars.bat" (
-    call "%ROOT_DIR%..\..\bin\setupvars.bat"
+if exist "%ROOT_DIR%..\..\setupvars.bat" (
+    call "%ROOT_DIR%..\..\setupvars.bat"
 ) else (
     echo setupvars.bat is not found, INTEL_OPENVINO_DIR can't be set
     goto error
@@ -105,7 +105,7 @@ if not exist "%models_cache%" (
     mkdir "%models_cache%"
 )
 
-set downloader_dir=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader
+set downloader_dir=%INTEL_OPENVINO_DIR%\extras\open_model_zoo\tools\downloader
 
 for /F "tokens=1,2 usebackq" %%a in ("%ROOT_DIR%demo_security_barrier_camera.conf") do (
     echo python "%downloader_dir%\downloader.py" --name "%%b" --output_dir "%models_path%" --cache_dir "%models_cache%"
@@ -193,7 +193,7 @@ set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_demos_build"
 
 echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-cd /d "%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\demos" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\demos"
+cd /d "%INTEL_OPENVINO_DIR%\extras\open_model_zoo\demos" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\extras\open_model_zoo\demos"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
