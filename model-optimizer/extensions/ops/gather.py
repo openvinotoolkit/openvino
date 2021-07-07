@@ -18,7 +18,7 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
-            'version': 'opset7',
+            'version': 'opset8',
             'batch_dims': 0,
             'infer': self.infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
@@ -31,6 +31,8 @@ class Gather(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
+        if version == 'opset8':
+            return ['batch_dims']
         if version == 'opset7':
             return ['batch_dims']
         elif version == 'opset1':
