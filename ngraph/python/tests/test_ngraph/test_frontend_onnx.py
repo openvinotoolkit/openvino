@@ -46,8 +46,8 @@ def setup_module():
         elif os.environ.get("LD_LIBRARY_PATH"):
             os.environ["OV_FRONTEND_PATH"] = os.environ["LD_LIBRARY_PATH"]
     if not os.environ.get("OV_FRONTEND_PATH"):
-        raise RuntimeError('''Please set OV_FRONTEND_PATH env variable to point to
-directory that has libonnx_ngraph_frontend.so''')
+        raise RuntimeError("Please set OV_FRONTEND_PATH env variable to point "
+                           "to directory that has libonnx_ngraph_frontend.so")
     global fem
     fem = FrontEndManager()
     onnx.save_model(create_onnx_model(), onnx_model_filename)
