@@ -108,7 +108,7 @@ public:
     void CreateLayerPrimitive(InferenceEngine::CNNLayerPtr);
 
     void AffinePrimitive(InferenceEngine::CNNLayerPtr, bool isDiag = false);
-    void AffineFilterPrimitive(InferenceEngine::CNNLayerPtr);
+    void ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
     void ConstPrimitive(InferenceEngine::CNNLayerPtr);
