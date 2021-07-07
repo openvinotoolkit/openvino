@@ -231,6 +231,7 @@ set(SRC
     visitors/op/adaptive_max_pool.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
+    visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -373,6 +374,7 @@ set(MULTI_TEST_SRC
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
+    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
