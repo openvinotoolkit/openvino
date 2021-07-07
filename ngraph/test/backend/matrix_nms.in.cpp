@@ -512,7 +512,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_identical_boxes)
                                      0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                                      1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0};
 
-    std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
+    std::vector<float> scores_data = {0.4, 0.01, 0.2, 0.09, 0.15, 0.05, 0.02, 0.03, 0.05, 0.0};
 
     op::v8::MatrixNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -528,14 +528,14 @@ NGRAPH_TEST(${BACKEND_NAME}, matrix_nms_identical_boxes)
     const auto scores = make_shared<op::Parameter>(element::f32, scores_shape);
     attrs.decay_function = op::v8::MatrixNms::DecayFunction::LINEAR;
     attrs.gaussian_sigma = 2.0f;
-    attrs.post_threshold = 0.8;
+    attrs.post_threshold = 0.3;
 
     auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {0};
-    std::vector<float> expected_selected_scores = {0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
+    std::vector<float> expected_selected_scores = {0.00, 0.40, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {1};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
