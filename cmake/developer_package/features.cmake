@@ -20,9 +20,11 @@ endif()
 # FIXME: ARM cross-compiler generates several "false positive" warnings regarding __builtin_memcpy buffer overflow
 ie_dependent_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "X86 OR X86_64" OFF)
 
-ie_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF)
+ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
 ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
+
+ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 

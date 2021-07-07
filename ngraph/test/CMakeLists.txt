@@ -96,6 +96,7 @@ set(SRC
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
     type_prop/assign.cpp
+    type_prop/atan.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -156,11 +157,13 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/matrix_nms.cpp    
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mod.cpp
+    type_prop/multiclass_nms.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
@@ -171,6 +174,7 @@ set(SRC
     type_prop/parameter.cpp
     type_prop/power.cpp
     type_prop/prelu.cpp
+    type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/range.cpp
@@ -204,6 +208,7 @@ set(SRC
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
     type_prop/sin.cpp
+    type_prop/sinh.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -226,7 +231,9 @@ set(SRC
     visitors/value_map.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
+    visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -255,9 +262,11 @@ set(SRC
     visitors/op/lstm_cell.cpp
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
+    visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
+    visitors/op/multiclass_nms.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
@@ -287,8 +296,10 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -355,6 +366,8 @@ set(MULTI_TEST_SRC
     backend/abs.in.cpp
     backend/acos.in.cpp
     backend/acosh.in.cpp
+    backend/adaptive_avg_pool.in.cpp
+    backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
@@ -365,6 +378,7 @@ set(MULTI_TEST_SRC
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
+    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -420,11 +434,13 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
+    backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
+    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
@@ -440,6 +456,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
@@ -462,6 +479,7 @@ set(MULTI_TEST_SRC
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
+    backend/space_to_depth.in.cpp
     backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
@@ -528,27 +546,9 @@ set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    find_package (PythonInterp 3 REQUIRED)
-    set(PDPD_PYTHON_OK TRUE)
-    if(NOT PYTHON_EXECUTABLE)
-        message("Python3 is required to build the PDPD frontend unit tests")
-        set(PDPD_PYTHON_OK FALSE)
-    endif()
+    ie_check_pip_package(paddlepaddle WARNING)
 
-    if (PDPD_PYTHON_OK)
-        execute_process(
-                COMMAND ${PYTHON_EXECUTABLE} -m pip show paddlepaddle
-                RESULT_VARIABLE PIP_EXIT_CODE
-                OUTPUT_QUIET
-        )
-
-        if (NOT ${PIP_EXIT_CODE} EQUAL 0)
-            message("Python paddlepaddle package is not installed. Please use \"pip install paddlepaddle==2.0.1\".")
-            set(PDPD_PYTHON_OK FALSE)
-        endif()
-    endif()
-
-    if (PDPD_PYTHON_OK)
+    if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
         set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
@@ -651,7 +651,7 @@ add_subdirectory(frontend)
 ### END FRONTEND ###
 
 #PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
@@ -671,4 +671,3 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 endif()
-
