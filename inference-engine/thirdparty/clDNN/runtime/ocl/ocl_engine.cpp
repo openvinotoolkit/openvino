@@ -29,6 +29,10 @@ cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceI
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
 
@@ -46,9 +50,21 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type, const 
         throw std::runtime_error("[CLDNN] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
-    _program_stream.reset(new ocl_stream(*this));
     _usm_helper.reset(new cl::UsmHelper(get_cl_context(), get_cl_device(), use_unified_shared_memory()));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+#endif
+    _program_stream.reset(new ocl_stream(*this));
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::engine& ocl_engine::get_onednn_engine() const {
+    if (!_onednn_engine)
+        throw std::runtime_error("[GPU] onednn engine is nullptr");
+    return *_onednn_engine;
+}
+#endif
 
 const cl::Context& ocl_engine::get_cl_context() const {
     auto cl_device = std::dynamic_pointer_cast<ocl_device>(_device);
