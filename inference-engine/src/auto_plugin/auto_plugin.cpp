@@ -239,9 +239,7 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities(const 
 void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
     std::vector<std::string> supportedConfigKeys = GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
     for (auto&& kvp : config) {
-        if (kvp.first.find("AUTO_") == 0) {
-            continue;
-        } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
+        if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
             if (kvp.second != IE::PluginConfigParams::YES &&
                 kvp.second != IE::PluginConfigParams::NO) {
                 IE_THROW() << "Unsupported config value: " << kvp.second
@@ -252,6 +250,8 @@ void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
             }
+        } else if (kvp.first.find("AUTO_") == 0) {
+            continue;
         } else {
             IE_THROW() << "Unsupported config key: " << kvp.first;
         }
