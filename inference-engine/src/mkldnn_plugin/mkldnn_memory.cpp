@@ -324,12 +324,14 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::desc& desc) :
     MemoryDesc(Shape(desc.dims()), MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type()), Mkldnn), desc(desc) {
-    IE_ASSERT(desc.data.format_kind != dnnl::impl::format_kind::any) << "Memory format any is prohibited!";
+    if (desc.data.format_kind == dnnl::impl::format_kind::any)
+        IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format)
        : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn) {
-    IE_ASSERT(format != memory::format_tag::any) << "Memory format any is prohibited!";
+    if (format == memory::format_tag::any)
+        IE_THROW(Unexpected) << "Memory format any is prohibited!";
     if (format != memory::format_tag::undef) {
         if (format == memory::format_tag::x && dims.size() == 0) {
             desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
