@@ -22,15 +22,9 @@ namespace ngraph
 #endif
 
             template <typename T>
-            inline T get_path_sep()
+            inline std::basic_string<T> get_path_sep()
             {
-                FRONT_END_NOT_IMPLEMENTED(get_path_sep);
-            }
-
-            template <>
-            inline std::basic_string<char> get_path_sep()
-            {
-                return std::basic_string<char>{PATH_SEPARATOR};
+                return std::basic_string<T>{PATH_SEPARATOR};
             }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
