@@ -3,8 +3,6 @@
 
 import os
 import pathlib
-import pickle
-import pytest
 import onnx
 import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -12,13 +10,12 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 from ngraph.frontend import FrontEndManager
 from tests.runtime import get_runtime
 
-# FrontEndManager shall be initialized and destroyed after all tests finished
-# This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 
 def create_onnx_model():
     add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
     const_tensor = onnx.helper.make_tensor("const_tensor", onnx.TensorProto.FLOAT, (2, 2), [0.5, 1, 1.5, 2.0])
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"], value=const_tensor, name="const_node")
+    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
+                                       value=const_tensor, name="const_node")
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.FLOAT, (2, 2)),
@@ -49,7 +46,7 @@ def setup_module():
         elif os.environ.get("LD_LIBRARY_PATH"):
             os.environ["OV_FRONTEND_PATH"] = os.environ["LD_LIBRARY_PATH"]
     if not os.environ.get("OV_FRONTEND_PATH"):
-        raise RuntimeError('''Please set 'OV_FRONTEND_PATH' env variable to point to
+        raise RuntimeError('''Please set OV_FRONTEND_PATH env variable to point to
 directory that has libonnx_ngraph_frontend.so''')
     global fem
     fem = FrontEndManager()
@@ -91,7 +88,8 @@ def test_decode_and_convert():
     decoded_function = fe.decode(model)
     assert decoded_function
     for op in decoded_function.get_ordered_ops():
-        assert op.get_type_name() in ["Parameter", "Constant", "ONNXFrameworkNode", "ONNXSubgraphFrameworkNode", "Result"]
+        assert op.get_type_name() in ["Parameter", "Constant", "ONNXFrameworkNode",
+                                      "ONNXSubgraphFrameworkNode", "Result"]
 
     function = fe.convert(decoded_function)
     assert function
