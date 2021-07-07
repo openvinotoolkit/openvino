@@ -101,11 +101,9 @@ static bool VerifyMaxPool(std::shared_ptr<ngraph::opset7::MaxPool> max_pool) {
     auto pool_kernel = max_pool->get_kernel();
 
     // Check if MaxPool vertical stride == pool size
-    // (TODO: verify pool_kernel[0] > 8 limitation below, gna_limitations can be used then)
     // Check if padding is VALID
     return (max_pool->get_auto_pad() == ngraph::op::PadType::VALID &&
-        pool_kernel.size() == 2 && pool_strides.size() == 2 &&
-        pool_kernel[0] <= 8);
+        pool_kernel.size() == 2 && pool_strides.size() == 2);
 }
 
 static std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {

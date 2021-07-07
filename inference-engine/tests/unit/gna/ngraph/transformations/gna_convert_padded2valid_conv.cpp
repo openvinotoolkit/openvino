@@ -48,7 +48,7 @@ void GetConvParams(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& 
 }
 
 std::shared_ptr<ngraph::opset7::Result> createFunction(const modelType& model,
-                                                 const ngraph::Output<ngraph::Node>& inputNode,
+                                                 const ngraph::Output<ngraph::Node>& input_node,
                                                  const ngraph::Shape& filters_shape,
                                                  const ngraph::Strides& conv_stride,
                                                  const ngraph::CoordinateDiff& pads_begin,
@@ -60,9 +60,9 @@ std::shared_ptr<ngraph::opset7::Result> createFunction(const modelType& model,
                                                  const ngraph::op::PadType& pad_type,
                                                  ConvData* conv_data) {
     auto transpose_in_order = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
-    auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(inputNode, transpose_in_order);
+    auto transpose_in = std::make_shared<ngraph::opset7::Transpose>(input_node, transpose_in_order);
     auto filters = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-        ngraph::Shape{4, inputNode.get_shape()[3], filters_shape[0], filters_shape[1]});
+        ngraph::Shape{4, input_node.get_shape()[3], filters_shape[0], filters_shape[1]});
     auto conv = std::make_shared<ngraph::opset7::Convolution>(transpose_in, filters, conv_stride, pads_begin, pads_end, conv_dilation, pad_type);
     if (conv_data)
         GetConvParams(conv, *conv_data);
@@ -240,7 +240,7 @@ void InsertPadding(ngraph::OutputVector& input_rows_to_concat, size_t size,
     }
 }
 
-std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>& inputNode,
+std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>& input_node,
     const ConvData& conv_data) {
     size_t flat_left_padding = conv_data.input_channel_count * conv_data.pads_begin_width;
     size_t flat_right_padding = conv_data.input_channel_count * conv_data.pads_end_width;
@@ -256,9 +256,9 @@ std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>
     if (!biggest_padding)
         return nullptr;
 
-    auto flat_input = std::make_shared<ngraph::opset7::Reshape>(inputNode,
+    auto flat_input = std::make_shared<ngraph::opset7::Reshape>(input_node,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-            ngraph::Shape{1ull, shape_size(inputNode.get_shape())}), false);
+            ngraph::Shape{1ull, shape_size(input_node.get_shape())}), false);
 
     // Constant with zero padding
     auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64, ngraph::Shape{1, biggest_padding}, 0);
@@ -428,19 +428,19 @@ INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvInvalidTestSuite, ConvertPadded2
     ::testing::Values(
         std::make_tuple(modelType::TranspConvTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
-            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_UPPER),
         std::make_tuple(modelType::TranspConvBcastAddTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
             ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
         std::make_tuple(modelType::TranspConvBcastAddMaxPoolTransp, ngraph::PartialShape{2, 16, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
-            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{9, 1}, ngraph::op::PadType::EXPLICIT),
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{5, 1}, ngraph::op::PadType::EXPLICIT),
         std::make_tuple(modelType::TranspConvBcastAddActTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
             ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::SAME_LOWER),
-        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{1, 16, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
-            ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
-            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{9, 1}, ngraph::op::PadType::SAME_UPPER),
+        std::make_tuple(modelType::TranspConvBcastAddMaxPoolActTransp, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
+            ngraph::CoordinateDiff{0, 5}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
+            ngraph::Shape{1, 4, 1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 4}, ngraph::op::PadType::SAME_UPPER),
         std::make_tuple(modelType::TranspConvTranspBcastAdd, ngraph::PartialShape{2, 1, 16, 8}, ngraph::Shape{1, 2}, ngraph::Strides{1, 1},
             ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
             ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT),
