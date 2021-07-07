@@ -77,7 +77,7 @@ class Gather(Op):
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
 
         batch_dims_range = indices_shape[:batch_dims]
         out_shape = np.concatenate((data_shape[:axis], indices_shape[batch_dims:], data_shape[axis + 1:]))
