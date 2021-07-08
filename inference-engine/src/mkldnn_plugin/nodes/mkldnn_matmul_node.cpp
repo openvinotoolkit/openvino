@@ -158,9 +158,9 @@ void MKLDNNMatMulNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
     auto config = selected_pd->getConfig();
-    // TODO [DS]: inPlace
-    // if (isInitConfig(config))
-    //     return;
+
+     if (isConfigDefined(config))
+         return;
 
     MKLDNNNode::initOptimalPrimitiveDescriptor();
 

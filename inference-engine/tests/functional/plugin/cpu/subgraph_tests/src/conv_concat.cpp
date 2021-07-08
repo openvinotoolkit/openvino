@@ -115,6 +115,8 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
+    executableNetwork.GetExecGraphInfo().serialize("graph.xml");
+
     CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 

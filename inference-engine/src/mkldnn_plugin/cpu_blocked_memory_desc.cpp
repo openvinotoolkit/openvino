@@ -148,7 +148,7 @@ size_t BlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const 
 }
 
 size_t BlockedMemoryDesc::getOffset(size_t elemNumber) const {
-    // TODO [mkutakov]: rewrite to support dynamic shapes
+    // TODO [DS]: rewrite to support dynamic shapes
     auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
     InferenceEngine::SizeVector pos(n_dims);

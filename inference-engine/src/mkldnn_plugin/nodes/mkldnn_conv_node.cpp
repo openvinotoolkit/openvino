@@ -394,11 +394,10 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-//                if (isGrouped)
-//                    dataConfig.desc = std::move(getSrcMemDesc(itpd, i));
-//                else
-//                    dataConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getSrcMemDesc(itpd, i));
-                dataConfig.desc = getSrcMemDesc(itpd, i);
+                if (isGrouped)
+                    dataConfig.desc = getSrcMemDesc(itpd, i);
+                else
+                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getSrcMemDesc(itpd, i));
 
                 config.inConfs.push_back(dataConfig);
             }
@@ -427,13 +426,12 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 }
 
                 dataConfig.constant = false;
-//
-//                if (isGrouped)
-//                    dataConfig.desc = getDstMemDesc(itpd, i);
-//                else
-//                    dataConfig.desc = MemoryDescUtils::getUndefinedMemoryDesc(*getDstMemDesc(itpd, i));
 
-                dataConfig.desc = getDstMemDesc(itpd, i);
+                if (isGrouped)
+                    dataConfig.desc = getDstMemDesc(itpd, i);
+                else
+                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getDstMemDesc(itpd, i));
+
                 config.outConfs.push_back(dataConfig);
 
                 if (withSum) {
