@@ -97,16 +97,17 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     if (_graphs.size() == 1) {
         for (auto &node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
-
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
-
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
+                IE_THROW() << "[DS] Unimplemented";
+//                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+//                auto state_store = memoryNode->getStore();
+//                auto state_name = memoryNode->getId();
+//
+//                // Remove suffix with pair ID. Internal information.
+//                auto suffix_idx = state_name.find("/id=");
+//                if (suffix_idx != std::string::npos)
+//                    state_name = state_name.substr(0, suffix_idx);
+//
+//                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
             }
         }
     }

@@ -6,13 +6,17 @@
 
 #include "ie_layouts.h"
 #include "mkldnn_dims.h"
+#include "cpu_memory_desc.h"
+#include "mkldnn_extension_utils.h"
 #include <mkldnn.hpp>
 #include <mkldnn_types.h>
+#include <cpu_shape.h>
 
 #include <string>
 #include <functional>
 #include <memory>
 #include <vector>
+#include <ie_precision.hpp>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -34,10 +38,10 @@ namespace MKLDNNPlugin {
  * Represent internal plugin abstraction of tensor description
  *
  */
-class MKLDNNMemoryDesc {
+class MKLDNNMemoryDesc : public MemoryDesc {
 public:
-    /** Empty constructor - doesn't define any tensor representation */
-    MKLDNNMemoryDesc(): desc() {}
+//    /** Empty constructor - doesn't define any tensor representation */
+//    MKLDNNMemoryDesc() : MemoryDesc(Shape(), InferenceEngine::Precision::UNSPECIFIED, Mkldnn), desc() {}
 
     /** Construct a tensor desc with plain layout format (like ND C array) */
     MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType);
@@ -45,9 +49,8 @@ public:
     /** Construct a tensor desc with specified layout format tag. Any and Undef is not supported */
     MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
-    explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
-    explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
-
+//    explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
+    explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc);
 
     /**
      * Try to define original format tag use on creation
@@ -83,6 +86,22 @@ public:
     bool isTailCFormat() const;
 
     bool isSame(mkldnn::memory::format_tag fmt) const;
+
+    dnnl_format_kind_t getFormatKind() const {
+        return desc.data.format_kind;
+    };
+
+    virtual std::unique_ptr<MemoryDesc> clone() const override {
+        return make_unique<MKLDNNMemoryDesc>(*this);
+    }
+
+    bool isDefined() const override {
+            IE_THROW() << "[DS] Unimplemented";
+    }
+
+    bool isCompatible(const MemoryDesc& rhs) const override {
+        IE_THROW() << "[DS] Unimplemented";
+    }
 
 private:
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();
@@ -155,9 +174,10 @@ public:
     void SetData(const MKLDNNMemory& memory, size_t size = 0, bool ftz = true) const;
     void FillZero();
 
-    static mkldnn::memory::format_tag GetPlainFormat(const mkldnn::memory::dims& dims);
+    static mkldnn::memory::format_tag GetPlainFormatByRank(size_t rank);
     static InferenceEngine::Layout GetPlainLayout(const mkldnn::memory::dims& dims);
     static bool isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format);
+    static bool isConsistant(const Shape& dims, mkldnn::memory::format_tag format);
     static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
     static mkldnn::memory::data_type convertToDataType(const InferenceEngine::Precision &precision);

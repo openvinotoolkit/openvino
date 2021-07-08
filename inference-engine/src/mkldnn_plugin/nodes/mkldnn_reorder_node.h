@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <utils/general_utils.h>
 
 namespace MKLDNNPlugin {
 
@@ -24,9 +25,14 @@ public:
     bool created() const override;
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
 
-    void setDescs(const InferenceEngine::TensorDesc& input, const InferenceEngine::TensorDesc& output) {
-        this->input = input;
-        this->output = output;
+    void setDescs(const MemoryDesc& input, const MemoryDesc& output) {
+        this->input = input.clone();
+        inputShapes.clear();
+        inputShapes.push_back(this->input->getShape());
+
+        this->output = output.clone();
+        outputShapes.clear();
+        outputShapes.push_back(this->output->getShape());
     }
 
     void setOptimized(bool isOptimized) {
@@ -39,17 +45,12 @@ public:
         return false;
     }
 
-    const InferenceEngine::TensorDesc& getInput() { return input; }
-    const InferenceEngine::TensorDesc& getOutput() { return output; }
-
-    /**
-     * @brief A pointer to a scales blob
-     */
-    InferenceEngine::Blob::Ptr _scales;
+    const MemoryDesc& getInput() { return *input; }
+    const MemoryDesc& getOutput() { return *output; }
 
 private:
-    InferenceEngine::TensorDesc input;
-    InferenceEngine::TensorDesc output;
+    std::unique_ptr<MemoryDesc> input;
+    std::unique_ptr<MemoryDesc> output;
 
     MKLDNNMemoryPtr dst_blocked;
     MKLDNNMemoryPtr src_blocked;

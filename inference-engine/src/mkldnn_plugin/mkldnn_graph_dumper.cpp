@@ -10,7 +10,7 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include "utils/debug_capabilities.h"
-
+#include "cpu_memory_desc_utils.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -46,11 +46,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getDesc().getPrecision().name();
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getTensorDesc().getPrecision().name();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i-1)->getDesc().getPrecision() != node->getChildEdgeAt(i)->getDesc().getPrecision()) {
+            if (node->getChildEdgeAt(i - 1)->getTensorDesc().getPrecision() != node->getChildEdgeAt(i)->getTensorDesc().getPrecision()) {
                 isAllEqual = false;
                 break;
             }
@@ -59,12 +59,12 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getDesc().getPrecision().name());
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getTensorDesc().getPrecision().name());
         }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
-            outputPrecisionsStr = node->getParentEdgeAt(0)->getDesc().getPrecision().name();
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getTensorDesc().getPrecision().name();
         }
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
@@ -73,12 +73,12 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        auto fmt0 = MKLDNNMemoryDesc(outDescs[0].desc).getFormat();
+        auto fmt0 = MemoryDescUtils::getLayout(*outDescs[0].desc);
         outputLayoutsStr = mkldnn::utils::fmt2str(fmt0);
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outDescs.size(); i++) {
-            if (MKLDNNMemoryDesc(outDescs[i - 1].desc).getFormat() != MKLDNNMemoryDesc(outDescs[i].desc).getFormat()) {
+            if (MemoryDescUtils::getLayout(*outDescs[i - 1].desc) != MemoryDescUtils::getLayout(*outDescs[i].desc)) {
                 isAllEqual = false;
                 break;
             }
@@ -87,7 +87,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < outDescs.size(); i++) {
-                auto fmt = MKLDNNMemoryDesc(outDescs[i].desc).getFormat();
+                auto fmt = MemoryDescUtils::getLayout(*outDescs[i].desc);
                 outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(fmt));
             }
         }
@@ -163,7 +163,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
-            auto desc = node->getChildEdgeAt(0)->getDesc();
+            auto desc = node->getChildEdgeAt(0)->getTensorDesc();
             auto param = std::make_shared<ngraph::op::Parameter>(
                 details::convertPrecision(desc.getPrecision()),
                 ngraph::PartialShape(desc.getDims()));
@@ -177,7 +177,7 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto desc = node->getChildEdgeAt(port)->getDesc();
+                auto desc = node->getChildEdgeAt(port)->getTensorDesc();
                 return_node->set_output_type(port,
                     details::convertPrecision(desc.getPrecision()),
                     ngraph::PartialShape(desc.getDims()));

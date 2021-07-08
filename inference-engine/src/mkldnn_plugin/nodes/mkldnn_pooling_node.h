@@ -16,12 +16,12 @@ class MKLDNNPoolingNode : public MKLDNNNode {
 public:
     MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<MKLDNNMemoryDesc>& inputDesc,
+                          const std::vector<MKLDNNMemoryDesc>& outputDesc) override;
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void initDescriptor(const InferenceEngine::LayerConfig &config) override;
+    void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {

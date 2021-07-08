@@ -9,6 +9,7 @@
 #include "common/memory_desc_wrapper.hpp"
 
 #include <fstream>
+#include <cpu_memory_desc_utils.h>
 
 using namespace InferenceEngine;
 
@@ -104,7 +105,7 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
     pln_blob->allocate();
 
     // Copy to plain
-    MKLDNNMemoryDesc mdesc(blob->getTensorDesc());
+    MKLDNNMemoryDesc mdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(blob->getTensorDesc());
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);
 
@@ -190,7 +191,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
     " by address 0x" << std::hex << _blob->buffer().as<long long>() << std::dec <<std::endl;
 
     // Dump data
-    MKLDNNMemoryDesc mdesc(_blob->getTensorDesc());
+    MKLDNNMemoryDesc mdesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(_blob->getTensorDesc());
     mkldnn::memory::desc desc = mdesc;
     mkldnn::impl::memory_desc_wrapper blob_wrp(desc.data);
 

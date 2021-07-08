@@ -11,6 +11,7 @@
 #include <string>
 
 #include "mkldnn.hpp"
+#include "cpu_memory_desc.h"
 #include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {
@@ -40,7 +41,7 @@ public:
      * @param dims to check on zero auto padding
      * @return true if provided dims will use auto padding. Otherwise false.
      */
-    bool isAutoExtendedWith(const InferenceEngine::SizeVector &dims) const;
+    bool isAutoExtendedWith(const std::vector<size_t> &dims) const;
 
     /**
      * Construct PartialBlkDesc from provided TensorDesc
@@ -51,13 +52,13 @@ public:
      * @param desc to extract PartialBlkDesc information about kind of layout
      * @return PartialBlkDesc object corresponds layout described in desc
      */
-    static PartialBlkDesc extractFrom(const InferenceEngine::TensorDesc &desc);
+    static PartialBlkDesc extractFrom(const BlockedMemoryDesc &desc);
 
     /** Construct plain PartialBlkDesc based on dims information */
-    static PartialBlkDesc makePlain(const InferenceEngine::SizeVector &dims);
+    static PartialBlkDesc makePlain(const std::vector<size_t> &dims);
 
     /** Construct blocked Channel PartialBlkDesc based on dims information */
-    static PartialBlkDesc makeCBlocked(const InferenceEngine::SizeVector &dims, size_t block_size);
+    static PartialBlkDesc makeCBlocked(const std::vector<size_t> &dims, size_t block_size);
 
     /** Construct per Channel PartialBlkDesc based on dims information */
     static PartialBlkDesc makeTailC(const InferenceEngine::SizeVector &dims);
@@ -68,9 +69,9 @@ public:
 
 private:
     PartialBlkDesc() = default;
-    InferenceEngine::SizeVector outer_order;
-    InferenceEngine::SizeVector inner_blk_size;
-    InferenceEngine::SizeVector inner_blk_idxes;
+    std::vector<size_t> outer_order;
+    std::vector<size_t> inner_blk_size;
+    std::vector<size_t> inner_blk_idxes;
 };
 
 class MKLDNNExtensionUtils {
@@ -80,7 +81,7 @@ public:
     static InferenceEngine::Precision DataTypeToIEPrecision(mkldnn::memory::data_type dataType);
     static InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
     static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
-    static std::string getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc);
+    static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
     static InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::Precision> precisions);
 };
 

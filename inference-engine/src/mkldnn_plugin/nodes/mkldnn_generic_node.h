@@ -29,7 +29,7 @@ public:
         return false;
     }
 
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void initDescriptor(const NodeConfig& config) override;
 
     void execLayer();
     void cleanup() override;
