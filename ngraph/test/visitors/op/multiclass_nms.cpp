@@ -25,44 +25,48 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes)
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
-    auto sort_result_across_batch = true;
-    auto output_type = ngraph::element::i32;
-    int nms_top_k = 100;
-    int keep_top_k = 10;
-    float iou_threshold = 0.1f;
-    float score_threshold = 0.2f;
-    int background_class = 2;
-    float nms_eta = 0.3f;
-    bool normalized = false;
+    opset8::MulticlassNms::Attributes attrs;
+    attrs.sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
+    attrs.sort_result_across_batch = true;
+    attrs.output_type = ngraph::element::i32;
+    attrs.nms_top_k = 100;
+    attrs.keep_top_k = 10;
+    attrs.iou_threshold = 0.1f;
+    attrs.score_threshold = 0.2f;
+    attrs.background_class = 2;
+    attrs.nms_eta = 0.3f;
+    attrs.normalized = false;
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, sort_result_type, 
-        sort_result_across_batch, output_type, iou_threshold, score_threshold, 
-        nms_top_k, keep_top_k, background_class, nms_eta, normalized);
+    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, attrs);
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    const auto expected_attr_count = 10;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
-    EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());
-    EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
-    EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
-    EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
-    EXPECT_EQ(g_nms->get_iou_threshold(), nms->get_iou_threshold());
-    EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
-    EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
-    EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
-    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
+    auto& g_nms_attrs = g_nms->get_attrs();
+    auto& nms_attrs = nms->get_attrs();
 
-    EXPECT_EQ(sort_result_type, nms->get_sort_result_type());
-    EXPECT_EQ(sort_result_across_batch, nms->get_sort_result_across_batch());
-    EXPECT_EQ(output_type, nms->get_output_type());
-    EXPECT_EQ(nms_top_k, nms->get_nms_top_k());
-    EXPECT_EQ(keep_top_k, nms->get_keep_top_k());
-    EXPECT_EQ(iou_threshold, nms->get_iou_threshold());
-    EXPECT_EQ(score_threshold, nms->get_score_threshold());
-    EXPECT_EQ(background_class, nms->get_background_class());
-    EXPECT_EQ(nms_eta, nms->get_nms_eta());
-    EXPECT_EQ(normalized, nms->get_normalized());
+    EXPECT_EQ(g_nms_attrs.sort_result_type, nms_attrs.sort_result_type);
+    EXPECT_EQ(g_nms_attrs.sort_result_across_batch, nms_attrs.sort_result_across_batch);
+    EXPECT_EQ(g_nms_attrs.output_type, nms_attrs.output_type);
+    EXPECT_EQ(g_nms_attrs.nms_top_k, nms_attrs.nms_top_k);
+    EXPECT_EQ(g_nms_attrs.keep_top_k, nms_attrs.keep_top_k);
+    EXPECT_EQ(g_nms_attrs.iou_threshold, nms_attrs.iou_threshold);
+    EXPECT_EQ(g_nms_attrs.score_threshold, nms_attrs.score_threshold);
+    EXPECT_EQ(g_nms_attrs.background_class, nms_attrs.background_class);
+    EXPECT_EQ(g_nms_attrs.nms_eta, nms_attrs.nms_eta);
+    EXPECT_EQ(g_nms_attrs.normalized, nms_attrs.normalized);
+
+    EXPECT_EQ(attrs.sort_result_type, nms_attrs.sort_result_type);
+    EXPECT_EQ(attrs.sort_result_across_batch, nms_attrs.sort_result_across_batch);
+    EXPECT_EQ(attrs.output_type, nms_attrs.output_type);
+    EXPECT_EQ(attrs.nms_top_k, nms_attrs.nms_top_k);
+    EXPECT_EQ(attrs.keep_top_k, nms_attrs.keep_top_k);
+    EXPECT_EQ(attrs.iou_threshold, nms_attrs.iou_threshold);
+    EXPECT_EQ(attrs.score_threshold, nms_attrs.score_threshold);
+    EXPECT_EQ(attrs.background_class, nms_attrs.background_class);
+    EXPECT_EQ(attrs.nms_eta, nms_attrs.nms_eta);
+    EXPECT_EQ(attrs.normalized, nms_attrs.normalized);
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes)
@@ -71,18 +75,23 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores);
+    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
+    const auto expected_attr_count = 10;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
-    EXPECT_EQ(g_nms->get_sort_result_type(), nms->get_sort_result_type());
-    EXPECT_EQ(g_nms->get_sort_result_across_batch(), nms->get_sort_result_across_batch());
-    EXPECT_EQ(g_nms->get_output_type(), nms->get_output_type());
-    EXPECT_EQ(g_nms->get_nms_top_k(), nms->get_nms_top_k());
-    EXPECT_EQ(g_nms->get_keep_top_k(), nms->get_keep_top_k());
-    EXPECT_EQ(g_nms->get_iou_threshold(), nms->get_iou_threshold());
-    EXPECT_EQ(g_nms->get_score_threshold(), nms->get_score_threshold());
-    EXPECT_EQ(g_nms->get_background_class(), nms->get_background_class());
-    EXPECT_EQ(g_nms->get_nms_eta(), nms->get_nms_eta());
-    EXPECT_EQ(g_nms->get_normalized(), nms->get_normalized());
+    auto& g_nms_attrs = g_nms->get_attrs();
+    auto& nms_attrs = nms->get_attrs();
+
+    EXPECT_EQ(g_nms_attrs.sort_result_type, nms_attrs.sort_result_type);
+    EXPECT_EQ(g_nms_attrs.sort_result_across_batch, nms_attrs.sort_result_across_batch);
+    EXPECT_EQ(g_nms_attrs.output_type, nms_attrs.output_type);
+    EXPECT_EQ(g_nms_attrs.nms_top_k, nms_attrs.nms_top_k);
+    EXPECT_EQ(g_nms_attrs.keep_top_k, nms_attrs.keep_top_k);
+    EXPECT_EQ(g_nms_attrs.iou_threshold, nms_attrs.iou_threshold);
+    EXPECT_EQ(g_nms_attrs.score_threshold, nms_attrs.score_threshold);
+    EXPECT_EQ(g_nms_attrs.background_class, nms_attrs.background_class);
+    EXPECT_EQ(g_nms_attrs.nms_eta, nms_attrs.nms_eta);
+    EXPECT_EQ(g_nms_attrs.normalized, nms_attrs.normalized);
 }

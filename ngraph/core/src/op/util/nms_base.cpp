@@ -17,17 +17,22 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::NmsBase, "NmsBase", 0);
 
+op::util::NmsBase::NmsBase(ngraph::element::Type& output_type, int& nms_top_k, int& keep_top_k)
+    : m_output_type(output_type)
+    , m_nms_top_k(nms_top_k)
+    , m_keep_top_k(keep_top_k)
+{
+}
+
 op::util::NmsBase::NmsBase(const Output<Node>& boxes,
                            const Output<Node>& scores,
-                           const SortResultType sort_result_type,
-                           const ngraph::element::Type& output_type,
-                           const int nms_top_k,
-                           const int keep_top_k)
+                           ngraph::element::Type& output_type,
+                           int& nms_top_k,
+                           int& keep_top_k)
     : Op({boxes, scores})
-    , m_sort_result_type{sort_result_type}
-    , m_output_type{output_type}
-    , m_nms_top_k{nms_top_k}
-    , m_keep_top_k{keep_top_k}
+    , m_output_type(output_type)
+    , m_nms_top_k(nms_top_k)
+    , m_keep_top_k(keep_top_k)
 {
 }
 
@@ -103,18 +108,6 @@ void op::util::NmsBase::validate()
                           num_boxes_boxes,
                           "; Scores: ",
                           num_boxes_scores);
-}
-
-bool ngraph::op::util::NmsBase::visit_attributes(AttributeVisitor& visitor)
-{
-    NGRAPH_OP_SCOPE(util_NmsBase_visit_attributes);
-
-    visitor.on_attribute("sort_result_type", m_sort_result_type);
-    visitor.on_attribute("output_type", m_output_type);
-    visitor.on_attribute("nms_top_k", m_nms_top_k);
-    visitor.on_attribute("keep_top_k", m_keep_top_k);
-
-    return true;
 }
 
 void op::util::NmsBase::validate_and_infer_types()

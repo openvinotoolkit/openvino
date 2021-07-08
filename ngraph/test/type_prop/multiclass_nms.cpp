@@ -16,7 +16,7 @@ TEST(type_prop, multiclass_nms_incorrect_boxes_rank)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -31,7 +31,7 @@ TEST(type_prop, multiclass_nms_incorrect_scores_rank)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2});
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -46,7 +46,7 @@ TEST(type_prop, multiclass_nms_incorrect_scheme_num_batches)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -62,7 +62,7 @@ TEST(type_prop, multiclass_nms_incorrect_scheme_num_boxes)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -79,7 +79,7 @@ TEST(type_prop, multiclass_nms_incorrect_boxes_rank2)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -94,8 +94,10 @@ TEST(type_prop, multiclass_nms_incorrect_output_type)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MulticlassNms::Attributes attrs;
+        attrs.output_type = ngraph::element::f32;
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, false, ngraph::element::f32);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -110,8 +112,10 @@ TEST(type_prop, multiclass_nms_incorrect_nms_topk)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MulticlassNms::Attributes attrs;
+        attrs.nms_top_k = -2;
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, false, ngraph::element::i32, 0.0f, 0.0f, -2);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -126,8 +130,10 @@ TEST(type_prop, multiclass_nms_incorrect_keep_topk)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MulticlassNms::Attributes attrs;
+        attrs.keep_top_k = -2;
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, false, ngraph::element::i32, 0.0f, 0.0f, -1, -2);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -142,8 +148,10 @@ TEST(type_prop, multiclass_nms_incorrect_background_class)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MulticlassNms::Attributes attrs;
+        attrs.background_class = -2;
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, false, ngraph::element::i32, 0.0f, 0.0f, -1, -1, -2);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -158,8 +166,10 @@ TEST(type_prop, multiclass_nms_incorrect_eta)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MulticlassNms::Attributes attrs;
+        attrs.nms_eta = 2.0f;
 
-        make_shared<op::v8::MulticlassNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, false, ngraph::element::i32, 0.0f, 0.0f, -1, -1, -1, 2.0f);
+        make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -173,7 +183,7 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_dynamic)
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
     ASSERT_TRUE(
         nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
@@ -188,7 +198,7 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_max_out)
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -204,13 +214,14 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_nms_topk)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(
-        boxes, scores, op::v8::MulticlassNms::SortResultType::CLASSID, false, ngraph::element::i32, 0.0f, 0.0f, 3);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * class * min(nms_topk, box)
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 5 * 3), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 5 * 3), 1}));
@@ -221,13 +232,15 @@ TEST(type_prop, multiclass_nms_output_shape_1dim_keep_topk)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.keep_top_k = 8;
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(
-        boxes, scores, op::v8::MulticlassNms::SortResultType::CLASSID, false, ngraph::element::i32, 0.0f, 0.0f, 3, 8);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
-    ASSERT_EQ(nms->get_output_element_type(1), element::i32);
-    ASSERT_EQ(nms->get_output_element_type(2), element::i32);
+    ASSERT_EQ(nms->get_output_element_type(1), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(2), element::i64);
     // batch * min(keep_topk, class * box))
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({Dimension(0, 2 * 8), Dimension(6)}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({Dimension(0, 2 * 8), 1}));
@@ -238,9 +251,10 @@ TEST(type_prop, multiclass_nms_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.output_type = ngraph::element::i32;
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(
-        boxes, scores, op::v8::MulticlassNms::SortResultType::CLASSID, false, ngraph::element::i32);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i32);
@@ -256,7 +270,7 @@ TEST(type_prop, multiclass_nms_dynamic_boxes_and_scores)
     const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
-    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MulticlassNms>(boxes, scores, op::v8::MulticlassNms::Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);

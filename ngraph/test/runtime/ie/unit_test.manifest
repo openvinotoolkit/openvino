@@ -676,10 +676,6 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# Unsupported primitive of type: SpaceToBatch
-space_to_batch
-batch_to_space
-
 # [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
 normalize_across_1axis_5d
 normalize_across_123axes_5d
@@ -1658,3 +1654,11 @@ IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
+
+# No plugin support for AdaptiveAvgPool and AdaptiveMaxPool
+adaptive_avg_pool_1d
+adaptive_avg_pool_2d
+adaptive_avg_pool_3d
+adaptive_max_pool_1d
+adaptive_max_pool_2d
+adaptive_max_pool_3d

@@ -8,6 +8,8 @@
 #include "ngraph/ops.hpp"
 
 #include <ngraph/runtime/reference/abs.hpp>
+#include <ngraph/runtime/reference/adaptive_avg_pool.hpp>
+#include <ngraph/runtime/reference/adaptive_max_pool.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
 #include <ngraph/runtime/reference/binary_convolution.hpp>
@@ -31,6 +33,7 @@
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_topk_rois.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/fft.hpp>
@@ -46,8 +49,8 @@
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
-#include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/matrix_nms.hpp>
+#include <ngraph/runtime/reference/mod.hpp>
 #include <ngraph/runtime/reference/multiclass_nms.hpp>
 #include <ngraph/runtime/reference/mvn.hpp>
 #include <ngraph/runtime/reference/non_max_suppression.hpp>
@@ -69,6 +72,7 @@
 #include <ngraph/runtime/reference/sign.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
+#include <ngraph/runtime/reference/utils/nms_common.hpp>
 
 using namespace ngraph;
 using namespace std;
@@ -1025,23 +1029,34 @@ namespace
                                                 info.boxes_shape,
                                                 info.scores_data.data(),
                                                 info.scores_shape,
-                                                op->get_sort_result_type(),
-                                                op->get_sort_result_across_batch(),
-                                                op->get_score_threshold(),
-                                                op->get_nms_top_k(),
-                                                op->get_keep_top_k(),
-                                                op->get_background_class(),
-                                                op->get_decay_function(),
-                                                op->get_gaussian_sigma(),
-                                                op->get_post_threshold(),
-                                                op->get_normalized(),
+                                                op->get_attrs(),
                                                 selected_outputs.data(),
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
                                                 valid_outputs.data());
 
-        runtime::reference::matrix_nms_postprocessing(outputs,
+        void* pscores = nullptr;
+        void* pselected_num = nullptr;
+        void* prois;
+        size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
+
+        outputs[0]->set_shape({num_selected, 6});
+        prois = outputs[0]->get_data_ptr();
+
+        if (outputs.size() >= 2)
+        {
+            outputs[1]->set_shape({num_selected, 1});
+            pscores = outputs[1]->get_data_ptr();
+        }
+        if (outputs.size() >= 3)
+        {
+            pselected_num = outputs[2]->get_data_ptr();
+        }
+
+        runtime::reference::nms_common::nms_common_postprocessing(prois,
+                                                pscores,
+                                                pselected_num,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
@@ -1153,29 +1168,38 @@ namespace
                                                 info.boxes_shape,
                                                 info.scores_data.data(),
                                                 info.scores_shape,
-                                                op->get_sort_result_type(),
-                                                op->get_sort_result_across_batch(),
-                                                op->get_iou_threshold(),
-                                                op->get_score_threshold(),
-                                                op->get_nms_top_k(),
-                                                op->get_keep_top_k(),
-                                                op->get_background_class(),
-                                                op->get_nms_eta(),
-                                                op->get_normalized(),
+                                                op->get_attrs(),
                                                 selected_outputs.data(),
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
                                                 valid_outputs.data());                                                  
 
-        auto selected_scores_type = element::f32; // FIXME
+        void* pscores = nullptr;
+        void* pselected_num = nullptr;
+        void* prois;
+        size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
 
-        runtime::reference::multiclass_nms_postprocessing(outputs,
+        outputs[0]->set_shape({num_selected, 6});
+        prois = outputs[0]->get_data_ptr();
+
+        if (outputs.size() >= 2)
+        {
+            outputs[1]->set_shape({num_selected, 1});
+            pscores = outputs[1]->get_data_ptr();
+        }
+        if (outputs.size() >= 3)
+        {
+            pselected_num = outputs[2]->get_data_ptr();
+        }
+
+        runtime::reference::nms_common::nms_common_postprocessing(prois,
+                                                pscores,
+                                                pselected_num,
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
-                                                valid_outputs,
-                                                selected_scores_type);
+                                                valid_outputs);
 
         return true;
     }
@@ -2508,6 +2532,71 @@ namespace
     }
 
     template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto attrs = op->get_attrs();
+
+        size_t post_nms_count = 0;
+        if (attrs.post_nms_count < 0)
+        {
+            throw ngraph_error("The attribute post_nms_count of the operation "
+                               "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                               "nonnegative integer.");
+        }
+        else
+        {
+            post_nms_count = static_cast<size_t>(attrs.post_nms_count);
+        }
+
+        const Shape output_rois_shape = Shape{post_nms_count, 4};
+        const Shape output_scores_shape = Shape{post_nms_count};
+
+        const auto output_type = op->get_input_element_type(0);
+
+        const auto im_info_shape = inputs[0]->get_shape();
+        const auto anchors_shape = inputs[1]->get_shape();
+        const auto deltas_shape = inputs[2]->get_shape();
+        const auto scores_shape = inputs[3]->get_shape();
+
+        const auto im_info_data = get_floats(inputs[0], im_info_shape);
+        const auto anchors_data = get_floats(inputs[1], anchors_shape);
+        const auto deltas_data = get_floats(inputs[2], deltas_shape);
+        const auto scores_data = get_floats(inputs[3], scores_shape);
+
+        std::vector<float> output_rois(shape_size(output_rois_shape));
+        std::vector<float> output_scores(shape_size(output_scores_shape));
+
+        outputs[0]->set_element_type(output_type);
+        outputs[0]->set_shape(output_rois_shape);
+        outputs[1]->set_element_type(output_type);
+        outputs[1]->set_shape(output_scores_shape);
+
+        runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
+                                                                          anchors_data.data(),
+                                                                          deltas_data.data(),
+                                                                          scores_data.data(),
+                                                                          attrs,
+                                                                          im_info_shape,
+                                                                          anchors_shape,
+                                                                          deltas_shape,
+                                                                          scores_shape,
+                                                                          output_rois.data(),
+                                                                          output_scores.data());
+        runtime::reference::experimental_detectron_proposals_single_image_postprocessing(
+            outputs[0]->get_data_ptr(),
+            outputs[1]->get_data_ptr(),
+            output_type,
+            output_rois,
+            output_scores,
+            output_rois_shape,
+            output_scores_shape);
+
+        return true;
+    }
+
+    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -2734,6 +2823,33 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::AdaptiveAvgPool>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::adaptive_avg_pool(inputs[0]->get_data_ptr<T>(),
+                                              outputs[0]->get_data_ptr<T>(),
+                                              inputs[0]->get_shape(),
+                                              op->get_output_shape(0));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::AdaptiveMaxPool>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                              outputs[0]->get_data_ptr<T>(),
+                                              outputs[1]->get_data_ptr<int64_t>(),
+                                              inputs[0]->get_shape(),
+                                              op->get_output_shape(0));
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
@@ -2753,7 +2869,9 @@ namespace
             if ((is_type<op::v5::NonMaxSuppression>(node) ||
                  is_type<op::v8::MulticlassNms>(node) ||
                  is_type<op::v8::MatrixNms>(node) ||
-                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) && i == 1)
+                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
+                 is_type<op::v8::AdaptiveMaxPool>(node)) &&
+                 i == 1)
             {
                 continue;
             }

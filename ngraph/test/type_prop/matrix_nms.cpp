@@ -16,7 +16,7 @@ TEST(type_prop, matrix_nms_incorrect_boxes_rank)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
-        make_shared<op::v8::MatrixNms>(boxes, scores);
+        make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -31,7 +31,7 @@ TEST(type_prop, matrix_nms_incorrect_scores_rank)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2});
 
-        make_shared<op::v8::MatrixNms>(boxes, scores);
+        make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -46,7 +46,7 @@ TEST(type_prop, matrix_nms_incorrect_scheme_num_batches)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
 
-        make_shared<op::v8::MatrixNms>(boxes, scores);
+        make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -62,7 +62,7 @@ TEST(type_prop, matrix_nms_incorrect_scheme_num_boxes)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
 
-        make_shared<op::v8::MatrixNms>(boxes, scores);
+        make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -79,7 +79,7 @@ TEST(type_prop, matrix_nms_incorrect_boxes_rank2)
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 2});
 
-        make_shared<op::v8::MatrixNms>(boxes, scores);
+        make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     }
     catch (const NodeValidationFailure& error)
     {
@@ -94,8 +94,10 @@ TEST(type_prop, matrix_nms_incorrect_output_type)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MatrixNms::Attributes attrs;
+        attrs.output_type = ngraph::element::f32;
 
-        make_shared<op::v8::MatrixNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, true, ngraph::element::f32);
+        make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -110,8 +112,10 @@ TEST(type_prop, matrix_nms_incorrect_nms_topk)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MatrixNms::Attributes attrs;
+        attrs.nms_top_k = -2;
 
-        make_shared<op::v8::MatrixNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, true, ngraph::element::i32, 0.0f, -2);
+        make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -126,8 +130,10 @@ TEST(type_prop, matrix_nms_incorrect_keep_topk)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MatrixNms::Attributes attrs;
+        attrs.keep_top_k = -2;
 
-        make_shared<op::v8::MatrixNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, true, ngraph::element::i32, 0.0f, -1, -2);
+        make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -142,8 +148,10 @@ TEST(type_prop, matrix_nms_incorrect_background_class)
     {
         const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
         const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+        op::v8::MatrixNms::Attributes attrs;
+        attrs.background_class = -2;
 
-        make_shared<op::v8::MatrixNms>(boxes, scores, ngraph::op::util::NmsBase::SortResultType::NONE, true, ngraph::element::i32, 0.0f, -1, -1, -2);
+        make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     }
     catch (const NodeValidationFailure& error)
     {
@@ -157,7 +165,7 @@ TEST(type_prop, matrix_nms_output_shape_1dim_dynamic)
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
 
     ASSERT_TRUE(
         nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 6}));
@@ -172,7 +180,7 @@ TEST(type_prop, matrix_nms_output_shape_1dim_max_out)
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -188,9 +196,10 @@ TEST(type_prop, matrix_nms_output_shape_1dim_nms_topk)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i64, 0.0f, 3);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -205,9 +214,11 @@ TEST(type_prop, matrix_nms_output_shape_1dim_keep_topk)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.nms_top_k = 3;
+    attrs.keep_top_k = 8;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i64, 0.0f, 3, 8);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
@@ -222,9 +233,10 @@ TEST(type_prop, matrix_nms_output_shape_i32)
 {
     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.output_type = ngraph::element::i32;
 
-    const auto nms = make_shared<op::v8::MatrixNms>(
-        boxes, scores, op::v8::MatrixNms::SortResultType::CLASSID, true, ngraph::element::i32);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i32);
@@ -240,7 +252,7 @@ TEST(type_prop, matrix_nms_dynamic_boxes_and_scores)
     const auto boxes = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto scores = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
-    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores);
+    const auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
 
     ASSERT_EQ(nms->get_output_element_type(0), element::f32);
     ASSERT_EQ(nms->get_output_element_type(1), element::i64);
