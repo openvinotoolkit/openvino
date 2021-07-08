@@ -211,3 +211,30 @@ class TensorContentParsing(unittest.TestCase):
         with self.assertLogs(log.getLogger(), level="ERROR") as cm:
             result = tf_tensor_content(pb_tensor.dtype, shape, pb_tensor)
             self.assertEqual([warning_message, warning_message], cm.output)
+
+    def test_empty_value(self):
+        pb_tensor = PB({
+            'dtype': 1,
+            'float_val': []
+        })
+
+        shape = int64_array([1, 1, 0])
+        tf_dtype = pb_tensor.dtype
+        ref = np.array([[[]]], dtype=np.float32)
+        res = tf_tensor_content(tf_dtype, shape, pb_tensor)
+
+        self.assertEqual(res.shape, ref.shape)
+        self.assertTrue(np.all(res == ref))
+
+    def test_scalar_value(self):
+        pb_tensor = PB({
+            'dtype': 3,
+            'int_val': 4
+        })
+
+        shape = int64_array([])
+        tf_dtype = pb_tensor.dtype
+        ref = np.array(4, dtype=np.int32)
+        res = tf_tensor_content(tf_dtype, shape, pb_tensor)
+
+        self.assertEqual(ref, res)
