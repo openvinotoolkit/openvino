@@ -75,13 +75,10 @@ set(SRC
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
-    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_config.cpp
-    pass_liveness.cpp
     pass_manager.cpp
-    pass_shape_relevance.cpp
     pattern.cpp
     provenance.cpp
     replace_node.cpp
@@ -95,6 +92,7 @@ set(SRC
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
+    type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
     type_prop/avg_pool.cpp
@@ -112,6 +110,7 @@ set(SRC
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
+    type_prop/cosh.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -231,6 +230,7 @@ set(SRC
     visitors/value_map.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
@@ -241,6 +241,7 @@ set(SRC
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
+    visitors/op/cosh.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
