@@ -142,7 +142,7 @@ cd darkflow
 
 #### <a name="yolov1-v2-to-tf"></a>Convert DarkNet\* YOLOv1 or YOLOv2 Model to TensorFlow\*
 
-To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository and run the following command:<br>
+To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository, place downloaded above \*.cfg and \*.weights files in the current directory and run the following command:
 For Yolo V1:
 ```sh
 python3 flow --model yolov1.cfg --load yolov1.weights --savepb
