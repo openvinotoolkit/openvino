@@ -33,7 +33,7 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
     * `false` - do not normalize variance
     * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: `true`
+  * **Default value**: None
   * **Required**: *yes*
 
 * *eps*
@@ -51,7 +51,7 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
     * `inside_sqrt` - add epsilon inside sqrt
     * `outside_sqrt` - add epsilon outside of sqrt
   * **Type**: `string`
-  * **Default value**: `inside_sqrt`
+  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
