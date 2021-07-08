@@ -88,8 +88,8 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     if (data_rank.is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              (data_rank.get_length() >= 4),
-                              "data input must have rank greater than or equal to 4. Got: ",
+                              (data_rank.get_length() >= 2),
+                              "data input must have rank greater or equal than 2. Got: ",
                               data_rank.get_length());
 
         if (inputs_same_ps.is_static())
@@ -197,7 +197,7 @@ namespace
         }
         auto data_shape = data->get_shape();
         auto data_rank = data_shape.size();
-        if (!(data_rank == 4 || data_rank == 5))
+        if (data_rank < 2)
         {
             return false;
         }
@@ -346,7 +346,6 @@ bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs,
 bool ngraph::op::v1::BatchToSpace::has_evaluate() const
 {
     NGRAPH_OP_SCOPE(v1_BatchToSpace_has_evaluate);
-    return !get_input_partial_shape(0).is_dynamic() &&
-           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5) &&
+    return !get_input_partial_shape(0).is_dynamic() && get_input_shape(0).size() >= 2 &&
            get_input_shape(0).size() <= shape_size(get_input_shape(1));
 }
