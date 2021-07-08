@@ -2671,7 +2671,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_group
                                     dilations, group, deformable_group, tolerance_bits);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_default_modulation_scalars)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_default_mask)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2714,7 +2714,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_v8_zeroed_offsets_
                                     1, 1, tolerance_bits, true);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups_modulation_scalars)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2797,7 +2797,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
                                     dilations, group, deformable_group, tolerance_bits, true);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_groups_and_deforgroups_modulation_scalars_2)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask_2)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -2868,7 +2868,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_offsets_gro
                                     dilations, group, deformable_group, tolerance_bits, true);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_zeroed_neg_offsets_groups_and_deforgroups_modulation_scalars)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
