@@ -14,9 +14,6 @@ set (SRC
     visitor.hpp
     provenance_enabler.hpp
 )
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    list(APPEND SRC onnx_test_util.cpp)
-endif()
 
 add_library(ngraph_test_util STATIC ${SRC})
 
@@ -29,6 +26,3 @@ endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
     $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    target_link_libraries(ngraph_test_util PRIVATE onnx onnx_importer)
-endif()

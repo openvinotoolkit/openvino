@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include "onnx_import/utils/onnx_importer_visibility.hpp"
 #include <string>
 
 namespace ngraph
 {
     namespace test
     {
-        struct ComparisonResult
+        struct ONNX_IMPORTER_API ComparisonResult
         {
             ComparisonResult() = default;
             ComparisonResult(std::string error)
@@ -33,7 +34,7 @@ namespace ngraph
             }
         };
 
-        ComparisonResult compare_onnx_models(const std::string& model,
+        ONNX_IMPORTER_API ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path);
 
     } // namespace test
