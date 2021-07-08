@@ -12,6 +12,10 @@ file(GLOB_RECURSE EDITOR_LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_editor/
 file(GLOB_RECURSE EDITOR_LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_editor/src/*.hpp)
 file(GLOB_RECURSE EDITOR_LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_editor/include/*.hpp)
 
+file(GLOB_RECURSE COMMON_LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/src/*.cpp)
+file(GLOB_RECURSE COMMON_LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/src/*.hpp)
+file(GLOB_RECURSE COMMON_LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include/*.hpp)
+
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
@@ -27,13 +31,14 @@ set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
-source_group("src" FILES ${LIBRARY_SRC} ${EDITOR_LIBRARY_SRC})
-source_group("include" FILES ${LIBRARY_HEADERS} ${EDITOR_LIBRARY_HEADERS})
-source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS} ${EDITOR_LIBRARY_PUBLIC_HEADERS})
+source_group("src" FILES ${LIBRARY_SRC} ${EDITOR_LIBRARY_SRC} ${COMMON_LIBRARY_SRC})
+source_group("include" FILES ${LIBRARY_HEADERS} ${EDITOR_LIBRARY_HEADERS} ${COMMON_LIBRARY_SRC})
+source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS} ${EDITOR_LIBRARY_PUBLIC_HEADERS} ${COMMON_LIBRARY_SRC})
 
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
-                                 ${EDITOR_LIBRARY_SRC} ${EDITOR_LIBRARY_HEADERS} ${EDITOR_LIBRARY_PUBLIC_HEADERS})
+                                 ${EDITOR_LIBRARY_SRC} ${EDITOR_LIBRARY_HEADERS} ${EDITOR_LIBRARY_PUBLIC_HEADERS}
+                                 ${COMMON_LIBRARY_SRC} ${COMMON_LIBRARY_HEADERS} ${COMMON_LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)
@@ -50,8 +55,10 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder
+target_link_libraries(onnx_importer PRIVATE ngraph::builder
     PUBLIC ngraph)
+
+target_link_libraries(onnx_importer PRIVATE onnx_proto onnx ${Protobuf_LIBRARIES})
 
 target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
@@ -65,6 +72,12 @@ set(ONNX_EDITOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_editor/src)
 
 target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>)
 target_include_directories(onnx_importer PRIVATE ${ONNX_EDITOR_SRC_DIR})
+
+set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include)
+set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/src)
+
+target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>)
+target_include_directories(onnx_importer PRIVATE ${ONNX_COMMON_SRC_DIR})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(onnx_importer PRIVATE NGRAPH_USE_PROTOBUF_LITE)
