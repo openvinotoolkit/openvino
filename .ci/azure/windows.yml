@@ -178,7 +178,7 @@ jobs:
       rem $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml
       "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24
     displayName: 'CPU FuncTests - IB'
-    continueOnError: false
+    continueOnError: true
   - publish: TEST-cpuFuncTests-IB.xml
     artifact: TEST-cpuFuncTests-IB.xml
 
