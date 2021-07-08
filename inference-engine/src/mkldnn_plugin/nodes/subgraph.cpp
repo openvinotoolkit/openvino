@@ -180,8 +180,8 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     }
     auto support_layout = [&](LayoutType layoutType){
         supportedPrimitiveDescriptors.emplace_back(initDesc(layoutType, true));
-        auto inConf = supportedPrimitiveDescriptors.back().getConfig().inConfs[0];
-        if (inConf.inPlace >= 0)
+        auto desc = supportedPrimitiveDescriptors.back().getConfig();
+        if (desc.inConfs[0].inPlace >= 0)
             supportedPrimitiveDescriptors.emplace_back(initDesc(layoutType, false));
     };
     if (isChannelsFirstApplicable)
@@ -192,29 +192,37 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
-    bool hasInplaceParents = false;
-    // Only zero port could be inPlace by construction => check only its parents
-    for (const auto& parentEdge : getParentEdgesAtPort(0)) {
-        auto parent = parentEdge->getParent();
-        auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
-        if (parent_pdesc == nullptr)
-            continue;
-        const auto &parent_config = parent_pdesc->getConfig();
-        int outputIndex = parentEdge->getInputNum();
-        if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
-            IE_THROW() << "Cannot find index of output node";
-        if (parent_config.outConfs[outputIndex].inPlace >= 0) {
-            hasInplaceParents = true;
-            break;
-        }
-    }
-    // remove inplace PDs if at least one parent is inplace => avoid inplace conflict reorder insertion
-    auto begin = supportedPrimitiveDescriptors.begin();
-    auto end = supportedPrimitiveDescriptors.end();
-    auto remove_from = std::remove_if(begin, end, [=](PrimitiveDescInfo& d){
-        return ( (d.getConfig().inConfs[0].inPlace >= 0) == hasInplaceParents );
+    auto SPD_begin = supportedPrimitiveDescriptors.begin();
+    auto SPD_end = supportedPrimitiveDescriptors.end();
+    bool hasInplaceSPD = std::any_of(SPD_begin, SPD_end, [](PrimitiveDescInfo& desc){
+        return (desc.getConfig().inConfs[0].inPlace >= 0);
     });
-    supportedPrimitiveDescriptors.erase(remove_from, end);
+    // If some descriptors are inPlace, we can choose between inPlace and not inPlace to avoid inplace conflicts
+    if (hasInplaceSPD) {
+        bool hasInplaceParents = false;
+        // Only zero port could be inPlace by construction => check only its parents
+        for (const auto &parentEdge : getParentEdgesAtPort(0)) {
+            auto parent = parentEdge->getParent();
+            auto parent_pdesc = parent->getSelectedPrimitiveDescriptor();
+            if (parent_pdesc == nullptr)
+                continue;
+            const auto &parent_config = parent_pdesc->getConfig();
+            int outputIndex = parentEdge->getInputNum();
+            if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
+                IE_THROW() << "Cannot find index of output node";
+            if (parent_config.outConfs[outputIndex].inPlace >= 0) {
+                hasInplaceParents = true;
+                break;
+            }
+        }
+        auto remove_from = std::remove_if(SPD_begin, SPD_end, [=](PrimitiveDescInfo &desc) {
+            return ((desc.getConfig().inConfs[0].inPlace >= 0) == hasInplaceParents);
+        });
+        // ToDo: remove this check after benchmark run.
+        if (remove_from == SPD_begin)
+            IE_THROW() << "Attempt to erase all supportedPrimitiveDescriptors.";
+        supportedPrimitiveDescriptors.erase(remove_from, SPD_end);
+    }
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
