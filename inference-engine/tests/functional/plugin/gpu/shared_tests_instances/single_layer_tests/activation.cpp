@@ -35,6 +35,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Negative,              {}},
         {Acos,                  {}},
         {Asin,                  {}},
+        {Asinh,                  {}},
         {Atan,                  {}},
         {Cos,                   {}},
         {Cosh,                  {}},
