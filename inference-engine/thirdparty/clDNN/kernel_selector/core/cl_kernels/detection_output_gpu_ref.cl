@@ -5,6 +5,7 @@
 #include "include/data_types.cl"
 #include "include/fetch_data.cl"
 #include "include/common.cl"
+#include "include/unit_type.cl"
 #include "include/detection_output_common.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -182,69 +183,76 @@ KERNEL (detection_output_ref_stage_0_caffe)(
     __global uchar *buffer0,
     __global int *buffer2)
 {
-    const int batchId = get_global_id(0);
-    const int classId = get_global_id(1);
-    const int box_gid = get_global_id(2);
+    const int classId = get_global_id(0) * NUM_CLASSES_PER_ITEM;
+    const int box_gid = get_global_id(1);
+    const int batchId = get_global_id(2);
 
-    const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
-    const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_OF_PRIORS);
+    int classes_leftover = ((NUM_CLASSES - (classId) >= NUM_CLASSES_PER_ITEM)) ?  0 : 1;
+    int n_classes_this_item = classes_leftover ? (NUM_CLASSES - classId) : NUM_CLASSES_PER_ITEM;
 
-    __local char bit_mask[NUM_BIT_MASK];
-    __local int block_num[NUM_SCORE_BLOCK];
+    const int start_bid = box_gid * NUM_PRIORS_PER_ITEM;
+    const int end_bid = min(start_bid + NUM_PRIORS_PER_ITEM, NUM_OF_PRIORS);
 
-    block_num[box_gid] = 0;
+    __local char4 bit_mask[NUM_BIT_MASK];
+    __local int4 block_num[NUM_PRIOR_BLOCKS];
+
+    block_num[box_gid] = (int4)(0, 0, 0, 0);
 
     {
         int mask_id = start_bid / 8;
-        int total_block_selected_num = 0;
         for (int i = start_bid; i < end_bid; i += 8) {
-            char mask = 0;
+            bit_mask[mask_id] = (char4)(0, 0, 0, 0);
             unroll_for (int bi = 0; bi < 8; bi++) {
                 if ((i + bi) >= NUM_OF_PRIORS)
                     break;
-                UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
-                int has_score = (score == -1) ? 0 : 1;
-                mask |= (has_score << bi);
-                total_block_selected_num += has_score;
+                int4 valid_scores = FUNC_CALL(filter_score4)(input_confidence, (i + bi), classId, batchId);
+                bit_mask[mask_id] |= ((convert_char4(valid_scores)) << bi);
+                block_num[box_gid] += valid_scores;
             }
-            bit_mask[mask_id] = mask;
+            if (classes_leftover) {
+                for (int c = n_classes_this_item; c < NUM_CLASSES_PER_ITEM; c++) {
+                    bit_mask[mask_id][c] = 0;
+                }
+            }
             mask_id++;
         }
-        block_num[box_gid] = total_block_selected_num;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
     {
-        if (box_gid == 0 && get_local_id(2) == 0) {
-            int acc_num = 0;
-            for (int i = 0; i < NUM_SCORE_BLOCK; i++) {
-                int n = block_num[i];
+        if (box_gid == 0 && get_local_id(1) == 0) {
+            int4 acc_num = (int4)(0, 0, 0, 0);
+            for (int i = 0; i < NUM_PRIOR_BLOCKS; i++) {
+                int4 n = block_num[i];
                 block_num[i] = acc_num;
                 acc_num += n;
             }
-            buffer2[batchId * NUM_CLASSES_ACC + classId] = acc_num;
+            for (int c = 0; c < n_classes_this_item ; ++c) {
+                buffer2[batchId * NUM_CLASSES_ACC + (classId + c)] = acc_num[c];
+            }
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
     {
-        __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
-
-        int write_offset = block_num[box_gid];
-
-        int mask_id = start_bid / 8;
+        int4 write_offsets = block_num[box_gid];
+        int mask_id = start_bid >> 3;
         for (int i = start_bid; i < end_bid; i += 8) {
-            const char mask = bit_mask[mask_id];
             for (int bi = 0; bi < 8; bi++) {
-                if ((mask & (1 << bi)) && (i + bi) < NUM_OF_PRIORS) {
-                    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                char bitset = 1 << bi;
+                if (all((bit_mask[mask_id] & bitset) == (char4)(0, 0, 0, 0)))
+                    continue;
+                float4 score4 = FUNC_CALL(get_score4)(input_confidence, (i + bi), classId, batchId);
+                for (int c = 0; c < n_classes_this_item; c++) {
+                    if ((bit_mask[mask_id][c] & bitset) == 0) continue;
+                    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId + c) * BUFFER_STRIDE];
                     SCORES_INFO score_info;
                     score_info.batchId = batchId;
-                    score_info.classId = classId;
+                    score_info.classId = classId + c;
                     score_info.boxId = i + bi;
-                    score_info.score = score;
-                    scoresList[write_offset] = score_info;
-                    write_offset++;
+                    score_info.score = score4[c];
+                    scoresList[write_offsets[c]] = score_info;
+                    write_offsets[c]++;
                 }
             }
             mask_id++;

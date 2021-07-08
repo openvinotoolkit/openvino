@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #define PRIOR_BOX_SIZE 4 // Each prior-box consists of [xmin, ymin, xmax, ymax].
 #define OUTPUT_ROW_SIZE 7 // Each detection consists of [image_id, label, confidence, xmin, ymin, xmax, ymax].
 
@@ -168,13 +167,24 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
     }
 }
 
-inline UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline UNIT_TYPE4 FUNC(get_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
-
-    return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : -1;
+    UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
+    int4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    return select((UNIT_TYPE4)(-1, -1, -1, -1), scores, compare);
 }
 
+inline int4 FUNC(filter_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+{
+    const uint confidence_offset =                    // offset in kernel input 'input_confidence'
+            (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
+            CONF_XY_SIZE_PRODUCT +
+            CONF_PADDING;
+    UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
+    int4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    return select((int4)(0, 0, 0, 0), (int4)(1, 1, 1, 1), compare);
+}

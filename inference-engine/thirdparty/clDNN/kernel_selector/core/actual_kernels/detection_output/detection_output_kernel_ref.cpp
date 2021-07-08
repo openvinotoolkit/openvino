@@ -29,6 +29,7 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     jit.AddConstants({
         MakeJitConstant("NUM_IMAGES", detectOutParams.num_images),
         MakeJitConstant("NUM_CLASSES", detectOutParams.num_classes),
+        MakeJitConstant("NUM_CLASSES_PER_ITEM", 4),
         MakeJitConstant("KEEP_TOP_K", detectOutParams.keep_top_k),
         MakeJitConstant("TOP_K", detectOutParams.top_k),
         MakeJitConstant("BACKGROUND_LABEL_ID", detectOutParams.background_label_id),
@@ -91,8 +92,8 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.gws = {input.Batch().v, num_prior_boxes, 1};
             dispatchData.lws = {1, 1, 1};
         } else {
-            dispatchData.gws = {input.Batch().v, num_classes, 256};
-            dispatchData.lws = {1, 1, 256};
+            dispatchData.gws = {CeilDiv(num_classes, 4), 256, input.Batch().v};
+            dispatchData.lws = {1, 256, 1};
         }
     } else if (idx == 1) {
         const size_t kSplitNum = 16;
@@ -190,8 +191,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
-                                       MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item),
-                                       MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
+                                       MakeJitConstant("NUM_PRIORS_PER_ITEM", num_score_per_item),
+                                       MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
             }
         } else if (i == 1) {
              if (detectOutParams.detectOutParams.decrease_label_id) {
