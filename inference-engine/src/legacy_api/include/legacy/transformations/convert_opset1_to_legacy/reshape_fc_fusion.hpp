@@ -25,7 +25,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnectedFusion);
+class ReshapeFullyConnectedFusion;
 
 }  // namespace pass
 }  // namespace ngraph

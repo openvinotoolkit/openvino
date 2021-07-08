@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertPadToLegacyMatcher);
+class ConvertPadToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

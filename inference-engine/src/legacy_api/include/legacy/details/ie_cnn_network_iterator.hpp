@@ -28,8 +28,7 @@ namespace details {
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class enables range loops for CNNNetwork objects
  */
-class INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-CNNNetworkIterator {
+class CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
     std::list<CNNLayerPtr> nextLayersToVisit {};

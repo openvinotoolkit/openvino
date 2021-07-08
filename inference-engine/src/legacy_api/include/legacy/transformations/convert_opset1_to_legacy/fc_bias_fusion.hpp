@@ -25,7 +25,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(FullyConnectedBiasFusion);
+class FullyConnectedBiasFusion;
 
 }  // namespace pass
 }  // namespace ngraph

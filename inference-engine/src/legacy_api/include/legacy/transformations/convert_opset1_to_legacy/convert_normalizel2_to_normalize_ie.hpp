@@ -15,8 +15,8 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2WithMulToNormalizeIE);
-class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2ToLegacyMatcher);
+class ConvertNormalizeL2WithMulToNormalizeIE;
+class ConvertNormalizeL2ToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph

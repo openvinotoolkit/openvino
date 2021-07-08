@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NormalizeIE) : public Op {
+class NormalizeIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"NormalizeIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

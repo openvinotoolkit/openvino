@@ -15,7 +15,7 @@
 
 namespace ngraph {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(RNNSequenceIE) : public ngraph::op::util::RNNCellBase {
+class RNNSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 

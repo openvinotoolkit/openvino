@@ -34,8 +34,6 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -51,22 +49,17 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
 add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-# Create shared library
+# Create static library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} STATIC
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Legacy library")
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml::static openvino::itt
                                              ngraph inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 
@@ -76,9 +69,3 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 # developer package
 
 openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
-
-# install
-
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)

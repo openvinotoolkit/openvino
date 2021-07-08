@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertMulAddToScaleShiftOrPower);
+class ConvertMulAddToScaleShiftOrPower;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -39,5 +39,5 @@ enum class CONVERSION_RESULT {
  *      NONE - default return value
  */
 
-INFERENCE_ENGINE_API_CPP(CONVERSION_RESULT)
+CONVERSION_RESULT
 check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);

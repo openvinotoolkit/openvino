@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(TopKIE) : public Op {
+class TopKIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"TopKIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
