@@ -21,7 +21,7 @@ Based on `across_channels` attribute mean value is calculated using one of formu
 
 where \f$i_{nchw}\f$ is an input tensor parametrized by \f$n\f$ batches, \f$c\f$ channels and \f$h,w\f$ spatial dimesnions.
 
-If `reduction_axes` is provided mean value is calculated based on formula:
+If `reduction_axes` attribute is provided mean value is calculated based on formula:
 \f[
 \mu_{n} = ReduceMean(i_{k}, reduction_axes)
 \f]
@@ -73,7 +73,7 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
   * **Default value**: 1e-9
   * **Required**: *yes*
 
-*   **Note** It is necessary to use `across_channels` or `reduction_axes` attribute, they cannot be defined together.
+*   **Note** It is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
 
 **Inputs**
 
@@ -114,11 +114,11 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
 </layer>
 ```
 
-*Example: with `reduced_axes` attribute*
+*Example: with `reduction_axes` attribute*
 
 ```xml
 <layer ... type="MVN">
-    <data reduced_axes="2,3" eps="1e-9" normalize_variance="true"/>
+    <data reduction_axes="2,3" eps="1e-9" normalize_variance="true"/>
     <input>
         <port id="0">
             <dim>6</dim>
