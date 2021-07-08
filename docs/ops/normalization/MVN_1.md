@@ -21,6 +21,10 @@ Based on `across_channels` attribute mean value is calculated using one of formu
 
 where \f$i_{nchw}\f$ is an input tensor parametrized by \f$n\f$ batches, \f$c\f$ channels and \f$h,w\f$ spatial dimesnions.
 
+If `reduction_axes` is provided mean value is calculated based on formula:
+
+\mu_{n} = ReduceMean(i_{k}, reduction_axes)
+
 Afterwards *MVN* subtracts mean value from the input blob.
 
 If *normalize_variance* is set to `true`, the output blob is divided by variance:
@@ -39,7 +43,15 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
     * `false` - do not share mean values across channels
     * `true` - share mean values across channels
   * **Type**: `boolean`
-  * **Default value**: `true`
+  * **Default value**: None
+  * **Required**: *no*
+
+* *reduction_axes*
+
+  * **Description**: 1D tensor of unique elements and type *T_IND* which specifies indices of dimensions in `data` that define normalization slices. Negative value means counting dimensions from the back.
+  * **Range of values**: allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order cannot be sorted
+  * **Type**: `int`
+  * **Default value**: None
   * **Required**: *no*
 
 * *normalize_variance*
@@ -49,7 +61,7 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
     * `false` - do not normalize variance
     * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: `true`
+  * **Default value**: None
   * **Required**: *no*
 
 * *eps*
@@ -60,9 +72,11 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
   * **Default value**: 1e-9
   * **Required**: *yes*
 
+*   **Note** It is necessary to use `across_channels` or `reduction_axes` attribute, they cannot be defined together.
+
 **Inputs**
 
-* **1**: input tensor of type *T* and arbitrary shape. **Required.**
+* **1**: `data` - input tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
@@ -71,12 +85,39 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
 **Types**
 
 * *T*: any floating point type.
+* *T_IND*: `int64` or `int32`.
 
-**Example**
+**Examples**
+
+*Example: with `across_channels` attribute*
 
 ```xml
 <layer ... type="MVN">
     <data across_channels="true" eps="1e-9" normalize_variance="true"/>
+    <input>
+        <port id="0">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example: with `reduced_axes` attribute*
+
+```xml
+<layer ... type="MVN">
+    <data reduced_axes="2,3" eps="1e-9" normalize_variance="true"/>
     <input>
         <port id="0">
             <dim>6</dim>
