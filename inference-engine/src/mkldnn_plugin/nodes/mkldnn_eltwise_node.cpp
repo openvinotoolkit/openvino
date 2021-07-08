@@ -125,12 +125,11 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
             } else if (eltwiseNode.getFusedWith()[i].get()->getType() == FakeQuantize) {
-                IE_THROW() << "[DS] Unimplemented";
-//                auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
-//                fakeQuantizeNode->appendPostOps(post_ops);
-//
-//                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-//                        this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+               auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+               fakeQuantizeNode->appendPostOps(post_ops);
+
+               quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
+                       this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 

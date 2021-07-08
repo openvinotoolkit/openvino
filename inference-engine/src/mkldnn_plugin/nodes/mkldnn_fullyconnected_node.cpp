@@ -12,6 +12,7 @@
 #include <mkldnn_extension_utils.h>
 #include <mkldnn.hpp>
 #include "utils/general_utils.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -283,7 +284,7 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
 
 void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
                                                 const std::vector<const MemoryDesc*> &outputDesc) {
-    createDescriptorInternal(*inputDesc[0]->as<MKLDNNMemoryDesc>(), *outputDesc[0]->as<MKLDNNMemoryDesc>());
+    createDescriptorInternal(MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]), MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]));
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {

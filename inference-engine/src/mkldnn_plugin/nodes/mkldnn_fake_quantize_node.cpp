@@ -19,6 +19,7 @@
 #include "ie_parallel.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <cpu_memory_desc_utils.h>
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -1220,13 +1221,13 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     jqp.wei_prc = Precision::FP32;
     jqp.dst_prc = config.outConfs[0].desc->getPrecision();
 
-    auto srcDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
-    jqp.s_str = srcDesc->getStrides();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    jqp.s_str = srcDesc.getStrides();
 
-    auto dstDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
-    jqp.d_str = dstDesc->getStrides();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    jqp.d_str = dstDesc.getStrides();
 
-    jqp.is_planar = srcDesc->checkGeneralLayout(GeneralLayout::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
+    jqp.is_planar = srcDesc.checkGeneralLayout(GeneralLayout::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
 
     jqp.op_type = getAlgorithm();
 

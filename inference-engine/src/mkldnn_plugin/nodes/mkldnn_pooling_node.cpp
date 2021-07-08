@@ -13,6 +13,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <utils/general_utils.h>
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -180,8 +181,8 @@ bool MKLDNNPoolingNode::created() const {
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
                                          const std::vector<const MemoryDesc*> &outputDesc) {
-    MKLDNNMemoryDesc in_candidate = *inputDesc[0]->as<MKLDNNMemoryDesc>();
-    MKLDNNMemoryDesc out_candidate = *outputDesc[0]->as<MKLDNNMemoryDesc>();
+    MKLDNNMemoryDesc in_candidate =  MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]);
+    MKLDNNMemoryDesc out_candidate = MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]);
 
     mkldnn::algorithm alg;
     if (algorithm == PoolingAvg) {
