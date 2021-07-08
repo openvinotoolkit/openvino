@@ -100,6 +100,7 @@ enum ActivationTypes {
     Negative,
     Acos,
     Asin,
+    Asinh,
     Atan,
     Cos,
     Cosh,

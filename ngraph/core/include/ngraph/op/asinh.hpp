@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API Asinh : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Asinh", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs an Asinh operation.
                 Asinh() = default;
                 /// \brief Constructs an Asinh operation.

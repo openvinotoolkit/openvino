@@ -6,6 +6,7 @@ VERIFIED_OP_REFERENCES = [
     'Acos-1',
     'Add-1',
     'Asin-1',
+    'Asinh-3',
     'Assign-6',
     'AvgPool-1',
     'BatchNormInference-5',

@@ -49,3 +49,18 @@ NGRAPH_TEST(${BACKEND_NAME}, asinh)
     test_case.add_expected_output<float>(shape, expected);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, asinh_i32)
+{
+    Shape shape{11};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Asinh>(A), ParameterVector{A});
+
+    vector<int> input{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+    vector<int> expected{-2, -2, -2, -1, -1, 0, 1, 1, 2, 2, 2};
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int>(input);
+    test_case.add_expected_output<int>(shape, expected);
+    test_case.run();
+}
