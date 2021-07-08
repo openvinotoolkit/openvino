@@ -94,6 +94,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         'Shape': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
+
         'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through(node, rc),
     }
 
@@ -279,7 +280,23 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+
+        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
     }
+
+    @staticmethod
+    def lift_up_through(node: Node, reverse_channels: Node):
+        if node.is_in_port_connected(0):
+            port = node.in_port(0)
+            axis = reverse_channels.axis
+            reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
+            src = port.get_connection().get_source()
+            port.get_connection().set_source(reverse_channels_copy.out_port(0))
+            src.connect(reverse_channels_copy.in_port(0))
+
+        reverse_channels.out_port(0).get_connection().set_source(
+            reverse_channels.in_port(0).get_connection().get_source())
+        reverse_channels.in_port(0).disconnect()
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):
