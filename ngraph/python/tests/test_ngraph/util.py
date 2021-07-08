@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Union
 
 import numpy as np
 

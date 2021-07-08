@@ -51,7 +51,7 @@ def gather(
         axis: NodeInput,
         batch_dims: Optional[int] = 0,
 ) -> Node:
-    """Return a node which performs Gather with support of negative indices
+    """Return a node which performs Gather with support of negative indices.
 
     @param data:         N-D tensor with data for gathering
     @param indices:      N-D tensor with indices by which data is gathered
