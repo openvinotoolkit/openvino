@@ -22,6 +22,7 @@
 #include <limits>
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -162,8 +163,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         auto config = refConfig;
 
-        const auto& order = (refConfig.outConfs[0].desc->as<BlockedMemoryDesc>())->getOrder();
-        const auto& blkDims = (refConfig.outConfs[0].desc->as<BlockedMemoryDesc>())->getBlockDims();
+        const auto &order = refConfig.outConfs[0].desc->as<BlockedMemoryDesc>()->getOrder();
+        const auto &blkDims = refConfig.outConfs[0].desc->as<BlockedMemoryDesc>()->getBlockDims();
         auto numOfDim = blkDims.size();
 
         SizeVector offsets(numOfDim, 0lu);
@@ -182,7 +183,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = make_unique<BlockedMemoryDesc>(outputPrecision, dstDims, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            const auto& srcBlkDims = (refConfig.inConfs[i].desc->as<BlockedMemoryDesc>())->getBlockDims();
+            const auto& srcBlkDims = refConfig.inConfs[i].desc->as<BlockedMemoryDesc>()->getBlockDims();
             const auto& dims = refConfig.inConfs[i].desc->getShape().getStaticDims();
 
             config.inConfs[i].inPlace = 0;
@@ -433,36 +434,35 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        auto outBlockingDesc = config.outConfs[i].desc->as<const BlockedMemoryDesc>();
-        config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc->getPrecision(), outBlockingDesc->getShape().getStaticDims(),
-                                                                 outBlockingDesc->getBlockDims(), outBlockingDesc->getOrder());
+        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[i].desc);
+        config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc.getPrecision(), outBlockingDesc.getShape().getStaticDims(),
+                                                                 outBlockingDesc.getBlockDims(), outBlockingDesc.getOrder());
     }
-    auto firstOutBlockingDesc = config.outConfs[0].desc->as<const BlockedMemoryDesc>();
+    auto firstOutBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
     size_t offset = 0;
     for (size_t i = 0; i < config.inConfs.size(); i++) {
-        auto inpDesc = config.inConfs[i].desc->clone();
-        auto inpBlockingDesc = inpDesc->as<const BlockedMemoryDesc>();
-        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
-                                                                inpBlockingDesc->getShape().getStaticDims(),
-                                                                inpBlockingDesc->getBlockDims(),
-                                                                inpBlockingDesc->getOrder(),
-                                                                firstOutBlockingDesc->getOffsetPadding() + offset,
-                                                                firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                firstOutBlockingDesc->getStrides());
+        auto inpBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
+        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inpBlockingDesc.getPrecision(),
+                                                                inpBlockingDesc.getShape().getStaticDims(),
+                                                                inpBlockingDesc.getBlockDims(),
+                                                                inpBlockingDesc.getOrder(),
+                                                                firstOutBlockingDesc.getOffsetPadding() + offset,
+                                                                firstOutBlockingDesc.getOffsetPaddingToData(),
+                                                                firstOutBlockingDesc.getStrides());
         size_t axisSize = 1;
 
-        auto firstInpBlockingDesc = config.inConfs[0].desc->as<BlockedMemoryDesc>();
-        if (firstInpBlockingDesc->checkGeneralLayout(GeneralLayout::nspc)) {
+        auto firstInpBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[0].desc);
+        if (firstInpBlockingDesc.checkGeneralLayout(GeneralLayout::nspc)) {
             // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for blocked
-            size_t realAxis = inverseOrder(firstInpBlockingDesc->getOrder(), axis);
-            for (size_t j = realAxis; j < inpBlockingDesc->getBlockDims().size(); j++) {
-                size_t jj = firstInpBlockingDesc->getOrder()[j];
-                axisSize *= inpBlockingDesc->getBlockDims()[jj];
+            size_t realAxis = inverseOrder(firstInpBlockingDesc.getOrder(), axis);
+            for (size_t j = realAxis; j < inpBlockingDesc.getBlockDims().size(); j++) {
+                size_t jj = firstInpBlockingDesc.getOrder()[j];
+                axisSize *= inpBlockingDesc.getBlockDims()[jj];
             }
         } else {
             // This works for nchw and nchw8c/nchw16c
-            for (size_t j = axis; j < inpBlockingDesc->getBlockDims().size(); j++) {
-                axisSize *= inpBlockingDesc->getBlockDims()[j];
+            for (size_t j = axis; j < inpBlockingDesc.getBlockDims().size(); j++) {
+                axisSize *= inpBlockingDesc.getBlockDims()[j];
             }
         }
         offset += axisSize;

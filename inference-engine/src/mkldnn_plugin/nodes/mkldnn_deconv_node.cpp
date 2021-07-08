@@ -16,6 +16,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <nodes/common/cpu_memcpy.h>
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -348,11 +349,11 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
 
 void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
                                                const std::vector<const MemoryDesc*> &outputDesc) {
-    const MKLDNNMemoryDesc* in_candidate = inputDesc[0]->as<MKLDNNMemoryDesc>();
-    const MKLDNNMemoryDesc* out_candidate = outputDesc[0]->as<MKLDNNMemoryDesc>();;
+    const MKLDNNMemoryDesc in_candidate = MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]);
+    const MKLDNNMemoryDesc out_candidate = MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]);
 
     // grouping and autoblicking is not compatible
-    if ((withGroups && !isDW) && (in_candidate->blocksExtended() || out_candidate->blocksExtended()))
+    if ((withGroups && !isDW) && (in_candidate.blocksExtended() || out_candidate.blocksExtended()))
         return;
 
     auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
@@ -364,25 +365,25 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDes
         mkldnn::memory::desc wgh_candidate(weightsDims, memory::data_type::s8, memory::format_tag::any);
         std::shared_ptr<mkldnn::deconvolution_forward::desc> deconv_desc;
         deconv_desc.reset(new deconvolution_forward::desc(prop_kind::forward_inference, mkldnn::algorithm::deconvolution_direct,
-                                                          *in_candidate, wgh_candidate, *out_candidate,
+                                                          in_candidate, wgh_candidate, out_candidate,
                                                           convertDims(stride), convertDims(dilation),
                                                           convertDims(paddingL), convertDims(paddingR)));
         descs.emplace_back(deconv_desc);
     } else {
         MKLDNNDims weightsDims = MKLDNNDims(weightDims);
-        mkldnn::memory::desc wgh_candidate(weightsDims, in_candidate->getDataType(), memory::format_tag::any);
+        mkldnn::memory::desc wgh_candidate(weightsDims, in_candidate.getDataType(), memory::format_tag::any);
         for (auto alg : {mkldnn::algorithm::convolution_winograd, mkldnn::algorithm::convolution_direct}) {
             std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
             conv_desc.reset(new convolution_forward::desc(prop_kind::forward_inference, alg,
-                                                          *out_candidate, wgh_candidate, *in_candidate,
+                                                          out_candidate, wgh_candidate, in_candidate,
                                                           convertDims(stride),
                                                           convertDims(dilation),
                                                           convertDims(paddingL),
                                                           convertDims(paddingR)));
 
             std::shared_ptr<mkldnn::convolution_backward_data::desc> deconv_desc;
-            deconv_desc.reset(new convolution_backward_data::desc(alg, *out_candidate, wgh_candidate,
-                                                                  *in_candidate,
+            deconv_desc.reset(new convolution_backward_data::desc(alg, out_candidate, wgh_candidate,
+                                                                  in_candidate,
                                                                   convertDims(stride),
                                                                   convertDims(dilation),
                                                                   convertDims(paddingL),

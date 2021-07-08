@@ -6,6 +6,7 @@
 #include <string>
 #include <mkldnn_extension_utils.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <cpu_memory_desc_utils.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -128,7 +129,7 @@ void MKLDNNLrnNode::createDescriptor(const std::vector<const MemoryDesc*> &input
                                      const std::vector<const MemoryDesc*> &outputDesc) {
     mkldnn::algorithm alg = isAcrossMaps ? mkldnn::algorithm::lrn_across_channels : mkldnn::algorithm::lrn_within_channel;
     MKLDNNDescriptor desc(std::shared_ptr<mkldnn::lrn_forward::desc>(
-            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, *inputDesc[0]->as<MKLDNNMemoryDesc>(),
+            new mkldnn::lrn_forward::desc(mkldnn::prop_kind::forward_scoring, alg, MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]),
                                           size, alpha, beta, k)));
     descs.push_back(desc);
 }

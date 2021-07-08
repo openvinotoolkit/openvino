@@ -10,6 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include <ie_parallel.hpp>
 #include "utils/general_utils.h"
+#include <cpu_memory_desc_utils.h>
 
 #define THROW_ERROR IE_THROW() << "Split layer with name '" << getName() <<"' "
 
@@ -191,9 +192,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = make_unique<BlockedMemoryDesc>(inpPrecision, srcShape.getStaticDims(), blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto outBlockingDesc = refConfig.outConfs[i].desc->as<BlockedMemoryDesc>();
-            const auto& outBlkDims = outBlockingDesc->getBlockDims();
-            const auto& dims = outBlockingDesc->getShape().getStaticDims();
+            auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*refConfig.outConfs[i].desc);
+            const auto& outBlkDims = outBlockingDesc.getBlockDims();
+            const auto& dims = outBlockingDesc.getShape().getStaticDims();
 
             config.outConfs[i].inPlace = 0;
             config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outPrecision, dims, outBlkDims, order, offset, offsets, strides);
@@ -358,31 +359,31 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        auto inBlockingDesc = config.inConfs[i].desc->as<const BlockedMemoryDesc>();
-        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inBlockingDesc->getPrecision(),
-                                                                inBlockingDesc->getShape().getStaticDims(),
-                                                                inBlockingDesc->getBlockDims(),
-                                                                inBlockingDesc->getOrder());
+        auto inBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
+        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inBlockingDesc.getPrecision(),
+                                                                inBlockingDesc.getShape().getStaticDims(),
+                                                                inBlockingDesc.getBlockDims(),
+                                                                inBlockingDesc.getOrder());
     }
     if (config.outConfs.size() != outputShapes.size())
         THROW_ERROR << "has invalid config";
 
-    auto firstInBlockingDesc = config.inConfs[0].desc->as<const BlockedMemoryDesc>();
+    auto firstInBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[0].desc);
     size_t offset = 0;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto outDesc = config.outConfs[i].desc->clone();
-        auto outBlockingDesc = outDesc->as<const BlockedMemoryDesc>();
-        config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc->getPrecision(),
-                                                                 outBlockingDesc->getShape().getStaticDims(),
-                                                                 outBlockingDesc->getBlockDims(),
-                                                                 outBlockingDesc->getOrder(),
-                                                                 firstInBlockingDesc->getOffsetPadding() + offset,
-                                                                 firstInBlockingDesc->getOffsetPaddingToData(),
-                                                                 firstInBlockingDesc->getStrides());
+        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*outDesc);
+        config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc.getPrecision(),
+                                                                 outBlockingDesc.getShape().getStaticDims(),
+                                                                 outBlockingDesc.getBlockDims(),
+                                                                 outBlockingDesc.getOrder(),
+                                                                 firstInBlockingDesc.getOffsetPadding() + offset,
+                                                                 firstInBlockingDesc.getOffsetPaddingToData(),
+                                                                 firstInBlockingDesc.getStrides());
 
         size_t axisSize = 1;
-        for (size_t j = axis; j < outBlockingDesc->getBlockDims().size(); j++) {
-            axisSize *= outBlockingDesc->getBlockDims()[j];
+        for (size_t j = axis; j < outBlockingDesc.getBlockDims().size(); j++) {
+            axisSize *= outBlockingDesc.getBlockDims()[j];
         }
         offset += axisSize;
     }
@@ -397,7 +398,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
         auto plain = PartialBlkDesc::makePlain(getParentEdgeAt(0)->getShape().getStaticDims());
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
-            if (PartialBlkDesc::extractFrom(*pd.getConfig().inConfs[0].desc->as<BlockedMemoryDesc>()) == plain &&
+            if (PartialBlkDesc::extractFrom(MemoryDescUtils::convertToBlockedDescriptor(*pd.getConfig().inConfs[0].desc)) == plain &&
                 impl_desc_type::ref == pd.getImplementationType()) {
                     selectPrimitiveDescriptorByIndex(static_cast<int>(i));
                 return;
@@ -497,11 +498,11 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
-    const auto inpTensorDesc = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc->as<BlockedMemoryDesc>();
+    const auto inpTensorDesc = MemoryDescUtils::convertToBlockedDescriptor(*selectedPrimitiveDescriptor->getConfig().inConfs[0].desc);
     const auto outputPortsCount = outputShapes.size();
 
     //find axis order position
-    const auto& order = inpTensorDesc->getOrder();
+    const auto& order = inpTensorDesc.getOrder();
     unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] == axis) {
@@ -513,8 +514,8 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
         THROW_ERROR << "Can't find the axis in the input tensor order list";
     }
 
-    uint8_t srcDataSize = inpTensorDesc->getPrecision().size();
-    const auto& srcDims = inpTensorDesc->getBlockDims();
+    uint8_t srcDataSize = inpTensorDesc.getPrecision().size();
+    const auto& srcDims = inpTensorDesc.getBlockDims();
     const auto getRank = srcDims.size();
 
     optimizedParams.countStrides = 1;

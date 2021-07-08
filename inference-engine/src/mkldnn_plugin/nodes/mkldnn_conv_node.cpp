@@ -18,6 +18,7 @@
 #include <ngraph/ops.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include "common/cpu_convert.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -480,13 +481,13 @@ bool MKLDNNConvolutionNode::created() const {
 
 void MKLDNNConvolutionNode::createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
                                              const std::vector<const MemoryDesc*>& outputDesc) {
-    auto inDesc = inputDesc[0]->as<MKLDNNMemoryDesc>();
-    auto outDesc = outputDesc[0]->as<MKLDNNMemoryDesc>();
+    auto inDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(*inputDesc[0]);
+    auto outDesc = MemoryDescUtils::convertToMKLDNNMemoryDesc(*outputDesc[0]);
 
-    memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc->getPrecision());
+    memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
     memory::data_type bdt = memory::data_type::f32;
 
-    if (inDesc->getPrecision() == Precision::U8 || inDesc->getPrecision() == Precision::I8) {
+    if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
         wdt = memory::data_type::s8;
     }
 
@@ -507,14 +508,14 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<const MemoryDesc*
                 mkldnn::memory::desc bias_candidate(blocked_biasesDims, bdt, memory::format_tag::any);
 
                 conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                            *inDesc, wgh_candidate, bias_candidate, *outDesc,
+                            inDesc, wgh_candidate, bias_candidate, outDesc,
                             mkldnn::memory::dims(stride.begin(), stride.end()),
                             mkldnn::memory::dims(dilation.begin(), dilation.end()),
                             mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
                             mkldnn::memory::dims(paddingR.begin(), paddingR.end())));
             } else {
                 conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                            *inDesc, wgh_candidate, *outDesc,
+                            inDesc, wgh_candidate, outDesc,
                             mkldnn::memory::dims(stride.begin(), stride.end()),
                             mkldnn::memory::dims(dilation.begin(), dilation.end()),
                             mkldnn::memory::dims(paddingL.begin(), paddingL.end()),
