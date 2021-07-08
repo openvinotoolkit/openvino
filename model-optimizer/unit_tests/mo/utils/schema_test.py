@@ -11,6 +11,9 @@ from generator import generator, generate
 path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'extensions', 'front',)
 schema_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'mo', 'utils', 'schema.json')
 
+test_json1 = '[{"id": "", "match_kind": "general", "custom_attributes": {}}]'
+test_json2 = '[{"id": "someid", "match_kind": "abc", "custom_attributes": {}}]'
+
 @generator
 class TestSchema(unittest.TestCase):
     @generate(*[('tf', 'efficient_det_support_api_v2.0.json'),
@@ -63,3 +66,23 @@ class TestSchema(unittest.TestCase):
             schema = json.load(f)
             validator = json_validate.compile(schema)
             validator(data)
+
+    def test_schema_id_empty(self):
+        data = json.loads(test_json1)
+        try:
+            with open(schema_file, 'r') as f:
+                schema = json.load(f)
+                validator = json_validate.compile(schema)
+                validator(data)
+        except Exception as e:
+            assert e.message == "data[0].id must be longer than or equal to 1 characters"
+
+    def test_schema_match_kind_wrong(self):
+        data = json.loads(test_json2)
+        try:
+            with open(schema_file, 'r') as f:
+                schema = json.load(f)
+                validator = json_validate.compile(schema)
+                validator(data)
+        except Exception as e:
+            assert e.message == "data[0].match_kind must be one of ['points', 'scope', 'general']"

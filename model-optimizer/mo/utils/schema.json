@@ -107,6 +107,18 @@
 					}
 				}
 
+			},
+			"include_inputs_to_sub_graph": {
+				"$id": "#root/items/include_inputs_to_sub_graph", 
+				"title": "Include_inputs_to_sub_graph",
+				"type": "boolean",
+				"default": false
+			},
+			"include_outputs_to_sub_graph": {
+				"$id": "#root/items/include_outputs_to_sub_graph", 
+				"title": "Include_outputs_to_sub_graph",
+				"type": "boolean",
+				"default": false
 			}
 		}
 	}
