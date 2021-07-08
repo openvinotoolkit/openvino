@@ -18,7 +18,7 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
-            'version': 'opset7',
+            'version': 'opset8',
             'batch_dims': 0,
             'infer': self.infer,
             'force_precision_in_ports': {1: 'int32', 2: 'int64'},
@@ -31,6 +31,8 @@ class Gather(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
+        if version == 'opset8':
+            return ['batch_dims']
         if version == 'opset7':
             return ['batch_dims']
         elif version == 'opset1':
@@ -75,7 +77,7 @@ class Gather(Op):
 
         # we import PermuteInputs locally because it uses Gather inside and we have recursive imports
         from mo.graph.perm_inputs import PermuteInputs
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'axis')
 
         batch_dims_range = indices_shape[:batch_dims]
         out_shape = np.concatenate((data_shape[:axis], indices_shape[batch_dims:], data_shape[axis + 1:]))

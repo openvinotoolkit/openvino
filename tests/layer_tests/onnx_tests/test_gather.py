@@ -259,3 +259,18 @@ class TestGather(OnnxRuntimeLayerTest):
     def test_gather_const(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision, ir_version,
                    temp_dir=temp_dir)
+
+    test_data_negative_indices = [dict(shape=[10, 12], axis=0, indices=[3, -1, -4], output_shape=[3, 12]),
+                                  dict(shape=[6, 10, 14, 12], axis=1, indices=[[0, -1, 3, -4], [-5, 6, -7, 8]],
+                                       output_shape=[6, 2, 4, 14, 12]),
+                                  dict(shape=[8, 10, 14, 12], axis=1, indices=[[-2, 2, -4], [5, -7, 9]],
+                                       output_shape=[8, 2, 3, 14, 12]),
+                                  dict(shape=[6, 8, 10, 12], axis=-1, indices=[[[2, -1], [3, 2]], [[5, -1], [3, -2]]],
+                                       output_shape=[6, 8, 10, 2, 2, 2])]
+
+    @pytest.mark.xfail(reason='negative indices are not implemented on CPU: xxx-54630')
+    @pytest.mark.parametrize("params", test_data_negative_indices)
+    @pytest.mark.nightly
+    def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

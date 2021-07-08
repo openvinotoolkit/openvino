@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Union
 
 import numpy as np
 
@@ -16,7 +16,7 @@ def _get_numpy_dtype(scalar):
 
 
 def run_op_node(input_data, op_fun, *args):
-    # type: (NumericData, Callable, *Any) -> List[NumericData]
+    # type: (Union[NumericData, List[NumericData]], Callable, *Any) -> List[NumericData]
     """Run computation on node performing `op_fun`.
 
     `op_fun` has to accept a node as an argument.
