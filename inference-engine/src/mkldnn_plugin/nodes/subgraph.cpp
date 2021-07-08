@@ -396,6 +396,14 @@ void MKLDNNSnippetNode::define_shedule() {
 
     auto find_dims_to_collapse = [this, config]() -> int {
         int collapsedDims = 0;
+        // TODO: we support dim collapsion only for equal in and out dims without broadcasting now
+        for (int i = 0; i < dims_in.size(); i++) {
+            for (int j = 0; j < dims_out.size(); j++) {
+                if (dims_in[i] != dims_out[j])
+                    return collapsedDims;
+            }
+        }
+
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
@@ -465,7 +473,7 @@ void MKLDNNSnippetNode::define_shedule() {
 
     isDynBatchEnabled = config.dynBatchSupport;
 
-    int collapsedDims = 0; // find_dims_to_collapse();
+    const int collapsedDims = find_dims_to_collapse();
     batchDimIdx = tensorRank - config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
