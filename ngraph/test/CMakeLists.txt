@@ -110,6 +110,7 @@ set(SRC
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
+    type_prop/cosh.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -240,6 +241,7 @@ set(SRC
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
+    visitors/op/cosh.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
