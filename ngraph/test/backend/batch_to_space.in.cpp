@@ -79,6 +79,27 @@ NGRAPH_TEST_P(${BACKEND_NAME}, BatchToSpaceTestFloat, BatchToSpaceTestFloatCases
     BatchToSpaceTestExecute(GetParam());
 }
 
+const test::NDArray<float, 2> input_with_shape_4x3(
+    {{1.0f, 2.0f, 3.0f},
+     {4.0f, 5.0f, 6.0f},
+     {7.0f, 8.0f, 9.0f},
+     {10.0f, 11.0f, 12.0f}});
+
+const test::NDArray<int64_t, 1> zero_crops_2d({0, 0});
+
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
+    ${BACKEND_NAME},
+    batch_to_space_2d_without_crops,
+    BatchToSpaceTestFloat,
+    testing::Values(
+        BatchToSpaceParams<float>{input_with_shape_4x3,
+                                  test::NDArray<int64_t, 1>({1, 2}),
+                                  zero_crops_2d,
+                                  zero_crops_2d,
+                                  test::NDArray<float, 2>(
+                                      {{1.0f, 7.0f, 2.0f, 8.0f, 3.0f, 9.0f},
+                                       {4.0f, 10.0f, 5.0f, 11.0f, 6.0f, 12.0f}})}));
+
 const test::NDArray<float, 4> input_with_shape_4x1x1x3(
     {{{{1.0f, 2.0f, 3.0f}}},
     {{{4.0f, 5.0f, 6.0f}}},
