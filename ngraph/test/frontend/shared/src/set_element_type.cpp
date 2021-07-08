@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/set_element_type.hpp"
-#include "../include/utils.hpp"
+#include "set_element_type.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;

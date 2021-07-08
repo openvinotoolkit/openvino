@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/cut_specific_model.hpp"
-#include "../include/utils.hpp"
+#include "cut_specific_model.hpp"
+#include "utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;

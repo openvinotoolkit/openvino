@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/partial_shape.hpp"
-#include "../include/utils.hpp"
+#include "partial_shape.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
