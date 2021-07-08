@@ -185,8 +185,14 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
+file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
+                             "${LEGACY_SRC_ROOT}/*.hpp")
+
+set_source_files_properties(${legacy_src} PROPERTIES
+    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             ${IE_STATIC_DEPENDENT_FILES})
 
