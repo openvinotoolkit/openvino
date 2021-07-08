@@ -50,7 +50,7 @@ Configure YUM with the OpenVINO repository to install OpenVINO. You have two opt
 
 * **OPTION 2:** Create the repository file manually:
 
-   1. Create the YUM repo file in the /temp directory as a normal user:
+   1. Create the YUM repo file in the /tmp directory as a normal user:
    ```sh
    tee > /tmp/openvino-2021.repo << EOF
    [intel-openvino-2021]
