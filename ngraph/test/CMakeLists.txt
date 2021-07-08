@@ -202,6 +202,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
@@ -287,6 +288,7 @@ set(SRC
     visitors/op/round.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sign.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -668,4 +670,3 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 endif()
-
