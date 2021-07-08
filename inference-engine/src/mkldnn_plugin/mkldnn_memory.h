@@ -94,12 +94,11 @@ public:
 
     std::string serializeFormat() const override;
 
-    bool isDefined() const override {
-        return true;
-    }
+    bool isDefined() const override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
+    bool isCompatible(const MKLDNNMemoryDesc& rhs) const;
 
 private:
     size_t getMemSizeImp() const override;

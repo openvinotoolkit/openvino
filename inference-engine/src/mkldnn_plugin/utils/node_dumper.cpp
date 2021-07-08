@@ -69,7 +69,7 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        // TODO [mkutakov]: rewrite BlobDumper to use MKLDNNMemory
+        // TODO [DS]: rewrite BlobDumper to use MKLDNNMemory
 //        BlobDumper dumper(prEdge->getBlob());
 //        if (pr->ext_scales)
 //            dumper.withScales(pr->ext_scales);
@@ -106,7 +106,7 @@ void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
         if (desc.getPrecision() == Precision::BIN)
             continue;
 
-        // TODO [mkutakov]: rewrite BlobDumper to use MKLDNNMemory
+        // TODO [DS]: rewrite BlobDumper to use MKLDNNMemory
 //        BlobDumper dumper(childEdge->getBlob());
 //        if (node->ext_scales)
 //            dumper.withScales(node->ext_scales);

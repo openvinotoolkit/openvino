@@ -123,10 +123,10 @@ InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDes
 }
 
 MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const MemoryDesc& desc) {
-    if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&desc)) {
-        return convertToMKLDNNMemoryDesc(*blockingDesc);
-    } else if (auto mkldnnDesc = dynamic_cast<const MKLDNNMemoryDesc*>(&desc)) {
-        return *mkldnnDesc;
+    if (MemoryDescType::Blocked == desc.getType()) {
+        return convertToMKLDNNMemoryDesc(*(desc.as<BlockedMemoryDesc>()));
+    } else if (MemoryDescType::Mkldnn == desc.getType()) {
+        return *(desc.as<MKLDNNMemoryDesc>());
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to MKLDNNMemoryDesc";
     }
@@ -330,22 +330,39 @@ BlockedMemoryDesc MemoryDescUtils::convertToBlockedDescriptor(const MemoryDesc &
     }
 }
 
-//MemoryDescPtr MemoryDescUtils::getUndefinedMemoryDesc(const MKLDNNMemoryDesc& desc) {
-//    if (desc.getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
-//        IE_THROW() << "Cannot get undefined memory descriptor for non blocked format kind";
-//
-//    BlockedMemoryDesc bd = convertToBlockedDescriptor(desc);
-//
-//    std::vector<size_t> notInitArr;
-//    std::vector<size_t> zeroArr;
-//    for (size_t i = 0; i < bd.getBlockDims().size(); i++) {
-//        notInitArr.push_back(std::numeric_limits<size_t>::max());
-//        zeroArr.push_back(0);
-//    }
-//    // MKLDNN doesn't support offset_padding_to_data[i] != 0 (assert(src_d_blk.offset_padding_to_data[d] == 0);)
-//    auto retDesc = make_unique<BlockedMemoryDesc>(bd.getPrecision(), bd.getShape().getDims(), bd.getBlockDims(),
-//                                                  bd.getOrder(), std::numeric_limits<size_t>::max(), zeroArr, notInitArr);
-//    return retDesc;
-//}
+MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const MKLDNNMemoryDesc& desc) {
+    if (desc.getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
+        return make_unique<MKLDNNMemoryDesc>(desc);
+
+    mkldnn::memory::desc retDesc = desc;
+    retDesc.data.offset0 = Shape::UNDEFINED_DIM;
+    return make_unique<MKLDNNMemoryDesc>(retDesc);
+}
+
+MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const BlockedMemoryDesc &desc) {
+    std::vector<size_t> strides;
+    std::vector<size_t> offsetPaddingToData;
+
+    strides.resize(desc.getBlockDims().size(), Shape::UNDEFINED_DIM);
+    offsetPaddingToData.resize(desc.getBlockDims().size(), 0);
+    size_t offsetPadding = Shape::UNDEFINED_DIM;
+
+    return make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape().getDims(), desc.getBlockDims(),
+                                                  desc.getOrder(), offsetPadding, offsetPaddingToData, strides);
+}
+
+MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
+    if (MemoryDescType::Blocked == desc->getType()) {
+        auto blockedDesc = desc->as<BlockedMemoryDesc>();
+        return make_unique<BlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape().getDims(),
+                                              blockedDesc->getBlockDims(), blockedDesc->getOrder());
+    } else if (MemoryDescType::Mkldnn == desc->getType()) {
+        auto mkldnnDesc = desc->as<MKLDNNMemoryDesc>();
+        mkldnn::memory::desc retDesc = *mkldnnDesc;
+        retDesc.data.offset0 = 0;
+        return make_unique<MKLDNNMemoryDesc>(retDesc);
+    }
+    return desc->clone();
+}
 
 } // namespace MKLDNNPlugin

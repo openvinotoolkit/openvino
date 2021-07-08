@@ -310,36 +310,36 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isConfigDefined(config))
         return;
-
-    for (size_t i = 0; i < config.outConfs.size(); i++) { //TODO [mkutakov]: why did we introduce this loop?
-//        if (config.outConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
-//                !isUninitTensorDesc(config.outConfs[i].desc))
+    //TODO [mkutakov]: why did we introduce this loop?
+//    for (size_t i = 0; i < config.outConfs.size(); i++) {
+////        if (config.outConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
+////                !isUninitTensorDesc(config.outConfs[i].desc))
+////            continue;
+//        if (config.outConfs[i].desc->isDefined())
 //            continue;
-        if (config.outConfs[i].desc->isDefined())
-            continue;
-
-        int num = getChildEdgeAt(i)->getOutputNum();
-        if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-            if (num >= 0) {
-                auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-                childConf.desc->setPrecision(config.outConfs[i].desc->getPrecision());
-
-                if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
-                    getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
-
-                if (!childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[i].desc)) {
-                    config.outConfs[i].desc = childConf.desc->clone();
-                    continue;
-                }
-            }
-        }
-        // TODO [DS]: Why do we need this code?
-//        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
-//                                                              config.outConfs[i].desc.getDims(), {
-//                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
-//                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder()
-//                                                              });
-    }
+//
+//        int num = getChildEdgeAt(i)->getOutputNum();
+//        if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
+//            if (num >= 0) {
+//                auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
+//                childConf.desc->setPrecision(config.outConfs[i].desc->getPrecision());
+//
+//                if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
+//                    getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
+//
+//                if (!childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[i].desc)) {
+//                    config.outConfs[i].desc = childConf.desc->clone();
+//                    continue;
+//                }
+//            }
+//        }
+//        // TODO [DS]: Why do we need this code?
+////        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
+////                                                              config.outConfs[i].desc.getDims(), {
+////                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
+////                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder()
+////                                                              });
+//    }
 
     for (size_t i = 0; i < config.inConfs.size(); i++) {
         if (config.inConfs[i].desc->isDefined())
@@ -359,11 +359,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        auto inBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
-        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inBlockingDesc.getPrecision(),
-                                                                inBlockingDesc.getShape().getStaticDims(),
-                                                                inBlockingDesc.getBlockDims(),
-                                                                inBlockingDesc.getOrder());
+        config.inConfs[i].desc = MemoryDescUtils::resetOffset(config.inConfs[i].desc.get());
     }
     if (config.outConfs.size() != outputShapes.size())
         THROW_ERROR << "has invalid config";
@@ -371,8 +367,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto firstInBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[0].desc);
     size_t offset = 0;
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        auto outDesc = config.outConfs[i].desc->clone();
-        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*outDesc);
+        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[i].desc);
         config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc.getPrecision(),
                                                                  outBlockingDesc.getShape().getStaticDims(),
                                                                  outBlockingDesc.getBlockDims(),
@@ -395,10 +390,9 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     // This is needed mostly for the testing purposes, since for the planar layout Split works always in place, we need to enforce
     // the reference implementation when it is selected in a test to test that piece of code.
     if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
-        auto plain = PartialBlkDesc::makePlain(getParentEdgeAt(0)->getShape().getStaticDims());
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
-            if (PartialBlkDesc::extractFrom(MemoryDescUtils::convertToBlockedDescriptor(*pd.getConfig().inConfs[0].desc)) == plain &&
+            if (pd.getConfig().inConfs[0].desc->checkGeneralLayout(GeneralLayout::ncsp) &&
                 impl_desc_type::ref == pd.getImplementationType()) {
                     selectPrimitiveDescriptorByIndex(static_cast<int>(i));
                 return;
@@ -498,7 +492,7 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << "CPU Split node with name '" << getName() << "' doesn't have primitive descriptors.";
-    const auto inpTensorDesc = MemoryDescUtils::convertToBlockedDescriptor(*selectedPrimitiveDescriptor->getConfig().inConfs[0].desc);
+    const auto inpTensorDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     const auto outputPortsCount = outputShapes.size();
 
     //find axis order position

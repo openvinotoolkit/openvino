@@ -143,10 +143,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].inPlace = -1;
             config.inConfs[i].constant = false;
-            // TODO [mkutakov]: remove if there is no inpact on preformance (inPlace context)
-//            config.inConfs[i].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-//                    itr->second->createDesc(inputPrecision, getParentEdgeAt(i)->getShape().getStaticDims()));
-            config.inConfs[i].desc = itr->second->createUniqueDesc(inputPrecision, getParentEdgeAt(i)->getShape().getStaticDims());
+            config.inConfs[i].desc = MemoryDescUtils::applyUndefinedOffset(
+                    itr->second->createDesc(inputPrecision, getParentEdgeAt(i)->getShape().getStaticDims()));
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != GeneralLayout::nspc) {
@@ -386,33 +384,27 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
 
    if (!isOptimized()) {
        MKLDNNNode::initOptimalPrimitiveDescriptor();
-       //TODO [mkutakov]: seems unnecessary since we can check compatibility between defined and undefined descriptors
-//
-//        auto config = selected_pd->getConfig();
-//        if (!isConfigDefined(config)) {
-//            for (size_t i = 0; i < config.inConfs.size(); i++) {
-//                config.inConfs[i].desc = getConfiguredInputDesc(config, i);
-//                // Concat doesn't support different precision on inputs
-//                config.inConfs[i].desc.setPrecision(inputPrecision);
-//            }
-//
-//            for (size_t i = 0; i < config.outConfs.size(); i++) {
-//                config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
-//                config.outConfs[i].desc.setPrecision(outputPrecision);
-//            }
-//
-//            initDescriptor(config);
-//        }
-//
+        auto config = selected_pd->getConfig();
+        if (!isConfigDefined(config)) {
+            for (size_t i = 0; i < config.inConfs.size(); i++) {
+                config.inConfs[i].desc = getDefinedInputDesc(config, i);
+                // Concat doesn't support different precision on inputs
+                config.inConfs[i].desc->setPrecision(inputPrecision);
+            }
+
+            for (size_t i = 0; i < config.outConfs.size(); i++) {
+                config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+                config.outConfs[i].desc->setPrecision(outputPrecision);
+            }
+
+            initDescriptor(config);
+        }
     }
 
     auto config = selected_pd->getConfig();
     if (isConfigDefined(config))
         return;
 
-    //TODO [mkutakov]: seems unnecessary since the output is always defined now. To check on benchmark
-    // moreover, probably this code did not work earlier since initSupportedPrimitiveDescriptors() set
-    // only initialized output configs.
     for (size_t i = 0; i < config.outConfs.size(); i++) {
         if (config.outConfs[i].desc->isDefined())
             continue;
@@ -434,9 +426,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         }
 
         // reset undefined offsets
-        auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[i].desc);
-        config.outConfs[i].desc = make_unique<BlockedMemoryDesc>(outBlockingDesc.getPrecision(), outBlockingDesc.getShape().getStaticDims(),
-                                                                 outBlockingDesc.getBlockDims(), outBlockingDesc.getOrder());
+        config.outConfs[i].desc = MemoryDescUtils::resetOffset(config.outConfs[i].desc.get());
     }
     auto firstOutBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
     size_t offset = 0;

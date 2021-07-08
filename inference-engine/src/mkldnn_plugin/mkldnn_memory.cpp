@@ -18,7 +18,6 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn/ie_mkldnn.h"
 #include "cpu_shape.h"
-#include "utils/cpu_utils.hpp"
 #include "cpu_memory_desc_utils.h"
 
 using namespace InferenceEngine;
@@ -970,14 +969,24 @@ size_t MKLDNNMemoryDesc::getOffset(size_t elemNumber) const {
 }
 
 bool MKLDNNMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
-    if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&rhs)) {
-        return isCompatible(*blockingDesc);
-    } else if (auto mkldnnDesc = dynamic_cast<const MKLDNNMemoryDesc*>(&rhs)) {
-        return *this == *mkldnnDesc;
+    if (MemoryDescType::Blocked == rhs.getType()) {
+        return isCompatible(*(rhs.as<BlockedMemoryDesc>()));
+    } else if (MemoryDescType::Mkldnn == rhs.getType()) {
+        return isCompatible(*(rhs.as<MKLDNNMemoryDesc>()));
     } else {
         return false;
     }
 }
+
+bool MKLDNNMemoryDesc::isCompatible(const MKLDNNMemoryDesc &rhs) const {
+    if (this->desc == rhs.desc) {
+        return true;
+    }
+    mkldnn::impl::memory_desc_wrapper wrappedThis(this->desc.data);
+    mkldnn::impl::memory_desc_wrapper wrappedRhs(rhs.desc.data);
+    return wrappedThis.similar_to(wrappedRhs);
+}
+
 
 /**
  * Check compatibility with to BlockedMemoryDesc
@@ -1047,15 +1056,18 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    // blocked strides
-    // [outer_strides via new_outer_order] U [inner_strides]
-    SizeVector blk_strides(total_ndims, 0);
-    std::copy(inner_strides.rbegin(), inner_strides.rend(), blk_strides.rbegin());
-    std::transform(outer_order.begin(), outer_order.end(), blk_strides.begin(),
-                   [&] (size_t i) { return blk_desc.strides[i]; });
+    //TODO [DS]: undefined offset is also used now as an indicator of undefined strides
+    if (desc.data.offset0 != Shape::UNDEFINED_DIM) {
+        // blocked strides
+        // [outer_strides via new_outer_order] U [inner_strides]
+        SizeVector blk_strides(total_ndims, 0);
+        std::copy(inner_strides.rbegin(), inner_strides.rend(), blk_strides.rbegin());
+        std::transform(outer_order.begin(), outer_order.end(), blk_strides.begin(),
+                       [&](size_t i) { return blk_desc.strides[i]; });
 
-    if (!isEqualOrUndefined(blk_strides, rhs.getStrides())) {
-        return false;
+        if (!isEqualOrUndefined(blk_strides, rhs.getStrides())) {
+            return false;
+        }
     }
 
     // blocked dims
@@ -1112,5 +1124,9 @@ std::string MKLDNNMemoryDesc::serializeFormat() const {
     }
     auto fmt = getFormat();
     return mkldnn::utils::fmt2str(fmt);
+}
+
+bool MKLDNNMemoryDesc::isDefined() const {
+    return desc.data.offset0 != Shape::UNDEFINED_DIM;
 }
 }  // namespace MKLDNNPlugin

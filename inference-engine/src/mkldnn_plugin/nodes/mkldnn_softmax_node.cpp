@@ -93,30 +93,30 @@ bool MKLDNNSoftMaxNode::created() const {
     return getType() == Softmax;
 }
 
-// TODO [DS]: inPlace
-// void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
-//     auto selected_pd = getSelectedPrimitiveDescriptor();
-//     if (selected_pd == nullptr)
-//         IE_THROW() << "Preferable primitive descriptor is not set.";
-//     auto config = selected_pd->getConfig();
-//     if (isInitConfig(config))
-//         return;
+ void MKLDNNSoftMaxNode::initOptimalPrimitiveDescriptor() {
+     auto selected_pd = getSelectedPrimitiveDescriptor();
+     if (selected_pd == nullptr)
+         IE_THROW() << "Preferable primitive descriptor is not set.";
+     auto config = selected_pd->getConfig();
+     if (isConfigDefined(config))
+         return;
 
-//     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
-//             (!isUninitTensorDesc(config.inConfs[0].desc) &&
-//                     !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
-//         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
+     if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
+             (config.inConfs[0].desc->isDefined() &&
+                     config.outConfs[0].desc->isDefined() && !config.inConfs[0].desc->isCompatible(*config.outConfs[0].desc)))
+         IE_THROW() << "Layer " << getName() << " has incorrect selected config!";
 
-//     if (!isUninitTensorDesc(config.inConfs[0].desc)) {
-//         config.outConfs[0].desc = config.inConfs[0].desc;
-//     } else if (!isUninitTensorDesc(config.outConfs[0].desc)) {
-//         config.inConfs[0].desc = config.outConfs[0].desc;
-//     } else {
-//         config.outConfs[0].desc = config.inConfs[0].desc = getConfiguredInputDesc(config, 0);
-//     }
+     if (config.inConfs[0].desc->isDefined()) {
+         config.outConfs[0].desc = config.inConfs[0].desc->clone();
+     } else if (config.outConfs[0].desc->isDefined()) {
+         config.inConfs[0].desc = config.outConfs[0].desc->clone();
+     } else {
+         config.inConfs[0].desc = getDefinedInputDesc(config, 0);
+         config.outConfs[0].desc = config.inConfs[0].desc->clone();
+     }
 
-//     initDescriptor(config);
-// }
+     initDescriptor(config);
+ }
 
 void MKLDNNSoftMaxNode::createDescriptor(const std::vector<const MemoryDesc*> &inputDesc,
                                          const std::vector<const MemoryDesc*> &outputDesc) {
