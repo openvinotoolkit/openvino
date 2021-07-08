@@ -584,9 +584,9 @@ struct typed_resizeLinearU8C1 {
                   const short beta[], uint8_t tmp[], const Size& inSz,
                   const Size& outSz, const int lpi, const int length) {
             if (!calcRowLinear8UC1Impl(isa_tag_t{}, dst, src0,
-                                    src1, alpha, clone,
-                                    mapsx, beta, tmp,
-                                    inSz, outSz, lpi, length))
+                                       src1, alpha, clone,
+                                       mapsx, beta, tmp,
+                                       inSz, outSz, lpi, length))
                 calcRowLinear8UC1Impl<Mapper>(scalar_tag{}, dst, src0, src1, alpha, clone,
                                               mapsx, beta, tmp, inSz, outSz, lpi, length);
         };
@@ -756,8 +756,8 @@ struct AreaDownMapper {
         double alpha0 =   (index0 + 1 - inCoord0) * inv_ratio;
         double alpha1 = - (index1 - 1 - inCoord1) * inv_ratio;
 
-        GAPI_Assert(0 <= outCoord && outCoord <= outSz-1);
-        GAPI_Assert(0 <= index0 && index0 < index1 && index1 <= inSz);
+        GAPI_Assert((0 <= outCoord) && (outCoord <= outSz-1));
+        GAPI_Assert((0 <= index0) && (index0 < index1) && (index1 <= inSz));
 
         Unit unit;
 
@@ -775,7 +775,7 @@ struct AreaDownMapper {
 
     alpha_type  alpha;  // == inv_ratio, rounded
 
-    void init(int _inSz, int _outSz) {
+    AreaDownMapper(int _inSz, int _outSz) {
         inSz  = _inSz;
         outSz = _outSz;
 
@@ -788,17 +788,13 @@ struct AreaDownMapper {
 
 namespace areaDownscale32f {
 struct Mapper: public AreaDownMapper<float, int, float> {
-    Mapper(int _inSz, int _outSz) {
-        init(_inSz, _outSz);
-    }
+    Mapper(int _inSz, int _outSz):AreaDownMapper(_inSz, _outSz) {}
 };
 }
 
 namespace areaDownscale8u {
 struct Mapper: public AreaDownMapper<Q0_16, short, Q8_8> {
-    Mapper(int _inSz, int _outSz) {
-        init(_inSz, _outSz);
-    }
+    Mapper(int _inSz, int _outSz):AreaDownMapper(_inSz, _outSz) {}
 };
 }
 
@@ -811,17 +807,17 @@ struct Mapper {
     typedef MapperUnit<short, short> Unit;
 
     static inline Unit map(double ratio, int start, int max, int outCoord) {
-        int s = cvFloor(outCoord*ratio);
-        float f = static_cast<float>((outCoord+1) - (s+1)/ratio);
-        f = f <= 0 ? 0.f : f - cvFloor(f);
+        const int s = cvFloor(outCoord*ratio);
+        float res = static_cast<float>((outCoord + 1) - (s + 1)/ratio);
+        res = res <= 0 ? 0.f : res - cvFloor(res);
 
         Unit u;
 
         u.index0 = std::max(s - start, 0);
-        u.index1 = ((f == 0.0) || s + 1 >= max) ? s - start : s - start + 1;
+        u.index1 = ((res == 0.0) || (s + 1 >= max)) ? s - start : s - start + 1;
 
-        u.alpha0 = saturate_cast<short>(ONE * (1.0f - f));
-        u.alpha1 = saturate_cast<short>(ONE *         f);
+        u.alpha0 = saturate_cast<short>(ONE * (1.0f - res));
+        u.alpha1 = saturate_cast<short>(ONE * res);
 
         return u;
     }
@@ -874,13 +870,11 @@ static void initScratchArea(const cv::GMatDesc& in, const Size& outSz,
         Unit map = mapper.map(w);
         xmaps[w] = map;
 
-        int dif = map.index1 - map.index0;
-        if (dif > maxdif)
-            maxdif = dif;
+        maxdif = std::max(maxdif, map.index1 - map.index0);
     }
 
     // This assertion is critical for our trick with chunk sizes:
-    // we would expand a chunk it is is smaller than maximal size
+    // we would expand a chunk it is smaller than maximal size
     GAPI_Assert(inSz.width >= maxdif);
 
     // pack the input chunks positions and coefficients into scratch-buffer,
@@ -892,10 +886,7 @@ static void initScratchArea(const cv::GMatDesc& in, const Size& outSz,
                          +  inSz.width * sizeof(alpha_type);
     Size scratch_size{static_cast<int>(scratch_bytes), 1};
 
-    cv::GMatDesc desc;
-    desc.chan = 1;
-    desc.depth = CV_8UC1;
-    desc.size = scratch_size;
+    cv::GMatDesc desc(CV_8UC1, 1, scratch_size);
 
     cv::gapi::fluid::Buffer buffer(desc);
     scratch = std::move(buffer);
@@ -903,7 +894,6 @@ static void initScratchArea(const cv::GMatDesc& in, const Size& outSz,
     auto *maxdf =  scratch.OutLine<int>();
     auto *index = reinterpret_cast<index_type*>(maxdf + 1);
     auto *alpha = reinterpret_cast<alpha_type*>(index + outSz.width);
-//  auto *vbuf  = reinterpret_cast<work_type *>(alpha + outSz.width * maxdif);
 
     for (int w = 0; w < outSz.width; w++) {
         // adjust input indices so that:
@@ -911,9 +901,10 @@ static void initScratchArea(const cv::GMatDesc& in, const Size& outSz,
         // - data chunk fits inside input width
         int index0 = xmaps[w].index0;
         int index1 = xmaps[w].index1;
-        int i0 = index0, i1 = index1;
-        i1 = (std::min)(i0 + maxdif, in.size.width);
-        i0 =            i1 - maxdif;
+        int i0 = index0;
+        int i1 = index1;
+        i1 = std::min(i0 + maxdif, in.size.width);
+        i0 =          i1 - maxdif;
         GAPI_DbgAssert(i0 >= 0);
 
         // fulfill coefficients for the data chunk,
@@ -955,10 +946,10 @@ static int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale) {
         int sx1 = static_cast<int>(ceil(fsx1));
         int sx2 = static_cast<int>(floor(fsx2));
 
-        sx2 = (std::min)(sx2, ssize - 1);
-        sx1 = (std::min)(sx1, sx2);
+        sx2 = std::min(sx2, ssize - 1);
+        sx1 = std::min(sx1, sx2);
 
-        if (sx1 - fsx1 > threshold) {
+        if ((sx1 - fsx1) > threshold) {
             count++;
         }
 
@@ -966,10 +957,10 @@ static int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale) {
             count++;
         }
 
-        if (fsx2 - sx2 > threshold) {
+        if ((fsx2 - sx2) > threshold) {
             count++;
         }
-        max_count = (std::max)(max_count, count);
+        max_count = std::max(max_count, count);
     }
 
     return max_count;
@@ -1090,7 +1081,7 @@ static size_t resize_get_buffer_size(const Size& inSz, const Size& outSz) {
 // buffer-fulfill is taken from: ie_preprocess_data_sse42.cpp
 static void initScratchArea_CVKL_U8(const cv::GMatDesc & in,
                                     const       Size   & outSz,
-                               cv::gapi::fluid::Buffer & scratch) {
+                                    cv::gapi::fluid::Buffer & scratch) {
     const Size& inSz = in.size;
 
     // estimate buffer size
@@ -1139,12 +1130,11 @@ static void initScratchArea_CVKL_U8(const cv::GMatDesc & in,
         auto* ysi = xsi + dwidth;
         auto* xalpha = ysi + dheight;
         auto* yalpha = xalpha + dwidth*x_max_count + 8*16;
-    //  auto* vert_sum = yalpha + dheight*y_max_count;
 
         maxdif[0] = x_max_count;
         maxdif[1] = y_max_count;
 
-        computeResizeAreaTab(src_go_x, dst_go_x, src_full_width,   dwidth, scale_x, xsi, xalpha, x_max_count);
+        computeResizeAreaTab(src_go_x, dst_go_x, src_full_width, dwidth, scale_x, xsi, xalpha, x_max_count);
         computeResizeAreaTab(src_go_y, dst_go_y, src_full_height, dheight, scale_y, ysi, yalpha, y_max_count);
 
         int vest_sum_size = 2*swidth;
@@ -1340,7 +1330,9 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         int buf_width = out.length();
         GAPI_DbgAssert(in_u.length() == in_v.length());
 
-        const auto rowFunc = type_dispatch<i420_to_rgb_supported_types>(out.meta().depth, cv_type_id{}, typed_i420_to_rgb_row<isa_tag_t>{}, nullptr);
+        const auto rowFunc = type_dispatch<i420_to_rgb_supported_types>(out.meta().depth, cv_type_id{},
+                                                                        typed_i420_to_rgb_row<isa_tag_t>{},
+                                                                        nullptr);
 
         GAPI_DbgAssert(rowFunc);
 
@@ -1361,7 +1353,8 @@ GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
         GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
         GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
 
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 2>{}, nullptr);
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{},
+                                                                  typed_split_row<isa_tag_t, 2>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 2> outs = { out1.OutLineB(i), out2.OutLineB(i) };
             rowFunc(in.InLineB(i), outs, in.length());
@@ -1386,10 +1379,11 @@ GAPI_FLUID_KERNEL(FSplit3, Split3, false) {
 
         GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
 
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 3>{}, nullptr);
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{},
+                                                                  typed_split_row<isa_tag_t, 3>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 3> outs = { out1.OutLineB(i), out2.OutLineB(i),
-                                            out3.OutLineB(i) };
+                                             out3.OutLineB(i) };
             rowFunc(in.InLineB(i), outs, in.length());
         }
     }
@@ -1414,10 +1408,11 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
         GAPI_DbgAssert(in.meta().depth == out4.meta().depth);
         GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
 
-        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<isa_tag_t, 4>{}, nullptr);
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{},
+                                                                  typed_split_row<isa_tag_t, 4>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 4> outs = { out1.OutLineB(i), out2.OutLineB(i),
-                                            out3.OutLineB(i), out4.OutLineB(i) };
+                                             out3.OutLineB(i), out4.OutLineB(i) };
             rowFunc(in.InLineB(i), outs, in.length());
         }
     }
@@ -1431,7 +1426,8 @@ GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
                     cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 2>{}, nullptr);
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{},
+                                                                  typed_merge_row<isa_tag_t, 2>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({ a.InLineB(l), b.InLineB(l) }, out.OutLineB(l), a.length());
         }
@@ -1447,7 +1443,8 @@ GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
                     cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 3>{}, nullptr);
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{},
+                                                                  typed_merge_row<isa_tag_t, 3>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l) }, out.OutLineB(l), a.length());
         }
@@ -1464,7 +1461,8 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
                     cv::gapi::fluid::Buffer & out) {
         GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
 
-        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<isa_tag_t, 4>{}, nullptr);
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{},
+                                                                  typed_merge_row<isa_tag_t, 4>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({ a.InLineB(l), b.InLineB(l), c.InLineB(l), d.InLineB(l) }, out.OutLineB(l), a.length());
         }
@@ -1631,8 +1629,8 @@ GAPI_FLUID_KERNEL(FUpscalePlaneArea32f, UpscalePlaneArea32f, true) {
 
 template<typename T, class Mapper, int chs>
 static inline void calcRowLinearC(const cv::gapi::fluid::View& in,
-                           std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, chs>& out,
-                           cv::gapi::fluid::Buffer& scratch) {
+                                  std::array<std::reference_wrapper<cv::gapi::fluid::Buffer>, chs>& out,
+                                  cv::gapi::fluid::Buffer& scratch) {
     GAPI_DbgAssert(is_cv_type_in_list<resizeLinearU8C3C4_suptypes>(in.meta().depth));
 
     auto  inSz =  in.meta().size;
@@ -1750,7 +1748,6 @@ static inline void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid:
     GAPI_DbgAssert(inSz.width  >= outSz.width);
     GAPI_DbgAssert(inSz.height >= outSz.height);
 
-//  Mapper xmapper(inSz.width,  outSz.width);
     Mapper ymapper(inSz.height, outSz.height);
 
     auto *xmaxdf = scratch.OutLine<const int>();
@@ -1773,13 +1770,13 @@ static inline void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid:
                                                             typed_resizeArea<isa_tag_t, T, alpha_type, index_type, work_type>{},
                                                             nullptr);
     GAPI_DbgAssert(rowFunc);
-
+    constexpr int max_num = 32;
     for (int l = 0; l < lpi; l++) {
         Unit ymap = ymapper.map(y + l);
 
-        GAPI_Assert(ymap.index1 - ymap.index0 <= 32);
+        GAPI_Assert(ymap.index1 - ymap.index0 <= max_num);
         GAPI_Assert(ymap.index1 - ymap.index0 > 0);
-        const T *src[32] = {};
+        const T *src[max_num] = {};
 
         for (int yin = ymap.index0; yin < ymap.index1; yin++) {
             src[yin - ymap.index0] = in.InLine<const T>(yin - iny);
@@ -1800,17 +1797,17 @@ GAPI_FLUID_KERNEL(FScalePlaneArea32f, ScalePlaneArea32f, true) {
     static const int LPI = 4;
     static const auto Kind = cv::GFluidKernel::Kind::Resize;
 
-    static void initScratch(const cv::GMatDesc & in,
+    static void initScratch(const cv::GMatDesc& in,
                             Size outSz, int /*interp*/,
-                            cv::gapi::fluid::Buffer & scratch) {
+                            cv::gapi::fluid::Buffer& scratch) {
         initScratchArea<areaDownscale32f::Mapper>(in, outSz, scratch);
     }
 
     static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
     }
 
-    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
-                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+    static void run(const cv::gapi::fluid::View& in, Size /*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer& out, cv::gapi::fluid::Buffer& scratch) {
         calcAreaRow<float, areaDownscale32f::Mapper>(in, out, scratch);
     }
 };
@@ -1820,9 +1817,9 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     static const int LPI = 4;
     static const auto Kind = cv::GFluidKernel::Kind::Resize;
 
-    static void initScratch(const cv::GMatDesc & in,
+    static void initScratch(const cv::GMatDesc& in,
                             Size outSz, int /*interp*/,
-                            cv::gapi::fluid::Buffer & scratch) {
+                            cv::gapi::fluid::Buffer& scratch) {
 #if USE_CVKL
         if (with_cpu_x86_sse42()) {
             const Size& inSz = in.size;
@@ -1840,8 +1837,8 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     static void resetScratch(cv::gapi::fluid::Buffer& /*scratch*/) {
     }
 
-    static void run(const cv::gapi::fluid::View & in, Size /*sz*/, int /*interp*/,
-                    cv::gapi::fluid::Buffer & out, cv::gapi::fluid::Buffer & scratch) {
+    static void run(const cv::gapi::fluid::View& in, Size /*sz*/, int /*interp*/,
+                    cv::gapi::fluid::Buffer& out, cv::gapi::fluid::Buffer& scratch) {
 #if USE_CVKL
         if (with_cpu_x86_sse42()) {
             auto  inSz = in.meta().size;
