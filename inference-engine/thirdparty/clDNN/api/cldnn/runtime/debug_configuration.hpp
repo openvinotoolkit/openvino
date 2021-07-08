@@ -25,6 +25,7 @@ private:
 public:
     static const char *prefix;
     int verbose;
+    int print_multi_kernel_perf;
     std::string dump_graphs;
     static const debug_configuration *get_instance();
 };

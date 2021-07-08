@@ -35,9 +35,11 @@ static void get_str_env(const std::string &var, std::string &val) {
 
 debug_configuration::debug_configuration()
         : verbose(0)
+        , print_multi_kernel_perf(0)
         , dump_graphs(std::string()) {
 #ifdef GPU_DEBUG_CONFIG
     get_int_env("OV_GPU_Verbose", verbose);
+    get_int_env("OV_GPU_PrintMultiKernelPerf", print_multi_kernel_perf);
     get_str_env("OV_GPU_DumpGraphs", dump_graphs);
 #endif
 }
