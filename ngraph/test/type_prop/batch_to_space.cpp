@@ -49,8 +49,8 @@ TEST(type_prop, batch_to_space_incompatible_input_element_types)
     element::Type integer64_et = element::i64;
     element::Type integer32_et = element::i32;
 
-    Shape data_sshape{10, 26, 4, 4};
-    Shape inputs_sshape{4};
+    Shape data_sshape{10, 26};
+    Shape inputs_sshape{2};
 
     vector<BatchToSpaceInputParams> test_cases;
     test_cases.push_back(
@@ -97,8 +97,8 @@ TEST(type_prop, batch_to_space_invalid_input_element_types)
 {
     element::Type float_et = element::f32;
 
-    Shape data_sshape{10, 26, 4, 4};
-    Shape inputs_sshape{4};
+    Shape data_sshape{10, 26};
+    Shape inputs_sshape{2};
 
     const BatchToSpaceInputParams params{
          InputInfo{float_et, data_sshape},
@@ -124,7 +124,7 @@ TEST(type_prop, batch_to_space_invalid_input_element_types)
 
 TEST(type_prop, batch_to_space_invalid_data_input_rank)
 {
-    Shape data_sshape{4, 2};
+    Shape data_sshape{4};
     element::Type data_et = element::f32;
 
     Shape inputs_sshape{2};
@@ -143,7 +143,7 @@ TEST(type_prop, batch_to_space_invalid_data_input_rank)
     }
     catch(const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "data input must have rank greater than or equal to 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "data input must have rank greater or equal than 2.");
     }
     catch (...)
     {
@@ -153,11 +153,11 @@ TEST(type_prop, batch_to_space_invalid_data_input_rank)
 
 TEST(type_prop, batch_to_space_incompatible_secondary_inputs_shapes)
 {
-    Shape data_sshape{10, 26, 4, 4};
+    Shape data_sshape{10, 26};
     element::Type data_et = element::f32;
 
-    Shape inputs_sshape_1D{4};
-    Shape inputs_sshape_2D{4, 1};
+    Shape inputs_sshape_1D{2};
+    Shape inputs_sshape_2D{2, 1};
     element::Type inputs_et = element::i64;
 
     vector<BatchToSpaceInputParams> test_cases;
@@ -203,10 +203,10 @@ TEST(type_prop, batch_to_space_incompatible_secondary_inputs_shapes)
 
 TEST(type_prop, batch_to_space_invalid_secondary_inputs_rank)
 {
-    Shape data_sshape{10, 26, 4, 4};
+    Shape data_sshape{10, 26};
     element::Type data_et = element::f32;
 
-    Shape inputs_sshape_2D{4, 1};
+    Shape inputs_sshape_2D{2, 1};
     element::Type inputs_et = element::i64;
 
     const BatchToSpaceInputParams params{
@@ -233,7 +233,7 @@ TEST(type_prop, batch_to_space_invalid_secondary_inputs_rank)
 
 TEST(type_prop, batch_to_space_incompatible_data_and_secondary_inputs_shapes)
 {
-    Shape data_sshape{10, 26, 4, 4};
+    Shape data_sshape{10, 26};
     element::Type data_et = element::f32;
 
     Shape inputs_sshape{5};
@@ -412,6 +412,22 @@ TEST(type_prop, batch_to_space_invalid_crops_out_of_bounds)
     {
         FAIL() << "Crops values check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, batch_to_space_output_shape_2D)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{10, 26});
+    auto block_shape =
+        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
+    auto crops_begin =
+        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+    auto crops_end =
+        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
+    auto batch_to_space =
+        make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
+    ASSERT_EQ(batch_to_space->get_shape(), (Shape{10 / 5, 26 * 5 - 2}));
 }
 
 TEST(type_prop, batch_to_space_output_shape_4D)
