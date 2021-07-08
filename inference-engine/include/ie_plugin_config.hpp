@@ -264,9 +264,9 @@ DECLARE_CONFIG_VALUE(HYBRID_AWARE);
  *   (and what is the optimal number of streams)
  * - finally, specifying the positive integer value creates the requested number of streams
  */
+DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
 DECLARE_CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
-DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
 
 /**
  * @brief The name for setting performance counters option.
