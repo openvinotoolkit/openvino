@@ -75,13 +75,10 @@ set(SRC
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
-    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_config.cpp
-    pass_liveness.cpp
     pass_manager.cpp
-    pass_shape_relevance.cpp
     pattern.cpp
     provenance.cpp
     replace_node.cpp
