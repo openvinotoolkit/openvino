@@ -54,3 +54,72 @@ std::shared_ptr<Function> InputModelONNX::convert()
 {
     return m_editor.get_function();
 }
+
+// Editor features
+void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional)
+{
+    //const auto consumers = m_editor.find_output_consumers()
+    //NGRAPH_CHECK(place->, "");
+    //const auto input_name = place->get_names()[0];
+    //return m_editor.cut_graph_fragment();
+}
+
+void InputModelONNX::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional)
+{
+    // TODO
+}
+
+Place::Ptr InputModelONNX::add_output(Place::Ptr place)
+{
+    // TODO
+    return nullptr;
+}
+
+void InputModelONNX::remove_output(Place::Ptr place)
+{
+    NGRAPH_CHECK(place->is_output(), "Only output place can be removed");
+    const auto output_edge = m_editor.find_output_edge(place->get_names()[0]);
+    m_editor.cut_graph_fragment({}, {output_edge});
+}
+
+void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs)
+{
+    extract_subgraph({}, outputs);
+}
+
+void InputModelONNX::override_all_inputs(const std::vector<Place::Ptr>& inputs)
+{
+    extract_subgraph({inputs}, {});
+}
+
+void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
+{
+    std::vector<onnx_editor::InputEdge> onnx_inputs;
+    onnx_inputs.reserve(inputs.size());
+    for(const auto& input: inputs)
+    {
+        NGRAPH_CHECK(input->is_input(), "Non-input place was passed as extraction subgraph argument");
+        if(const auto input_port = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input))
+        {
+            onnx_inputs.push_back(input_port->get_input_edge());
+        }
+        else if(const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(input))
+        {
+            auto name = tensor->get_names()[0];
+            const auto consumers = m_editor.find_output_consumers(name);
+            std::transform(std::begin(consumers), std::end(consumers), std::back_inserter(onnx_inputs), [](const onnx_editor::InputEdge& edge){return edge;});
+        }
+    }
+
+    std::vector<onnx_editor::OutputEdge> onnx_outputs;
+    onnx_outputs.reserve(outputs.size());
+    for(const auto& output: outputs)
+    {
+        NGRAPH_CHECK(output->is_output(), "Non-output place was passed as extraction subgraph argument");
+        const auto output_port = output->get_producing_port();
+        const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port);
+        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
+        onnx_outputs.push_back(onnx_output_edge->get_output_edge());
+    }
+    m_editor.cut_graph_fragment(onnx_inputs, onnx_outputs);
+}

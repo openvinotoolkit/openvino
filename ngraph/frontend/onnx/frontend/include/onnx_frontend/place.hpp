@@ -16,6 +16,10 @@ namespace ngraph
             PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge) : m_edge(edge)
             {}
 
+        onnx_editor::InputEdge get_input_edge() const
+        {
+            return m_edge;
+        }
         private:
             onnx_editor::InputEdge m_edge;
 
@@ -27,6 +31,10 @@ namespace ngraph
             PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge) : m_edge(edge)
             {}
 
+        onnx_editor::OutputEdge get_output_edge() const
+        {
+            return m_edge;
+        }
         private:
             onnx_editor::OutputEdge m_edge;
         };
