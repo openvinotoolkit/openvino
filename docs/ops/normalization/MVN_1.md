@@ -22,8 +22,9 @@ Based on `across_channels` attribute mean value is calculated using one of formu
 where \f$i_{nchw}\f$ is an input tensor parametrized by \f$n\f$ batches, \f$c\f$ channels and \f$h,w\f$ spatial dimesnions.
 
 If `reduction_axes` is provided mean value is calculated based on formula:
-
+\f[
 \mu_{n} = ReduceMean(i_{k}, reduction_axes)
+\f]
 
 Afterwards *MVN* subtracts mean value from the input blob.
 
