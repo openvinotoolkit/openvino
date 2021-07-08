@@ -24,12 +24,13 @@ set(PROTO_HDRS)
 file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 
 if(CMAKE_CROSSCOMPILING)
-    set(PDPD_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+    set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 else()
-    set(PDPD_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
+    #set(TENSORFLOW_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
+    set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 endif()
 
-message("PDPD_PROTOC_EXECUTABLE is [${PDPD_PROTOC_EXECUTABLE}]")
+message("TENSORFLOW_PROTOC_EXECUTABLE is [${TENSORFLOW_PROTOC_EXECUTABLE}]")
 
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
@@ -39,9 +40,9 @@ foreach(INFILE ${proto_files})
     set(GENERATED_PROTO ${INFILE})
     add_custom_command(
             OUTPUT "${OUTPUT_PB_SRC}" "${OUTPUT_PB_HEADER}"
-            COMMAND ${PDPD_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
-            DEPENDS ${PDPD_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
-            COMMENT "Running C++ protocol buffer compiler (${PDPD_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
+            COMMAND ${TENSORFLOW_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
+            DEPENDS ${TENSORFLOW_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
+            COMMENT "Running C++ protocol buffer compiler (${TENSORFLOW_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
             VERBATIM)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
     list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
@@ -61,7 +62,7 @@ add_dependencies(${TARGET_NAME} libprotobuf tensorflow_ngraph_frontend_proto)
 
 if(NOT WIN32)
     # Addition dependency on static libprotobuf for non-Windows
-    add_dependencies(${TARGET_NAME} libprotobuf_static)
+    #add_dependencies(${TARGET_NAME} libprotobuf_static)
 endif()
 
 target_include_directories(${TARGET_NAME}
@@ -75,13 +76,14 @@ target_include_directories(${TARGET_NAME}
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
-            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
+            FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
 endif()
 
 if(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
+    #target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
+    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
