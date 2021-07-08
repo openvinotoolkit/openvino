@@ -41,9 +41,7 @@ onnx_model_filename = "model.onnx"
 
 def setup_module():
     if not os.environ.get("OV_FRONTEND_PATH"):
-        if os.environ.get("ngraph_DIR"):
-            os.environ["OV_FRONTEND_PATH"] = str(pathlib.Path(os.environ["ngraph_DIR"]) / ".." / "lib")
-        elif os.environ.get("LD_LIBRARY_PATH"):
+        if os.environ.get("LD_LIBRARY_PATH"):
             os.environ["OV_FRONTEND_PATH"] = os.environ["LD_LIBRARY_PATH"]
     if not os.environ.get("OV_FRONTEND_PATH"):
         raise RuntimeError("Please set OV_FRONTEND_PATH env variable to point "
