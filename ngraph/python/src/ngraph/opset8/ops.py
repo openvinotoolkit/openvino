@@ -54,7 +54,7 @@ def deformable_convolution(
         pads_begin: List[int],
         pads_end: List[int],
         dilations: List[int],
-        modulation_scalars: Optional[NodeInput] = None,
+        mask: Optional[NodeInput] = None,
         auto_pad: str = "EXPLICIT",
         group: int = 1,
         deformable_group: int = 1,
@@ -70,7 +70,7 @@ def deformable_convolution(
     @param pads_begin: The number of pixels to add to the beginning along each axis.
     @param pads_end: The number of pixels to add to the end along each axis.
     @param dilations: The distance in width and height between elements (weights) in the filter.
-    @param modulation_scalars: The node providing modulation scalar (mask) tensor.
+    @param mask: The node providing modulation scalar (mask) tensor.
     @param auto_pad: The type of padding. Range of values: explicit, same_upper, same_lower, valid.
     @param group: The number of groups which both output and input should be split into.
     @param deformable_group: The number of groups which deformable values and output should be split
@@ -80,33 +80,23 @@ def deformable_convolution(
     @param name: The optional new name for output node.
     @return New node performing deformable convolution operation.
     """
-    if modulation_scalars is None:
-        return _get_node_factory_opset8().create(
-            "DeformableConvolution",
-            as_nodes(data, offsets, filters),
-            {
-                "strides": strides,
-                "pads_begin": pads_begin,
-                "pads_end": pads_end,
-                "dilations": dilations,
-                "auto_pad": auto_pad,
-                "group": group,
-                "deformable_group": deformable_group,
-                "bilinear_interpolation_pad": bilinear_interpolation_pad
-            },
-        )
+    if mask is None:
+        inputs = as_nodes(data, offsets, filters)
     else:
-        return _get_node_factory_opset8().create(
-            "DeformableConvolution",
-            as_nodes(data, offsets, filters, modulation_scalars),
-            {
-                "strides": strides,
-                "pads_begin": pads_begin,
-                "pads_end": pads_end,
-                "dilations": dilations,
-                "auto_pad": auto_pad,
-                "group": group,
-                "deformable_group": deformable_group,
-                "bilinear_interpolation_pad": bilinear_interpolation_pad
-            },
-        )
+        inputs = as_nodes(data, offsets, filters, mask)
+
+    return _get_node_factory_opset8().create(
+        "DeformableConvolution",
+        inputs,
+        {
+            "strides": strides,
+            "pads_begin": pads_begin,
+            "pads_end": pads_end,
+            "dilations": dilations,
+            "auto_pad": auto_pad,
+            "group": group,
+            "deformable_group": deformable_group,
+            "bilinear_interpolation_pad": bilinear_interpolation_pad
+        },
+    )
+
