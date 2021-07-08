@@ -1,0 +1,81 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <memory>
+#include <string>
+
+#include <transformations_visibility.hpp>
+
+#include "ngraph/coordinate_diff.hpp"
+#include "ngraph/op/op.hpp"
+
+namespace ngraph {
+namespace op {
+namespace internal {
+
+class TRANSFORMATIONS_API MulticlassNonMaxSuppressionIEInternal : public Op {
+public:
+  static constexpr NodeTypeInfo type_info{
+      "MulticlassNonMaxSuppressionIEInternal", 0};
+  const NodeTypeInfo &get_type_info() const override { return type_info; }
+
+  //     MulticlassNonMaxSuppressionIEInternal(
+  //       const Output<Node> &boxes, const Output<Node> &scores,
+  //       const Output<Node> &max_output_boxes_per_class,
+  //       const Output<Node> &iou_threshold, const Output<Node>
+  //       &score_threshold, const Output<Node> &background_class, const
+  //       Output<Node> &keep_top_k, const ngraph::element::Type &output_type =
+  //       ngraph::element::i64);
+
+  //   void validate_and_infer_types() override;
+
+  //   bool visit_attributes(AttributeVisitor &visitor) override;
+
+  //   std::shared_ptr<Node>
+  //   clone_with_new_inputs(const OutputVector &new_args) const override;
+
+  //   element::Type m_output_type;
+
+  // private:
+  //   int64_t max_boxes_output_from_input() const;
+  //   int64_t keep_top_k_output_from_input() const;
+  //   int64_t background_class_output_from_input() const;
+
+  MulticlassNonMaxSuppressionIEInternal(
+      const Output<Node> &boxes, const Output<Node> &scores,
+      const int32_t sort_result_type = 2,
+      const bool sort_result_across_batch = true,
+      const ngraph::element::Type &output_type = ngraph::element::i32,
+      const float iou_threshold = 0.0f, const float score_threshold = 0.0f,
+      const int nms_top_k = -1, const int keep_top_k = -1,
+      const int background_class = -1, const float nms_eta = 1.0f, const bool normalized = true);
+
+  void validate_and_infer_types() override;
+
+  bool visit_attributes(AttributeVisitor &visitor) override;
+  // TODO: test usage only
+  // bool evaluate(const HostTensorVector &outputs,
+  //               const HostTensorVector &inputs) const override;
+  // bool has_evaluate() const override { return true; }
+
+  std::shared_ptr<Node>
+  clone_with_new_inputs(const OutputVector &new_args) const override;
+
+  int32_t m_sort_result_type;
+  bool m_sort_result_across_batch;
+  ngraph::element::Type m_output_type;
+  float m_iou_threshold;
+  float m_score_threshold;
+  int m_nms_top_k;
+  int m_keep_top_k;
+  int m_background_class;
+  float m_nms_eta;
+  bool m_normalized;
+};
+
+} // namespace internal
+} // namespace op
+} // namespace ngraph

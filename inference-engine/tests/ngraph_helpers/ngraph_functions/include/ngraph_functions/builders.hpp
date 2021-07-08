@@ -533,6 +533,16 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
 
+std::shared_ptr<ngraph::Node> makeMulticlassNms(
+    const ngraph::Output<Node> &boxes, const ngraph::Output<Node> &scores,
+    const element::Type &maxBoxesPrec, const element::Type &thrPrec,
+    const int32_t &maxOutBoxesPerClass, const float &iouThr,
+    const float &scoreThr, const int32_t &backgroundClass,
+    const int32_t &keepTopK, const ngraph::element::Type &outType,
+    const ngraph::op::util::NmsBase::SortResultType
+        sortResultType,
+    const bool &sortResCB, const float &nmsEta, const bool &normalized);
+
 std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
                                          const element::Type& depth_type,
                                          const int64_t& depth_val,

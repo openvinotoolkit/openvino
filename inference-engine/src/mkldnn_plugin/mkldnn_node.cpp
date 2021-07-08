@@ -224,7 +224,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
         { "ExtractImagePatches", ExtractImagePatches},
         { "NonMaxSuppressionIEInternal", NonMaxSuppression},
-        { "MatrixNms", MatrixNms}
+        { "MatrixNms", MatrixNms},
+        { "MulticlassNonMaxSuppressionIEInternal", MulticlassNonMaxSuppression}
 };
 
 Type TypeFromName(const std::string type) {

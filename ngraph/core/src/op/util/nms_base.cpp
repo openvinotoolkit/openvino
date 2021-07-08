@@ -138,7 +138,8 @@ void op::util::NmsBase::validate_and_infer_types()
                 max_output_boxes_per_batch =
                     std::min(max_output_boxes_per_batch, (int64_t)m_keep_top_k);
 
-            first_dim_shape = Dimension(0, max_output_boxes_per_batch * scores_ps[0].get_length());
+            // first_dim_shape = Dimension(0, max_output_boxes_per_batch * scores_ps[0].get_length());
+            first_dim_shape = max_output_boxes_per_batch * scores_ps[0].get_length();  // for static shape to align with cpu implement
         }
     }
 
