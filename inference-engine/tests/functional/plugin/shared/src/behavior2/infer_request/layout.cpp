@@ -5,7 +5,7 @@
 #include "behavior2/infer_request/layout.hpp"
 
 namespace BehaviorTestsDefinitions {
-std::string LayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj) {
+std::string InferRequestLayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::Layout layout;
@@ -28,14 +28,14 @@ std::string LayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj
     return str;
 }
 
-void LayoutTest::SetUp() {
+void InferRequestLayoutTest::SetUp() {
     std::tie(netPrecision, targetDevice, configuration,
         layout, inputShapes) = this->GetParam();
     function = ngraph::builder::subgraph::make2InputSubtract(
         inputShapes, FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
 }
 
-void LayoutTest::TearDown() {
+void InferRequestLayoutTest::TearDown() {
     if ((targetDevice == CommonTestUtils::DEVICE_GPU) || (!configuration.empty())) {
         PluginCache::get().reset();
     }
@@ -81,7 +81,7 @@ inline bool checkLayout(InferenceEngine::Layout layout, std::vector<size_t> &inp
     return check;
 }
 
-TEST_P(LayoutTest, NetWithLayout) {
+TEST_P(InferRequestLayoutTest, NetWithLayout) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Create CNNNetwork from ngrpah::Function

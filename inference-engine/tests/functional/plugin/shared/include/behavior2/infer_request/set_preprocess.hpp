@@ -16,9 +16,9 @@
 #include "ie_ngraph_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
-using PreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
+using InferRequestPreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
-TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
+TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
@@ -39,7 +39,7 @@ TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
     }
 }
 
-TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
+TEST_P(InferRequestPreprocessTest, SetPreProcessToInferRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
@@ -63,7 +63,7 @@ TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
+TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -131,7 +131,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
+TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -202,7 +202,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
+TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -264,7 +264,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
+TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -328,7 +328,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
+TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -391,7 +391,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
+TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -457,7 +457,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
+TEST_P(InferRequestPreprocessTest, SetScalePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -519,7 +519,7 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
     }
 }
 
-TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
+TEST_P(InferRequestPreprocessTest, SetScalePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -596,8 +596,8 @@ typedef std::tuple<
         std::map<std::string, std::string>  // Config
 > PreprocessConversionParams;
 
-class PreprocessConversionTest : public testing::WithParamInterface<PreprocessConversionParams>,
-                                 public CommonTestUtils::TestsCommon {
+class InferRequestPreprocessConversionTest : public testing::WithParamInterface<PreprocessConversionParams>,
+                                             public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessConversionParams> obj) {
         InferenceEngine::Precision netPrecision, iPrecision, oPrecision;
@@ -666,7 +666,7 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
-TEST_P(PreprocessConversionTest, Infer) {
+TEST_P(InferRequestPreprocessConversionTest, Infer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -784,8 +784,8 @@ typedef std::tuple<
         std::map<std::string, std::string>  // Config
 > PreprocessSetBlobCheckParams;
 
-class PreprocessDynamicallyInSetBlobTest : public testing::WithParamInterface<PreprocessSetBlobCheckParams>,
-                                   public CommonTestUtils::TestsCommon {
+class InferRequestPreprocessDynamicallyInSetBlobTest : public testing::WithParamInterface<PreprocessSetBlobCheckParams>,
+                                                       public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessSetBlobCheckParams> obj) {
         InferenceEngine::Precision netPrecision;
@@ -858,7 +858,7 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
-TEST_P(PreprocessDynamicallyInSetBlobTest, Infer) {
+TEST_P(InferRequestPreprocessDynamicallyInSetBlobTest, Infer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;

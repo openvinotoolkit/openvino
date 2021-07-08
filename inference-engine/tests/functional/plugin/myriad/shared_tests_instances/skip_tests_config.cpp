@@ -32,7 +32,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 47315
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
-        ".*PreprocessConversionTest.*oPRC=U8.*",
+        ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
         // TODO: Issue: 56556
         R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",

@@ -4,27 +4,7 @@
 
 #pragma once
 
-#include <typeindex>
-#include <string>
-#include <vector>
-#include <memory>
-#include <tuple>
-#include <gtest/gtest.h>
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ie_plugin_config.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph_functions/subgraph_builders.hpp>
-#include "gtest/gtest.h"
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/test_common.hpp"
-
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include "base/behavior_test_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
 typedef std::tuple<
@@ -35,8 +15,8 @@ typedef std::tuple<
         std::vector<size_t>>                    // InputShapes
 LayoutParams;
 
-class LayoutTest : public CommonTestUtils::TestsCommon,
-        public ::testing::WithParamInterface<LayoutParams> {
+class InferRequestLayoutTest : public CommonTestUtils::TestsCommon,
+                   public ::testing::WithParamInterface<LayoutParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayoutParams> obj);
     void SetUp() override;
