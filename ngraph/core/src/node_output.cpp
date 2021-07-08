@@ -76,6 +76,7 @@ namespace ngraph
         {
             input.replace_source_output(replacement);
         }
+        replacement.get_tensor_ptr()->set_names(get_tensor_ptr()->get_names());
     }
 
     using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
