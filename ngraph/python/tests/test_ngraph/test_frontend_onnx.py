@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import pathlib
 import onnx
 import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
