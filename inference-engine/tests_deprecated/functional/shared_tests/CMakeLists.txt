@@ -6,7 +6,6 @@ set(TARGET_NAME IESharedTests)
 
 list(APPEND SHARED_LIBRARIES
         ngraph
-        ngraph::frontend_manager
         commonTestUtils
         ngraphFunctions
         ieTestHelpers
