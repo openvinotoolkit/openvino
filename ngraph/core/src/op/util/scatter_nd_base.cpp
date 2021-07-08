@@ -57,11 +57,13 @@ void op::util::ScatterNDBase::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           inputs_rank.is_dynamic() || indices_rank.is_dynamic() ||
+                              indices_shape[indices_rank.get_length() - 1].is_dynamic() ||
                               indices_shape[indices_rank.get_length() - 1].get_length() <=
                                   inputs_rank.get_length(),
                           "Last dimension of indices can be at most the rank of inputs");
 
-    if (inputs_rank.is_static() && indices_rank.is_static() && updates_rank.is_static())
+    if (inputs_rank.is_static() && indices_rank.is_static() && updates_rank.is_static() &&
+        indices_shape[indices_rank.get_length() - 1].is_static())
     {
         auto expected_updates_rank = indices_rank.get_length() + inputs_rank.get_length() -
                                      indices_shape[indices_rank.get_length() - 1].get_length() - 1;

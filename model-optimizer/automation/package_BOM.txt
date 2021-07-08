@@ -175,7 +175,6 @@ extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/MatMul_normalizer.py
-extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
 extensions/front/mxnet/__init__.py
 extensions/front/mxnet/activation.py
@@ -329,12 +328,10 @@ extensions/front/onnx/priorbox_clustered_ext.py
 extensions/front/onnx/priorbox_ext.py
 extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
-extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
-extensions/front/onnx/remove_filtering_boxes_by_size.py
 extensions/front/onnx/reshape_ext.py
 extensions/front/onnx/resize_ext.py
 extensions/front/onnx/reverse_sequence_ext.py
@@ -371,13 +368,11 @@ extensions/front/RollWithEmptyAxesReplacer.py
 extensions/front/scatter_normalizer.py
 extensions/front/SizeReplacer.py
 extensions/front/softmax.py
-extensions/front/Softplus_fusion.py
 extensions/front/softsign_replacer.py
 extensions/front/sparse_to_dense_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/SqueezeNormalize.py
 extensions/front/sub.py
-extensions/front/Swish_fusion.py
 extensions/front/tf/__init__.py
 extensions/front/tf/activation_ext.py
 extensions/front/tf/argmax_ext.py
