@@ -173,7 +173,7 @@ IF %USE_VENV% == "true" (
     echo.
     echo [ WARNING ] All Model Optimizer dependencies are installed globally.
     echo [ WARNING ] If you want to keep Model Optimizer in separate sandbox
-    echo [ WARNING ] run install_prerequisites.sh "{caffe|tf|tf2|mxnet|kaldi|onnx}" venv
+    echo [ WARNING ] run install_prerequisites.bat "{caffe|tf|tf2|mxnet|kaldi|onnx}" venv
 )
 
 echo *****************************************************************************************
