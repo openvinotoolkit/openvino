@@ -633,10 +633,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_editor)
-endif()
-
 target_link_libraries(unit-test PRIVATE interpreter_backend)
 
 install(TARGETS unit-test
