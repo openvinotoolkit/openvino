@@ -121,7 +121,7 @@ class CustomBuild(build):
     def run(self):
         self.run_command('build_clib')
         build.run(self)
-        #Copy extra package_data content filtered by find_packages
+        # Copy extra package_data content filtered by find_packages
         dst = Path(self.build_lib)
         src = Path(get_package_dir(PY_INSTALL_CFG))
         exclude = ignore_patterns('*ez_setup*', '*__pycache__*', '*.egg-info*')
@@ -225,11 +225,13 @@ class CustomClean(clean):
         self.clean(PY_INSTALL_CFG)
         clean.run(self)
 
+
 def ignore_patterns(*patterns):
     """
     Filter names by given patterns
     """
     return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
+
 
 def is_tool(name):
     """Check if the command-line tool is available"""
