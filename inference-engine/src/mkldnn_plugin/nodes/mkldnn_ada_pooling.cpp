@@ -49,7 +49,6 @@ bool MKLDNNAdaPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::No
 
 MKLDNNAdaPoolingNode::MKLDNNAdaPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                                        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
-
 //    if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::type_info)) {
 //        mode = AdaPoolingMode::AVG;
 //    } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::type_info)) {
@@ -59,10 +58,8 @@ MKLDNNAdaPoolingNode::MKLDNNAdaPoolingNode(const std::shared_ptr<ngraph::Node>& 
     auto avgPoolOp = ngraph::as_type_ptr<ngraph::op::v8::AdaptiveAvgPool>(op);
     std::string errorMessage;
     if (maxPoolOp) {
-        mode = AdaPoolingMode::MAX;
         algorithm = Algorithm::AdaptivePoolingMax;
     } else if (avgPoolOp) {
-        mode = AdaPoolingMode::AVG;
         algorithm = Algorithm::AdaptivePoolingAvg;
     }
     if (isSupportedOperation(op, errorMessage)) {
@@ -85,8 +82,8 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
     outputPrecision = inputPrecision = Precision::FP32;  // TODO: remove
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
+//    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
+//    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
@@ -96,6 +93,7 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
+    // TODO: type of mode
     if (getParentEdgeAt(1)->getDims().ndims() != 1) {
         IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
@@ -120,12 +118,27 @@ void MKLDNNAdaPoolingNode::initSupportedPrimitiveDescriptors() {
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
-    config.outConfs.resize(1);
+    config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
     for (auto fmt : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
         config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::s32, memory::format_tag::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
+        if (algorithm == Algorithm::AdaptivePoolingMax) {
+            memory::format_tag indexFmt;
+            switch (spatialDimsCount) {
+                case 1:
+                    indexFmt =  memory::format_tag::ncw;
+                    break;
+                case 2:
+                    indexFmt = memory::format_tag::nchw;
+                    break;
+                case 3:
+                default:
+                    indexFmt = memory::format_tag::ncdhw;
+            }
+            config.outConfs[1].desc = MKLDNNMemoryDesc(getChildEdgeAt(1)->getDims(), memory::data_type::s32, indexFmt);
+        }
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
     }
 }
@@ -170,9 +183,9 @@ std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims
 }
 
 namespace {
-    struct AdaPoolingContext {
-        MKLDNNAdaPoolingNode &node;
-    };
+struct AdaPoolingContext {
+    MKLDNNAdaPoolingNode &node;
+};
 }
 
 template<typename T>
@@ -189,7 +202,7 @@ void MKLDNNAdaPoolingNode::execute(mkldnn::stream strm) {
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     if (
 //            !((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)
+          !(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)
 //          )
         )
         IE_THROW() <<"AdaPooling doesn't support demanded precisions";
@@ -208,15 +221,20 @@ void MKLDNNAdaPoolingNode::execute(mkldnn::stream strm) {
 template <typename inputType, typename outputType>
 void MKLDNNAdaPoolingNode::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
+//    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
+    int *indexDst = nullptr;
+
+    if (algorithm == Algorithm::AdaptivePoolingMax) {
+       indexDst = reinterpret_cast<int *>(getChildEdgeAt(1)->getMemoryPtr()->GetPtr());
+    }
 
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
     auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
+//    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
 
     const auto *src = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
@@ -229,12 +247,16 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     const int N = static_cast<int>(inputDimVector[0]);
     const int C = static_cast<int>(inputDimVector[1]);
     const int ID = static_cast<int>(spatialDimsCount == 3 ? inputDimVector[2] : 1);
-    const int IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount + 1] : 1);
-    const int IW = static_cast<int>(inputDimVector[spatialDimsCount + 2]);
+    const int IH = static_cast<int>(spatialDimsCount >= 2 ? inputDimVector[spatialDimsCount] : 1);
+    const int IW = static_cast<int>(inputDimVector[spatialDimsCount + 1]);
 
     const int OD = static_cast<int>(spatialDimsCount == 3 ? srcPooledSpatialShapes[0] : 1);
     const int OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
     const int OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
+
+//    const int iDHW = ID * IH * IW;
+    const int iHW = IH * IW;
+    const int oDHW = OD * OH * OW, oHW = OH * OW;
 
     const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
     const int blockCount = chPadding / blockSize;
@@ -249,225 +271,102 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     const size_t inStrides[5] = {
             srcStrides[0],
             srcStrides[1],
-            (spatialDimsCount == 5 ? srcStrides[2] : 0),
-            (spatialDimsCount >= 4 ? srcStrides[spatialDimsCount] : 0),
+            (spatialDimsCount == 3 ? srcStrides[2] : 0),
+            (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount] : 0),
             srcStrides[spatialDimsCount + 1] };
     const size_t outStrides[5] = {
             dstStrides[0],
             dstStrides[1],
-            (spatialDimsCount == 5 ? dstStrides[2] : 0),
-            (spatialDimsCount >= 4 ? dstStrides[spatialDimsCount] : 0),
+            (spatialDimsCount == 3 ? dstStrides[2] : 0),
+            (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount] : 0),
             dstStrides[spatialDimsCount + 1] };
     // TODO: ?
 //    const memory_desc_wrapper src_d(pd()->src_md());
 //    const memory_desc_wrapper dst_d(pd()->dst_md());
 
-// TODO: задать лямбду-алгоритм
-    auto pool = [] (inputType *srcData, outputType *dstData, int od, int oh, int ow) {
-
+    std::function<void(const inputType *, outputType *, int, int, int, size_t)> pool;
+    auto poolMax = [&] (const inputType *srcData, outputType *dstData, int od, int oh, int ow, size_t spatIndOff) {
+        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+        setBinBorders(&dStart, &dEnd, od, ID, OD);
+        setBinBorders(&hStart, &hEnd, oh, IH, OH);
+        setBinBorders(&wStart, &wEnd, ow, IW, OW);
+        outputType res = srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];        // initial max value
+//        int resIndex = spatIndOff * iDHW + dStart * iHW + hStart * IW + wStart;  // initial max index
+        int resIndex = dStart * iHW + hStart * IW + wStart;  // initial max index
+        for (size_t pixD = dStart; pixD < dEnd; pixD++) {
+            for (size_t pixH = hStart; pixH < hEnd; pixH++) {
+                for (size_t pixW = wStart; pixW < wEnd; pixW++) {
+                    outputType curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+//                    resIndex = (res == curr ? spatIndOff * iDHW + pixD * iHW + pixH * IW + pixW : resIndex);
+                    resIndex = (res < curr ? pixD * iHW + pixH * IW + pixW : resIndex);
+                    res = std::max(res, curr);
+                }
+            }
+        }
+        *dstData = res;
+        indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
+    };
+    auto poolAvg = [&] (const inputType *srcData, outputType *dstData, int od, int oh, int ow, size_t spatIndOff) {
+        size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
+        setBinBorders(&dStart, &dEnd, od, ID, OD);
+        setBinBorders(&hStart, &hEnd, oh, IH, OH);
+        setBinBorders(&wStart, &wEnd, ow, IW, OW);
+        auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
+        if (binSize == 0)
+            THROW_IE_EXCEPTION << "Bin of adaptive pooling must be non empty";
+        outputType sum = 0;
+        for (size_t pixD = dStart; pixD < dEnd; pixD++) {
+            for (size_t pixH = hStart; pixH < hEnd; pixH++) {
+                for (size_t pixW = wStart; pixW < wEnd; pixW++) {
+                    outputType curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                    sum += curr;
+                }
+            }
+        }
+        *dstData = avgDiv(sum, binSize);
     };
 
-    if (algorithm == Algorithm::AdaptivePoolingMax) {
-        parallel_nd(N, blockCount, OD, OH, OW,
-                    [&](int n, int blkIdx, int od, int oh, int ow) {
-            auto srcData = &src[n * inStrides[0] + blkIdx * inStrides[1]];
-            auto dstData = &dst[n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4]];
-//            const int srcIndex = n * nStride +
-            int cStart = blkIdx * blockSize;
-            int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
-            for (int c = cStart; c < cEnd; c++) {
-                const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
-                srcData = srcData + blockResidual;
-                dstData = dstData + blockResidual;
-                pool(srcData, dstData, od, ow, oh);
-            }
-        });
-        parallel_nd(N, C, OD, OH, OW,
-                    [&](int mb, int oc, int od, int oh, int ow) {
-                        auto data_p_off = get_offset(dst_d, mb, oc, od, oh, ow);
-                        float res = 0.f;
-                        set_ws(mb, oc, od, oh, ow, 0);
-                        ker_max(res, mb, oc, od, oh, ow);
-
-                        dst[data_p_off] = cpu::saturate_and_round<dst_data_t >(res);
-                    });
+    if (algorithm == Algorithm::AdaptivePoolingMax) {  // TODO: remove
+        pool = poolMax;
+    } else {
+        pool = poolAvg;
     }
-
-    const int binCount = pooledH * pooledW;
-
-    const int hInputStride = srcBlockDesc.strides[2];
-    const int wInputStride = srcBlockDesc.strides[3];
-    const int hOutputStride = dstBlockDesc.strides[2];
-    const int wOutputStride = dstBlockDesc.strides[3];
-    const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
-    const int blockCount = chPadding / blockSize;
-
-//    for (; realRois < nominalRoiCount; realRois++) {
-//        auto roiBatchInd = srcRoiIdx[realRois];
-//        if (roiBatchInd == -1) {
-//            break;
-//        }
-//    }
-//
-//    for (int n = 0; n < realRois; ++n) {
-//        int roiOff = n * 4;
-//        const float* srcRoiPtr = &srcRoi[roiOff];
-//        int roiBatchInd = srcRoiIdx[n];
-//        if (roiBatchInd < -1) {  // -1 means switched off region
-//            IE_THROW() << "Batch index cannot be less, than -1";
-//        } else if (roiBatchInd >= inputDimVector[0]) {
-//            IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
-//        }
-//
-//        float x1 = srcRoiPtr[0] * spatialScale;
-//        float y1 = srcRoiPtr[1] * spatialScale;
-//        float x2 = srcRoiPtr[2] * spatialScale;
-//        float y2 = srcRoiPtr[3] * spatialScale;
-//
-//        float roiHeight = std::max(y2 - y1, 1.0f);
-//        float roiWidth = std::max(x2 - x1, 1.0f);
-//        float binHeight = roiHeight / pooledH;
-//        float binWidth = roiWidth / pooledW;
-//
-//        auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
-//        auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
-//
-//        uint64_t numSamplesInBin = samplingRatioX * samplingRatioY;
-//
-//        float sampleDistanceX = binWidth / samplingRatioX;
-//        float sampleDistanceY = binHeight / samplingRatioY;
-//        // prepare arrays for sampling points and weights
-//        std::vector<std::pair<int, int>> pointVector;
-//        std::vector<float> weightVector;
-//        pointVector.reserve(4 * numSamplesInBin * binCount);
-//        weightVector.reserve(4 * numSamplesInBin * binCount);
-//
-//        for (int yBinInd = 0; yBinInd < pooledH; ++yBinInd) {
-//            for (int xBinInd = 0; xBinInd < pooledW; ++xBinInd) {
-//                // run into bin
-//                for (int ySampleInd = 0; ySampleInd < samplingRatioY; ySampleInd++) {
-//                    float sampleY = y1 + yBinInd * binHeight + sampleDistanceY * (0.5f + ySampleInd);
-//                    for (int xSampleInd = 0; xSampleInd < samplingRatioX; xSampleInd++) {
-//                        float sampleX = x1 + xBinInd * binWidth + sampleDistanceX * (0.5f + xSampleInd);
-//                        if (sampleX < -1.0 || sampleX > W ||
-//                            sampleY < -1.0 || sampleY > H) {
-//                            // For this sample we save 4x point (0,0) with weight 0
-//                            pointVector.insert(pointVector.end(), 4, {0, 0});
-//                            weightVector.insert(weightVector.end(), 4, float{0});
-//                            continue;
-//                        }
-//                        sampleX = std::max(sampleX, float{0});
-//                        sampleY = std::max(sampleY, float{0});
-//
-//                        auto sampleYLow = static_cast<unsigned int>(sampleY);
-//                        auto sampleXLow = static_cast<unsigned int>(sampleX);
-//                        unsigned int sampleYHigh;
-//                        unsigned int sampleXHigh;
-//                        if (sampleYLow >= H - 1) {
-//                            sampleYHigh = sampleYLow = H - 1;
-//                            sampleY = static_cast<float>(sampleYLow);
-//                        } else {
-//                            sampleYHigh = sampleYLow + 1;
-//                        }
-//                        if (sampleXLow >= W - 1) {
-//                            sampleXHigh = sampleXLow = W - 1;
-//                            sampleX = static_cast<float>(sampleXLow);
-//                        } else {
-//                            sampleXHigh = sampleXLow + 1;
-//                        }
-//                        pointVector.push_back({sampleYLow, sampleXLow});
-//                        pointVector.push_back({sampleYLow, sampleXHigh});
-//                        pointVector.push_back({sampleYHigh, sampleXLow});
-//                        pointVector.push_back({sampleYHigh, sampleXHigh});
-//
-//                        // weight calculation for bilinear interpolation
-//                        auto ly = sampleY - sampleYLow;
-//                        auto lx = sampleX - sampleXLow;
-//                        auto hy = 1.0f - ly;
-//                        auto hx = 1.0f - lx;
-//
-//                        weightVector.push_back(hy * hx);
-//                        weightVector.push_back(hy * lx);
-//                        weightVector.push_back(ly * hx);
-//                        weightVector.push_back(ly * lx);
-//                    }
-//                }
-//            }
-//        }
-//        auto pool = [&] (int xBinInd_, int yBinInd_, int binOffsetInput_, int binOffsetOutput_, int blockResidual_) {
-//            float pooledValue = 0;
-//            unsigned int sampleIndex = 4 * (yBinInd_ * pooledW + xBinInd_) * numSamplesInBin;
-//            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesInBin; binSampleInd++) {
-//                size_t part1Index = binOffsetInput_ + pointVector[sampleIndex].first * hInputStride +
-//                                    pointVector[sampleIndex].second * wInputStride + blockResidual_;
-//                float part1 = srcData[part1Index];
-//                size_t part2Index = binOffsetInput_ + pointVector[sampleIndex + 1].first * hInputStride +
-//                                    pointVector[sampleIndex + 1].second * wInputStride + blockResidual_;
-//                float part2 = srcData[part2Index];
-//                size_t part3Index = binOffsetInput_ + pointVector[sampleIndex + 2].first * hInputStride +
-//                                    pointVector[sampleIndex + 2].second * wInputStride + blockResidual_;
-//                float part3 = srcData[part3Index];
-//                size_t part4Index = binOffsetInput_ + pointVector[sampleIndex + 3].first * hInputStride +
-//                                    pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
-//                float part4 = srcData[part4Index];
-//
-//                switch (getAlgorithm()) {
-//                    case Algorithm::ROIAlignMax:
-//                    {
-//                        float sampleValue = std::max(
-//                                {weightVector[sampleIndex] * part1,
-//                                 weightVector[sampleIndex + 1] * part2,
-//                                 weightVector[sampleIndex + 2] * part3,
-//                                 weightVector[sampleIndex + 3] * part4});
-//                        pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
-//                        break;
-//                    }
-//                    case Algorithm::ROIAlignAvg:
-//                    default:
-//                    {
-//                        float sampleValue =
-//                                weightVector[sampleIndex] * part1 +
-//                                weightVector[sampleIndex + 1] * part2 +
-//                                weightVector[sampleIndex + 2] * part3 +
-//                                weightVector[sampleIndex + 3] * part4;
-//                        pooledValue += sampleValue / numSamplesInBin;
-//                    }
-//                }
-//                sampleIndex += 4;
-//            }
-//            size_t dstIndex = binOffsetOutput_ + yBinInd_ * hOutputStride +
-//                              xBinInd_ * wOutputStride + blockResidual_;
-//            dst[dstIndex] = pooledValue;
-//        };
-//        if (isNhwcFmt) {
-//            parallel_for2d(pooledH, pooledW, [&](int yBinInd, int xBinInd) {
-//                for (int c = 0; c < C; c++) {
-//                    size_t binOffsetInput = roiBatchInd * C * H * W + c;
-//                    size_t binOffsetOutput = n * C * binCount + c;
-//                    pool(xBinInd, yBinInd, binOffsetInput, binOffsetOutput, 0);
-//                }
-//            });
-//        } else {  // nchw, nChw16c, nChw8c
-//            parallel_for3d(blockCount, pooledH, pooledW, [&](int blkIdx, int yBinInd, int xBinInd) {
-//                int cStart = blkIdx * blockSize;
-//                int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
-//                for (int c = cStart; c < cEnd; c++) {
-//                    const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
-//                    const int blockIdx = (c / blockSize) * blockSize;
-//                    size_t binOffsetInput = (roiBatchInd * chPadding + blockIdx) * H * W;
-//                    size_t binOffsetOutput = (n * chPadding + blockIdx) * binCount;
-//                    pool(xBinInd, yBinInd, binOffsetInput, binOffsetOutput, blockResidual);
-//                }
-//            });
-//        }
-//    }
+    // TODO: nhwc
+    parallel_for5d(N, blockCount, OD, OH, OW,
+                [&](int n, int blkIdx, int od, int oh, int ow) {
+        auto srcData = &src[n * inStrides[0] + blkIdx * inStrides[1]];
+        auto dstData = &dst[n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4]];
+        int cStart = blkIdx * blockSize;
+        int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
+        for (int c = cStart; c < cEnd; c++) {
+            const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
+            srcData = srcData + blockResidual;
+            dstData = dstData + blockResidual;
+            pool(srcData, dstData, od, oh, ow, n * C + c);
+        }
+    });
 }
 
 bool MKLDNNAdaPoolingNode::created() const {
-    return getType() == (mode == AdaPoolingMode::AVG ? AdaptiveAvgPooling : AdaptiveMaxPooling);
+    return getType() == (algorithm == Algorithm::AdaptivePoolingAvg ? AdaptiveAvgPooling : AdaptiveMaxPooling);
 }
 
 void MKLDNNAdaPoolingNode::createPrimitive() {}
+
+template <typename T>
+T MKLDNNAdaPoolingNode::avgDiv(const T sum, size_t binSize) {
+    // TODO: add check
+    if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
+        return static_cast<T>(std::nearbyint(static_cast<float>(sum) / binSize));
+    } else {
+        return sum / binSize;
+    }
+}
+
+inline void MKLDNNAdaPoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
+    *(startPtr) = idx * inputLength / outputLength;
+    *(endPtr) = ceil(static_cast<double>((idx + 1) * inputLength) / outputLength);
+}
 
 REG_MKLDNN_PRIM_FOR(MKLDNNAdaPoolingNode, AdaptiveAvgPooling)
 REG_MKLDNN_PRIM_FOR(MKLDNNAdaPoolingNode, AdaptiveMaxPooling)
