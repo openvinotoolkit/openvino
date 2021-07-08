@@ -13,7 +13,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include "ngraph_ops/matrix_nms_ie_internal.hpp"
+#include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal, "ConvertMatrixNmsToMatrixNmsIEInternal", 0);
@@ -31,58 +31,31 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal::ConvertMatrixNmsToMatrixNms
         const auto new_args = nms->input_values();
         // vector of new nGraph operations
         NodeVector new_ops;
-
-        int sort_result_type = 0;
-        switch (nms->get_sort_result_type()) {
-            case ::ngraph::opset8::MatrixNms::SortResultType::SCORE:
-                sort_result_type = 1;
-                break;
-            case ::ngraph::opset8::MatrixNms::SortResultType::CLASSID:
-                sort_result_type = 0;
-                break;
-            case ::ngraph::opset8::MatrixNms::SortResultType::NONE:
-                sort_result_type = 2;
-                break;
-            default:
-                throw ngraph_error("MatrixNms layer " + nms->get_friendly_name() +
-                                   " has unsupported sort result type");
-        }
-
-        std::shared_ptr<op::internal::MatrixNmsIEInternal> nms_legacy{nullptr};
-
-        nms_legacy = std::make_shared<op::internal::MatrixNmsIEInternal>(
+        auto attrs = nms->get_attrs();
+        attrs.output_type = element::i32;
+        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
                 new_args.at(0),
                 new_args.at(1),
-                sort_result_type,
-                nms->get_sort_result_across_batch(),
-                element::i32,
-                nms->get_score_threshold(),
-                nms->get_nms_top_k(),
-                nms->get_keep_top_k(),
-                nms->get_background_class(),
-                (int32_t)nms->get_decay_function(),
-                nms->get_gaussian_sigma(),
-                nms->get_post_threshold(),
-                nms->get_normalized());
-        new_ops.emplace_back(nms_legacy);
+                attrs);
+        new_ops.emplace_back(nms_new);
 
-        Output<Node> output_0 = nms_legacy->output(0);
+        Output<Node> output_0 = nms_new->output(0);
+        Output<Node> output_1 = nms_new->output(1);
+        Output<Node> output_2 = nms_new->output(2);
 
-        Output<Node> output_1 = nms_legacy->output(1);
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
             output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
-        Output<Node> output_2 = nms_legacy->output(2);
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
             output_2.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 
-        nms_legacy->set_friendly_name(nms->get_friendly_name());
+        nms_new->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);
         ngraph::replace_node(nms, {output_0, output_1, output_2});
         return true;

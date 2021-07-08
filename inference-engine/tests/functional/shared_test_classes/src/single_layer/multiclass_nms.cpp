@@ -134,13 +134,14 @@ void MulticlassNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element
 void MulticlassNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
-    bool sortResultAcrossBatch;
-    op::v8::MulticlassNms::SortResultType sortResultType;
-    element::Type outType;
-    int nmsTopK, keepTopK, backgroudClass;
-    bool normalized;
-    std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK, keepTopK,
-        backgroudClass, normalized, targetDevice) = this->GetParam();
+    op::v8::MulticlassNms::Attributes attrs;
+    attrs.iou_threshold = 0.1f;
+    attrs.score_threshold = 0.2f;
+    attrs.nms_eta = 0.5f;
+
+    std::tie(inShapeParams, inPrecisions, attrs.sort_result_type,
+        attrs.sort_result_across_batch, attrs.output_type, attrs.nms_top_k, attrs.keep_top_k,
+        attrs.background_class, attrs.normalized, targetDevice) = this->GetParam();
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -152,11 +153,10 @@ void MulticlassNmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], sortResultType, sortResultAcrossBatch, outType,
-        0.1f, 0.2f, nmsTopK, keepTopK, backgroudClass, 0.5f, normalized);
+    auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], attrs);
     auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape{1}, {1}));
-    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
+    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
     function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 

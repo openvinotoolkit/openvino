@@ -12,7 +12,8 @@
 #include <utility>
 #include <queue>
 #include "ie_parallel.hpp"
-#include <ngraph_ops/matrix_nms_ie_internal.hpp>
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph_ops/nms_static_shape_ie.hpp"
 #include "utils/general_utils.h"
 #include <ie_ngraph_utils.hpp>
 #include <chrono>
@@ -22,12 +23,13 @@ namespace Extensions {
 namespace Cpu {
 
 using namespace MKLDNNPlugin;
+using MatrixNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MatrixNms>;
 
 class MatrixNmsImpl : public ExtLayerBase {
 public:
     bool isSupportedOperation(const std::shared_ptr<ngraph::Node> &op, std::string &errorMessage) noexcept {
         try {
-            const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::MatrixNmsIEInternal>(op);
+            const auto nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(op);
             if (!nms) {
                 errorMessage = "Only internal MatrixNMS operation is supported";
                 return false;
@@ -46,7 +48,7 @@ public:
             }
 
             errorPrefix = "MatirxNMS layer with name '" + op->get_friendly_name() + "' ";
-            const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::internal::MatrixNmsIEInternal>(
+            const auto matrix_nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(
                     op);
 
             if (matrix_nms->get_input_size() != 2)
@@ -82,16 +84,17 @@ public:
                 IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
             if (num_boxes != scores_dims[2])
                 IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
-            m_sort_result_type = (ngraph::op::util::NmsBase::SortResultType)matrix_nms->m_sort_result_type;
-            m_sort_result_across_batch = matrix_nms->m_sort_result_across_batch;
-            m_output_type = matrix_nms->m_output_type;
-            m_score_threshold = matrix_nms->m_score_threshold;
-            m_nms_top_k = matrix_nms->m_nms_top_k;
-            m_keep_top_k = matrix_nms->m_keep_top_k;
-            m_background_class = matrix_nms->m_background_class;
-            m_decay_function = (ngraph::op::v8::MatrixNms::DecayFunction)matrix_nms->m_decay_function;
-            m_gaussian_sigma = matrix_nms->m_gaussian_sigma;
-            m_post_threshold = matrix_nms->m_post_threshold;
+            auto& attrs = matrix_nms->get_attrs();
+            m_sort_result_type = attrs.sort_result_type;
+            m_sort_result_across_batch = attrs.sort_result_across_batch;
+            m_output_type = attrs.output_type;
+            m_score_threshold = attrs.score_threshold;
+            m_nms_top_k = attrs.nms_top_k;
+            m_keep_top_k = attrs.keep_top_k;
+            m_background_class = attrs.background_class;
+            m_decay_function = attrs.decay_function;
+            m_gaussian_sigma = attrs.gaussian_sigma;
+            m_post_threshold = attrs.post_threshold;
             LayerConfig config;
             for (size_t i = 0; i < op->get_input_size(); i++) {
                 DataConfig inConfig;
@@ -540,7 +543,7 @@ private:
     }
 };
 
-REG_FACTORY_FOR(MatrixNmsImpl, MatrixNmsIEInternal);
+REG_FACTORY_FOR(MatrixNmsImpl, MatrixNms);
 
 }  // namespace Cpu
 }  // namespace Extensions

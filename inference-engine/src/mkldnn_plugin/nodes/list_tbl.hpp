@@ -7,4 +7,4 @@
 # define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
 
-MKLDNN_EXTENSION_NODE(MatrixNmsImpl, MatrixNmsIEInternal);
+MKLDNN_EXTENSION_NODE(MatrixNmsImpl, MatrixNms);

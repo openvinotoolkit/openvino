@@ -135,13 +135,12 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
 void MatrixNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
-    op::v8::MatrixNms::SortResultType sortResultType;
-    bool sortResultAcrossBatch;
-    element::Type outType;
-    int nmsTopK, keepTopK, backgroudClass;
-    op::v8::MatrixNms::DecayFunction decayFunction;
-    std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK, keepTopK,
-        backgroudClass, decayFunction, targetDevice) = this->GetParam();
+    op::v8::MatrixNms::Attributes attrs;
+    attrs.score_threshold = 0.5f;
+
+    std::tie(inShapeParams, inPrecisions, attrs.sort_result_type, attrs.sort_result_across_batch,
+        attrs.output_type, attrs.nms_top_k, attrs.keep_top_k,
+        attrs.background_class, attrs.decay_function, targetDevice) = this->GetParam();
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -153,11 +152,10 @@ void MatrixNmsLayerTest::SetUp() {
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
     auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
-    auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], sortResultType, sortResultAcrossBatch, outType, 0.5f,
-        nmsTopK, keepTopK, backgroudClass, decayFunction);
+    auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], attrs);
     auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
-    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape{1}, {1}));
-    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+    auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
+    auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(attrs.output_type, Shape{1}, {1}));
     function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
 }
 
