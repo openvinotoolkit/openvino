@@ -36,7 +36,8 @@ public:
     }
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
-        return std::make_shared<NmsStaticShapeIE>(new_args.at(0), new_args.at(1), this->m_attrs);    }
+        return std::make_shared<NmsStaticShapeIE>(new_args.at(0), new_args.at(1), this->m_attrs);
+    }
 };
 
 template <typename BaseNmsOp>
