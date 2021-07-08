@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
 #include <string>
+#include "onnx_import/utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {
@@ -34,8 +34,8 @@ namespace ngraph
             }
         };
 
-        ONNX_IMPORTER_API ComparisonResult compare_onnx_models(const std::string& model,
-                                             const std::string& reference_model_path);
+        ONNX_IMPORTER_API ComparisonResult
+            compare_onnx_models(const std::string& model, const std::string& reference_model_path);
 
     } // namespace test
 } // namespace ngraph
