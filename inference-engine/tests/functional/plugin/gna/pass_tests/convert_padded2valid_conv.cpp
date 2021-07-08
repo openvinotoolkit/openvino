@@ -247,10 +247,10 @@ const std::vector<std::map<std::string, std::string>> configs2D = {
 };
 
 const std::vector<op::PadType> padTypes = {
+        op::PadType::VALID,
         op::PadType::EXPLICIT,
         op::PadType::SAME_LOWER,
-        op::PadType::SAME_UPPER,
-        op::PadType::VALID
+        op::PadType::SAME_UPPER
 };
 
 const std::vector<modelType> models = {
@@ -277,14 +277,14 @@ const std::vector<std::vector<size_t >> maxpool1DPools = { {1, 2} };
 const std::vector<std::vector<size_t >> maxpool1DStrides = { {1, 1} };
 
 const std::vector<std::vector<size_t>> input2DNHWC = { {1, 16, 16, 32} };
-const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, {4, 1}, {1, 3}};
+const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, {4, 1}, {1, 3} };
 const std::vector<std::vector<size_t >> strides2D = { {1, 1}, {1, 2}, {2, 1}, {2, 2} };
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {3, 1} };
 const std::vector<std::vector<size_t >> dilations2D = { {1, 1} };
-const std::vector<size_t> numOutChannels2D = { 32 };
-const std::vector<std::vector<size_t >> biases2D = { {1, 32, 1, 1} };
-const std::vector<std::vector<size_t >> transpBiases2D = { {1, 1, 1, 32} };
+const std::vector<size_t> numOutChannels2D = { 8 };
+const std::vector<std::vector<size_t >> biases2D = { {1, 8, 1, 1} };
+const std::vector<std::vector<size_t >> transpBiases2D = { {1, 1, 1, 8} };
 const std::vector<std::vector<size_t >> maxpool2DPools = { {2, 2} };
 const std::vector<std::vector<size_t >> maxpool2DStrides = { {2, 1} };
 

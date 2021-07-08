@@ -29,19 +29,12 @@ struct ConvData {
     size_t input_height;
     size_t input_width;
     size_t input_channel_count;
-    size_t filter_height;
-    size_t filter_width;
     size_t filter_count;
-    size_t filter_dilation_width;
-    size_t filter_dilation_height;
-    size_t filter_stride_width;
-    size_t filter_stride_height;
     size_t pads_begin_width;
     size_t pads_begin_height;
     size_t pads_end_width;
     size_t pads_end_height;
     ngraph::op::PadType padding_type;
-    ngraph::Shape output_shape;
     ngraph::element::Type element_type;
 };
 
@@ -55,27 +48,18 @@ static bool VerifyAndGetConvParams(std::shared_ptr<ngraph::opset7::Convolution> 
         return false;
     }
 
-    conv_data.output_shape = conv->get_output_shape(0);
     conv_data.padding_type = conv->get_auto_pad();
     conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
     conv_data.input_height = conv->input_value(0).get_shape()[2];
     conv_data.input_width = conv->input_value(0).get_shape()[3];
     conv_data.filter_count = conv->input_value(1).get_shape()[0];
-    conv_data.filter_height = conv->input_value(1).get_shape()[2];
-    conv_data.filter_width = conv->input_value(1).get_shape()[3];
-    conv_data.filter_dilation_height = conv->get_dilations()[0];
-    conv_data.filter_dilation_width = conv->get_dilations()[1];
-    conv_data.filter_stride_height = conv->get_strides()[0];
-    conv_data.filter_stride_width = conv->get_strides()[1];
     conv_data.pads_begin_height = conv->get_pads_begin()[0];
     conv_data.pads_begin_width = conv->get_pads_begin()[1];
     conv_data.pads_end_height = conv->get_pads_end()[0];
     conv_data.pads_end_width = conv->get_pads_end()[1];
     conv_data.element_type = conv->get_element_type();
 
-    IE_ASSERT(conv_data.filter_count == conv_data.output_shape[1]);
-
-    return true;
+    return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
 }
 
 static bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose, std::vector<size_t> order) {
@@ -117,75 +101,9 @@ static bool VerifyMaxPool(std::shared_ptr<ngraph::opset7::MaxPool> max_pool) {
     auto pool_kernel = max_pool->get_kernel();
 
     // Check if MaxPool vertical stride == pool size
-    // (TODO: remove when 50386 and 50379 are fixed and also verify pool_kernel[0] > 8 limitation below, gna_limitations can be used then)
     // Check if padding is VALID
     return (max_pool->get_auto_pad() == ngraph::op::PadType::VALID &&
-        pool_kernel.size() == 2 && pool_strides.size() == 2 &&
-        pool_kernel[0] == pool_strides[0] && pool_kernel[0] <= 8);
-}
-
-static size_t GetRequiredInputPadding(size_t input_size, size_t filter_size, size_t stride_size, size_t dilation_size, size_t output_size) {
-    size_t partial_padding_size = (output_size - 1) * stride_size + (filter_size - 1) * dilation_size + 1;
-
-    // This way of padding size calculation avoids problem with fractional numbers
-    return (partial_padding_size > input_size) ? (partial_padding_size - input_size) : 0;
-}
-
-static size_t CalculateOutputSize(size_t input_size, size_t filter_size, size_t stride_size, size_t dilation_size, size_t padding_size) {
-    return (input_size + padding_size - ((filter_size - 1) * dilation_size + 1)) / stride_size + 1;
-}
-
-static bool CalculatePadding(ConvData& conv_data) {
-    size_t output_height{ 0 };
-    size_t output_width{ 0 };
-
-    switch (conv_data.padding_type) {
-    case ngraph::op::PadType::EXPLICIT:
-        // all paddings already set
-        break;
-    case ngraph::op::PadType::VALID:
-        conv_data.pads_begin_height = 0;
-        conv_data.pads_begin_width = 0;
-        conv_data.pads_end_height = 0;
-        conv_data.pads_end_width = 0;
-        break;
-    case ngraph::op::PadType::SAME_LOWER:
-    case ngraph::op::PadType::SAME_UPPER:
-    {
-        output_height = conv_data.output_shape[2];
-        output_width = conv_data.output_shape[3];
-
-        size_t pads_width = GetRequiredInputPadding(conv_data.input_width, conv_data.filter_width,
-            conv_data.filter_stride_width, conv_data.filter_dilation_width, output_width);
-        size_t pads_height = GetRequiredInputPadding(conv_data.input_height, conv_data.filter_height,
-            conv_data.filter_stride_height, conv_data.filter_dilation_height, output_height);
-
-        conv_data.pads_begin_width = conv_data.pads_end_width = pads_width / 2;
-        conv_data.pads_begin_height = conv_data.pads_end_height = pads_height / 2;
-
-        if (conv_data.padding_type == ngraph::op::PadType::SAME_LOWER) {
-            conv_data.pads_begin_width += (pads_width % 2);
-            conv_data.pads_begin_height += (pads_height % 2);
-        } else {
-            conv_data.pads_end_width += (pads_width % 2);
-            conv_data.pads_end_height += (pads_height % 2);
-        }
-        break;
-    }
-    default:
-        break;
-    }
-
-    output_width = CalculateOutputSize(conv_data.input_width, conv_data.filter_width, conv_data.filter_stride_width,
-        conv_data.filter_dilation_width, conv_data.pads_begin_width + conv_data.pads_end_width);
-    output_height = CalculateOutputSize(conv_data.input_height, conv_data.filter_height, conv_data.filter_stride_height,
-        conv_data.filter_dilation_height, conv_data.pads_begin_height + conv_data.pads_end_height);
-
-    IE_ASSERT(output_width == conv_data.output_shape[3]);
-    IE_ASSERT(output_height == conv_data.output_shape[2]);
-
-    // Check if any calculated padding is non-zero, otherwise there is no need to decompose such convolution
-    return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
+        pool_kernel.size() == 2 && pool_strides.size() == 2);
 }
 
 static std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
@@ -227,7 +145,7 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 },
             ngraph::Shape{ 1ull, shape_size(leading_transpose->input_value(0).get_shape()) }), false);
 
-    // zero padding
+    // Constant with zero padding
     auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(conv_data.element_type, ngraph::Shape{ 1, biggest_padding }, 0);
 
     copy_runtime_info(conv, const_holding_padding);
@@ -340,9 +258,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
         return false;
 
     if (max_pool && !VerifyMaxPool(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(max_pool)))
-        return false;
-
-    if (!CalculatePadding(conv_data))
         return false;
 
     GeneratePadding(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose),
