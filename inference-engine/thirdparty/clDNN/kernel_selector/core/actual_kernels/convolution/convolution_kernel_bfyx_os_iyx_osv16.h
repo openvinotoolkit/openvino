@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "api/cldnn/runtime/device_info.hpp"
 #include "convolution_kernel_base.h"
 #include <string>
 #include <vector>
@@ -34,6 +35,16 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
+    size_t GetSubGroupSize(const convolution_params& params) const {
+        if (params.engineInfo.computeUnitsCount <= 24) {
+            // Smaller # EU tends to be computation bounds.
+            // In such case, using larger worksize will result in larger computational inefficiency
+            // w.r.t the unalined output feature
+            return (params.output.Feature().v > 8) ? 16 : 8;
+        } else {
+            return 16;
+        }
+    }
 
 private:
     struct AutoTuneOption {

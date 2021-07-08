@@ -9,7 +9,6 @@
 
 namespace kernel_selector {
 // Sub-group size used by "kernel_name_bfyx_os_iyx_osv16" kernel.
-constexpr size_t sub_group_size = 16;
 
 ConvolutionKernel_bfyx_os_iyx_osv16::ConvolutionKernel_bfyx_os_iyx_osv16()
     : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv16") {
@@ -94,6 +93,9 @@ static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_
 
     block_x -= unused_x / simds_x;
     block_y -= unused_y / simds_y;
+
+    block_x = Align(block_x, 2);
+    block_y = Align(block_y, 2);
 }
 
 ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(
@@ -107,9 +109,11 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
+    const auto& sub_group_size = GetSubGroupSize(cp);
+
     if (cp.stride.x == 1 && cp.stride.y == 1) {
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
-            option.blockWidth = 16;
+            option.blockWidth = sub_group_size;
             option.blockHeight = 1;
             option.prefetch = 4;
         // if less than 16 values is required to compute one single row of output
@@ -143,13 +147,13 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.output.Batch().v != 1) {
         shrink_blocks_to_output_size(cp.output.X().v, cp.output.Y().v, option.blockWidth, option.blockHeight);
     }
-
     return option;
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefault(const convolution_params& cp,
                                                                                     int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
+    const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = cp.output.Feature().v;
     const auto of_maps_per_group = of_maps / cp.groups;
@@ -196,6 +200,9 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p, const option
 
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolution_params& params,
                                                                   const DispatchData& dispatchData) const {
+    const convolution_params& cp = static_cast<const convolution_params&>(params);
+    const auto& sub_group_size = GetSubGroupSize(cp);
+
     const auto of_maps = params.output.Feature().v;
     const auto of_maps_per_group = of_maps / params.groups;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
@@ -209,7 +216,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
-
+    jit.AddConstant(MakeJitConstant("OSV_SIZE", 16));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
