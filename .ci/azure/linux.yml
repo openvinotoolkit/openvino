@@ -33,7 +33,7 @@ jobs:
     BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
-    PYTHONPATH: $(BIN_DIR)/lib/python_api/python3.6
+    PYTHONPATH: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
     LAYER_TESTS_DIR: $(REPO_DIR)/tests/layer_tests
     MO_ROOT: $(REPO_DIR)/model-optimizer
 
@@ -194,7 +194,7 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       export LD_LIBRARY_PATH=$(BIN_DIR)/lib
-      export PYTHONPATH=$(PYTHONPATH)
+      export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
       env
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
       pytest pytest --junitxml=TEST-PythonAPI.xml
@@ -204,15 +204,11 @@ jobs:
 
   - script: |
       export MO_ROOT=$(MO_ROOT)
-      export IE_APP_PATH=$(REPO_DIR)/inference-engine/
       export PYTHONPATH=$(MO_ROOT):$(LAYER_TESTS_DIR):$(PYTHONPATH)
-      sudo apt-get install python3-setuptools
-      python3 -m pip install --upgrade pip
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       python3 -m pip install -r $(MO_ROOT)/requirements_tf.txt
-      env
       python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xml
-    displayName: 'Roll Layer Test'
+    displayName: 'Layer Tests'
     continueOnError: false
 
   - task: PublishTestResults@2
