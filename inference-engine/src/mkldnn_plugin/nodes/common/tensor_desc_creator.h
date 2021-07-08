@@ -4,11 +4,14 @@
 
 #pragma once
 
-#include <ie_layouts.h>
+#include <ie_common.h>
 #include <functional>
+#include "cpu_shape.h"
+#include "cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
+// TODO [DS]: rename
 enum class TensorDescCreatorTypes : unsigned {
     nspc,       // general per channels format
     ncsp,        // general planar
@@ -33,7 +36,7 @@ public:
     makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<TensorDescCreatorTypes>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
+    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;
     virtual size_t getMinimalRank() const = 0;
     virtual ~TensorDescCreator() = default;
 };

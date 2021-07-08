@@ -125,11 +125,12 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
             } else if (eltwiseNode.getFusedWith()[i].get()->getType() == FakeQuantize) {
-                auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
-                fakeQuantizeNode->appendPostOps(post_ops);
-
-                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-                        this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+                IE_THROW() << "[DS] Unimplemented";
+//                auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+//                fakeQuantizeNode->appendPostOps(post_ops);
+//
+//                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
+//                        this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 
@@ -965,9 +966,9 @@ size_t MKLDNNEltwiseNode::getOpInputsNum() const {
 }
 
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    auto oDims = outDims[0].ToSizeVector();
-    for (size_t i = 0; i < inDims.size(); i++) {
-        auto iDims = inDims[i].ToSizeVector();
+    auto oDims = outputShapes[0].getStaticDims();
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        auto iDims = inputShapes[i].getStaticDims();
         if (iDims != oDims)
             return true;
     }
@@ -1080,10 +1081,10 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         Blocked
     };
 
-    auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
-        auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
-            if (lt == ChannelsFirst && edge->getDims().ndims() != 1) {
-                auto dims = edge->getDims().ToSizeVector();
+    auto initDesc = [&] (LayoutType lt) -> NodeDesc {
+        auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> std::unique_ptr<BlockedMemoryDesc> {
+            if (lt == ChannelsFirst && edge->getShape().getRank() != 1) {
+                auto dims = edge->getShape().getStaticDims();
                 auto ndims = dims.size();
                 std::vector<size_t> order(ndims);
                 std::iota(order.begin(), order.end(), 0);
@@ -1097,11 +1098,11 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                     blocks[i] = dims[order[i]];
                 }
 
-                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
-            } else if (lt == Blocked && edge->getDims().ndims() != 1 && edge->getDims()[1] != 1) {
+                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
+            } else if (lt == Blocked && edge->getShape().getRank() != 1 && edge->getShape().getStaticDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
-                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> blocks = edge->getShape().getStaticDims();
                 std::vector<size_t> order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
@@ -1109,37 +1110,38 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 blocks.push_back(blockSize);
                 order.push_back(1);
 
-                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
+                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
             } else {
-                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> blocks = edge->getShape().getStaticDims();
                 std::vector<size_t> order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
+                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
             }
         };
 
         size_t offset = std::numeric_limits<size_t>::max();
-        InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = getChildEdgeAt(0)->getDims().ndims() > 1 && getChildEdgeAt(0)->getDims() == getParentEdgeAt(0)->getDims();
+        NodeConfig config;
+        config.dynBatchSupport = getChildEdgeAt(0)->getShape().getRank() > 1 && getChildEdgeAt(0)->getShape() ==
+                                                                                getParentEdgeAt(0)->getShape();
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
-            dataConfig.constant = false;
+            PortConfig portConfig;
+            portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
+            portConfig.constant = false;
 
-            dataConfig.desc = createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset);
+            portConfig.desc = std::move(createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset));
 
-            config.inConfs.push_back(dataConfig);
+            config.inConfs.push_back(portConfig);
         }
 
-        InferenceEngine::DataConfig dataConfig;
-        dataConfig.inPlace = -1;
-        dataConfig.constant = false;
+        PortConfig portConfig;
+        portConfig.inPlace = -1;
+        portConfig.constant = false;
 
-        dataConfig.desc = createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset);
+        portConfig.desc = std::move(createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset));
 
-        config.outConfs.push_back(dataConfig);
+        config.outConfs.push_back(portConfig);
 
         impl_desc_type impl_type;
         if (mayiuse(x64::avx512_common)) {
@@ -1155,18 +1157,20 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
+    bool isChannelsFirstApplicable = one_of(getChildEdgeAt(0)->getShape().getRank(), 1, 2, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 2, 4, 5);
-        isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getParentEdgeAt(i)->getDims().ndims() != 1,
-                                                                             getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims());
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getParentEdgeAt(i)->getShape().getRank(), 1, 2, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && implication(getParentEdgeAt(i)->getShape().getRank() != 1,
+                                                                             getChildEdgeAt(0)->getShape().getRank() ==
+                                                                                     getParentEdgeAt(i)->getShape().getRank());
     }
 
-    bool isBlockedApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 4, 5);
+    bool isBlockedApplicable = one_of(getChildEdgeAt(0)->getShape().getRank(), 1, 4, 5);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isBlockedApplicable = isBlockedApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 4, 5);
-        isBlockedApplicable = isBlockedApplicable && implication(getParentEdgeAt(i)->getDims().ndims() != 1,
-                                                                 getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims());
+        isBlockedApplicable = isBlockedApplicable && one_of(getParentEdgeAt(i)->getShape().getRank(), 1, 4, 5);
+        isBlockedApplicable = isBlockedApplicable && implication(getParentEdgeAt(i)->getShape().getRank() != 1,
+                                                                 getChildEdgeAt(0)->getShape().getRank() ==
+                                                                 getParentEdgeAt(i)->getShape().getRank());
     }
 
     if (isChannelsFirstApplicable)
@@ -1189,8 +1193,9 @@ void MKLDNNEltwiseNode::createPrimitive() {
 
         dims_out.resize(maxInputSize, 1);
 
+        auto outBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
         std::vector<size_t> order(maxInputSize);
-        auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
+        auto outOrder = outBlockingDesc->getOrder();
         for (size_t i = 0; i < order.size(); i++) {
             if (i < order.size() - outOrder.size())
                 order[i] = i;
@@ -1198,17 +1203,18 @@ void MKLDNNEltwiseNode::createPrimitive() {
                 order[i] = outOrder[i - (order.size() - outOrder.size())] + (order.size() - outOrder.size());
         }
 
-        size_t outRank = config.outConfs[0].desc.getBlockingDesc().getBlockDims().size();
+        size_t outRank = outBlockingDesc->getBlockDims().size();
         for (int i = 0; i < outRank; i++) {
-            dims_out[dims_out.size() - 1 - i] = config.outConfs[0].desc.getBlockingDesc().getBlockDims()[outRank - 1 - i];
+            dims_out[dims_out.size() - 1 - i] = outBlockingDesc->getBlockDims()[outRank - 1 - i];
         }
 
         for (int i = 0; i < inputNum; i++) {
-            size_t inRank = config.inConfs[i].desc.getBlockingDesc().getBlockDims().size();
+            auto inBlockingDesc = config.inConfs[i].desc->as<BlockedMemoryDesc>();
+            size_t inRank = inBlockingDesc->getBlockDims().size();
 
             // WA to normalize blocked and planar layouts
-            auto inOrder = config.inConfs[i].desc.getBlockingDesc().getOrder();
-            size_t startOff = outOrder.size() != config.outConfs[0].desc.getDims().size() &&
+            auto inOrder = inBlockingDesc->getOrder();
+            size_t startOff = outOrder.size() != outBlockingDesc->getShape().getRank() &&
                               outOrder[outOrder.size() - 1] != inOrder[inOrder.size() - 1] ? 1 : 0;
 
             // WA to handle nspc layout with 1D tensors
@@ -1217,7 +1223,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
             }
 
             for (int j = 0; j < inRank; j++) {
-                dims_in[i][dims_in[i].size() - 1 - j - startOff] = config.inConfs[i].desc.getBlockingDesc().getBlockDims()[inRank - 1 - j];
+                dims_in[i][dims_in[i].size() - 1 - j - startOff] = inBlockingDesc->getBlockDims()[inRank - 1 - j];
             }
         }
 
@@ -1235,7 +1241,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         offsets_out.resize(maxInputSize, 1);
         offset_out_calc(offsets_out, dims_out);
         for (int j = 0; j < maxInputSize; j++) {
-            offsets_out[j] *= config.outConfs[0].desc.getPrecision().size();
+            offsets_out[j] *= config.outConfs[0].desc->getPrecision().size();
         }
 
         offsets_in.resize(inputNum);
@@ -1243,7 +1249,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
             offsets_in[i].resize(maxInputSize, 1);
             offset_in_calc(offsets_in[i], dims_in[i], dims_out);
             for (int j = 0; j < maxInputSize; j++) {
-                offsets_in[i][j] *= config.inConfs[i].desc.getPrecision().size();
+                offsets_in[i][j] *= config.inConfs[i].desc->getPrecision().size();
             }
         }
 
@@ -1287,10 +1293,11 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     };
 
-    tensorRank = std::max(static_cast<size_t>(optimalTensorRank), config.outConfs[0].desc.getBlockingDesc().getBlockDims().size());
+    auto outBlockingDesc = config.outConfs[0].desc->as<BlockedMemoryDesc>();
+    tensorRank = std::max(static_cast<size_t>(optimalTensorRank), outBlockingDesc->getBlockDims().size());
     initDims(tensorRank);
 
-    auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
+    auto outOrder = outBlockingDesc->getOrder();
     size_t oc_size = 0;
     offsets_oc.resize(tensorRank, 0);
     if (isFusedWith(FakeQuantize)) {
@@ -1320,7 +1327,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         bool hasDifferentDims = false;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!isDynBatchEnabled || (config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
+               (!isDynBatchEnabled || (outBlockingDesc->getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out.size() - collapsedDims - 2 < 0)
                 break;
 
@@ -1372,7 +1379,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
         }
     }
 
-    batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
+    batchDimIdx = tensorRank - outBlockingDesc->getBlockDims().size() + collapsedDims;
     schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
 
     initOffsets(tensorRank);
@@ -1382,10 +1389,10 @@ void MKLDNNEltwiseNode::createPrimitive() {
 
     for (int i = 0; i < config.inConfs.size(); i++) {
         jep.src_size[i] = dims_in[i][dims_in[i].size() - 1];
-        jep.src_prc[i] = config.inConfs[i].desc.getPrecision();
+        jep.src_prc[i] = config.inConfs[i].desc->getPrecision();
     }
     jep.dst_size = dims_out[dims_out.size() - 1];
-    jep.dst_prc = config.outConfs[0].desc.getPrecision();
+    jep.dst_prc = config.outConfs[0].desc->getPrecision();
 
     for (int i = 0; i < config.inConfs.size(); i++) {
         jep.src_offsets[i] = offsets_in[i];
@@ -1415,13 +1422,13 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (!isInitConfig(config)) {
+    if (!isConfigDefined(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+            config.inConfs[i].desc = std::move(getDefinedInputDesc(config, i));
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
+            config.outConfs[i].desc = std::move(getDefinedOutputDesc(config, i));
         }
 
         initDescriptor(config);
@@ -1641,13 +1648,13 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
         }
     }
 
-    return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();
+    return getParentEdgesAtPort(0)[0].get()->getShape() == getChildEdgesAtPort(0)[0].get()->getShape();
 }
 
 void MKLDNNEltwiseNode::fuseInto(MKLDNNNodePtr& parentNode) {
     // Handling Convolution custom Add node fusing case which is processed via dnnl append_sum() API.
     specialConvolutionAddFusing = (parentNode->getType() == Convolution || parentNode->getType() == BinaryConvolution) && getAlgorithm() == EltwiseAdd &&
-            getParentEdgesAtPort(0)[0]->getDims().ToSizeVector() == getParentEdgesAtPort(1)[0]->getDims().ToSizeVector();
+            getParentEdgesAtPort(0)[0]->getShape() == getParentEdgesAtPort(1)[0]->getShape();
     if (!specialConvolutionAddFusing && canBePerformedAsScaleShift(parentNode.get())) {
         fillScalesAndShifts(parentNode.get(), scales, shifts, 16);
     }

@@ -19,6 +19,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn/ie_mkldnn.h"
+#include "cpu_shape.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -189,8 +190,8 @@ void MKLDNNMemory::FillZero() {
     memset(dataPtr, 0, GetSize());
 }
 
-memory::format_tag MKLDNNMemory::GetPlainFormat(const memory::dims& dims) {
-    switch (dims.size()) {
+memory::format_tag MKLDNNMemory::GetPlainFormatByRank(size_t rank) {
+    switch (rank) {
         case 0:
         case 1:
             return memory::format_tag::a;
@@ -222,8 +223,14 @@ InferenceEngine::Layout MKLDNNMemory::GetPlainLayout(const memory::dims& dims) {
     }
 }
 
+// TODO [DS]: remove
 bool MKLDNNMemory::isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format) {
     memory::desc attempt(dims, memory::data_type::f32, format, true);
+    return static_cast<bool>(attempt);
+}
+
+bool MKLDNNMemory::isConsistant(const Shape& shape, mkldnn::memory::format_tag format) {
+    memory::desc attempt(shape, memory::data_type::f32, format, true);
     return static_cast<bool>(attempt);
 }
 
@@ -274,8 +281,11 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
     return desc;
 }
 
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType,
-                                   mkldnn::memory::format_tag format): desc(dims, dataType, mkldnn::memory::format_tag::any) {
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::desc& desc) :
+    MemoryDesc(Shape(desc.dims()), MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type()), Mkldnn), desc(desc) {}
+
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format)
+       : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn), desc(dims, dataType, mkldnn::memory::format_tag::any) {
     if (format != memory::format_tag::undef) {
         if (format == memory::format_tag::x && dims.size() == 0) {
             desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
@@ -294,7 +304,8 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::mem
     }
 }
 
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType) : desc() {
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType)
+        : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn), desc() {
     const auto ndims = dims.size();
     mkldnn::memory::dims plain_strides(ndims, 1);
     for (size_t i = 1; i < ndims; i++) {
@@ -780,119 +791,119 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     //       auto detected layout in constructor of TensorDesc.
     return res;
 }
-
-/**
- * Construct from IE::TensorDesc
- * @param tDesc
- *
- * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
- *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
- *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
- *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
- *
- *   All vectors blockedDims/strides/order have same size equals total num of internal blocked dims(inner_dims + outer_dims)
- *
- *   Tensor descriptor filing is not deterministic. It allows any permutation of index which keeps order of
- *   real dims spliting.
- *      for {1, 0, 2, 3, 1, 0, 1} we can swap elements [1] <=> [4]
- *      but not [0]<=>[4] because it breacke spliting original dims into internal blocked dims
- *   Normalization of representation: Make strides growing but keep layout same as original. Not all
- *   layout allow us to meet normalize form of tensor desc.
- *
- *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
- */
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
-        desc({}, mkldnn::memory::data_type::undef, mkldnn::memory::format_tag::undef) {
-    auto dims = tDesc.getDims();
-
-    // TODO: implicit conversion of dims is no good...
-    if (tDesc.getLayout() == Layout::SCALAR) {
-        desc.data.format_kind = dnnl_blocked;
-        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-        desc.data.ndims = 1;
-        desc.data.dims[0] = 1;
-        desc.data.padded_dims[0] = 1;
-        desc.data.format_desc.blocking.strides[0] = 1;
-        desc.data.padded_offsets[0] = 0;
-        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
-        return;
-    }
-
-    if (tDesc.getLayout() == Layout::ANY) {
-        desc.data.format_kind = dnnl_format_kind_any;
-        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-        desc.data.ndims = dims.size();
-        std::copy(dims.begin(), dims.end(), desc.data.dims);
-        std::copy(dims.begin(), dims.end(), desc.data.padded_dims);
-        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
-        std::fill(desc.data.padded_offsets, desc.data.padded_offsets + dims.size(), 0);
-        return;
-    }
-
-    auto ie_blkdDims = tDesc.getBlockingDesc().getBlockDims();
-    auto ie_order = tDesc.getBlockingDesc().getOrder();
-    auto ie_offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
-    auto ie_strides = tDesc.getBlockingDesc().getStrides();
-
-    size_t outer_ndims = dims.size();
-    size_t inner_ndims = ie_order.size() - dims.size();
-
-    bool is_descending_strides = true;
-    for (int i = 1; i < ie_strides.size(); i++) {
-        is_descending_strides &= (ie_strides[i-1] >= ie_strides[i]);
-    }
-
-    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
-    //       and may be we can achieve correct "descending strides" form which allow conversion.
-    if (!is_descending_strides)
-        IE_THROW() << "Unsupported case for conversion";
-
-    std::vector<size_t> outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
-    for (size_t i = 0; i < outer_ndims; i++) {
-        outer_order[ie_order[i]] = i;
-    }
-    bool outer_is_correct_permutation_of_n =
-            std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
-
-    if (!outer_is_correct_permutation_of_n)
-        IE_THROW() << "Unsupported case for conversion";
-
-    bool inner_block_are_dense = one_of(ie_strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
-    for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
-        inner_block_are_dense &= (ie_strides[i] == ie_strides[i+1] * ie_blkdDims[i+1]);
-    }
-
-    if (!inner_block_are_dense)
-        IE_THROW() << "Unsupported case for conversion";
-
-    bool inner_pad_offsets_is_zero = std::all_of(ie_offsetsToData.begin() + outer_ndims, ie_offsetsToData.end(),
-                                                 [](size_t pad) { return  pad == 0; });
-
-    if (!inner_pad_offsets_is_zero)
-        IE_THROW() << "Unsupported case for conversion";
-
-    // Fill general memory desc fields
-    desc.data.format_kind = dnnl_blocked;
-    desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
-    desc.data.ndims = dims.size();
-    desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
-    std::copy(dims.begin(), dims.end(), desc.data.dims);
-    std::copy(ie_offsetsToData.begin(), ie_offsetsToData.begin() + outer_ndims, desc.data.padded_offsets);
-    std::fill(desc.data.padded_dims, desc.data.padded_dims + outer_ndims, 1);
-    for (size_t i = 0; i < ie_order.size(); i++) {
-        auto idx = ie_order[i];
-        desc.data.padded_dims[idx] *= ie_blkdDims[i];
-    }
-
-    // Fill blocking desc
-    auto &dnn_blk_desc = desc.data.format_desc.blocking;
-    dnn_blk_desc.inner_nblks = inner_ndims;
-    std::copy(ie_blkdDims.end() - inner_ndims, ie_blkdDims.end(), dnn_blk_desc.inner_blks);
-    std::copy(ie_order.end() - inner_ndims, ie_order.end(), dnn_blk_desc.inner_idxs);
-    for (size_t i = 0; i < outer_ndims; i++) {
-        dnn_blk_desc.strides[i] = ie_strides[outer_order[i]];
-    }
-}
+//
+///**
+// * Construct from IE::TensorDesc
+// * @param tDesc
+// *
+// * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
+// *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
+// *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
+// *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
+// *
+// *   All vectors blockedDims/strides/order have same size equals total num of internal blocked dims(inner_dims + outer_dims)
+// *
+// *   Tensor descriptor filing is not deterministic. It allows any permutation of index which keeps order of
+// *   real dims spliting.
+// *      for {1, 0, 2, 3, 1, 0, 1} we can swap elements [1] <=> [4]
+// *      but not [0]<=>[4] because it breacke spliting original dims into internal blocked dims
+// *   Normalization of representation: Make strides growing but keep layout same as original. Not all
+// *   layout allow us to meet normalize form of tensor desc.
+// *
+// *   Limitation of conversion first N elements of order should be permutation of [0,1,2 ... N]
+// */
+//MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
+//        desc({}, mkldnn::memory::data_type::undef, mkldnn::memory::format_tag::undef) {
+//    auto dims = tDesc.getDims();
+//
+//    // TODO: implicit conversion of dims is no good...
+//    if (tDesc.getLayout() == Layout::SCALAR) {
+//        desc.data.format_kind = dnnl_blocked;
+//        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+//        desc.data.ndims = 1;
+//        desc.data.dims[0] = 1;
+//        desc.data.padded_dims[0] = 1;
+//        desc.data.format_desc.blocking.strides[0] = 1;
+//        desc.data.padded_offsets[0] = 0;
+//        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+//        return;
+//    }
+//
+//    if (tDesc.getLayout() == Layout::ANY) {
+//        desc.data.format_kind = dnnl_format_kind_any;
+//        desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+//        desc.data.ndims = dims.size();
+//        std::copy(dims.begin(), dims.end(), desc.data.dims);
+//        std::copy(dims.begin(), dims.end(), desc.data.padded_dims);
+//        desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+//        std::fill(desc.data.padded_offsets, desc.data.padded_offsets + dims.size(), 0);
+//        return;
+//    }
+//
+//    auto ie_blkdDims = tDesc.getBlockingDesc().getBlockDims();
+//    auto ie_order = tDesc.getBlockingDesc().getOrder();
+//    auto ie_offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
+//    auto ie_strides = tDesc.getBlockingDesc().getStrides();
+//
+//    size_t outer_ndims = dims.size();
+//    size_t inner_ndims = ie_order.size() - dims.size();
+//
+//    bool is_descending_strides = true;
+//    for (int i = 1; i < ie_strides.size(); i++) {
+//        is_descending_strides &= (ie_strides[i-1] >= ie_strides[i]);
+//    }
+//
+//    // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
+//    //       and may be we can achieve correct "descending strides" form which allow conversion.
+//    if (!is_descending_strides)
+//        IE_THROW() << "Unsupported case for conversion";
+//
+//    std::vector<size_t> outer_order(outer_ndims, outer_ndims + 1); // outer_order[i] is index of stride for i-th dimension
+//    for (size_t i = 0; i < outer_ndims; i++) {
+//        outer_order[ie_order[i]] = i;
+//    }
+//    bool outer_is_correct_permutation_of_n =
+//            std::find(outer_order.begin(), outer_order.end(), outer_ndims + 1) == outer_order.end();
+//
+//    if (!outer_is_correct_permutation_of_n)
+//        IE_THROW() << "Unsupported case for conversion";
+//
+//    bool inner_block_are_dense = one_of(ie_strides.back(), 0, 1);  // stride 1 - is dense case, 0 - broad casted
+//    for (int i = outer_ndims; i < ie_strides.size() - 1; i++) {
+//        inner_block_are_dense &= (ie_strides[i] == ie_strides[i+1] * ie_blkdDims[i+1]);
+//    }
+//
+//    if (!inner_block_are_dense)
+//        IE_THROW() << "Unsupported case for conversion";
+//
+//    bool inner_pad_offsets_is_zero = std::all_of(ie_offsetsToData.begin() + outer_ndims, ie_offsetsToData.end(),
+//                                                 [](size_t pad) { return  pad == 0; });
+//
+//    if (!inner_pad_offsets_is_zero)
+//        IE_THROW() << "Unsupported case for conversion";
+//
+//    // Fill general memory desc fields
+//    desc.data.format_kind = dnnl_blocked;
+//    desc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(tDesc.getPrecision()));
+//    desc.data.ndims = dims.size();
+//    desc.data.offset0 = tDesc.getBlockingDesc().getOffsetPadding();
+//    std::copy(dims.begin(), dims.end(), desc.data.dims);
+//    std::copy(ie_offsetsToData.begin(), ie_offsetsToData.begin() + outer_ndims, desc.data.padded_offsets);
+//    std::fill(desc.data.padded_dims, desc.data.padded_dims + outer_ndims, 1);
+//    for (size_t i = 0; i < ie_order.size(); i++) {
+//        auto idx = ie_order[i];
+//        desc.data.padded_dims[idx] *= ie_blkdDims[i];
+//    }
+//
+//    // Fill blocking desc
+//    auto &dnn_blk_desc = desc.data.format_desc.blocking;
+//    dnn_blk_desc.inner_nblks = inner_ndims;
+//    std::copy(ie_blkdDims.end() - inner_ndims, ie_blkdDims.end(), dnn_blk_desc.inner_blks);
+//    std::copy(ie_order.end() - inner_ndims, ie_order.end(), dnn_blk_desc.inner_idxs);
+//    for (size_t i = 0; i < outer_ndims; i++) {
+//        dnn_blk_desc.strides[i] = ie_strides[outer_order[i]];
+//    }
+//}
 
 bool MKLDNNMemoryDesc::blocksExtended() const {
     for (int i = 0; i < desc.data.ndims; i++) {

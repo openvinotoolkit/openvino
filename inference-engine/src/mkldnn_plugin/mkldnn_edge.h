@@ -5,11 +5,13 @@
 #pragma once
 
 #include <ie_blob.h>
-#include <memory>
-#include "mkldnn_memory.h"
-#include "mkldnn_dims.h"
+//#include <memory>
+//#include "mkldnn_memory.h"
+#include "cpu_shape.h"
+#include "cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
-#include "mkldnn/ie_mkldnn.h"
+
+//#include "mkldnn/ie_mkldnn.h"
 
 #include <map>
 #include <memory>
@@ -53,10 +55,12 @@ public:
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
+    // TODO [DS]: conversion to IE::TensorDesc shouldn't be part of the Edge class
     InferenceEngine::Blob::Ptr getBlob();
-    InferenceEngine::TensorDesc getDesc();
+    InferenceEngine::TensorDesc getTensorDesc();
 
-    const MKLDNNDims &getDims();
+    const Shape &getShape();
+    const MemoryDesc& getDesc();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
@@ -73,8 +77,8 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
-    const InferenceEngine::TensorDesc& getInputDescRO() const;
-    const InferenceEngine::TensorDesc& getOutputDescRO() const;
+    const MemoryDesc& getInputDescRO() const;
+    const MemoryDesc& getOutputDescRO() const;
 
 private:
     std::string name();
@@ -86,19 +90,20 @@ private:
 
     bool externalMemoryPtr = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
-    MKLDNNDims dims;
+    Shape shape;
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    InferenceEngine::TensorDesc getInputDesc();
-    InferenceEngine::TensorDesc getOutputDesc();
-    InferenceEngine::TensorDesc getSpecifiedInputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
+    const MemoryDesc& getInputDesc();
+    const MemoryDesc& getOutputDesc();
+
+    std::unique_ptr<MemoryDesc> getSpecifiedInputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
                                                       size_t enterCountUp = 1, size_t enterCountDown = 0);
-    InferenceEngine::TensorDesc getSpecifiedOutputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
+    std::unique_ptr<MemoryDesc> getSpecifiedOutputDesc(std::map<mkldnn::memory::format_tag, size_t> formats,
                                                        size_t enterCountUp = 0, size_t enterCountDown = 1);
 
-    InferenceEngine::TensorDesc inputDesc;
-    InferenceEngine::TensorDesc outputDesc;
+    std::unique_ptr<MemoryDesc> inputDesc;
+    std::unique_ptr<MemoryDesc> outputDesc;
 
     bool nodeCanChangeDesc(const std::shared_ptr<MKLDNNPlugin::MKLDNNNode>& node) const;
 

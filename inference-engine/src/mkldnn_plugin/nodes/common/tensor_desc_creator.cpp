@@ -16,14 +16,19 @@ public:
     InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
-        return TensorDesc(precision, srcDims, {srcDims, order});
+//        return BlockedMemoryDesc(precision, srcDims, {srcDims, order});
+        return BlockedMemoryDesc(precision, srcDims, srcDims, order);
     }
     size_t getMinimalRank() const override { return 0lu; }
 };
 
 class PerChannelCreator : public TensorDescCreator {
 public:
+<<<<<<< HEAD
     InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const override {
+=======
+    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const {
+>>>>>>> [CPU] Unified memory descriptor: initial commit
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcDims;
@@ -37,7 +42,8 @@ public:
             moveElementBack(blkDims, channelsPos);
         }
 
-        return TensorDesc(precision, srcDims, {blkDims, order});
+//        return BlockedMemoryDesc(precision, srcDims, {blkDims, order});
+        return BlockedMemoryDesc(precision, srcDims, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 };
@@ -45,7 +51,11 @@ public:
 class ChannelBlockedCreator : public TensorDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
+<<<<<<< HEAD
     InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
+=======
+    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
+>>>>>>> [CPU] Unified memory descriptor: initial commit
         if (srcDims.size() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }
@@ -58,7 +68,8 @@ public:
         blkDims[channelsPos] = blkDims[channelsPos] / _blockSize + (blkDims[channelsPos] % _blockSize ? 1 : 0);
         blkDims.push_back(_blockSize);
 
-        return TensorDesc(precision, srcDims, {blkDims, order});
+//        return BlockedMemoryDesc(precision, srcDims, {blkDims, order});
+        return BlockedMemoryDesc(precision, srcDims, blkDims, order);
     }
     size_t getMinimalRank() const override { return 3lu; }
 
