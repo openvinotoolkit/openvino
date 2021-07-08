@@ -99,8 +99,8 @@ The plugin supports the configuration parameters listed below.
 All parameters must be set before calling <code>InferenceEngine::Core::LoadNetwork()</code> in order to take effect.
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
 
-| Parameter Name                    | Parameter Values                                          | Default      | Description                                                              |
-| :---------------------------------| :---------------------------------------------------------| :-----------| :------------------------------------------------------------------------|
+| Parameter name                  | Parameter values      | Default            | Description                                                                                                                  |
+| :---                            | :---                  | :---               | :----------------------------------------------------------------------------------------------------------------------------|
 | `KEY_CACHE_DIR`      | `"<cache_dir>"`                    | `""`              | Specifies a directory where compiled OCL binaries can be cached. First model loading generates the cache, and all subsequent LoadNetwork calls use precompiled kernels which significantly improves load time. If empty - caching is disabled             |
 | `KEY_PERF_COUNT`      | `YES` / `NO`                    | `NO`              | Collect performance counters during inference             |
 | `KEY_CONFIG_FILE`     | `"<file1> [<file2> ...]"`         | `""`              | Load custom layer configuration files                     |
