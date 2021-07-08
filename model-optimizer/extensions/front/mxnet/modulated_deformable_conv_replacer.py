@@ -6,11 +6,10 @@ from mo.graph.graph import Graph
 
 
 class DeformableConvolutionReplacer(FrontReplacementPattern):
-    # swap mask and weights inputs for ModulatedDeformableConvolution accroding to the specification
+    # swap mask and weights inputs for ModulatedDeformableConvolution according to the specification
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        print(graph.get_op_nodes())
 
         for deform_conv in graph.get_op_nodes(type='DeformableConvolution'):
             if len(deform_conv.get_inputs()) != 4:
