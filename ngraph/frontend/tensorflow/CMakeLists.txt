@@ -26,8 +26,8 @@ file(GLOB proto_files ${CMAKE_CURRENT_SOURCE_DIR}/src/proto/*.proto)
 if(CMAKE_CROSSCOMPILING)
     set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 else()
-    #set(TENSORFLOW_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
-    set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+    set(TENSORFLOW_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
+    #set(TENSORFLOW_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
 endif()
 
 message("TENSORFLOW_PROTOC_EXECUTABLE is [${TENSORFLOW_PROTOC_EXECUTABLE}]")
@@ -62,7 +62,7 @@ add_dependencies(${TARGET_NAME} libprotobuf tensorflow_ngraph_frontend_proto)
 
 if(NOT WIN32)
     # Addition dependency on static libprotobuf for non-Windows
-    #add_dependencies(${TARGET_NAME} libprotobuf_static)
+    add_dependencies(${TARGET_NAME} libprotobuf_static)
 endif()
 
 target_include_directories(${TARGET_NAME}
@@ -82,8 +82,8 @@ endif()
 if(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 else()
-    #target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
+    #target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
