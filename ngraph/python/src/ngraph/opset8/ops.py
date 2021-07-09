@@ -120,10 +120,14 @@ def multiclass_nms(
 
     @param boxes: Tensor with box coordinates.
     @param scores: Tensor with box scores.
-    @param sort_result_type: Specifies order of output elements
+    @param sort_result_type: Specifies order of output elements, possible values:
+                             'class': sort selected boxes by class id (ascending)
+                             'score': sort selected boxes by score (descending)
+                             'none': do not guarantee the order.
     @param sort_result_across_batch: Specifies whenever it is necessary to sort selected boxes
                                      across batches or not
-    @param output_type: Specifies the output tensor type
+    @param output_type: Specifies the output tensor type, possible values:
+                        'i64', 'i32'
     @param iou_threshold: Specifies intersection over union threshold
     @param score_threshold: Specifies minimum score to consider box for the processing
     @param nms_top_k: Specifies maximum number of boxes to be selected per class, -1 meaning
@@ -173,17 +177,22 @@ def matrix_nms(
 
     @param boxes: Tensor with box coordinates.
     @param scores: Tensor with box scores.
-    @param sort_result_type: Specifies order of output elements
+    @param sort_result_type: Specifies order of output elements, possible values:
+                             'class': sort selected boxes by class id (ascending)
+                             'score': sort selected boxes by score (descending)
+                             'none': do not guarantee the order.
     @param sort_result_across_batch: Specifies whenever it is necessary to sort selected boxes
                                      across batches or not
-    @param output_type: Specifies the output tensor type
+    @param output_type: Specifies the output tensor type, possible values:
+                        'i64', 'i32'
     @param score_threshold: Specifies minimum score to consider box for the processing
     @param nms_top_k: Specifies maximum number of boxes to be selected per class, -1 meaning
                       to keep all boxes
     @param keep_top_k: Specifies maximum number of boxes to be selected per batch element, -1
                        meaning to keep all boxes
     @param background_class: Specifies the background class id, -1 meaning to keep all classes
-    @param decay_function: Specifies decay function used to decay scores
+    @param decay_function: Specifies decay function used to decay scores, possible values:
+                           'gaussian', 'linear'
     @param gaussian_sigma: Specifies gaussian_sigma parameter for gaussian decay_function
     @param post_threshold: Specifies threshold to filter out boxes with low confidence score
                            after decaying
