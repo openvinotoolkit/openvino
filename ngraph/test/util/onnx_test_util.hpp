@@ -5,7 +5,6 @@
 #pragma once
 
 #include <string>
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {
@@ -33,6 +32,7 @@ namespace ngraph
                 return ComparisonResult{std::move(error)};
             }
         };
+
         ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path);
 
