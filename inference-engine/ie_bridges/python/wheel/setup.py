@@ -7,6 +7,7 @@ import sys
 import errno
 import subprocess  # nosec
 import typing
+from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
 from distutils.command.install import install
@@ -120,6 +121,16 @@ class CustomBuild(build):
     def run(self):
         self.run_command('build_clib')
         build.run(self)
+        # Copy extra package_data content filtered by find_packages
+        dst = Path(self.build_lib)
+        src = Path(get_package_dir(PY_INSTALL_CFG))
+        exclude = ignore_patterns('*ez_setup*', '*__pycache__*', '*.egg-info*')
+        for path in src.glob('**/*'):
+            if path.is_dir() or exclude(str(path)):
+                continue
+            path_rel = path.relative_to(src)
+            (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
+            copyfile(path, dst / path_rel)
 
 
 class CustomInstall(install):
@@ -213,6 +224,13 @@ class CustomClean(clean):
         self.clean(LIB_INSTALL_CFG)
         self.clean(PY_INSTALL_CFG)
         clean.run(self)
+
+
+def ignore_patterns(*patterns):
+    """
+    Filter names by given patterns
+    """
+    return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
 def is_tool(name):
@@ -348,8 +366,7 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
-
-packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
 
 setup(
