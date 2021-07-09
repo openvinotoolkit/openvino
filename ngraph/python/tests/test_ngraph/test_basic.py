@@ -425,3 +425,10 @@ def test_sink_function_ctor():
     assert len(function.get_parameters()) == 1
     assert len(function.get_results()) == 1
     assert function.get_friendly_name() == "TestFunction"
+
+
+def test_node_opset_version():
+    node = ng.add([1], [2])
+
+    assert node.get_opset_version() == "opset1"
+    assert node.opset_version == "opset1"
