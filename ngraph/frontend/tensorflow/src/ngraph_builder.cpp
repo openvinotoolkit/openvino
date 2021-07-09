@@ -2769,7 +2769,15 @@ class NodeProtoWrapper : public TFNodeDecoder
 public:
 
     NodeProtoWrapper(const NodeDef* _node_def):
-        node_def(_node_def) {}
+        node_def(_node_def) {
+        // Try to print all existing attributes
+        std::cout << " ******** Attributes for " << node_def->name() << " of type " << node_def->op() << "\n";
+        for(const auto& a : node_def->attr())
+        {
+            std::cout << "    " << a.first << ": " << a.second.value_case() << "\n";
+        }
+        std::cout << " ***** end of attributes ****" << std::endl;
+    }
 
 #define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
     { *x = node_def->attr().at(name).FIELD(); }
