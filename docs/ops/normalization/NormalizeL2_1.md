@@ -33,7 +33,7 @@ Particular cases:
 
 * *eps_mode*
 
-  * **Description**: Specifies how *eps* is combined with L2 value calculated before division.
+  * **Description**: Specifies how *eps* is combined with the sum of squares to avoid division by zero.
   * **Range of values**: `add` or `max`
   * **Type**: `string`
   * **Default value**: None
