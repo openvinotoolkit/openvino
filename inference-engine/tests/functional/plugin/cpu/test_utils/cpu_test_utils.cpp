@@ -12,6 +12,10 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == _fmt) return #_fmt; \
 } while (0)
     CASE(undef);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -44,6 +48,10 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(undef);
     CASE(a);
     CASE(ab);
+    CASE(abc);
+    CASE(acb);
+    CASE(aBc8b);
+    CASE(aBc16b);
     CASE(abcd);
     CASE(acdb);
     CASE(aBcd8b);
@@ -52,10 +60,13 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(acdeb);
     CASE(aBcde8b);
     CASE(aBcde16b);
-    CASE(abc);
     CASE(bac);
     CASE(abdc);
     CASE(abdec);
+    CASE(ncw);
+    CASE(nCw8c);
+    CASE(nCw16c);
+    CASE(nwc);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);

@@ -46,8 +46,8 @@ public:
         std::tie(adaPar, netPr, td) = basicParamsSet;
         std::tie(pooledVector, mode, inputShape) = adaPar;
         std::ostringstream result;
-        result << "ROIAlignTest_";
-        result << std::to_string(obj.index);
+        result << "AdaPoolTest_";
+        result << std::to_string(obj.index) << "_";
         result << "Ch=" << std::to_string(inputShape[1]) << "_";
         // TODO: ...
 //        result << "pooledH=" << pooledH << "_";
@@ -77,8 +77,9 @@ protected:
         auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
 
         // TODO: if
-        auto adapool = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam
-                                                                         , ngraph::element::i32);
+        auto adapool = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
+//        (mode == "max" ? std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32) :
+//                         std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam));
         adapool->set_friendly_name("AdaPool");
         adapool->get_rt_info() = getCPUInfo();
         selectedType = std::string("unknown_") + inPrc.name();
@@ -103,13 +104,24 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D") {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (dims == "5D") {
-        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}});
-    } else if (dims == "4D") {
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}});
+    if (mode == "max") {
+        if (dims == "5D") {
+            resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc, ncdhw}, {}, {}});
+        } else if (dims == "4D") {
+            resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc, nchw}, {}, {}});
+        } else {
+            resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc, ncw}, {}, {}});
+        }
     } else {
-        resCPUParams.push_back(CPUSpecificParams{{abc, x}, {abc, abc}, {}, {}});
+        if (dims == "5D") {
+            resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc}, {}, {}});
+        } else if (dims == "4D") {
+            resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc}, {}, {}});
+        } else {
+            resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc}, {}, {}});
+        }
     }
+
     // TODO: if
 //    resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {}, {}});
 //    if (with_cpu_x86_avx512f()) {
@@ -145,12 +157,11 @@ const std::vector<std::vector<int>> pooled5DVector = {
 
 const std::vector<std::string> modeVector = {
 //        "avg",
-// TODO: take to account
         "max"
 };
 
 const std::vector<std::vector<size_t>> input3DShapeVector = {
-        SizeVector({ 1, 1, 1 }),
+        SizeVector({ 1, 2, 1 }),
         SizeVector({ 1, 1, 7 }),
         SizeVector({ 1, 17, 3 }),
         SizeVector({ 3, 17, 5 }),
@@ -158,7 +169,7 @@ const std::vector<std::vector<size_t>> input3DShapeVector = {
 
 const std::vector<std::vector<size_t>> input4DShapeVector = {
         SizeVector({ 1, 1, 1, 1 }),
-        SizeVector({ 1, 17, 5, 2 }),
+        SizeVector({ 1, 3, 1, 1 }),
         SizeVector({ 3, 17, 5, 2 }),
 };
 

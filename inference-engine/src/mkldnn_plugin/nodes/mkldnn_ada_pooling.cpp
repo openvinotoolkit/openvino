@@ -159,10 +159,10 @@ std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims
         else if (dims.ndims() == 4)
             return mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
         else if (dims.ndims() == 5)
-            mayiuse(avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+            return mayiuse(avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
         return memory::format_tag::any;
     };
-    auto tallFmt = [&]() {
+    auto tailFmt = [&]() {
         if (dims.ndims() == 3)
             return memory::format_tag::nwc;
         else if (dims.ndims() == 4)
@@ -173,12 +173,12 @@ std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims
     };
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
-        return { tallFmt() };
-    } else if (true || getParentEdgeAt(0)->getDims()[1] == 1) {  // TODO: remove
+        return { tailFmt() };
+    } else if (false && getParentEdgeAt(0)->getDims()[1] == 1) {  // TODO: remove
         // plain format for 1-channel tensor is preferable
         return { plainFmt() };
     } else {
-        return { plainFmt(), tallFmt(), blockedFmt() };
+        return { plainFmt(), tailFmt(), blockedFmt() };
     }
 }
 
@@ -234,7 +234,7 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-//    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
+    auto isTailFmt = srcMemory0.GetDesc().isTailCFormat();
 
     const auto *src = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
@@ -268,18 +268,19 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     auto dstStrides = config.outConfs[0].desc.getBlockingDesc().getStrides();
 
     // unified strides array
+    const size_t tailDimsOffset = (isTailFmt ? -1 : 0);
     const size_t inStrides[5] = {
             srcStrides[0],
-            srcStrides[1],
-            (spatialDimsCount == 3 ? srcStrides[2] : 0),
-            (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount] : 0),
-            srcStrides[spatialDimsCount + 1] };
+            (isTailFmt ? 1 : srcStrides[1]),
+            (spatialDimsCount == 3 ? srcStrides[2 + tailDimsOffset] : 0),
+            (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount + tailDimsOffset] : 0),
+            srcStrides[spatialDimsCount + 1 + tailDimsOffset] };
     const size_t outStrides[5] = {
             dstStrides[0],
-            dstStrides[1],
-            (spatialDimsCount == 3 ? dstStrides[2] : 0),
-            (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount] : 0),
-            dstStrides[spatialDimsCount + 1] };
+            (isTailFmt ? 1 : dstStrides[1]),
+            (spatialDimsCount == 3 ? dstStrides[2 + tailDimsOffset] : 0),
+            (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount + tailDimsOffset] : 0),
+            dstStrides[spatialDimsCount + 1 + tailDimsOffset] };
     // TODO: ?
 //    const memory_desc_wrapper src_d(pd()->src_md());
 //    const memory_desc_wrapper dst_d(pd()->dst_md());
@@ -291,13 +292,11 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
         outputType res = srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];        // initial max value
-//        int resIndex = spatIndOff * iDHW + dStart * iHW + hStart * IW + wStart;  // initial max index
         int resIndex = dStart * iHW + hStart * IW + wStart;  // initial max index
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                 for (size_t pixW = wStart; pixW < wEnd; pixW++) {
                     outputType curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
-//                    resIndex = (res == curr ? spatIndOff * iDHW + pixD * iHW + pixH * IW + pixW : resIndex);
                     resIndex = (res < curr ? pixD * iHW + pixH * IW + pixW : resIndex);
                     res = std::max(res, curr);
                 }
@@ -312,8 +311,6 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
         auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
-        if (binSize == 0)
-            THROW_IE_EXCEPTION << "Bin of adaptive pooling must be non empty";
         outputType sum = 0;
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
@@ -326,25 +323,35 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
         *dstData = avgDiv(sum, binSize);
     };
 
-    if (algorithm == Algorithm::AdaptivePoolingMax) {  // TODO: remove
+    if (algorithm == Algorithm::AdaptivePoolingMax) {
         pool = poolMax;
     } else {
         pool = poolAvg;
     }
-    // TODO: nhwc
-    parallel_for5d(N, blockCount, OD, OH, OW,
-                [&](int n, int blkIdx, int od, int oh, int ow) {
-        auto srcData = &src[n * inStrides[0] + blkIdx * inStrides[1]];
-        auto dstData = &dst[n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4]];
-        int cStart = blkIdx * blockSize;
-        int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
-        for (int c = cStart; c < cEnd; c++) {
-            const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
-            srcData = srcData + blockResidual;
-            dstData = dstData + blockResidual;
-            pool(srcData, dstData, od, oh, ow, n * C + c);
-        }
-    });
+
+    if (isTailFmt) {
+        parallel_for4d(N, OD, OH, OW,
+           [&](int n, int od, int oh, int ow) {
+               auto srcData = src + n * inStrides[0];
+               auto dstData = dst + n * outStrides[0] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
+               for (int c = 0; c < C; c++) {
+                   pool(srcData + c * inStrides[1], dstData + c * outStrides[1], od, oh, ow, n * C + c);
+               }
+           });
+    } else {  // nchw, nChw16c, nChw8c
+        parallel_for5d(N, blockCount, OD, OH, OW,
+           [&](int n, int blkIdx, int od, int oh, int ow) {
+               auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
+               auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] +
+                       od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
+               int cStart = blkIdx * blockSize;
+               int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
+               for (int c = cStart; c < cEnd; c++) {
+                   const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
+                   pool(srcData + blockResidual, dstData + blockResidual, od, oh, ow, n * C + c);
+               }
+           });
+    }
 }
 
 bool MKLDNNAdaPoolingNode::created() const {
@@ -355,7 +362,8 @@ void MKLDNNAdaPoolingNode::createPrimitive() {}
 
 template <typename T>
 T MKLDNNAdaPoolingNode::avgDiv(const T sum, size_t binSize) {
-    // TODO: add check
+    if (binSize == 0)
+        THROW_IE_EXCEPTION << "Bin of adaptive pooling must be non empty";
     if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
         return static_cast<T>(std::nearbyint(static_cast<float>(sum) / binSize));
     } else {
