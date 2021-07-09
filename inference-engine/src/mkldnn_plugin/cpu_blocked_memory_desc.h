@@ -16,7 +16,7 @@ public:
                       const std::vector<size_t>& strides = {});
 
     MemoryDescPtr clone() const override {
-        return make_unique<BlockedMemoryDesc>(*this);
+        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
     }
 
     bool isDefined() const override;

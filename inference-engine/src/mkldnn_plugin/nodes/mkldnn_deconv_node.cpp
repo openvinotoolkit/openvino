@@ -403,7 +403,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDes
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx == 2) {
         auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
-        return make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), dataType,
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), dataType,
                                              MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(2)->getShape().getRank()));
     }
 
@@ -411,16 +411,16 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn:
             : isInt8 ? MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx)) : MKLDNNMemoryDesc(primitive_desc_it.diff_dst_desc(idx));
 
     if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
-        return make_unique<MKLDNNMemoryDesc>(MKLDNNDims(weightDims), desc.getDataType(), desc.getFormat());
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims(weightDims), desc.getDataType(), desc.getFormat());
     } else {
-        return make_unique<MKLDNNMemoryDesc>(std::move(desc));
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
     }
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     MKLDNNMemoryDesc desc = isInt8 ? MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx))
             : MKLDNNMemoryDesc(primitive_desc_it.diff_src_desc(idx));
-    return make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(idx)->getShape().getStaticMklDims(), desc.getDataType(), desc.getFormat());
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(idx)->getShape().getStaticMklDims(), desc.getDataType(), desc.getFormat());
 }
 
 InferenceEngine::Precision MKLDNNDeconvolutionNode::getRuntimePrecision() const {

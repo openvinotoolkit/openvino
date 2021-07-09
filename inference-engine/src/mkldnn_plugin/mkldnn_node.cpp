@@ -1041,7 +1041,7 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    return make_unique<MKLDNNMemoryDesc>(primitive_desc_it.src_desc(idx));
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.src_desc(idx));
     // TODO [DS]: uncomment or remove
 //    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 //    if (desc.getLayout() == InferenceEngine::Layout::ANY)
@@ -1055,7 +1055,7 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getSrcMemDesc(mkldnn::primitive_de
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    return make_unique<MKLDNNMemoryDesc>(primitive_desc_it.dst_desc(idx));
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.dst_desc(idx));
     // TODO [DS]: uncomment or remove
 //    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
 //    if (desc.getLayout() == InferenceEngine::Layout::ANY)

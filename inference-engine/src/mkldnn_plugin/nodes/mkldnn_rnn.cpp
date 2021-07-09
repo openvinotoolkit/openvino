@@ -299,11 +299,11 @@ void MKLDNNRNN::fillCellDesc() {
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d   = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d  = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d   = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
     // Add 5th input
-    w_bias_d = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
@@ -400,10 +400,10 @@ void MKLDNNRNN::fillSeqDesc() {
         out_data_d.emplace_back(MKLDNNDims{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d  = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
-    w_bias_d = make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 

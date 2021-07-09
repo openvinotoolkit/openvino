@@ -764,10 +764,10 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
     auto pushDesc = [&](memory::format_tag format) {
-        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), inputDataType, format);
-        config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES)->getShape().getStaticMklDims(), memory::data_type::s32,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), inputDataType, format);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES)->getShape().getStaticMklDims(), memory::data_type::s32,
                                                                memory::format_tag::x);
-        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), outputDataType, format);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 

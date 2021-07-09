@@ -1462,8 +1462,9 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto& srcDesc = srcMemory->GetDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
-    bool is_blk_format = !srcDesc.checkGeneralLayout(GeneralLayout::nspc);
-    int blk_size = (srcDesc.checkGeneralLayout(GeneralLayout::ncsp)) ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    bool is_blk_format = !srcDesc.checkGeneralLayout(GeneralLayout::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
+    int blk_size = (srcDesc.checkGeneralLayout(GeneralLayout::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
+                    ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();

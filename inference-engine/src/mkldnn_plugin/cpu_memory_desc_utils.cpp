@@ -134,6 +134,21 @@ MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const MemoryDesc& de
 
 MKLDNNMemoryDesc MemoryDescUtils::convertToMKLDNNMemoryDesc(const BlockedMemoryDesc& desc) {
     dnnl_memory_desc_t mkldnnDesc;
+
+    // scalar case
+    if (desc.getShape().getRank() == 0) {
+        mkldnn::memory::desc convertedDesc;
+        convertedDesc.data.format_kind = dnnl_blocked;
+        convertedDesc.data.data_type = memory::convert_to_c(MKLDNNMemory::convertToDataType(desc.getPrecision()));
+        convertedDesc.data.ndims = 1;
+        convertedDesc.data.dims[0] = 1;
+        convertedDesc.data.padded_dims[0] = 1;
+        convertedDesc.data.format_desc.blocking.strides[0] = 1;
+        convertedDesc.data.padded_offsets[0] = 0;
+        convertedDesc.data.offset0 = desc.getOffsetPadding();
+        return MKLDNNMemoryDesc(convertedDesc);
+    }
+
     auto dims = desc.getShape().getStaticDims();
 
     auto ie_blkdDims = desc.getBlockDims();
@@ -332,11 +347,11 @@ BlockedMemoryDesc MemoryDescUtils::convertToBlockedDescriptor(const MemoryDesc &
 
 MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const MKLDNNMemoryDesc& desc) {
     if (desc.getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
-        return make_unique<MKLDNNMemoryDesc>(desc);
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(desc);
 
     mkldnn::memory::desc retDesc = desc;
     retDesc.data.offset0 = Shape::UNDEFINED_DIM;
-    return make_unique<MKLDNNMemoryDesc>(retDesc);
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(retDesc);
 }
 
 MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const BlockedMemoryDesc &desc) {
@@ -347,20 +362,20 @@ MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const BlockedMemoryDesc &des
     offsetPaddingToData.resize(desc.getBlockDims().size(), 0);
     size_t offsetPadding = Shape::UNDEFINED_DIM;
 
-    return make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape().getDims(), desc.getBlockDims(),
+    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape().getDims(), desc.getBlockDims(),
                                                   desc.getOrder(), offsetPadding, offsetPaddingToData, strides);
 }
 
 MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
         auto blockedDesc = desc->as<BlockedMemoryDesc>();
-        return make_unique<BlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape().getDims(),
+        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape().getDims(),
                                               blockedDesc->getBlockDims(), blockedDesc->getOrder());
     } else if (MemoryDescType::Mkldnn == desc->getType()) {
         auto mkldnnDesc = desc->as<MKLDNNMemoryDesc>();
         mkldnn::memory::desc retDesc = *mkldnnDesc;
         retDesc.data.offset0 = 0;
-        return make_unique<MKLDNNMemoryDesc>(retDesc);
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(retDesc);
     }
     return desc->clone();
 }

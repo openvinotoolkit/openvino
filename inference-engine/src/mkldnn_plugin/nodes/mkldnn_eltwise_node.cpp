@@ -1097,7 +1097,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                     blocks[i] = dims[order[i]];
                 }
 
-                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
+                return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
             } else if (lt == Blocked && edge->getShape().getRank() != 1 && edge->getShape().getStaticDims()[1] != 1) {
                 size_t blockSize = mayiuse(x64::avx512_common) ? 16 : 8;
 
@@ -1109,13 +1109,13 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 blocks.push_back(blockSize);
                 order.push_back(1);
 
-                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
+                return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
             } else {
                 std::vector<size_t> blocks = edge->getShape().getStaticDims();
                 std::vector<size_t> order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                return make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
+                return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(prc, edge->getShape().getStaticDims(), blocks, order, offset);
             }
         };
 
