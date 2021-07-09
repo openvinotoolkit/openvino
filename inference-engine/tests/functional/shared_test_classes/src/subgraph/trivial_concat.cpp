@@ -20,6 +20,7 @@ std::string TrivialConcatLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void TrivialConcatLayerTest::SetUp() {
+    threshold = 0.1;
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
