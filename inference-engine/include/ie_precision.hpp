@@ -109,11 +109,6 @@ public:
     template <class T>
     bool hasStorageType(const char* typeName = nullptr) const noexcept {
         try {
-            if (precisionInfo.value != BIN) {
-                if (sizeof(T) != size()) {
-                    return false;
-                }
-            }
 #define CASE(x, y) \
     case x:        \
         return std::is_same<T, y>()
@@ -247,14 +242,14 @@ public:
     }
 
     /**
-     * @brief Returns size of single element of that precision in bits
+     * @brief Returns size of single element of that precision in bytes
      * @returns Number of bytes per element
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
             IE_THROW() << " cannot estimate element if precision is " << precisionInfo.name;
         }
-        return precisionInfo.bitsSize >> 3;
+        return (precisionInfo.bitsSize + 7) / 8;
     }
 
     /**
@@ -461,7 +456,7 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     Precision::PrecisionInfo info;
     info.name = name;
 
-    size_t nBits = precision == BIN ? 1 : 8;
+    size_t nBits = precision == BIN ? 1 : (precision == U4 || precision == I4) ? 4 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
     info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;
