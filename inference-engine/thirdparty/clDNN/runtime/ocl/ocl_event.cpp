@@ -3,6 +3,7 @@
 //
 
 #include "ocl_event.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -175,6 +176,17 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
         for (auto& duration : all_durations[period.name]) {
             sum += (duration.second - duration.first);
         }
+
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->print_multi_kernel_perf) {
+            if (0 == strcmp(period.name, "executing")) {
+                GPU_DEBUG_COUT << "Multi-kernel time: ";
+                for (auto& duration : all_durations[period.name])
+                    std::cout << "  " << (duration.second - duration.first) / 1000;
+                std::cout << " Total " << sum / 1000 << std::endl;
+            }
+        }
+
         info.push_back(get_profiling_interval(period.name, 0, sum));
     }
 
