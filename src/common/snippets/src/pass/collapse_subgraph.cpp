@@ -241,21 +241,25 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
 ngraph::snippets::pass::StartSubgraph::StartSubgraph(bool tokenize_by_node) : MatcherPass() {
     MATCHER_SCOPE(StartSubgraph);
 
-    auto has_multiple_output_edges = [](std::shared_ptr<Node> n) -> bool {
-        for (auto out : n->outputs()) {
-            if (out.get_target_inputs().size() != 1) return true;
+    auto has_siblings = [](std::shared_ptr<Node> n) -> bool {
+        if (ngraph::op::is_constant(n))
+            return false;
+        for (auto &parent_out : n->input_values()) {
+             auto siblings = parent_out.get_target_inputs();
+            if (siblings.size() > 1) {
+                return true;
+            }
         }
-
         return false;
     };
 
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [tokenize_by_node, has_multiple_output_edges](std::shared_ptr<Node> n) {
+        [tokenize_by_node, has_siblings](std::shared_ptr<Node> n) {
             return is_lo(n) &&
                    has_supported_in_out(n) &&
                    (tokenize_by_node || !has_subgraph_as_input(n)) &&
-                   has_multiple_output_edges(n);
+                   has_siblings(n);
         })),
         [](ngraph::pattern::Matcher &m) -> bool {
         auto node = m.get_match_root();
