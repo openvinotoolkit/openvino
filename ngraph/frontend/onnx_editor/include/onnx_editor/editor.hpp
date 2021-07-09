@@ -49,8 +49,7 @@ namespace ngraph
             ///                    used to modified the ONNX model loaded from a file. This method
             ///                    throws an exception if the model doesn't contain any of
             ///                    the inputs specified in its parameter.
-            void
-                set_input_types(const std::map<std::string, element::Type_t>& input_types);
+            void set_input_types(const std::map<std::string, element::Type_t>& input_types);
 
             /// \brief Modifies the in-memory representation of the model by setting
             ///        custom input shapes for all inputs specified in the provided map.
@@ -59,8 +58,7 @@ namespace ngraph
             ///                     be used to modified the ONNX model loaded from a file. This
             ///                     method throws an exception if the model doesn't contain any of
             ///                     the inputs specified in its parameter.
-            void
-                set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+            void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
 
             /// \brief Extracts a subgraph constrained by input edges and output edges. In the end
             ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
@@ -73,7 +71,7 @@ namespace ngraph
             /// \param inputs A collection of input edges which become new inputs to the graph
             /// \param outputs A collection of output edges which become new outputs of the graph
             void cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs);
+                                    const std::vector<OutputEdge>& outputs);
 
             /// \brief Modifies the in-memory representation of the model by setting custom input
             ///        values for inputs specified in the provided map.
@@ -125,8 +123,7 @@ namespace ngraph
             ///
             /// \param input An input helper structure created based on a input name
             ///              or a input index.
-            InputEdge find_input_edge(const EditorNode& node,
-                                                        const EditorInput& input) const;
+            InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
 
             /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -143,8 +140,7 @@ namespace ngraph
             ///
             /// \param output A output helper structure created based on a output name
             ///               or a output index.
-            OutputEdge find_output_edge(const EditorNode& node,
-                                                          const EditorOutput& output) const;
+            OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
 
             /// \brief Returns an OutputEdge based on a output name.
             ///
@@ -161,8 +157,7 @@ namespace ngraph
             ///
             /// \param output_name A node output name.
             ///
-            std::vector<InputEdge>
-                find_output_consumers(const std::string& output_name) const;
+            std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
 
             /// \brief Returns a vector of InputEdges which consume an output of a node
             ///        determined by provided output name.
