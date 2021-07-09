@@ -77,6 +77,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -86,6 +87,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
     manager.register_pass<ngraph::pass::ConvertToUnsignedNmsGather>(); // workaround until dynamism in NMS is not supported
