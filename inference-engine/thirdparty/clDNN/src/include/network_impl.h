@@ -63,7 +63,11 @@ public:
 
     void reset_execution(bool wait = true);
     void set_input_data(const primitive_id& id, memory::ptr data);
-    void set_output_memory(const primitive_id& id, memory::ptr mem);
+    void set_output_memory(const primitive_id& id,
+                           memory::ptr mem,
+                           bool check = true,
+                           bool propagate_to_optimized = false,
+                           bool propagate_to_real_deps = false);
 
     void set_learning_rate(const float lr);
     float get_learning_rate();
@@ -81,6 +85,8 @@ public:
     std::vector<primitive_id> get_all_primitive_org_ids() const;
     const program_impl::primitives_info& get_primitives_info() const;
     const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
+    std::vector<primitive_id> get_output_optimized_chain_ids(const primitive_id& output_id);
+    std::vector<primitive_id> get_output_memory_primitive_ids(const primitive_id& output_id);
     void execute(const std::vector<event::ptr>& events);
     void validate_primitives();
     void set_arguments();

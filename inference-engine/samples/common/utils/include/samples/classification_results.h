@@ -54,21 +54,27 @@ private:
      * @param output Vector of indexes for the top n places
      */
     template <class T>
-    void topResults(unsigned int n, InferenceEngine::TBlob<T>& input, std::vector<unsigned>& output) {
-        InferenceEngine::SizeVector dims = input.getTensorDesc().getDims();
+    void topResults(unsigned int n, InferenceEngine::Blob::Ptr& input, std::vector<unsigned>& output) {
+        InferenceEngine::SizeVector dims = input->getTensorDesc().getDims();
         size_t input_rank = dims.size();
         if (!input_rank || !dims[0])
             IE_THROW() << "Input blob has incorrect dimensions!";
         size_t batchSize = dims[0];
-        std::vector<unsigned> indexes(input.size() / batchSize);
+        std::vector<unsigned> indexes(input->size() / batchSize);
 
-        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input.size()));
+        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input->size()));
 
         output.resize(n * batchSize);
+        InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
+        if (!moutput) {
+            IE_THROW() << "Output blob should be inherited from MemoryBlob";
+        }
+        // locked memory holder should be alive all time while access to its buffer happens
+        auto moutputHolder = moutput->rmap();
 
         for (size_t i = 0; i < batchSize; i++) {
-            size_t offset = i * (input.size() / batchSize);
-            T* batchData = input.data();
+            size_t offset = i * (input->size() / batchSize);
+            T* batchData = moutputHolder.as<T*>();
             batchData += offset;
 
             std::iota(std::begin(indexes), std::end(indexes), 0);
@@ -88,16 +94,15 @@ private:
      * @param input 1D blob that contains probabilities
      * @param output Vector of indexes for the top n places
      */
-    void topResults(unsigned int n, InferenceEngine::Blob& input, std::vector<unsigned>& output) {
+    void topResults(unsigned int n, InferenceEngine::Blob::Ptr& input, std::vector<unsigned>& output) {
 #define TBLOB_TOP_RESULT(precision)                                                                            \
     case InferenceEngine::Precision::precision: {                                                              \
         using myBlobType = InferenceEngine::PrecisionTrait<InferenceEngine::Precision::precision>::value_type; \
-        InferenceEngine::TBlob<myBlobType>& tblob = dynamic_cast<InferenceEngine::TBlob<myBlobType>&>(input);  \
-        topResults(n, tblob, output);                                                                          \
+        topResults<myBlobType>(n, input, output);                                                              \
         break;                                                                                                 \
     }
 
-        switch (input.getTensorDesc().getPrecision()) {
+        switch (input->getTensorDesc().getPrecision()) {
             TBLOB_TOP_RESULT(FP32);
             TBLOB_TOP_RESULT(FP64);
             TBLOB_TOP_RESULT(FP16);
@@ -111,7 +116,7 @@ private:
             TBLOB_TOP_RESULT(U64);
             TBLOB_TOP_RESULT(I64);
         default:
-            IE_THROW() << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
+            IE_THROW() << "cannot locate blob for precision: " << input->getTensorDesc().getPrecision();
         }
 
 #undef TBLOB_TOP_RESULT
@@ -129,7 +134,7 @@ public:
         if (_imageNames.size() != _batchSize) {
             throw std::logic_error("Batch size should be equal to the number of images.");
         }
-        topResults(_nTop, *_outBlob, _results);
+        topResults(_nTop, _outBlob, _results);
     }
 
     /**
@@ -146,18 +151,17 @@ public:
             std::wcout << std::endl << std::endl;
             printHeader();
 
+            InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(_outBlob);
+            auto moutputHolder = moutput->rmap();
             for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
                 std::cout.precision(7);
                 /** Getting probability for resulting class **/
-                InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(_outBlob);
                 if (!moutput) {
                     throw std::logic_error("We expect _outBlob to be inherited from MemoryBlob in "
                                            "ClassificationResult::print, "
                                            "but by fact we were not able to cast _outBlob to MemoryBlob");
                 }
                 // locked memory holder should be alive all time while access to its buffer happens
-                auto moutputHolder = moutput->rmap();
-
                 const auto result =
                     moutputHolder
                         .as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[_results.at(id) +
