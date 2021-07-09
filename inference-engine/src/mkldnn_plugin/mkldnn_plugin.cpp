@@ -296,7 +296,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
     pass_config->enable<ngraph::pass::ConvertGather1ToGather7>();
-    pass_config->enable<ngraph::pass::ConvertDeformableConv8To1>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
