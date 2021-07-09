@@ -57,28 +57,24 @@ file(GLOB __CLDNN_Headers__include
     "${__CLDNN_Directory__include}/*.hpp"
   )
 
-set(__CLDNN_Directory__gpu             "${CMAKE_CURRENT_SOURCE_DIR}/gpu")
-set(__CLDNN_Label__gpu                 "gpu")
+set(__CLDNN_Directory__impls             "${CMAKE_CURRENT_SOURCE_DIR}/impls")
+set(__CLDNN_Label__gpu                 "impls")
 file(GLOB __CLDNN_Sources__gpu
-    "${__CLDNN_Directory__gpu}/*.h"
-    "${__CLDNN_Directory__gpu}/*.hpp"
-    "${__CLDNN_Directory__gpu}/*.cpp"
-    "${__CLDNN_Directory__gpu}/*.inc"
+    "${__CLDNN_Directory__impls}/common/*.hpp"
+    "${__CLDNN_Directory__impls}/common/*.cpp"
+    "${__CLDNN_Directory__impls}/cpu/*.hpp"
+    "${__CLDNN_Directory__impls}/cpu/*.cpp"
+    "${__CLDNN_Directory__impls}/ocl/*.hpp"
+    "${__CLDNN_Directory__impls}/ocl/*.cpp"
   )
 
-set(__CLDNN_Directory__cache           "${__CLDNN_Directory__gpu}/cache")
-set(__CLDNN_Label__cache               "${__CLDNN_Label__gpu}\\cache")
-file(GLOB __CLDNN_Sources__cache
-    "${__CLDNN_Directory__cache}/*.h"
-    "${__CLDNN_Directory__cache}/*.hpp"
-    "${__CLDNN_Directory__cache}/*.cpp"
-  )
-
-set(__CLDNN_Directory__ch_kernels      "${__CLDNN_Directory__cache}/kernels")
-set(__CLDNN_Label__ch_kernels          "${__CLDNN_Label__cache}\\kernels")
-file(GLOB __CLDNN_Sources__ch_kernels
-    "${__CLDNN_Directory__ch_kernels}/*.cl"
-  )
+if (ENABLE_ONEDNN_FOR_GPU)
+  file(GLOB __CLDNN_Sources__onednn
+      "${__CLDNN_Directory__impls}/onednn/*.hpp"
+      "${__CLDNN_Directory__impls}/onednn/*.cpp"
+    )
+  list(APPEND __CLDNN_Sources__gpu ${__CLDNN_Sources__onednn})
+endif()
 
 set(__CLDNN_Directory__cg_cache        "${CLDNN__CODEGEN_INCDIR}")
 set(__CLDNN_CGDirectory__cg_cache      "${CLDNN__CODEGEN_DIR}/cache")
@@ -145,7 +141,12 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     cldnn_kernel_selector
     openvino::itt
     cldnn_runtime
-  )
+)
+
+if(ENABLE_ONEDNN_FOR_GPU)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
+  target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
+endif()
 
 if(COMMAND add_cpplint_target)
   add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
@@ -164,5 +165,5 @@ endif()
 # ======================================================================================================
 
 ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(gpu/detection_output_cpu.cpp half.cpp
+set_source_files_properties(impls/cpu/detection_output.cpp half.cpp
   PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

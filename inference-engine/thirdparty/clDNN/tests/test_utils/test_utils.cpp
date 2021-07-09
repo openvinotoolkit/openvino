@@ -287,12 +287,20 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
 
 cldnn::engine_configuration get_test_engine_config() {
     const bool enable_profiling = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const cldnn::queue_types queue_type = cldnn::queue_types::in_order;
+#else
     const cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+#endif
     std::string sources_dumps_dir = "";
     priority_mode_types priority_mode = priority_mode_types::disabled;
     throttle_mode_types throttle_mode = throttle_mode_types::disabled;
     bool use_memory_pool = true;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    bool use_unified_shared_memory = false;
+#else
     bool use_unified_shared_memory = true;
+#endif
     return engine_configuration(enable_profiling, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
 }
 

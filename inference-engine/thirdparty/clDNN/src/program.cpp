@@ -55,8 +55,13 @@
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
 #include "to_string_utils.h"
-#include "gpu/register_gpu.hpp"
 #include "runtime/cldnn_itt.hpp"
+#include "impls/ocl/register.hpp"
+#include "impls/cpu/register.hpp"
+#include "impls/common/register.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "impls/onednn/register.hpp"
+#endif
 
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -127,7 +132,12 @@ program_impl::~program_impl() {
 void program_impl::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
-        gpu::register_implementations_gpu();
+        common::register_implementations_common();
+        cpu::register_implementations_cpu();
+        ocl::register_implementations_ocl();
+#if ENABLE_ONEDNN_FOR_GPU
+        onednn::register_implementations_onednn();
+#endif
         is_initialized = true;
     }
 }

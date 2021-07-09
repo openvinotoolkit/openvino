@@ -9,6 +9,10 @@
 #include "event.hpp"
 #include "engine_configuration.hpp"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#endif
+
 namespace cldnn {
 
 class engine;
@@ -56,6 +60,12 @@ struct memory {
 
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */) = 0;
     virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */) = 0;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    virtual dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */) {
+        throw std::runtime_error("[CLDNN] Can't convert memory object to onednn");
+    }
+#endif
 
 protected:
     engine* _engine;

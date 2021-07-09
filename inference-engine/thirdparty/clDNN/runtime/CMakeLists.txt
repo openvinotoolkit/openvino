@@ -63,6 +63,11 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     openvino::itt
   )
 
+if(ENABLE_ONEDNN_FOR_GPU)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
+  target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
+endif()
+
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))

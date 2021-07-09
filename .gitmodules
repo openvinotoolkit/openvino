@@ -50,3 +50,7 @@
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
 	url = https://github.com/intel/ittapi.git
+[submodule "thirdparty/onednn_gpu"]
+	path = thirdparty/onednn_gpu
+	url = https://github.com/oneapi-src/oneDNN.git
+	ignore = dirty
