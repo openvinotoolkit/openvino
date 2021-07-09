@@ -627,8 +627,6 @@ struct optional_params {
 
     virtual ParamsKey GetSupportedKey() const;
 
-    mutable std::string uniqueID;
-
 protected:
     explicit optional_params(KernelType kt) : kType(kt) {}
     KernelType kType;

@@ -23,13 +23,15 @@ using namespace cldnn;
 
 void compile_graph::run(program_impl& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+    size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {
+        node->set_unique_id(std::to_string(order_idx++));
         if (!node->is_type<data>()) {
             node->get_output_layout();
         }
     }
 
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
     const auto n_threads = p.get_engine().configuration().n_threads;
     auto arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
     arena->initialize(n_threads);
@@ -47,14 +49,9 @@ void compile_graph::run(program_impl& p) {
     });
     arena.reset();
 #else
-    size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {
-        node->set_unique_id(std::to_string(order_idx++));
-        if (!node->is_type<data>()) {
-            node->get_output_layout();
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-                node->selected_impl = node->type()->choose_impl(p.get_engine(), *node);
-            }
+        if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+            node->selected_impl = node->type()->choose_impl(p.get_engine(), *node);
         }
     }
 #endif
