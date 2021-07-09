@@ -9,7 +9,7 @@ import fastjsonschema as json_validate
 from generator import generator, generate
 
 path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'extensions', 'front',)
-schema_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'mo', 'utils', 'schema.json')
+schema_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'schema.json')
 
 test_json1 = '[{"id": "", "match_kind": "general", "custom_attributes": {}}]'
 test_json2 = '[{"id": "someid", "match_kind": "abc", "custom_attributes": {}}]'
