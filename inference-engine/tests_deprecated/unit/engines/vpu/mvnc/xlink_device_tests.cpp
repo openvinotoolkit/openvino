@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 #include <tests_common.hpp>
 #include <watchdog/xlink_device.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 
 using namespace ::testing;
 using namespace InferenceEngine;

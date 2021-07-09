@@ -45,6 +45,8 @@ TEST(attributes, prior_box_op)
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();
 
+    const auto expected_attr_count = 12;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(g_prior_box_attrs.min_size, prior_box_attrs.min_size);
     EXPECT_EQ(g_prior_box_attrs.max_size, prior_box_attrs.max_size);
     EXPECT_EQ(g_prior_box_attrs.aspect_ratio, prior_box_attrs.aspect_ratio);
