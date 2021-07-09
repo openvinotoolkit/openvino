@@ -80,6 +80,7 @@ void AutoInferRequest::HotSwapRequests() {
             _alreadyActualNetwork = true;
             _inferRequest = {tempSoExecNetwork, tempSoExecNetwork->CreateInferRequest()};
             _inferRequest->SetCallback(_callback);
+            // printf("!!! DEBUG: Hot swap happened !!!\n");
         }
     }
 }
