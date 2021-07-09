@@ -37,13 +37,13 @@ std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOrigina
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = makeFakeQuantize(input, precision, fqOnData);
     const auto reshape = std::make_shared<ngraph::opset1::Reshape>(
         fakeQuantizeOnActivations,
-        std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape),
+        std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{ static_cast<size_t>(inputShape.rank().get_length()) }, inputShape.to_shape()),
         true);
     reshape->set_friendly_name("output");
 

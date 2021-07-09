@@ -48,7 +48,7 @@ const std::vector<bool> multiChannel = { true/*, false*/ };
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 6, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues),

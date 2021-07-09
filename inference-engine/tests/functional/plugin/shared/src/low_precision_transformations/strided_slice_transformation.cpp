@@ -26,7 +26,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
 
 std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;;
@@ -42,7 +42,7 @@ std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<S
 
 void StridedSliceTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -65,7 +65,7 @@ void StridedSliceTransformation::SetUp() {
 
 void StridedSliceTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     StridedSliceTransformationParam param;

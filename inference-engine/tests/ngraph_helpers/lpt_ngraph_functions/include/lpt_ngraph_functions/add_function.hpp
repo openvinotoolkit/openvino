@@ -71,7 +71,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool broadcast,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);

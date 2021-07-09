@@ -37,7 +37,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    std::pair<ngraph::Shape, ngraph::Shape>,
+    std::pair<ngraph::PartialShape, ngraph::Shape>,
     std::string,
     interpAttributes> InterpolateTransformationParams;
 

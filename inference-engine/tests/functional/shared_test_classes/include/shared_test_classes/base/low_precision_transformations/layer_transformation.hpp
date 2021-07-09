@@ -57,7 +57,7 @@ protected:
 
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShapes,
+        const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ngraph::pass::low_precision::LayerTransformation::Params& params);
 };

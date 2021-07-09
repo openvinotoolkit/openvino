@@ -39,7 +39,7 @@ std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<D
     };
 
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
@@ -54,14 +54,14 @@ std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<D
 
 void DepthToSpaceTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 
-    if (inputShape.size() != 4ul) {
-        IE_THROW() << "not supported input shape size " << inputShape.size();
+    if (inputShape.rank().is_dynamic() || inputShape.rank().get_length() != 4) {
+        IE_THROW() << "not supported input shape size " << inputShape.rank();
     }
 
     function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);
@@ -71,7 +71,7 @@ void DepthToSpaceTransformation::SetUp() {
 
 void DepthToSpaceTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;

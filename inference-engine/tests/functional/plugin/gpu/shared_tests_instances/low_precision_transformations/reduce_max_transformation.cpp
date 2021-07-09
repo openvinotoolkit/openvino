@@ -91,7 +91,7 @@ const std::vector<LayerTestsDefinitions::ReduceMaxTransformationParam> params = 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceMaxTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 10, 10 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),

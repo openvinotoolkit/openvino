@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string, // target device: CPU, GPU
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     bool, // transparent intermediate

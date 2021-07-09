@@ -16,7 +16,7 @@ class SqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> squeezeAxes;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
 };
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);

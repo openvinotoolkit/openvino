@@ -488,7 +488,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
     },
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ngraph::PartialShape> shapes = {
     { 1, 4, 7, 7 }
 };
 

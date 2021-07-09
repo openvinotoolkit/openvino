@@ -25,7 +25,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginalWithMaxPool(
             const ngraph::element::Type precision,
-            const ngraph::Shape& inputShape,
+            const ngraph::PartialShape& inputShape,
             const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(

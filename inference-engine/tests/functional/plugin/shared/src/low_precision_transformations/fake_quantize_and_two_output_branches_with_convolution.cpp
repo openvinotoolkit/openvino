@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(
     testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
@@ -38,7 +38,7 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
     threshold = 0.1f;
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
@@ -55,7 +55,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;

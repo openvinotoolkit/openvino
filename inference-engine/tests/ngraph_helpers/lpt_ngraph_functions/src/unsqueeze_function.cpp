@@ -33,10 +33,10 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> UnsqueezeFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& axes) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = fakeQuantizeOnData.empty() ?
         nullptr :

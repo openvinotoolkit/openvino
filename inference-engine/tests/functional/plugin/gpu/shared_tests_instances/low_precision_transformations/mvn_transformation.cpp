@@ -13,8 +13,8 @@ namespace {
         element::f16
     };
 
-    const std::vector<ngraph::Shape> inputAndQuantizationShapes = {
-        Shape{ 1ul, 4ul, 16ul, 16ul },
+    const std::vector<ngraph::PartialShape> inputAndQuantizationShapes = {
+        { 1ul, 4ul, 16ul, 16ul },
     };
 
     const std::vector<AxisSet> reductionAxes = { { 2, 3 }, { 1, 2, 3 } };

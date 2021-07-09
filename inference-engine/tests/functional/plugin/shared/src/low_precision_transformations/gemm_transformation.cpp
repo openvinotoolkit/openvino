@@ -23,7 +23,7 @@ namespace LayerTestsDefinitions {
 
 std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<GemmTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = obj.param;
@@ -33,7 +33,7 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<GemmTrans
 
 void GemmTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
@@ -51,7 +51,7 @@ void GemmTransformation::SetUp() {
 
 void GemmTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();

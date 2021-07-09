@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOpti
 // ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;

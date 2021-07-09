@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    Shape,
+    PartialShape,
     std::string,
     builder::subgraph::FakeQuantizeOnData> MultiplyToGroupConvolutionTransformationParams;
 

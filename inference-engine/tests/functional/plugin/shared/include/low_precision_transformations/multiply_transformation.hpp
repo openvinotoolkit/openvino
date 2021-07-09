@@ -23,7 +23,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     MultiplyTestValues
 > MultiplyTransformationParams;

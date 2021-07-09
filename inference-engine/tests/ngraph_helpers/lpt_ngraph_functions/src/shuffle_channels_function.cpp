@@ -35,7 +35,7 @@ std::shared_ptr<Function> ShuffleChannelsFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> ShuffleChannelsFunction::getOriginal(
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
     const std::int64_t axis,
     const std::int64_t group) {

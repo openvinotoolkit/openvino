@@ -13,7 +13,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize) {
     const float low = 0.f;

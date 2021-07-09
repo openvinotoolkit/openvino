@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    Shape,
+    PartialShape,
     std::string,
     AxisSet,
     bool> MVNTransformationParams;

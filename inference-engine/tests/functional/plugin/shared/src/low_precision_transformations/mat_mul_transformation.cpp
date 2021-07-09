@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -60,7 +60,7 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
 
 void MatMulTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
@@ -77,7 +77,7 @@ void MatMulTransformation::SetUp() {
 
 void MatMulTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();

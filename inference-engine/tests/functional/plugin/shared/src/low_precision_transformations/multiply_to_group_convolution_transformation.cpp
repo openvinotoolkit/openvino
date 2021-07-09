@@ -24,7 +24,7 @@ namespace LayerTestsDefinitions {
 std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams> obj) {
     std::string targetDevice;
     ngraph::element::Type precision;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     builder::subgraph::FakeQuantizeOnData fqOnData;
     std::tie(precision, shape, targetDevice, fqOnData) = obj.param;
@@ -35,7 +35,7 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::T
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     builder::subgraph::FakeQuantizeOnData fqOnData;

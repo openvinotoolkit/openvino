@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 
 std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
@@ -29,7 +29,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
@@ -45,7 +45,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 
 void FuseFakeQuantizeAndScaleShiftTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;

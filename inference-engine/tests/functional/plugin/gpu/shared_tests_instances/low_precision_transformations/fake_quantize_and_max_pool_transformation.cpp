@@ -30,7 +30,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndMaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizes)),

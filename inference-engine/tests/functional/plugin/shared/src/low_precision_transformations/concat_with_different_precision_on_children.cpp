@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -38,7 +38,7 @@ std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(testing::
 
 InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -51,7 +51,7 @@ InferenceEngine::Blob::Ptr ConcatWithDifferentChildrenTransformation::GenerateIn
 
 void ConcatWithDifferentChildrenTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool multiChannel;
@@ -65,7 +65,7 @@ void ConcatWithDifferentChildrenTransformation::SetUp() {
 
 void ConcatWithDifferentChildrenTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithDifferentChildrenTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;

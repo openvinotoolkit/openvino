@@ -26,7 +26,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ngraph::PartialShape> shapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };
