@@ -19,8 +19,8 @@ std::string SetBlobOfKindTest::getTestCaseName(testing::TestParamInfo<SetBlobOfK
     std::tie(blobKind, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "Kind=" << blobKind;
-    result << " Device="<< targetDevice;
+    result << "Kind=" << blobKind << "_";
+    result << "Device="<< targetDevice;
     return result.str();
 }
 

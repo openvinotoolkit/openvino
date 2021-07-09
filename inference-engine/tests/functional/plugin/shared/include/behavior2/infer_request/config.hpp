@@ -67,15 +67,4 @@ TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
 }
-
-TEST_P(InferRequestConfigTest, CanInferWithConfig) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
-    cnnNet = InferenceEngine::CNNNetwork(function);
-    // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    auto req = execNet.CreateInferRequest();
-    ASSERT_NO_THROW(req.Infer());
-}
 }  // namespace BehaviorTestsDefinitions
