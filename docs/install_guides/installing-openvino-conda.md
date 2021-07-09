@@ -32,7 +32,11 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda update --all
    ```
-3. Install the Intel® Distribution of OpenVINO™ Toolkit:
+3. Install prerequisites:
+    ```sh
+   conda install numpy
+   ```
+4. Install the Intel® Distribution of OpenVINO™ Toolkit:
  - Ubuntu* 20.04 
    ```sh
    conda install openvino-ie4py-ubuntu20 -c intel
@@ -49,7 +53,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda install openvino-ie4py -c intel
    ```
-4. Verify the package installed:
+5. Verify the package installed:
    ```sh
    python -c "from openvino.inference_engine import IECore"
    ```
