@@ -973,8 +973,8 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
                 return modulo_kernel + modulo_tail;
             });
 
-            modulo = epsApply(modulo);
-            float modulo_inv = 1.0f / std::sqrt(modulo);
+            modulo = std::sqrt(modulo);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
@@ -1056,8 +1056,8 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
                 return modulo_c;
             });
 
-            modulo = epsApply(modulo);
-            float modulo_inv = 1.0f / std::sqrt(modulo);
+            modulo = std::sqrt(modulo);
+            float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
             parallel_for(C, [&](size_t ic) {
