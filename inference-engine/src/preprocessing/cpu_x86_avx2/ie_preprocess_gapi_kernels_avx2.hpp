@@ -44,43 +44,19 @@ void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
 template<typename isa_tag_t, typename T>
 void chanToPlaneRowImpl(isa_tag_t, const T* in, const int chan, const int chs, T* out, const int length);
 
-extern template void chanToPlaneRowImpl(avx2_tag, const uint8_t* in, const int chan, const int chs, uint8_t* out, const int length);
-extern template void chanToPlaneRowImpl(avx2_tag, const float*   in, const int chan, const int chs, float  * out, const int length);
-
 template<typename isa_tag_t>
 void nv12ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* uv_row,
                       uint8_t** out_rows, const int buf_width);
-
-extern template void nv12ToRgbRowImpl(avx2_tag, const uint8_t** y_rows,
-                                      const uint8_t* uv_row, uint8_t** out_rows,
-                                      const int buf_width);
 
 template<typename isa_tag_t>
 void i420ToRgbRowImpl(isa_tag_t, const uint8_t** y_rows, const uint8_t* u_row,
                       const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 
-extern template void i420ToRgbRowImpl(avx2_tag, const uint8_t** y_rows, const uint8_t* u_row,
-                                      const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
-
 template<typename isa_tag_t, typename T, int chs>
 void splitRowImpl(isa_tag_t, const T* in, std::array<T*, chs>& outs, const int length);
 
-extern template void splitRowImpl<avx2_tag, uint8_t, 2>(avx2_tag, const uint8_t* in, std::array<uint8_t*, 2>& outs, const int length);
-extern template void splitRowImpl<avx2_tag, float, 2>(avx2_tag, const float* in, std::array<float*, 2>& outs, const int length);
-extern template void splitRowImpl<avx2_tag, uint8_t, 3>(avx2_tag, const uint8_t* in, std::array<uint8_t*, 3>& outs, const int length);
-extern template void splitRowImpl<avx2_tag, float, 3>(avx2_tag, const float* in, std::array<float*, 3>& outs, const int length);
-extern template void splitRowImpl<avx2_tag, uint8_t, 4>(avx2_tag, const uint8_t* in, std::array<uint8_t*, 4>& outs, const int length);
-extern template void splitRowImpl<avx2_tag, float, 4>(avx2_tag, const float* in, std::array<float*, 4>& outs, const int length);
-
 template<typename isa_tag_t, typename T, int chs>
 void mergeRowImpl(isa_tag_t, const std::array<const T*, chs>& ins, T* out, const int length);
-
-extern template void mergeRowImpl<avx2_tag, uint8_t, 2>(avx2_tag, const std::array<const uint8_t*, 2>& ins, uint8_t* out, const int length);
-extern template void mergeRowImpl<avx2_tag, float, 2>(avx2_tag, const std::array<const float*, 2>& ins, float* out, const int length);
-extern template void mergeRowImpl<avx2_tag, uint8_t, 3>(avx2_tag, const std::array<const uint8_t*, 3>& ins, uint8_t* out, const int length);
-extern template void mergeRowImpl<avx2_tag, float, 3>(avx2_tag, const std::array<const float*, 3>& ins, float* out, const int length);
-extern template void mergeRowImpl<avx2_tag, uint8_t, 4>(avx2_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
-extern template void mergeRowImpl<avx2_tag, float, 4>(avx2_tag, const std::array<const float*, 4>& ins, float* out, const int length);
 
 template<typename isa_tag_t>
 bool calcRowLinear8UC1Impl(isa_tag_t, uint8_t* dst[], const uint8_t* src0[], const uint8_t* src1[],
@@ -94,17 +70,17 @@ void calcRowLinear32FC1Impl(isa_tag_t, float* dst[], const float* src0[], const 
                             const float beta[], const Size& inSz, const Size& outSz,
                             const int lpi, const int l);
 
-extern template void calcRowLinear32FC1Impl(avx2_tag, float* dst[], const float* src0[], const float* src1[],
-                                            const float alpha[], const int mapsx[],
-                                            const float beta[], const Size& inSz, const Size& outSz,
-                                            const int lpi, const int l);
-
 template<typename isa_tag_t, int chs>
 bool calcRowLinear8UC3C4Impl(isa_tag_t, std::array<std::array<uint8_t*, 4>, chs>& dst,
                              const uint8_t* src0[], const uint8_t* src1[],
                              const short alpha[], const short clone[], const short mapsx[],
                              const short beta[], uint8_t tmp[], const Size& inSz,
                              const Size& outSz, const int lpi, const int l);
+
+template<typename isa_tag_t, typename T, typename A, typename I, typename W>
+void calcRowAreaImpl(isa_tag_t, T dst[], const T* src[], const Size& inSz,
+                     const Size& outSz, A yalpha, const MapperUnit<A, I>& ymap,
+                     int xmaxdf, const I xindex[], const A xalpha[], W vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
