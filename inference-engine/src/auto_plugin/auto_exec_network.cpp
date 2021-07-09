@@ -44,6 +44,26 @@ std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
 }
 }  // namespace
 
+struct IdleGuard {
+    explicit IdleGuard(AutoExecutableNetwork::WorkerInferRequest* workerInferRequestPtr,
+                       AutoExecutableNetwork::NotBusyWorkerRequests& notBusyWorkerRequests) :
+        _workerInferRequestPtr{workerInferRequestPtr},
+        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+    }
+    ~IdleGuard() {
+        if (nullptr != _notBusyWorkerRequests) {
+            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
+        }
+    }
+    AutoExecutableNetwork::NotBusyWorkerRequests* Release() {
+        auto notBusyWorkerRequests = _notBusyWorkerRequests;
+        _notBusyWorkerRequests = nullptr;
+        return notBusyWorkerRequests;
+    }
+    AutoExecutableNetwork::WorkerInferRequest*     _workerInferRequestPtr = nullptr;
+    AutoExecutableNetwork::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
+};
+
 AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
                                              const InferenceEngine::CNNNetwork& network,
                                              const ConfigType& config,
@@ -60,15 +80,54 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     auto metaDevices = _autoPlugin->GetDeviceList(config);
     auto core = _autoPlugin->GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
     auto LoadNetworkAsync =
-        [core, modelPath, network](const std::string& device) -> IE::SoExecutableNetworkInternal {
+        [this, core, modelPath, network](const std::string& device) -> IE::SoExecutableNetworkInternal {
             IE::SoExecutableNetworkInternal executableNetwork;
-            // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
+            std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
             if (!modelPath.empty()) {
                 executableNetwork = core->LoadNetwork(modelPath, device, {});
             } else {
                 executableNetwork = core->LoadNetwork(network, device, {});
             }
-            // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+
+            uint32_t optimalNum {0};
+            try {
+                optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<uint32_t>();
+            } catch (const InferenceEngine::Exception &iie) {
+                IE_THROW()
+                    << "Every device used with the Multi-Device should "
+                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                    << "Failed to query the metric for the " << device << " with error:" << iie.what();
+            }
+            auto& workerRequests = _workerRequests[device];
+            workerRequests.resize(optimalNum);
+            auto& idleWorkerRequests = _idleWorkerRequests[device];
+            idleWorkerRequests.set_capacity(optimalNum);
+            auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+            for (auto&& workerRequest : workerRequests) {
+                workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
+                auto* workerRequestPtr = &workerRequest;
+                IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+                workerRequest._inferRequest->SetCallback(
+                    [this, workerRequestPtr, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
+                        IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                        workerRequestPtr->_exceptionPtr = exceptionPtr;
+                        {
+                            auto capturedTask = std::move(workerRequestPtr->_task);
+                            capturedTask();
+                        }
+                        // try to return the request to the idle list (fails if the overall object destruction has began)
+                        if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                            // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                            // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                            Task t;
+                            if (_inferPipelineTasks.try_pop(t)) {
+                                ScheduleToWorkerInferRequest(std::move(t));
+                            }
+                        }
+                    });
+            }
+
             return executableNetwork;
         };
 
@@ -125,6 +184,10 @@ InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRe
     return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest,
                                               shared_from_this(), _alreadyActualNetwork,
                                               _enablePerfCount);
+}
+
+void AutoExecutableNetwork::run(InferenceEngine::Task inferTask) {
+    ScheduleToWorkerInferRequest(std::move(inferTask), "");
 }
 
 bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
@@ -202,6 +265,9 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& co
 Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
     //fixme: carefuly select between FirstLoaded and ActuallyNeeded
     return _cacheConfig;
+}
+
+void AutoExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
 }
 
 }  // namespace AutoPlugin
