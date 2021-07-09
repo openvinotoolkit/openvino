@@ -202,6 +202,32 @@ public:
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
+     * @brief Serialize network to IR and weights files.
+     *
+     * @param xmlStream A stream for xml content (.xml file)
+     * @param binStream A stream for weights content (.bin file)
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @return Status code of the operation
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
+    virtual StatusCode serialize(std::ostream& xmlStream, std::ostream& binStream, ResponseDesc* resp) const
+        noexcept = 0;
+
+    /**
+     * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
+     * @brief Serialize network to IR and weights files.
+     *
+     * @param xmlStream A stream for xml content (.xml file)
+     * @param binData A blob for weights content (.bin file)
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @return Status code of the operation
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
+    virtual StatusCode serialize(std::ostream& xmlStream, Blob::Ptr& binData, ResponseDesc* resp) const
+        noexcept = 0;
+
+    /**
+     * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief Methods maps framework tensor name to OpenVINO name
      *
      * @param ov_name OpenVINO name
