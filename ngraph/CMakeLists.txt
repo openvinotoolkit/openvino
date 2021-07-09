@@ -154,12 +154,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     DESTINATION "deployment_tools/ngraph/cmake"
     COMPONENT ngraph_dev)
 
-set(USE_STATIC_PROTOBUF OFF)
-if (NGRAPH_PDPD_FRONTEND_ENABLE) # add more frontends here which depend on static protobuf
-    set(USE_STATIC_PROTOBUF ON)
-endif()
-
-if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
@@ -175,7 +170,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
 
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS OFF)
-    set(BUILD_STANDALONE_STATIC OFF)
 
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf ${CMAKE_BINARY_DIR}/_deps/protobuf)
@@ -193,7 +187,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
 
     set(BUILD_SHARED_LIBS ${BEFORE_ONNX_BUILD_SHARED_LIBS})
     unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
-    unset(BUILD_STANDALONE_STATIC)
 endif()
 
 add_subdirectory(frontend)
