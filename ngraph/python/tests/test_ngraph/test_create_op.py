@@ -105,6 +105,31 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
 
 
 @pytest.mark.parametrize("dtype", np_types)
+def test_deformable_convolution_opset1(dtype):
+    strides = np.array([1, 1])
+    pads_begin = np.array([0, 0])
+    pads_end = np.array([0, 0])
+    dilations = np.array([1, 1])
+
+    input0_shape = [1, 1, 9, 9]
+    input1_shape = [1, 18, 7, 7]
+    input2_shape = [1, 1, 3, 3]
+    expected_shape = [1, 1, 7, 7]
+
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
+
+    node = ng_opset1.deformable_convolution(
+        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
+    )
+
+    assert node.get_type_name() == "DeformableConvolution"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize("dtype", np_types)
 def test_deformable_convolution(dtype):
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
@@ -122,6 +147,34 @@ def test_deformable_convolution(dtype):
 
     node = ng.deformable_convolution(
         parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
+    )
+
+    assert node.get_type_name() == "DeformableConvolution"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize("dtype", np_types)
+def test_deformable_convolution_mask(dtype):
+    strides = np.array([1, 1])
+    pads_begin = np.array([0, 0])
+    pads_end = np.array([0, 0])
+    dilations = np.array([1, 1])
+
+    input0_shape = [1, 1, 9, 9]
+    input1_shape = [1, 18, 7, 7]
+    input2_shape = [1, 1, 3, 3]
+    input3_shape = [1, 9, 7, 7]
+    expected_shape = [1, 1, 7, 7]
+
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
+    parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
+
+    node = ng.deformable_convolution(
+        parameter_input0, parameter_input1, parameter_input2, strides,
+        pads_begin, pads_end, dilations, parameter_input3
     )
 
     assert node.get_type_name() == "DeformableConvolution"
