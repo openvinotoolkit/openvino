@@ -52,16 +52,19 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+
+        # required for protoc compiler
+        set_target_properties(libprotoc PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
-    # required for protoc compiler
-    set_target_properties(libprotoc PROPERTIES
-        CXX_VISIBILITY_PRESET default
-        C_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
     foreach(target libprotobuf libprotobuf-lite)
-        target_compile_options(${target}
-            PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
-            PUBLIC -Wno-undef)
+        if(TARGET ${target})
+            target_compile_options(${target}
+                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
+                PUBLIC -Wno-undef)
+        endif()
     endforeach()
 endif()
 
