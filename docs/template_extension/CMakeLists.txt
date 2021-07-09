@@ -11,7 +11,7 @@ find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
 find_package(OpenCV QUIET COMPONENTS core)
 
-set(SRC cpu_kernel.cpp extension.cpp op.cpp)
+set(SRC cpu_kernel.cpp extension.cpp new_extension.cpp op.cpp)
 
 if (OpenCV_FOUND)
     set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)

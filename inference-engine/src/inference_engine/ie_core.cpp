@@ -41,6 +41,18 @@ struct Parsed {
     std::map<std::string, T> _config;
 };
 
+class ExtensionWrapper: public OpsetExtension {
+public:
+    ExtensionWrapper(const IExtensionPtr& ext): extension(ext) {}
+
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        return extension->getOpSets();
+    }
+
+private:
+    IExtensionPtr extension;
+};
+
 template <typename T = Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
     auto config_ = config;
@@ -222,6 +234,9 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
 
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
+
+    std::vector<ExtensionContainer::Ptr> containers;
+    std::vector<NewExtension::Ptr> new_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -858,6 +873,20 @@ public:
             } catch (...) {}
         }
         extensions.emplace_back(extension);
+
+        AddExtension(std::make_shared<ExtensionWrapper>(extension));
+    }
+
+    void AddExtension(const ExtensionContainer::Ptr& extension) {
+        containers.emplace_back(extension);
+        AddExtension(*extension);
+    }
+    void AddExtension(const std::vector<NewExtension::Ptr>& extensions) {
+        for (const auto& extension : extensions)
+            AddExtension(extension);
+    }
+    void AddExtension(const NewExtension::Ptr& extension) {
+        new_extensions.emplace_back(extension);
     }
 
     /**
@@ -1006,6 +1035,15 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
 }
 
 void Core::AddExtension(const IExtensionPtr& extension) {
+    _impl->AddExtension(extension);
+}
+void Core::AddExtension(const ExtensionContainer::Ptr& extension) {
+    _impl->AddExtension(extension);
+}
+void Core::AddExtension(const std::vector<NewExtension::Ptr>& extensions) {
+    _impl->AddExtension(extensions);
+}
+void Core::AddExtension(const NewExtension::Ptr& extension) {
     _impl->AddExtension(extension);
 }
 
