@@ -29,19 +29,6 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 namespace neon {
-void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz,
-                    const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
-                    int xmaxdf, const short xindex[], const Q0_16 xalpha[],
-                    Q8_8 vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
-}
-
-void calcRowArea_32F(float dst[], const float *src[], const Size& inSz,
-                     const Size& outSz, float yalpha, const MapperUnit32F& ymap,
-                     int xmaxdf, const int xindex[], const float xalpha[],
-                     float vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
-}
 
 template<int chanNum>
 CV_ALWAYS_INLINE void channels2planes_store(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
@@ -649,6 +636,16 @@ template void mergeRowImpl<neon_tag, float, 4>(neon_tag, const std::array<const 
 template void calcRowLinear32FC1Impl(neon_tag, float* dst[], const float* src0[], const float* src1[],
                                      const float alpha[], const int mapsx[], const float beta[],
                                      const Size& inSz, const Size& outSz, const int lpi, const int l);
+
+template void calcRowAreaImpl<neon_tag, uint8_t, Q0_16, short, Q8_8>(neon_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
+                                                                     const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
+                                                                     int xmaxdf, const short xindex[], const Q0_16 xalpha[],
+                                                                     Q8_8 vbuf[]);
+
+template void calcRowAreaImpl<neon_tag, float, float, int, float>(neon_tag, float dst[], const float *src[], const Size& inSz,
+                                                                  const Size& outSz, float yalpha, const MapperUnit32F& ymap,
+                                                                  int xmaxdf, const int xindex[], const float xalpha[],
+                                                                  float vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

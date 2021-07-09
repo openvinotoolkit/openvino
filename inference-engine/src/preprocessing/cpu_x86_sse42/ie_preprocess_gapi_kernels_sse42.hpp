@@ -75,6 +75,11 @@ bool calcRowLinear8UC3C4Impl(isa_tag_t, std::array<std::array<uint8_t*, 4>, chs>
                              const short alpha[], const short clone[], const short mapsx[],
                              const short beta[], uint8_t tmp[], const Size& inSz,
                              const Size& outSz, const int lpi, const int l);
+
+template<typename isa_tag_t, typename T, typename A, typename I, typename W>
+void calcRowAreaImpl(isa_tag_t, T dst[], const T* src[], const Size& inSz,
+                     const Size& outSz, A yalpha, const MapperUnit<A, I>& ymap,
+                     int xmaxdf, const I xindex[], const A xalpha[], W vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine
