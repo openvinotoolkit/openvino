@@ -46,7 +46,7 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
-
+#define ENABLE_V7_SERIALIZE
 #define pass_trace() gnalog() << "[" << getName() << "] "
 
 std::shared_ptr<IPassManager> BasePass::getPassManager() {
@@ -1066,7 +1066,7 @@ void InsertConcatAligningFilterPass::run() {
                 if (!useAlignFilterIf(input_idx)) continue;
 
                 gnalog() << "Inserted Concat Aligning Layer between: " << prevLayer->name << " and " << l->name << std::endl;
-
+                // throw 1;
                 // insert the filter
                 auto filterName = std::string("ConcatAlignFilter_") + std::to_string(numOfFilterLayers++);
                 auto concatAligningFilter =

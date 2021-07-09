@@ -4,6 +4,7 @@
 
 #include "gna_device.hpp"
 
+#include <iostream>
 #include <map>
 #include <string>
 #include <cstring>
@@ -39,6 +40,7 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 #else
     const auto status = Gna2MemoryAlloc(size_requested, size_granted, &memPtr);
     checkGna2Status(status, "Gna2MemoryAlloc");
+    std::cout << "\n [DEBUG BRUNO] size_requested: " << size_requested << " memPtr: " << memPtr << std::endl;
 #endif
     if (memPtr == nullptr) {
         THROW_GNA_EXCEPTION << "GNAAlloc failed to allocate memory. Requested: " << size_requested << " Granted: " << *(size_granted);
@@ -132,7 +134,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     if (enforceLegacyCnnNeeded()) {
         enforceLegacyCnns(gnaModel);
     }
-#if GNA_LIB_VER == 2 && defined MODEL_DUMP
+#if GNA_LIB_VER == 2
     std::string path =
 #ifdef _WIN32
         ".\\";
