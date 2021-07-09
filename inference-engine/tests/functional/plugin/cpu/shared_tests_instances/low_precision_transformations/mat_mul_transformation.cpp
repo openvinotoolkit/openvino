@@ -45,7 +45,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 384, 1024 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 384, 1024 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
