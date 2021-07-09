@@ -7,6 +7,7 @@
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/stream.hpp"
 #include "cldnn/runtime/device_query.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
 
@@ -32,6 +33,10 @@ const device::ptr engine::get_device() const {
 }
 
 bool engine::use_unified_shared_memory() const {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_usm) {
+        return false;
+    }
     if (_device->get_mem_caps().supports_usm() && _configuration.use_unified_shared_memory) {
         return true;
     }
