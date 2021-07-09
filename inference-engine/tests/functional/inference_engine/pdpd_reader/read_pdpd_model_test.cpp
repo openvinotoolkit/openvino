@@ -40,7 +40,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
-    std::string win_dir_path = ONNX_TEST_MODELS;
+    std::string win_dir_path{ PDPD_TEST_MODELS };
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
     auto model = unicode_win_dir_path + L"ひらがな日本語.pdmodel";
