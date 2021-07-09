@@ -6,19 +6,90 @@
 #include <memory>
 #include <map>
 
+#include "ie_icore.hpp"
 #include "ie_metric_helpers.hpp"
+#include "auto_plugin.hpp"
 #include "auto_exec_network.hpp"
 #include "auto_infer_request.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph_ops/convolution_ie.hpp"
+#include "ngraph_ops/deconvolution_ie.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoExecutableNetwork::AutoExecutableNetwork(NetworkFuture cpuFuture,
-                                             NetworkFuture acceleratorFuture,
-                                             bool          enablePerfCount)
-                                             : _cpuFuture(std::move(cpuFuture))
-                                             , _acceleratorFuture(std::move(acceleratorFuture))
-                                             , _enablePerfCount(enablePerfCount) {
+namespace {
+std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
+    auto nGraphFunc = network.getFunction();
+    bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+    if (isINTModel) {
+        return METRIC_VALUE(INT8);
+    }
+    for (auto & node : nGraphFunc->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node) ||
+            std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
+            std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node)) {
+          auto layerType = node->input(1).get_element_type().get_type_name();
+          if (layerType == "f32")
+              return METRIC_VALUE(FP32);
+          if (layerType == "f16")
+              return METRIC_VALUE(FP16);
+        }
+    }
+    return METRIC_VALUE(FP32);
+}
+}  // namespace
+
+AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
+                                             const InferenceEngine::CNNNetwork& network,
+                                             const ConfigType& config,
+                                             AutoInferencePlugin* plugin)
+                                             : _autoPlugin(plugin) {
+    if (_autoPlugin->GetCore() == nullptr) {
+        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+    }
+
+    if (modelPath.empty() && network.getFunction() == nullptr) {
+        IE_THROW() << "AUTO device supports just ngraph network representation";
+    }
+
+    auto metaDevices = _autoPlugin->GetDeviceList(config);
+    auto core = _autoPlugin->GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
+    auto LoadNetworkAsync =
+        [core, modelPath, network](const std::string& device) -> IE::SoExecutableNetworkInternal {
+            IE::SoExecutableNetworkInternal executableNetwork;
+            // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
+            if (!modelPath.empty()) {
+                executableNetwork = core->LoadNetwork(modelPath, device, {});
+            } else {
+                executableNetwork = core->LoadNetwork(network, device, {});
+            }
+            // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            return executableNetwork;
+        };
+
+    // start CPU task
+    const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+                                      [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
+    if (CPUIter != metaDevices.end()) {
+        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
+    }
+
+    // start accelerator task, like GPU
+    auto networkPrecision = GetNetworkPrecision(network);
+    const auto accelerator = _autoPlugin->SelectDevice(metaDevices, networkPrecision);
+    bool isAccelerator = accelerator.find("CPU") == std::string::npos;
+    if (isAccelerator) {
+        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
+    }
+
+    _enablePerfCount = config.find(IE::PluginConfigParams::KEY_PERF_COUNT) != config.end()
+                       && config.at(IE::PluginConfigParams::KEY_PERF_COUNT) == IE::PluginConfigParams::YES;
+
     // both are valid, like AUTO:CPU,GPU
     if (_cpuFuture.valid() && _acceleratorFuture.valid()) {
         try {
