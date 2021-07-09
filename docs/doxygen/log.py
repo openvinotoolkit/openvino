@@ -5,6 +5,7 @@ import argparse
 import os
 import re
 from distutils.util import strtobool
+import logging
 
 
 def parse_arguments():
@@ -80,11 +81,12 @@ def parse(log, ignore_list, strip, include_omz=False, include_wb=False, include_
                                                                                warning=warning,
                                                                                line_num=line_num))
     if found_errors:
-        print('\n'.join(found_errors))
+        logging.error('\n'.join(found_errors))
         exit(1)
 
 
 def main():
+    logging.basicConfig()
     args = parse_arguments()
     parse(args.log,
           args.ignore_list,
