@@ -200,6 +200,22 @@ public:
     void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
 
     /**
+     * @brief Serialize network to IR and weights streams.
+     *
+     * @param xmlBuf output IR stream.
+     * @param binBuf output weights stream.
+     */
+    void serialize(std::ostream& xmlBuf, std::ostream& binBuf) const;
+
+    /**
+     * @brief Serialize network to IR stream and weights Blob::Ptr.
+     *
+     * @param xmlBuf output IR stream.
+     * @param binBlob output weights Blob::Ptr.
+     */
+    void serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob) const;
+
+    /**
      * @brief Method maps framework tensor name to OpenVINO name
      * @param orig_name Framework tensor name
      * @return OpenVINO name

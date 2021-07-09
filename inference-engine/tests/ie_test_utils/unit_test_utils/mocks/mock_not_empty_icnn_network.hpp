@@ -43,6 +43,10 @@ public:
     MOCK_METHOD(StatusCode, reshape, (const ICNNNetwork::InputShapes &, ResponseDesc *), (noexcept));
     MOCK_METHOD(StatusCode, serialize,
         (const std::string &, const std::string &, InferenceEngine::ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode, serialize,
+        (std::ostream &, std::ostream &, InferenceEngine::ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(StatusCode, serialize,
+        (std::ostream &, Blob::Ptr &, InferenceEngine::ResponseDesc*), (const, noexcept));
 };
 
 IE_SUPPRESS_DEPRECATED_END
