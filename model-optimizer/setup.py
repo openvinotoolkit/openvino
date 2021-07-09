@@ -28,7 +28,6 @@ def read_text(path):
 # Detect all the framework specific requirements_*.txt files.
 requirements_txt = []
 py_modules = []
-schema_json = [os.path.join(SETUP_DIR, 'mo', 'utils', 'schema.json')]
 for item in os.listdir():
     if re.match(r'requirements(.*)\.txt', item):
         requirements_txt.append(item)
@@ -92,7 +91,6 @@ setup(
     packages=packages,
     package_dir={PACKAGE_NAME: '.'},
     py_modules=py_modules,
-    schema_json=schema_json,
     cmdclass={
         'install': InstallCmd,
         'build_py': BuildCmd,
@@ -107,6 +105,7 @@ setup(
       'mo.extensions.front.mxnet': ['*.json'],
       'mo.extensions.front.onnx': ['*.json'],
       'mo.extensions.front.tf': ['*.json'],
+      'mo.utils': ['*.json'],
     },
     extras_require={
       'caffe': read_text('requirements_caffe.txt'),
