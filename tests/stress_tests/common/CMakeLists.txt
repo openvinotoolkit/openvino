@@ -11,10 +11,11 @@ add_library(${TARGET_NAME} STATIC ${SRC} ${HDR})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" common)
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::gtest
         IE::pugixml
-        ${InferenceEngine_LIBRARIES}
+        common
     PRIVATE
         IE::gtest_main)
