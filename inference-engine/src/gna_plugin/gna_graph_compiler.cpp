@@ -1670,8 +1670,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
-        ptr_biases,
-        false);
+        ptr_biases);
 
     size_t num_data_bytes_out = num_rows_out * num_columns_in * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns_in *
@@ -1712,6 +1711,217 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
             64);
     } else {
         gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+    }
+}
+
+void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
+
+    if (filterLayer == nullptr) {
+        return;
+    }
+
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+    void* ptr_weights = nullptr;
+    void* ptr_biases = nullptr;
+
+    IE_ASSERT(!layer->outData.empty());
+    IE_ASSERT(!layer->insData.empty());
+    auto outputs = *layer->outData.begin();
+    auto inputs = layer->insData.begin()->lock();
+
+    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
+    uint32_t num_columns_in = GetDataDimSize(inputs, 2);
+    uint32_t num_rows_out = GetDataDimSize(outputs, 1);
+
+
+    auto numRowsPadded = filterLayer->GetParamAsInt("num_rows_padded");
+    // number of rows we handled by inserting copy layer
+
+    // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
+    // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
+
+    const auto copyShiftLength = num_rows_out - numRowsPadded;
+    if (0 == numRowsPadded && ALIGN(copyShiftLength, 32) > 32) {
+
+        uint32_t num_rows_copied = 0;
+        // can we use copy at all
+        num_rows_copied = ALIGN(copyShiftLength, 32) - 32;
+
+        auto orientation = kDnnInterleavedOrientation;
+
+        auto& copyComponent = dnnComponents.addComponent(layer->name + "_synthetic_copy", CopyLayerName);
+
+        dnn->InitCopyComponent(copyComponent,
+            orientation,
+            num_rows_copied,
+            num_columns_in,
+            num_rows_copied,
+            num_columns_in,
+            inputs->getPrecision().size(),
+            inputs->getPrecision().size(),
+            quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
+            num_rows_copied,
+            num_columns_in,
+            ptr_inputs,
+            ptr_outputs);
+
+
+        size_t num_data_bytes_in = num_rows_copied * num_rows_copied * num_columns_in
+            * inputs->getPrecision().size();
+        // need to reserve full tensor so using original size with assumption of identity activation attached to filter lateron
+        size_t num_data_bytes_out = num_rows_out * num_columns_in * inputs->getPrecision().size();
+
+        connectInput(layer, ptr_inputs, num_data_bytes_in);
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+        auto identity = CNNNetGetNextLayerSkipCertain(layer, 0, 0, isNonFunctional);
+        connectOutput(identity.first, ptr_outputs, num_data_bytes_out);
+
+        const auto remaining_num_rows_in = copyShiftLength - num_rows_copied;
+        num_rows_out -= num_rows_copied;
+
+
+
+
+
+
+        filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
+
+        // TODO: questionable why for biases that are not in IR we inventing precision
+        auto biasPrecisionSize = filterLayer->_biases ?
+            filterLayer->_biases->getTensorDesc().getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4);
+        auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
+
+        uint32_t num_padding = ALIGN(copyShiftLength, noOfInputsDivisor) - copyShiftLength;
+
+        dnn->InitAffineComponent(currentComponent,
+            remaining_num_rows_in + num_padding,
+            num_columns_in,
+            num_rows_out,
+            inputs->getPrecision().size(),
+            outputs->getPrecision().size(),
+            filterLayer->_weights->getTensorDesc().getPrecision().size(),
+            biasPrecisionSize,
+            quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+            quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
+            ptr_inputs,
+            ptr_outputs,
+            ptr_weights,
+            ptr_biases,
+            false);
+
+        num_data_bytes_out = num_rows_out * num_columns_in * outputs->getPrecision().size();
+        num_data_bytes_in = num_columns_in *
+            ALIGN(remaining_num_rows_in, noOfInputsDivisor) * inputs->getPrecision().size();
+
+        connectInput(layer, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size(), 0);
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+        {
+            auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
+            auto elementsIn = (remaining_num_rows_in + num_padding) * num_columns_in;
+            auto paddedWeights = elementsIn * num_rows_out;
+            auto paddedWeightsSize = paddedWeights * weightsElementSize;
+
+            // TODO: this can be improved to not generate unneeded weights at all
+
+            size_t weights_stride = (remaining_num_rows_in + num_rows_copied) * weightsElementSize;
+            size_t weights_offset = weights_stride * num_rows_copied + num_rows_copied * weightsElementSize;
+
+            gnamem->readonly().push_initializer(layer->name + "affine_ptr_weights_push_initializer", ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+                size_t roffset = weights_offset;
+                size_t woffset = 0;
+                for (int i = 0; i < num_rows_out && size >= woffset; i++) {
+                    ie_memcpy(reinterpret_cast<uint8_t*>(data) + woffset,
+                        size - woffset,
+                        filterLayer->_weights->cbuffer().as<const uint8_t*>() + roffset,
+                        remaining_num_rows_in * weightsElementSize);
+                    roffset += weights_stride;
+                    woffset += elementsIn * weightsElementSize;
+                }
+                }, 64);
+        }
+
+        if (filterLayer->_biases) {
+            gnamem->readonly().push_ptr(layer->name + "affine_ptr_biases_push_ptr", ptr_biases,
+                filterLayer->_biases->cbuffer().as<const void*>(), 
+                filterLayer->_biases->byteSize(),
+                64);
+        }
+        else {
+            gnamem->readonly().push_value(layer->name + "affine_ptr_biases_push_value", ptr_biases, 0.0f, num_rows_out, 64);
+        }
+
+
+        return;
+
+
+
+
+
+
+
+
+    }
+    filterLayer->params["rows_copied_offset"] = std::to_string(0);
+
+    // TODO: questionable why for biases that are not in IR we inventing precision
+    auto biasPrecisionSize = filterLayer->_biases ?
+        filterLayer->_biases->getTensorDesc().getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4);
+    auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
+    const auto numberOfFilters = 4u;
+    const auto filterWidth = 16u;
+    auto new_inLen = ALIGN((num_rows_out / numberOfFilters - 1) * numberOfFilters + filterWidth, noOfInputsDivisor);
+    auto new_out = GNAPluginNS::GNAConvolutionLayer::outputFromConv(new_inLen, filterWidth, numberOfFilters) * numberOfFilters;
+    dnn->InitConvolutional1DComponent(currentComponent,
+        new_inLen,
+        new_out,
+        inputs->getPrecision().size(),
+        outputs->getPrecision().size(),
+        filterLayer->_weights->getTensorDesc().getPrecision().size(),
+        biasPrecisionSize,
+        numberOfFilters,
+        16,
+        numberOfFilters,
+        quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
+        quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
+        ptr_inputs,
+        ptr_outputs,
+        ptr_weights,
+        ptr_biases);
+
+    size_t num_data_bytes_out = new_out * outputs->getPrecision().size();
+    size_t num_data_bytes_in = new_inLen * inputs->getPrecision().size();
+
+    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+
+    {
+        auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
+        const auto convFilterWidth = numberOfFilters * filterWidth * weightsElementSize;
+
+        gnamem->readonly().push_initializer(layer->name + "convolution_ptr_weights_push_initializer",
+            ptr_weights, convFilterWidth, [=](void* data, size_t size) {
+                ie_memcpy(reinterpret_cast<uint8_t*>(data),
+                    size,
+                    filterLayer->_weights->cbuffer().as<const uint8_t*>(),
+                    convFilterWidth);
+            }, 64);
+    }
+
+    if (filterLayer->_biases) {
+        gnamem->readonly().push_ptr(layer->name + "convolution_ptr_biases_push_ptr", ptr_biases,
+            filterLayer->_biases->cbuffer().as<const void*>(),
+            filterLayer->_biases->byteSize(),
+            64);
+    } else {
+        gnamem->readonly().push_value(layer->name + "convolution_ptr_biases_push_value", ptr_biases, 0.0f, numberOfFilters, 64);
     }
 }
 
@@ -1871,6 +2081,14 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         const auto num_rows_for_pwl = prevLayer->GetParamAsInt("num_rows_for_pwl", 0);
         if (num_rows_for_pwl != 0) {
             num_rows = num_rows_for_pwl;
+        }
+    } else if (LayerInfo(prevLayer).isConcatAlignConvolutionFilter()) {
+        const auto exactOutputs = prevLayer->GetParamAsUInt("exactOutputs", 0);
+        if (exactOutputs) {
+            num_rows = exactOutputs;
+        } else {
+            num_rows = prevLayer->GetParamAsInt("num_rows_padded", 0);
+            num_rows += prevLayer->GetParamAsInt("original_num_rows", 0);
         }
     }
     size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
@@ -2124,6 +2342,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"ScaleShift"}, CREATE(DiagonalPrimitive)},
         {{"ConvolutionFilter"}, CREATE(ConvolutionFilterPrimitive)},
         {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
+        {{"ConcatAlignConvolutionFilter"}, CREATE(ConcatAlignConvolutionFilterPrimitive)},
         {{"Const"}, CREATE(ConstPrimitive)},
         {{"Eltwise"}, CREATE(EltwisePrimitive)},  // same as diagonal while weights are not taken from network, rather than from another output
         {{"Split"}, SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
@@ -2174,7 +2393,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         }
         return output_offset;
     };
-
+    const auto layerNameBindPtr = layer->name + "connectOutput_bind_ptr";
 
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer

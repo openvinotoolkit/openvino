@@ -70,6 +70,7 @@ class LayerInfo {
             [this]() { return isFullyConnected(); },
             [this]() { return isAffineFilter(); },
             [this]() { return isConcatAlignFilter(); },
+            [this]() { return isConcatAlignConvolutionFilter(); },
             [this]() { return isConvolutionFilter(); },
             [this]() { return isEltwise(); },
             [this]() { return isScaleShift(); },
@@ -151,6 +152,9 @@ class LayerInfo {
     }
     bool isConcatAlignFilter() const noexcept {
         return isOfType("ConcatAlignFilter");
+    }
+    bool isConcatAlignConvolutionFilter() const noexcept {
+        return isOfType("ConcatAlignConvolutionFilter");
     }
     bool isLink() const noexcept {
         return isOfType("Link");
@@ -340,7 +344,7 @@ class LayerInfo {
         return isOfType(DelayedCopyLayerName);
     }
     bool isWeightableIdentity() const noexcept {
-        return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+        return isConcatAlignFilter() || isConcatAlignConvolutionFilter() || isSyntheticScaleShift() || isCropAffined();
     }
 
     size_t paddingSize() const {

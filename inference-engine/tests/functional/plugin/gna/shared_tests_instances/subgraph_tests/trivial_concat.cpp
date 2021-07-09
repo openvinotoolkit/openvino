@@ -16,6 +16,7 @@ std::vector<std::vector<size_t>> inShapes = {
     {10, 16},
     {10, 64},
     {15, 15},
+    {1000, 1},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,

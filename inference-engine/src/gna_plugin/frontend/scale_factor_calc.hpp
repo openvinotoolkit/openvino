@@ -1104,7 +1104,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
             quant->_weights_quant.SetScale(
                 ScaleFactorForQuantization(wl->_weights->buffer().as<float *>(), scaleRange, wl->_weights->size()));
-            if (quant->_weights_quant.GetScale() == -1.0f || (fakeQuantize && LayerInfo(wl).isConcatAlignFilter())) {
+            if (quant->_weights_quant.GetScale() == -1.0f ||
+                (fakeQuantize && LayerInfo(wl).isConcatAlignFilter()) ||
+                (fakeQuantize && LayerInfo(wl).isConcatAlignConvolutionFilter())) {
                 quant->_weights_quant.SetScale(1.0f);
             }
 
@@ -1138,7 +1140,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
-            if (conv && !LayerInfo(conv).isConvolutionFilter()) {
+            if (conv && !LayerInfo(conv).isConvolutionFilter() && !LayerInfo(conv).isConcatAlignConvolutionFilter()) {
                 const auto inDepth = GetDataDimSize(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
                 weights_reducer = GNAConvolutionLayer::getWeightsReducer(*conv);
                 weights_reducer *= MAX_VAL_2B_FEAT * scaleRange * inDepth / std::numeric_limits<int32_t>::max();
