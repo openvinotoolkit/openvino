@@ -38,9 +38,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS} ${EDITOR_LIBRARY_P
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
                                  ${EDITOR_LIBRARY_SRC} ${EDITOR_LIBRARY_HEADERS} ${EDITOR_LIBRARY_PUBLIC_HEADERS}
-                                 ${COMMON_LIBRARY_SRC} ${COMMON_LIBRARY_HEADERS} ${COMMON_LIBRARY_PUBLIC_HEADERS}
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/../../test/util/onnx_test_util.hpp
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/../../test/util/onnx_test_util.cpp)
+                                 ${COMMON_LIBRARY_SRC} ${COMMON_LIBRARY_HEADERS} ${COMMON_LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)

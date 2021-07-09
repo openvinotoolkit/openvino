@@ -11,7 +11,7 @@ namespace ngraph
 {
     namespace test
     {
-        struct ONNX_IMPORTER_API ComparisonResult
+        struct ComparisonResult
         {
             ComparisonResult() = default;
             ComparisonResult(std::string error)
@@ -33,9 +33,8 @@ namespace ngraph
                 return ComparisonResult{std::move(error)};
             }
         };
-
-        ONNX_IMPORTER_API ComparisonResult
-            compare_onnx_models(const std::string& model, const std::string& reference_model_path);
+        ComparisonResult compare_onnx_models(const std::string& model,
+                                             const std::string& reference_model_path);
 
     } // namespace test
 } // namespace ngraph
