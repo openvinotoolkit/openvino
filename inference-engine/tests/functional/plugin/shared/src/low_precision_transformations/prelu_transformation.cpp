@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 std::string PReluTransformation::getTestCaseName(testing::TestParamInfo<PReluTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -33,7 +33,7 @@ std::string PReluTransformation::getTestCaseName(testing::TestParamInfo<PReluTra
 
 InferenceEngine::Blob::Ptr PReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr PReluTransformation::GenerateInput(const InferenceEng
 
 void PReluTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
@@ -60,7 +60,7 @@ void PReluTransformation::SetUp() {
 
 void PReluTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();

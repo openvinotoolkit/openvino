@@ -16,7 +16,7 @@ namespace builder {
 namespace subgraph {
     std::shared_ptr<ngraph::Function> TransposeAfterMatMulFunction::getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape) {
+        const ngraph::PartialShape& inputShape) {
         const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
         input1->set_friendly_name("input1");
 
