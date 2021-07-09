@@ -23,6 +23,7 @@
 #include "node_context.hpp"
 #include "graph.hpp"
 
+#if 0
 
 namespace ngraph {
 namespace frontend {
@@ -43,7 +44,10 @@ class NodeProtoWrapper : public ::tensorflow::TFNodeDecoder {
 public:
 
     NodeProtoWrapper(const NodeDef *_node_def, const GraphDef *_graph_def) :
-            node_def(_node_def), graph_def(_graph_def) {}
+            node_def(_node_def), graph_def(_graph_def)
+            {
+
+            }
 
     #define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
         { *x = node_def->attr().at(name).FIELD(); }
@@ -204,3 +208,5 @@ public:
 }
 }
 }
+
+#endif
