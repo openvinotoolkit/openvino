@@ -3,7 +3,7 @@
 #
 
 #------------------------------------------------------------------------------
-# Configure and install Google Protobuf ...
+# Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)

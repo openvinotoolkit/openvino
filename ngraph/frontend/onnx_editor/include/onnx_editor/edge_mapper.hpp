@@ -23,7 +23,7 @@ namespace ngraph
     {
         /// \brief A class which allows specifying InputEdge and OutputEdge by user-friendly ONNX
         /// names.
-        class EdgeMapper
+        class ONNX_IMPORTER_API EdgeMapper
         {
         public:
             EdgeMapper() = default;
