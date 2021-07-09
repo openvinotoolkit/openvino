@@ -96,6 +96,10 @@ public:
 
     bool isDefined() const override;
 
+    InferenceEngine::Precision getPrecision() const override;
+
+    void setPrecision(InferenceEngine::Precision prc) override;
+
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
     bool isCompatible(const MKLDNNMemoryDesc& rhs) const;

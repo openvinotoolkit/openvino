@@ -323,13 +323,13 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::desc& desc) :
-    MemoryDesc(Shape(desc.dims()), MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type()), Mkldnn), desc(desc) {
+    MemoryDesc(Shape(desc.dims()), Mkldnn), desc(desc) {
     if (desc.data.format_kind == dnnl::impl::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format)
-       : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn) {
+       : MemoryDesc(Shape(dims), Mkldnn) {
     if (format == memory::format_tag::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
     if (format != memory::format_tag::undef) {
@@ -351,7 +351,7 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::mem
 }
 
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType)
-        : MemoryDesc(Shape(dims), MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType), Mkldnn), desc() {
+        : MemoryDesc(Shape(dims), Mkldnn), desc() {
     const auto ndims = dims.size();
     mkldnn::memory::dims plain_strides(ndims, 1);
     for (size_t i = 1; i < ndims; i++) {
@@ -1128,5 +1128,13 @@ std::string MKLDNNMemoryDesc::serializeFormat() const {
 
 bool MKLDNNMemoryDesc::isDefined() const {
     return desc.data.offset0 != Shape::UNDEFINED_DIM;
+}
+
+InferenceEngine::Precision MKLDNNMemoryDesc::getPrecision() const {
+    return MKLDNNExtensionUtils::DataTypeToIEPrecision(desc.data_type());
+}
+
+void MKLDNNMemoryDesc::setPrecision(InferenceEngine::Precision prc) {
+    desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
 }
 }  // namespace MKLDNNPlugin

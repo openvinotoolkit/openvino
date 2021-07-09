@@ -32,7 +32,7 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
     }
 }
 
-memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision prec) {
+memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
             return memory::data_type::f32;
@@ -47,6 +47,8 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
             return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
+        case InferenceEngine::Precision::UNSPECIFIED:
+            return memory::data_type::undef;
         default: {
             IE_THROW() << "The plugin does not support " << prec.name();
         }
@@ -67,6 +69,8 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
             return InferenceEngine::Precision::U8;
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
+        case memory::data_type::undef:
+            return InferenceEngine::Precision::UNSPECIFIED;
         default: {
             IE_THROW() << "Unsupported data type.";
         }
