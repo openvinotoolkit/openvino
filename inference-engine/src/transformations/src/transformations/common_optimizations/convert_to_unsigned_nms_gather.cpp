@@ -14,6 +14,9 @@ using namespace std;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertToUnsignedNmsGather, "ConvertToUnsignedNmsGather", 0);
 
+void convert_gather_indices_to_unsigned(const ngraph::NodeVector& gather_nodes);
+
+ngraph::NodeVector get_NmsGather_destinations(const std::shared_ptr<ngraph::Node>& nms_node);
 
 bool ngraph::pass::ConvertToUnsignedNmsGather::run_on_function(std::shared_ptr<ngraph::Function> f) {
     MATCHER_SCOPE(MarkNMSGather);
@@ -26,6 +29,24 @@ bool ngraph::pass::ConvertToUnsignedNmsGather::run_on_function(std::shared_ptr<n
         res = true;
     }
     return res;
+}
+
+void convert_gather_indices_to_unsigned(const NodeVector& gather_nodes) {
+    for (const auto& gather : gather_nodes) {
+        auto indices = gather->input_value(1);
+
+        auto out_type = element::Type_t::u32;
+        if (indices.get_element_type() == element::Type_t::i64)
+            out_type = element::Type_t::u64;
+
+        if (auto old_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr())) {
+            old_convert->set_convert_element_type(out_type);
+        } else {
+            auto convert_to_unsigned = make_shared<opset8::Convert>(indices, out_type);
+            gather->input(1).replace_source_output(convert_to_unsigned);
+            copy_runtime_info(gather, convert_to_unsigned);
+        }
+    }
 }
 
 NodeVector get_NmsGather_destinations(const shared_ptr<Node>& nms_node) {
@@ -63,22 +84,4 @@ NodeVector get_NmsGather_destinations(const shared_ptr<Node>& nms_node) {
         }
     }
     return res;
-}
-
-void convert_gather_indices_to_unsigned(const NodeVector& gather_nodes) {
-    for (const auto& gather : gather_nodes) {
-        auto indices = gather->input_value(1);
-
-        auto out_type = element::Type_t::u32;
-        if (indices.get_element_type() == element::Type_t::i64)
-            out_type = element::Type_t::u64;
-
-        if (auto old_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr())) {
-            old_convert->set_convert_element_type(out_type);
-        } else {
-            auto convert_to_unsigned = make_shared<opset8::Convert>(indices, out_type);
-            gather->input(1).replace_source_output(convert_to_unsigned);
-            copy_runtime_info(gather, convert_to_unsigned);
-        }
-    }
 }

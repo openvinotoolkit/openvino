@@ -24,7 +24,3 @@ public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
-
-void convert_gather_indices_to_unsigned(const ngraph::NodeVector& gather_nodes);
-
-ngraph::NodeVector get_NmsGather_destinations(const std::shared_ptr<ngraph::Node>& nms_node);
