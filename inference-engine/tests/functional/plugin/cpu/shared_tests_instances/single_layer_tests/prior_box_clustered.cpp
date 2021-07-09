@@ -35,7 +35,7 @@ const std::vector<float> step_heights = {
 };
 
 const std::vector<float> step = {
-    0.0f
+    0.0f, 1.0f, 1.5f
 };
 
 const std::vector<float> offsets = {
