@@ -87,7 +87,7 @@ public:
     }
 
     std::unique_ptr<MemoryDesc> clone() const override {
-        return make_unique<MKLDNNMemoryDesc>(*this);
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(*this);
     }
 
     bool checkGeneralLayout(GeneralLayout layoutType) const override;

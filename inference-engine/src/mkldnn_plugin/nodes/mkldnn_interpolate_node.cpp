@@ -1916,15 +1916,16 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
     auto pushDesc = [&](memory::format_tag dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(), inputDataType, dataFormat);
-        config.inConfs[TARGET_SHAPE_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticMklDims(),
+        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(),
+                                                                                   inputDataType, dataFormat);
+        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticMklDims(),
                                                                              targetShapeType, memory::format_tag::x);
-        config.inConfs[SCALES_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticMklDims(), scalesType,
+        config.inConfs[SCALES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticMklDims(), scalesType,
                                                                        memory::format_tag::x);
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticMklDims(), axesType,
+            config.inConfs[AXES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticMklDims(), axesType,
                                                                          memory::format_tag::x);
-        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, dataFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 

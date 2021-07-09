@@ -243,12 +243,12 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getShape().getStaticDims());
-        config.inConfs[BEGIN_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticMklDims(), beginDataType,
+        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticMklDims(), beginDataType,
                                                                       mkldnn::memory::format_tag::x);
-        config.inConfs[END_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticMklDims(), endDataType,
+        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticMklDims(), endDataType,
                                                                     mkldnn::memory::format_tag::x);
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticMklDims(),
+            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticMklDims(),
                                                               MKLDNNExtensionUtils::IEPrecisionToDataType(stridePrecision),
                                                               mkldnn::memory::format_tag::x);
 

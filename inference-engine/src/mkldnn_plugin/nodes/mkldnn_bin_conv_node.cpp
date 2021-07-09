@@ -988,7 +988,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
                                             weiDims[2], weiDims[3], weiFirstDimBlockSize, 32};
         std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
-        config.inConfs[1].desc = make_unique<BlockedMemoryDesc>(Precision::BIN, weiDims, weiBlockDims, weiOrder);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(Precision::BIN, weiDims, weiBlockDims, weiOrder);
 
         //result
         auto outputPrecision = withBinarization ? Precision::BIN : Precision::FP32;

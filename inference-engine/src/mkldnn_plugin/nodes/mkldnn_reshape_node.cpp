@@ -41,12 +41,12 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i <getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(i)->getShape().getStaticMklDims(), inputDataType);
+        config.inConfs[i].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(i)->getShape().getStaticMklDims(), inputDataType);
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType);
+    config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType);
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 

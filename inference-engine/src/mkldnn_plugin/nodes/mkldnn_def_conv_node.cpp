@@ -838,20 +838,24 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
         auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
                                    : mayiuse(avx512_common) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
 
-        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32, dataFormat);
-        config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), memory::data_type::f32, offFormat);
-        config.inConfs[2].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), memory::data_type::f32, weiFormat);
-        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32, dataFormat);
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(),
+                                                                              memory::data_type::f32, dataFormat);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(),
+                                                                              memory::data_type::f32, offFormat);
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(),
+                                                                              memory::data_type::f32, weiFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(),
+                                                                              memory::data_type::f32, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[1].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), memory::data_type::f32,
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), memory::data_type::f32,
                                                                memory::format_tag::nchw);
-        config.inConfs[2].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), memory::data_type::f32,
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), memory::data_type::f32,
                                                                memory::format_tag::oihw);
-        config.outConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32,
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), memory::data_type::f32,
                                                                 memory::format_tag::nchw);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }

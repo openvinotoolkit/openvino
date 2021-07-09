@@ -65,7 +65,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[0].desc = make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
+    config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType,
                                                            MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(0)->getShape().getRank()));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }

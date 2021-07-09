@@ -92,8 +92,8 @@ void MKLDNNConvertNode::initSupportedPrimitiveDescriptors() {
         auto range = BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].desc = make_unique<BlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape.getDims()));
-            config.outConfs[0].desc = make_unique<BlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape.getDims()));
+            config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape.getDims()));
+            config.outConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape.getDims()));
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }

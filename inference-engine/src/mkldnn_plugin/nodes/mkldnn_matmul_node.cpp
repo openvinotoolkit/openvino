@@ -142,7 +142,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = make_unique<MKLDNNMemoryDesc>(dims, dataType, MKLDNNMemory::GetPlainFormatByRank(dims.size()));
+        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims, dataType, MKLDNNMemory::GetPlainFormatByRank(dims.size()));
         return dataConfig;
     };
 

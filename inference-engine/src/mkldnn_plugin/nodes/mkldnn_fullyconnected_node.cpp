@@ -294,7 +294,7 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn
         desc = MKLDNNMemoryDesc(getParentEdgeAt(idx)->getShape().getStaticMklDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                 MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
     }
-    return make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
@@ -303,7 +303,7 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn
         desc = MKLDNNMemoryDesc(getChildEdgeAt(idx)->getShape().getStaticMklDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                 MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(idx)->getShape().getRank()));
     }
-    return make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
 }
 
 InferenceEngine::Precision MKLDNNFullyConnectedNode::getRuntimePrecision() const {

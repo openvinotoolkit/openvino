@@ -178,14 +178,14 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.outConfs[0].desc = make_unique<BlockedMemoryDesc>(outputPrecision, dstDims, blkDims, order, offset, offsets, strides);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outputPrecision, dstDims, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& srcBlkDims = refConfig.inConfs[i].desc->as<BlockedMemoryDesc>()->getBlockDims();
             const auto& dims = refConfig.inConfs[i].desc->getShape().getStaticDims();
 
             config.inConfs[i].inPlace = 0;
-            config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inputPrecision, dims, srcBlkDims, order, offset, offsets, strides);
+            config.inConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inputPrecision, dims, srcBlkDims, order, offset, offsets, strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -432,7 +432,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     size_t offset = 0;
     for (size_t i = 0; i < config.inConfs.size(); i++) {
         auto inpBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
-        config.inConfs[i].desc = make_unique<BlockedMemoryDesc>(inpBlockingDesc.getPrecision(),
+        config.inConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inpBlockingDesc.getPrecision(),
                                                                 inpBlockingDesc.getShape().getStaticDims(),
                                                                 inpBlockingDesc.getBlockDims(),
                                                                 inpBlockingDesc.getOrder(),

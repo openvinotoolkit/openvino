@@ -133,16 +133,16 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         if (outputDataType == memory::data_type::bf16)
             outputDataType = memory::data_type::f32;
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+        const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
                                                                  memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+        const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
                                                                  memory::format_tag::ndhwc : memory::format_tag::nhwc);
         createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else if ((inputRank == 4 || inputRank == 5) && parentDims[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
+        const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, inputRank == 5 ?
                                                                 memory::format_tag::ncdhw : memory::format_tag::nchw);
-        const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
+        const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, inputRank == 5 ?
                                                                 memory::format_tag::ncdhw : memory::format_tag::nchw);
         createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else {
@@ -152,8 +152,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
-            const auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, format);
-            const auto out_candidate = make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, format);
+            const auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentDims, inputDataType, format);
+            const auto out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(childDims, outputDataType, format);
             createDescriptor({in_candidate.get()}, {out_candidate.get()});
         }
     }

@@ -93,14 +93,14 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     const auto parentStaticDims = parentShape.getStaticMklDims();
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
-        auto in_candidate = make_unique<MKLDNNMemoryDesc>(parentStaticDims, inputDataType, format);
+        auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentStaticDims, inputDataType, format);
         createDescriptor({in_candidate.get()}, {});
     }
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticMklDims(),
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticMklDims(),
                                              MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[idx]),
                                              MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
     } else {
