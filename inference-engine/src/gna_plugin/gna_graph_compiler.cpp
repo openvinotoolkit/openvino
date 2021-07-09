@@ -205,7 +205,7 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
     // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
     // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->readonly().bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
+    gnamem->readonly().bind_initializer(constLayer->name + "_ptr_for_const_blob", ptr_for_const_blob, [const_blob](void* data, size_t size) {
         ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
         });
 }
@@ -1490,15 +1490,15 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         transposedRows = connectionInfo.permute->input()->getDims()[3];
         transposedCols = connectionInfo.permute->input()->getDims()[1];
     }
-
+    const auto weightMemName = layer->name + "_weights";
     if (num_padding == 0) {
         if (!transpose) {
-            gnamem->readonly().push_ptr(ptr_weights,
+            gnamem->readonly().push_ptr(weightMemName, ptr_weights,
                 weightable._weights->cbuffer().as<const void*>(),
                 weightable._weights->byteSize(),
                 64);
         } else {
-            gnamem->readonly().push_initializer(ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
+            gnamem->readonly().push_initializer(weightMemName, ptr_weights, weightable._weights->byteSize(), [=](void* data, size_t size) {
                 for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                     auto rowOffset = k * transposedRows * transposedCols * weightable.precision.size();
                     auto cbuffer = weightable._weights->cbuffer().as<const uint8_t*>() + rowOffset;
@@ -1527,7 +1527,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
         auto paddedWeights = isDiag ? elementsIn : elementsIn * num_rows_out;
         auto paddedWeightsSize = paddedWeights * weightable.precision.size();
 
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+        gnamem->readonly().push_initializer(weightMemName, ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
             for (uint32_t i = 0; i < (isDiag ? 1 : num_rows_out); i++) {
                 ie_memcpy(data, size,
                     weightable._weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * weightable.precision.size(),
@@ -1536,18 +1536,18 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
             }
             }, 64);
     }
-
+    const auto biasMemName = layer->name + "_biases";
     if (weightable._biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
+        gnamem->readonly().push_ptr(biasMemName, ptr_biases,
             weightable._biases->cbuffer().as<const void*>(),
             weightable._biases->byteSize(),
             64);
     } else {
         // in that case input from previous layer goes into biases, so we have to initialize input pointer by zero
         if (useBiasConnection) {
-            gnamem->readonly().push_value(ptr_inputs, 0.0f, num_rows_in + num_padding, 64);
+            gnamem->readonly().push_value(biasMemName, ptr_inputs, 0.0f, num_rows_in + num_padding, 64);
         } else {
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out + num_padding_out, 64);
+            gnamem->readonly().push_value(biasMemName, ptr_biases, 0.0f, num_rows_out + num_padding_out, 64);
         }
     }
 }
@@ -2424,12 +2424,12 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
 
                     gnamem->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
+                    gnamem->bind_ptr(layerNameBindPtr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
 
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
                     IE_ASSERT(nextMemoryLayer.reserved_size >= ALIGN64(num_data_bytes_out));
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
+                    gnamem->bind_ptr(layerNameBindPtr, ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
                 }
                 return;
             }
@@ -2553,7 +2553,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                 if (layer->params.find("output_offset") != layer->params.end()) {
                     output_offset = layer->GetParamAsInt("output_offset");
                 }
-                gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, output_offset);
+                gnamem->bind_ptr(layerNameBindPtr, ptr, &concatLayerInfoItem.gna_ptr, output_offset);
             }
             return;
         }
@@ -2563,7 +2563,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     if (gnaFlags->compact_mode) {
         unused_input = find_first_unused_input(layer);
         if (unused_input != nullptr) {
-            gnamem->bind_ptr(ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
+            gnamem->bind_ptr(layerNameBindPtr, ptr, &unused_input->ptr_inputs, 0, ALIGN64(num_data_bytes_out));
         }
     }
     // cannot reuse suitable input
@@ -2578,7 +2578,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
         return LayerInfo(l).isNonFunctional();
     });
-
+    const auto layerNameBindPtr = layer->name + "connectInput_bind_ptr";
     gnalog() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 
     // real input not a memory input
@@ -2616,9 +2616,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         }
 
         if (connectTo) {
-            gnamem->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(layerNameBindPtr, ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
         } else {
-            gnamem->bind_ptr(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(layerNameBindPtr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
         }
 
         return prevLayer;
@@ -2626,9 +2626,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // const input
     if (LayerInfo(prevLayer).isConst()) {
         if (connectTo) {
-            gnamem->bind_ptr(ptr, const_connections[prevLayer->name], offset);
+            gnamem->bind_ptr(layerNameBindPtr, ptr, const_connections[prevLayer->name], offset);
         } else {
-            gnamem->bind_ptr(const_connections[prevLayer->name], ptr, offset);
+            gnamem->bind_ptr(layerNameBindPtr, const_connections[prevLayer->name], ptr, offset);
         }
 
         return prevLayer;
@@ -2667,7 +2667,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         if (concatLayerInfo != concat_connection.end()) {
             auto & concatLayerInfoItem = concatLayerInfo->second;
             // dnnLayer that is input for concat layer
-            gnamem->bind_ptr(ptr, &concatLayerInfoItem.gna_ptr, offset);
+            gnamem->bind_ptr(layerNameBindPtr, ptr, &concatLayerInfoItem.gna_ptr, offset);
             // return layer over concat
             return CNNNetPrevLayer(prevLayer);
         }
@@ -2676,7 +2676,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 prevLayer->name);
         if (cropLayerInfo != crop_connection.end()) {
             auto & cropLayerInfoItem = cropLayerInfo->second;
-            gnamem->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
+            gnamem->bind_ptr(layerNameBindPtr, ptr, &cropLayerInfoItem.gna_ptr, offset);
             return CNNNetPrevLayer(prevLayer);
         }
     }
@@ -2684,7 +2684,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // check for generic prev layer
     if (prevDnnLayer != nullptr) {
-        gnamem->bind_ptr(ptr, &prevDnnLayer->ptr_outputs, offset);
+        gnamem->bind_ptr(layerNameBindPtr, ptr, &prevDnnLayer->ptr_outputs, offset);
         return prevLayer;
     }
 
@@ -2703,19 +2703,19 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             if (connectTo) {
                 memorySize = std::max(memorySize, num_data_bytes_in);
                 gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+                gnamem->bind_ptr(layerNameBindPtr, ptr, &memoryLayer.gna_ptr, offset);
             } else {
                 if (num_data_bytes_in < memorySize + offset) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
                                                      << num_data_bytes_in << " is more then state tensor size of: " << memorySize + offset;
                 }
-                gnamem->bind_ptr(&memoryLayer.gna_ptr, ptr, offset);
+                gnamem->bind_ptr(layerNameBindPtr, &memoryLayer.gna_ptr, ptr, offset);
             }
 
             memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
             IE_ASSERT(memoryLayer.reserved_size >= ALIGN64(num_data_bytes_in));
-            gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+            gnamem->bind_ptr(layerNameBindPtr, ptr, &memoryLayer.gna_ptr, offset);
         }
 
         return prevLayer;
