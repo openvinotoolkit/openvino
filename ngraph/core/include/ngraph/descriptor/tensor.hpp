@@ -45,6 +45,7 @@ namespace ngraph
 
             const std::unordered_set<std::string>& get_names() const;
             void set_names(const std::unordered_set<std::string>& names);
+            void add_names(const std::unordered_set<std::string>& names);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
