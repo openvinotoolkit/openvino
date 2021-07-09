@@ -57,7 +57,8 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "while for the best-latency estimations the number of streams should be set to 1.";
 
 /// @brief message for latency percentile settings
-static const char infer_latency_percentile_message[] = "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).";
+static const char infer_latency_percentile_message[] =
+    "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).";
 
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] = "Optional. By default floating point operations execution in bfloat16 precision are enforced "
