@@ -26,7 +26,11 @@ public:
     static const char *prefix;
     int verbose;
     int print_multi_kernel_perf;
+    int disable_usm;
     std::string dump_graphs;
+    std::string dump_layers_path;
+    std::string dump_layers;
+    int dump_layers_dst_only;
     static const debug_configuration *get_instance();
 };
 

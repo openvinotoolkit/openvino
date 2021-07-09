@@ -33,15 +33,9 @@
 #include <utility>
 #include <map>
 
-// #define DEBUG_DUMP_PATH "cldnn_dump/"
-
-#ifdef DEBUG_DUMP_PATH
+#ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
 #include <fstream>
-
-#define DUMP_VERBOSE 0
-#define DUMP_SINGLE_LAYER 0
-#define DUMP_LAYER_NAME ""
 #endif
 
 namespace cldnn {
@@ -131,7 +125,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
-#ifdef DEBUG_DUMP_PATH
+#ifdef GPU_DEBUG_CONFIG
 static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
     return val;
@@ -238,12 +232,13 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
 }
 
 static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
     std::replace(filename.begin(), filename.end(), '\\', '_');
     std::replace(filename.begin(), filename.end(), '/', '_');
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
-        filename = DEBUG_DUMP_PATH + filename + ".txt";
+        filename = debug_config->dump_layers_path + filename + ".txt";
 
     std::ofstream file_stream(filename);
     auto mem_dt = mem->get_layout().data_type;
@@ -259,6 +254,12 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
         dump<int8_t>(mem, stream, file_stream);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(mem, stream, file_stream);
+}
+#else
+static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+    (void)mem;
+    (void)stream;
+    (void)layerName;
 }
 #endif
 /*
@@ -487,25 +488,24 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
     set_arguments();
 
     for (auto& inst : _exec_order) {
-#ifdef DEBUG_DUMP_PATH
-        auto& node = _program->get_node(inst->id());
-
-        std::string layer_name = node.id();
-#if DUMP_VERBOSE
-        std::cerr << get_primitive_info(inst->id()) << std::endl;
-#endif
-#if DUMP_SINGLE_LAYER
-        if (layer_name == DUMP_LAYER_NAME) {
-#endif
-            std::cerr << "Dump " << layer_name << " layer" << std::endl;
-            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                   layer_name + "_src_" + std::to_string(i));
+        GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+            auto& node = _program->get_node(inst->id());
+            std::string layer_name = node.id();
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
-#if DUMP_SINGLE_LAYER
+
+            GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 &&
+                            (debug_config->dump_layers.length() == 0 ||
+                            (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos))) {
+                std::cout << "Dump " << layer_name << " layer src" << std::endl;
+                for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
+                                    layer_name + "_src_" + std::to_string(i));
+                }
+            }
         }
-#endif
-#endif
+
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
         }
@@ -517,16 +517,16 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
         }
         execute_primitive(inst, events);
 
-#ifdef DEBUG_DUMP_PATH
-        get_stream().finish();
-#if DUMP_SINGLE_LAYER
-        if (layer_name == DUMP_LAYER_NAME)
-#endif
-        {
-            log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+        GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+            get_stream().finish();
+            auto& node = _program->get_node(inst->id());
+            std::string layer_name = node.id();
+            GPU_DEBUG_IF(debug_config->dump_layers.length() == 0 ||
+                        (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos)) {
+                std::cout << "Dump " << layer_name << " layer dst" << std::endl;
+                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+            }
         }
-
-#endif
     }
 
     for (auto& inst : _program->get_processing_order()) {
