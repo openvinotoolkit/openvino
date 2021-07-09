@@ -38,10 +38,6 @@ namespace ngraph
                 int64_t img_width = img[1];
                 int64_t img_height = img[0];
 
-                // TODO: Uncomment after PriorBoxClustered is aligned with the specification.
-                //                int img_width = img_w_ == 0 ? img[1] : img_w_;
-                //                int img_height = img_h_ == 0 ? img[0] : img_h_;
-
                 float step_w = attrs.step_widths == 0 ? attrs.step : attrs.step_widths;
                 float step_h = attrs.step_heights == 0 ? attrs.step : attrs.step_heights;
 
