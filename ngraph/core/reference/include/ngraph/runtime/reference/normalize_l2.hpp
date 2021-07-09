@@ -22,7 +22,6 @@ namespace ngraph
                               float eps,
                               op::EpsMode eps_mode)
             {
-                AxisSet axes = reduction_axes;
                 if (reduction_axes.empty())
                 {
                     // When axes is an empty list, then each `data` element is divided by itself
@@ -33,6 +32,7 @@ namespace ngraph
                     }
                     return;
                 }
+
                 std::vector<T> sqr_data(shape_size(data_shape));
                 for (size_t i = 0; i < shape_size(data_shape); ++i)
                 {
@@ -40,13 +40,13 @@ namespace ngraph
                 }
 
                 Shape reduce_shape = data_shape;
-                for (auto axis : axes)
+                for (auto axis : reduction_axes)
                 {
                     reduce_shape[axis] = 1;
                 }
 
                 std::vector<T> sum_data(shape_size(reduce_shape));
-                sum(sqr_data.data(), sum_data.data(), data_shape, axes);
+                sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
                 autobroadcast_binop(data,
                                     sum_data.data(),
                                     out,
