@@ -27,15 +27,8 @@ namespace adaptive_avg_pool
         bool rc = true;
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_add, i8, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, i16, arg0, out);
             NGRAPH_TYPE_CASE(evaluate_add, i32, arg0, out);
             NGRAPH_TYPE_CASE(evaluate_add, i64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, u8, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, u16, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_add, bf16, arg0, out);
             NGRAPH_TYPE_CASE(evaluate_add, f16, arg0, out);
             NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, out);
         default: rc = false; break;
@@ -117,15 +110,8 @@ bool op::v8::AdaptiveAvgPool::has_evaluate() const
     NGRAPH_OP_SCOPE(v8_AdaptiveAvgPool_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::i8:
-    case ngraph::element::i16:
     case ngraph::element::i32:
     case ngraph::element::i64:
-    case ngraph::element::u8:
-    case ngraph::element::u16:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::bf16:
     case ngraph::element::f16:
     case ngraph::element::f32: return true;
     default: break;
