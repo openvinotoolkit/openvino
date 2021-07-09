@@ -17,16 +17,20 @@
 
 namespace AutoPlugin {
 
+class AutoInferencePlugin;
+
 using DeviceName = std::string;
+using ConfigType = std::map<std::string, std::string>;
 using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
 
 class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(NetworkFuture cpuTask,
-                                   NetworkFuture acceleratorTask,
-                                   bool          enablePerfCount);
+    AutoExecutableNetwork(const std::string&                 modelPath,
+                          const InferenceEngine::CNNNetwork& network,
+                          const ConfigType&                  config,
+                          AutoInferencePlugin*               plugin);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -51,6 +55,7 @@ private:
     bool _enablePerfCount;
     mutable std::atomic<bool> _alreadyActualNetwork = {false};
     std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
+    AutoInferencePlugin* _autoPlugin;
 };
 
 }  // namespace AutoPlugin

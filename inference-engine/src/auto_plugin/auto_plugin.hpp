@@ -30,15 +30,11 @@ public:
     IE::Parameter GetMetric(const std::string& name, const std::map<std::string, IE::Parameter>& options) const override;
     IE::Parameter GetConfig(const std::string& name, const std::map<std::string, IE::Parameter> & options) const override;
     void SetConfig(const ConfigType& config) override;
+    std::vector<DeviceName> GetDeviceList(const ConfigType&  config) const;
+    DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
 
 private:
-    std::shared_ptr<AutoExecutableNetwork> LoadNetworkImpl(const std::string& modelPath,
-                                                           const InferenceEngine::CNNNetwork& network,
-                                                           const ConfigType &config,
-                                                           const std::string &networkPrecision = METRIC_VALUE(FP32));
-    std::vector<DeviceName> GetDeviceList(const ConfigType&  config) const;
     std::vector<std::string> GetOptimizationCapabilities(const std::map<std::string, IE::Parameter>& options) const;
-    DeviceName SelectDevice(const std::vector<DeviceName>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
     void CheckConfig(const ConfigType& config);
     static ConfigType mergeConfigs(ConfigType config, const ConfigType& local);
 };
