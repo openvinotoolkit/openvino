@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
@@ -30,7 +30,7 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testin
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
@@ -50,7 +50,7 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
 
 void FakeQuantizePrecisionSelectionTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues param;

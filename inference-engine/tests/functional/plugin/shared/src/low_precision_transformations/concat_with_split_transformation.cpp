@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithSplitTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -34,7 +34,7 @@ std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInf
 
 InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -54,7 +54,7 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
 
 void ConcatWithSplitTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();

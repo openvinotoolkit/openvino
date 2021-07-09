@@ -24,7 +24,7 @@ namespace subgraph {
 
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::get(
     const element::Type netPrecision,
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const Shape& outputShape,
     const builder::subgraph::FakeQuantizeOnData& fqOnData,
     const std::shared_ptr<Node>& weights) {

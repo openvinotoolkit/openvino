@@ -62,9 +62,9 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,

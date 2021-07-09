@@ -23,7 +23,7 @@ namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
@@ -45,7 +45,7 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
 
 void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
@@ -66,7 +66,7 @@ void NormalizeL2Transformation::SetUp() {
 
 void NormalizeL2Transformation::validate() {
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     std::vector<uint64_t> axes;
     bool fuseMultiply;

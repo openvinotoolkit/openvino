@@ -71,7 +71,7 @@ const std::vector<LayerTestsDefinitions::AddTestValues> params = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, AddTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(params)),
     AddTransformation::getTestCaseName);

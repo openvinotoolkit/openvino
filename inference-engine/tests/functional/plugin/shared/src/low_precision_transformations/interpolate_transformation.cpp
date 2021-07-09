@@ -30,7 +30,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
 
 std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<InterpolateTransformationParams> obj) {
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
@@ -51,7 +51,7 @@ std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<In
 void InterpolateTransformation::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::IE);
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
@@ -71,7 +71,7 @@ void InterpolateTransformation::SetUp() {
 
 void InterpolateTransformation::validate() {
     ngraph::element::Type precision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();

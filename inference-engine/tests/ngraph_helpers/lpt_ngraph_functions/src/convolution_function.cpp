@@ -122,20 +122,20 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
 }
 
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectWeights(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     ngraph::element::Type precision,
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
     bool isCorrect) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fqOnData = fakeQuantizeOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    const size_t inputChannelsCount = inputShape[1].get_length();
+    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },

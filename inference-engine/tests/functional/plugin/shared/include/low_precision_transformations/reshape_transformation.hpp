@@ -14,7 +14,7 @@
 namespace LayerTestsDefinitions {
 class ReshapeTransformationParam {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     bool isTransformed;

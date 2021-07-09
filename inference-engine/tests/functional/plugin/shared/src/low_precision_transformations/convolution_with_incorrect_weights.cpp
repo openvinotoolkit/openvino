@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
@@ -40,7 +40,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
     threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
@@ -57,7 +57,7 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
 
 void ConvolutionWIthIncorrectWeightsTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionWIthIncorrectWeightsParam param;

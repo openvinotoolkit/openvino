@@ -30,7 +30,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const int64_t splitedAxis,
         const size_t numSplit);

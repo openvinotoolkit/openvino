@@ -16,12 +16,12 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const std::shared_ptr<Node>& parent,
     const FakeQuantizeOnWeights& fqOnWeights,
     bool typeRelaxed) {
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    const size_t inputChannelsCount = inputShape[1].get_length();
+    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
@@ -56,7 +56,7 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights fqOnWeights1,
     FakeQuantizeOnWeights fqOnWeights2) {

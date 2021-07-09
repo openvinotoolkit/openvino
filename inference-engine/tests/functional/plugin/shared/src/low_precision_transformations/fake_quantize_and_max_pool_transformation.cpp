@@ -18,7 +18,7 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
@@ -29,7 +29,7 @@ std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestP
 
 void FakeQuantizeAndMaxPoolTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
@@ -45,7 +45,7 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
 
 void FakeQuantizeAndMaxPoolTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;

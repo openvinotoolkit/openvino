@@ -22,7 +22,7 @@ const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
         DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<ngraph::Shape> inputShapesBS2 = {
+const std::vector<ngraph::PartialShape> inputShapesBS2 = {
         {1, 4, 3, 3}, {2, 16, 5, 4}
 };
 
@@ -36,7 +36,7 @@ const auto DepthToSpaceBS2 = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
 
-const std::vector<ngraph::Shape> inputShapesBS3 = {
+const std::vector<ngraph::PartialShape> inputShapesBS3 = {
         {1, 9, 3, 3}, {2, 27, 5, 4}
  };
 

@@ -11,8 +11,8 @@
 
 class MatMulShapes {
 public:
-    ngraph::Shape inputA;
-    ngraph::Shape inputB;
+    ngraph::PartialShape inputA;
+    ngraph::PartialShape inputB;
     bool transposeA;
     bool transposeB;
 };

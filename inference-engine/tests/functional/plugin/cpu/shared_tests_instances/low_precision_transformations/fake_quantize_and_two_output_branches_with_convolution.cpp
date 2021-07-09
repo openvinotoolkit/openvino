@@ -31,7 +31,7 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolution> testValues = 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),

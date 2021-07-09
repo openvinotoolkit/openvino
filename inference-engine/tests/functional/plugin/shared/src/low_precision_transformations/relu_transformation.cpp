@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -33,7 +33,7 @@ std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTrans
 
 InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
 
 void ReluTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
@@ -60,7 +60,7 @@ void ReluTransformation::SetUp() {
 
 void ReluTransformation::validate() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ReluTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();

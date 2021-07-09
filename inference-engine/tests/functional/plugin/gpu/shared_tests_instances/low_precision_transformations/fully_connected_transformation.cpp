@@ -18,20 +18,20 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 
 const std::vector<MatMulShapes> shapes = {
     {
-        ngraph::Shape{ 1, 16 },
-        ngraph::Shape{ 16, 8 },
+        { 1, 16 },
+        { 16, 8 },
         false,
         false
     },
     {
-        ngraph::Shape{ 1, 16 },
-        ngraph::Shape{ 8, 16 },
+        { 1, 16 },
+        { 8, 16 },
         false,
         true
     },
     {
-        ngraph::Shape{ 16, 1 },
-        ngraph::Shape{ 16, 8 },
+        { 16, 1 },
+        { 16, 8 },
         true,
         false
     },

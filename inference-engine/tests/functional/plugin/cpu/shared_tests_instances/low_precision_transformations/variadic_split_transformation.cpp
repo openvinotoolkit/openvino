@@ -93,7 +93,7 @@ const std::vector<LayerTestsDefinitions::VariadicSplitTransformationParam> param
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, VariadicSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),

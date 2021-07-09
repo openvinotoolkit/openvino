@@ -12,8 +12,8 @@ const std::vector<element::Type> precisions = {
     element::f32
 };
 
-const std::vector< ngraph::Shape > inputShapes = {
-    Shape{ 1ul, 4ul, 16ul, 16ul }, Shape{ 1ul, 4ul, 16ul, 16ul, 16ul }
+const std::vector< ngraph::PartialShape > inputShapes = {
+    { 1ul, 4ul, 16ul, 16ul }, { 1ul, 4ul, 16ul, 16ul, 16ul }
 };
 
 const std::vector<builder::subgraph::FakeQuantizeOnData> fqOnData = {

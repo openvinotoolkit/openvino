@@ -15,7 +15,7 @@ namespace LayerTestsDefinitions {
 
 class GroupConvolutionTransformationParam {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::Shape outputShape;
     size_t group;
     int groupCalculationDimention;

@@ -16,19 +16,19 @@ namespace subgraph {
 // TODO: remove, reuse mode extended method
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights& fqOnWeights) {
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
             fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
 
-    const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 2 * inputShape[1];
+    const size_t inputChannelsCount = inputShape[1].get_length();
+    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
