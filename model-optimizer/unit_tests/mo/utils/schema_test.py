@@ -12,7 +12,7 @@ from mo.utils.utils import get_mo_root_dir
 
 base_dir = get_mo_root_dir()
 path = os.path.join(base_dir, 'extensions', 'front',)
-schema_file = os.path.join(base_dir, 'schema.json')
+schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
 
 test_json1 = '[{"id": "", "match_kind": "general", "custom_attributes": {}}]'
 test_json2 = '[{"id": "someid", "match_kind": "abc", "custom_attributes": {}}]'

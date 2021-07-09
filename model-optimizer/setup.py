@@ -28,14 +28,12 @@ def read_text(path):
 # Detect all the framework specific requirements_*.txt files.
 requirements_txt = []
 py_modules = []
-schema_json = []
+schema_json = [os.path.join(SETUP_DIR, 'mo', 'utils', 'schema.json')]
 for item in os.listdir():
     if re.match(r'requirements(.*)\.txt', item):
         requirements_txt.append(item)
     if re.match(r'mo(.*)\.py', item):
         py_modules.append(item.split('.')[0])
-    if re.match(r'schema\.json', item):
-        schema_json.append(item)
 
 # Minimal set of dependencies
 deps_whitelist = ('networkx', 'defusedxml', 'numpy')

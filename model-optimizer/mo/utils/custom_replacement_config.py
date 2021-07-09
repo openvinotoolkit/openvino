@@ -354,7 +354,7 @@ def parse_custom_replacement_config_file(file_name: str):
 
     try:
         base_dir = get_mo_root_dir()
-        schema_file = os.path.join(base_dir, 'schema.json')
+        schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
         with open(schema_file, 'r') as f:
             schema = json.load(f)
             validator = json_validate.compile(schema)
