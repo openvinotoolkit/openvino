@@ -100,12 +100,11 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs) const {
         return false;
     }
 
-    if (this->getOrder() != rhs.getOrder()) {
+    if (!isEqualOrUndefined(this->getOrder(), rhs.getOrder())) {
         return false;
     }
 
-    return !(this->getOffsetPadding() != rhs.getOffsetPadding() &&
-             this->getOffsetPadding() != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
+    return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
 }
 
 size_t BlockedMemoryDesc::getMemSizeImp() const {

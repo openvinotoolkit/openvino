@@ -1094,7 +1094,7 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
 
     size_t blk_offset0 = desc.data.offset0;
 
-    return !(blk_offset0 != rhs.getOffsetPadding() && blk_offset0 != Shape::UNDEFINED_DIM && rhs.getOffsetPadding() != Shape::UNDEFINED_DIM);
+    return dimsEqualWeak(blk_offset0, rhs.getOffsetPadding());
 }
 
 bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {

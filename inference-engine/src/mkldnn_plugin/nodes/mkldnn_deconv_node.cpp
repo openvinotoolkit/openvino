@@ -418,9 +418,8 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn:
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    MKLDNNMemoryDesc desc = isInt8 ? MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx))
-            : MKLDNNMemoryDesc(primitive_desc_it.diff_src_desc(idx));
-    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(idx)->getShape().getStaticMklDims(), desc.getDataType(), desc.getFormat());
+    return isInt8 ? MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.dst_desc(idx)) :
+            MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.diff_src_desc(idx));
 }
 
 InferenceEngine::Precision MKLDNNDeconvolutionNode::getRuntimePrecision() const {
