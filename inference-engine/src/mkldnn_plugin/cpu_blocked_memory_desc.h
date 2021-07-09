@@ -25,6 +25,14 @@ public:
 
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
 
+    InferenceEngine::Precision getPrecision() const override {
+        return precision;
+    }
+
+    void setPrecision(InferenceEngine::Precision prc) override {
+        precision = std::move(prc);
+    }
+
     const std::vector<size_t>& getBlockDims() const {
         return blockedDims;
     }
@@ -79,6 +87,7 @@ private:
     bool isTailCFormat() const;
 
 private:
+    InferenceEngine::Precision precision;
     std::vector<size_t> blockedDims;
     std::vector<size_t> strides;
     std::vector<size_t> order;

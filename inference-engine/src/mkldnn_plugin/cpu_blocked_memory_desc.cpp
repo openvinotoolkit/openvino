@@ -8,7 +8,7 @@
 
 using namespace MKLDNNPlugin;
 
-BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims) : MemoryDesc(dims, prc, Blocked) {
+BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims) : MemoryDesc(dims, Blocked) , precision(prc) {
     order.resize(dims.size());
     std::iota(order.begin(), order.end(), 0);
     blockedDims = dims;
@@ -23,7 +23,7 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
 
 BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims, const std::vector<size_t>& blockedDims,
                   const std::vector<size_t>& order, size_t offsetPadding, const std::vector<size_t>& offsetPaddingToData,
-                  const std::vector<size_t>& strides) : MemoryDesc(dims, prc, Blocked) {
+                  const std::vector<size_t>& strides) : MemoryDesc(dims, Blocked), precision(prc) {
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "BlockedMemoryDesc do not support undefined order.";
     }

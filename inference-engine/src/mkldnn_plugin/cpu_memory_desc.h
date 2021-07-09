@@ -35,11 +35,11 @@ public:
         return shape;
     }
 
-    const InferenceEngine::Precision& getPrecision() const {
-        return precision;
-    }
-
     virtual ~MemoryDesc() = default;
+
+    virtual InferenceEngine::Precision getPrecision() const = 0;
+
+    virtual void setPrecision(InferenceEngine::Precision prc) = 0;
 
     virtual std::unique_ptr<MemoryDesc> clone() const = 0;
 
@@ -56,7 +56,7 @@ public:
 
     virtual std::string serializeFormat() const = 0;
 
-    // Get minimal requared memory size in bytes. Can be undefined
+    // Get minimal required memory size in bytes. Can be undefined
     size_t getMemSize() const {
         size_t retVal = UNDEFINED_SIZE;
         if (isDefined()) {
@@ -85,18 +85,14 @@ public:
         return casted;
     }
 
-    void setPrecision(InferenceEngine::Precision prc) {
-        precision = prc;
-    }
-
 protected:
-    MemoryDesc() : shape(std::vector<size_t>()), precision(InferenceEngine::Precision::UNSPECIFIED), type(Undef) {}
+    MemoryDesc() : shape(std::vector<size_t>()), type(Undef) {}
 
-    MemoryDesc(const Shape& shape, const InferenceEngine::Precision& precision, MemoryDescType type)
-            : shape(shape), precision(precision), type(type) {}
+    MemoryDesc(const Shape& shape, MemoryDescType type)
+            : shape(shape), type(type) {}
 
-    MemoryDesc(const std::vector<size_t>& dims, const InferenceEngine::Precision& precision, MemoryDescType type)
-            : shape(dims), precision(precision), type(type) {}
+    MemoryDesc(const std::vector<size_t>& dims, MemoryDescType type)
+            : shape(dims), type(type) {}
 
     virtual size_t getMemSizeImp() const = 0;
 
@@ -106,10 +102,9 @@ public:
 protected:
     MemoryDescType type;
     Shape shape;
-    InferenceEngine::Precision precision;
 };
 
 using MemoryDescPtr = std::unique_ptr<MemoryDesc>;
-using MemoryDescConsPtr = std::unique_ptr<const MemoryDesc>;
+using MemoryDescConstPtr = std::unique_ptr<const MemoryDesc>;
 
 }  // namespace MKLDNNPlugin
