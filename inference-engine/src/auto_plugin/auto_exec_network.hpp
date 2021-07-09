@@ -124,6 +124,7 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     void run(InferenceEngine::Task inferTask) override;
