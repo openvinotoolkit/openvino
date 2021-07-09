@@ -44,6 +44,7 @@ _get_node_factory_opset8 = partial(_get_node_factory, "opset8")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @nameable_op
 def multiclass_nms(
     boxes: NodeInput,
@@ -94,6 +95,7 @@ def multiclass_nms(
     }
 
     return _get_node_factory_opset8().create("MulticlassNms", inputs, attributes)
+
 
 @nameable_op
 def matrix_nms(
