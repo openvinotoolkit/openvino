@@ -21,7 +21,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
 
     fem.def(
         "load",
-        [](ngraph::frontend::FrontEnd& self, const std::string& s) { self.load(s); },
+        [](ngraph::frontend::FrontEnd& self, const std::string& s) { return self.load(s); },
         py::arg("path"),
         R"(
                 Loads an input model by specified model file path.
