@@ -57,7 +57,7 @@ std::vector<std::string> disabledTestPatterns() {
             // need to implement Export / Import
             R"(.*IEClassImportExportTestP.*)",
 
-            // TODO: Issue: TBA, NormalizeL2 output mismatch for empty axes case
+            // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
             R"(.*NormalizeL2LayerTest.*axes=\(\).*)"
     };
 }

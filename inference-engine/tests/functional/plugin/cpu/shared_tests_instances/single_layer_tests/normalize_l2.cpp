@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1, 0.5, 100.0};
+const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1, 100};
 
 const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
@@ -22,7 +22,7 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
 };
 
 /* ============= 1D ============= */
-// [SKIPPED] Unsupported by CPU, issue: 35627
+// [SKIPPED][CPU] Unsupported rank, Issue: 35627
 const std::vector<std::vector<int64_t>> axes_1D = {
         {},
         {0}
@@ -49,7 +49,7 @@ const std::vector<std::vector<int64_t>> axes_2D = {
         {},
         {1},
 
-        // Unsupported by CPU
+        // [CPU] Unsupported axes, Issue: 59791
         // {0},
         // {0, 1},
 };
@@ -76,11 +76,13 @@ const std::vector<std::vector<int64_t>> axes_3D = {
         {1},
         {1, 2},
 
-        // Unsupported by CPU
+        // [CPU] Unsorted axes, Issue: 59794
+        // {2, 1},
+
+        // [CPU] Unsupported axes, Issue: 59791
         // {0},
         // {2},
         // {0, 1},
-        // {2, 1},
         // {0, 1, 2}
 };
 
@@ -106,14 +108,16 @@ const std::vector<std::vector<int64_t>> axes_4D = {
         {1},
         {1, 2, 3},
 
-        // Unsupported by CPU
+        // [CPU] Unsorted axes, Issue: 59794
+        // {3, 1, 2},
+
+        // [CPU] Unsupported axes, Issue: 59791
         // {0},
         // {2},
         // {3},
         // {0, 1},
         // {1, 2},
         // {2, 3},
-        // {3, 1, 2},
         // {0, 1, 2, 3}
 };
 
@@ -134,7 +138,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 /* ============= 5D ============= */
-// [SKIPPED] Unsupported by CPU, issue: 35627
+// [SKIPPED][CPU] Unsupported rank, Issue: 35627
 const std::vector<std::vector<int64_t>> axes_5D = {
         {},
         {0},

@@ -56,9 +56,11 @@ std::vector<std::string> disabledTestPatterns() {
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
 
-        // TODO: Issue: 35627. Normalize supports from 2D to 4D blobs
+        // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
         R"(.*NormalizeL2_1D.*)",
         R"(.*NormalizeL2_5D.*)",
+        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",

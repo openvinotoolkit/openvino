@@ -911,9 +911,21 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# NormalizeL2 - output mismatch,
+# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NomalizeL2 - unsorted axes are not supported,
+# message: "Doesn't support reduction axes: (3.1.2)"
+# Issue: 59794
+IE_CPU.normalize_l2_4D_axes_unsorted_312_max
+IE_CPU.normalize_l2_4D_axes_unsorted_312_add
+
 # NormalizeL2 - Plugins support normalize over "channel" dimension
 # or "channel + all spatial" dimensions for 2D, 3D or 4D cases
-# Ticket: TBA
+# Issue: 35627, 59791
 normalize_l2_1D_axes_empty_add
 normalize_l2_1D_axes_empty_max
 normalize_l2_1D_axes_0_add
@@ -932,8 +944,6 @@ normalize_l2_4D_axes_3_max
 normalize_l2_4D_axes_3_add
 normalize_l2_4D_axes_23_max
 normalize_l2_4D_axes_23_add
-normalize_l2_4D_axes_unsorted_312_max
-normalize_l2_4D_axes_unsorted_312_add
 normalize_l2_4D_axes_0123_max
 normalize_l2_4D_axes_0123_add
 normalize_l2_5D_axes_empty_max
