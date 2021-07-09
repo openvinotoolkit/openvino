@@ -942,7 +942,7 @@ void FlattenTrivialConcatPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FlattenTrivialConcatPass");
     // change all trivial concatenations (concatenation where output buffer is a buffer made by appending input buffers)
     // by reshaping its inputs to 1 x total_input_size and its output to 1 x total_cocat_size and chaning the axis to 1
-    // for example if 4D concat have unaligned inputs then ConcatAlignFilters need to be used if sizes before
+    // for example if 4D concat have unaligned inputs then ConcatAlignConvolutionFilters need to be used if sizes before
     // axis are all ones then concat can be changed to 2D for example, lets say all unputs have same shape equal to:
     // 1, 1, 5, 3 then for axis 0, 1, 2 the change will be made and inputs will be reshaped to 1, 15,
     // but for shape 2, 1, 5, 3 only axis 0 is valid and inputs will reshape to 1, 30
@@ -1137,6 +1137,183 @@ void InsertConcatAligningFilterPass::run() {
     }
 }
 
+void InsertConcatAligningConvolutionFilterPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertConcatAligningConvolutionFilterPass");
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    // currently concat layer only supports 2 bytes in int16 and int8 mode. In fp32 mode this no necessary but usefull for testing
+    const int bytesPerConcatElement = 2;
+
+    int numOfFilterLayers = 0;
+
+    for (auto& l : *pLayers) {
+        LayerInfo info(l);
+        if (!info.isConcat()) continue;
+        size_t offset = 0;
+        auto concatLayer = info.as<ConcatLayer*>();
+        IE_ASSERT(concatLayer != nullptr);
+
+        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto getLayerByIndex = [&concatLayer](int idx) {
+                auto input = concatLayer->insData[idx];
+                auto lockedInput = input.lock();
+                if (!lockedInput) {
+                    THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
+                }
+                return lockedInput;
+            };
+
+            auto concatInput = getLayerByIndex(input_idx);
+            auto dims = concatInput->getDims();
+            auto outputSize = details::product(++dims.begin(), dims.end()) * bytesPerConcatElement;
+
+            auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
+                if (concatLayer->insData.size() <= concat_input_idx) return false;
+
+                auto nextInput = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
+
+                if (LayerInfo(nextInput).isInput()) return false;
+
+                return true;
+            };
+
+            // correcting offset by copy layer insertion. This can be improved by collapsing copy and affine or diagonal later-on
+            // if next concat inputs requires align filter - then current input also requires either copy or align filter
+            if (ALIGN64(offset) != offset || (ALIGN64(outputSize) != outputSize && useAlignFilterIf(input_idx + 1))) {
+                auto prevLayer = getCreatorLayer(concatInput).lock();
+                // input layer parameters are copied not using GNA-primitives - so nothing to allign here.
+                if (!useAlignFilterIf(input_idx)) continue;
+
+                gnalog() << "Inserted Concat Aligning Layer between: " << prevLayer->name << " and " << l->name << std::endl;
+                // throw 1;
+                // insert the filter
+                auto filterName = std::string("ConcatAlignConvolutionFilter_") + std::to_string(numOfFilterLayers++);
+                auto concatAligningConvFilter =
+                    std::make_shared<ConvolutionLayer>(LayerParams({ filterName, "ConcatAlignConvolutionFilter", Precision::FP32 }));
+
+                if (dims.size() != 2) {
+                    THROW_GNA_EXCEPTION << "unsupported concat input of dims.size()=" << dims.size() << ", layer=" << prevLayer->name;
+                }
+
+                auto num_rows_in = dims[1];
+                size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(offset) - 64));
+                size_t num_rows_padded = (offset - aligned64_offset) / bytesPerConcatElement;
+                size_t num_rows_out = num_rows_padded + num_rows_in;
+
+                // encodes offset to beginning of split layer input
+                size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
+                concatAligningConvFilter->params["output_offset"] =
+                    std::to_string(bytesOffset);
+
+                // for padded rows we cannot use copy layer - TBD how to implement
+                concatAligningConvFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
+
+                // encodes original output size
+                concatAligningConvFilter->params["original_num_rows"] = std::to_string(num_rows_in);
+
+                if (0 == num_rows_padded && ALIGN(num_rows_in, 32) > 32) {
+                    std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
+
+                    auto identityIdx = num_rows_padded * num_rows_in;
+                    for (int i = 0; i != num_rows_in; i++) {
+                        filterWeights[identityIdx] = 1.0f;
+                        identityIdx += num_rows_in + 1;
+                    }
+
+                    concatAligningConvFilter->_weights = make_shared_blob<float>(
+                        TensorDesc(
+                            concatInput->getTensorDesc().getPrecision(),
+                            SizeVector({ filterWeights.size() }),
+                            Layout::C));
+                    concatAligningConvFilter->_weights->allocate();
+
+                    CopyVectorToBlob(concatAligningConvFilter->_weights, filterWeights);
+
+                    // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
+                    dims[1] = num_rows_out;
+
+                    if ((concatInput->getLayout() == Layout::NC && dims[0] > 8) ||
+                        (concatInput->getLayout() == Layout::CN && dims[1] > 8)) {
+                        THROW_GNA_EXCEPTION << "unsupported batch number '" <<
+                            (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
+                            "' in layer '" << concatLayer->name << "'";
+                    }
+
+                    auto outData = std::make_shared<Data>(filterName,
+                        TensorDesc(concatInput->getPrecision(),
+                            dims,
+                            concatInput->getLayout()));
+
+                    auto filterWithQuant = quantized ?
+                        InferenceEngine::injectData<QuantizedLayerParams>(concatAligningConvFilter) :
+                        concatAligningConvFilter;
+                    getCreatorLayer(outData) = filterWithQuant;
+                    filterWithQuant->outData.push_back(outData);
+
+                    CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+
+                }
+                else {
+
+                    // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
+                    // offsetOfUnalignment - the leading zeros in the filter
+                    //       |
+                    //       |             additionalPaddingOfFilter = filterSize - offsetOfUnalignment - numberOfFilters
+                    //   ____|___         ___|___
+                    //  |        |       |       |
+                    //  0 0 ... 0 1 0 0 0 0 ... 0
+                    //  0 0 ... 0 0 1 0 0 0 ... 0
+                    //  0 0 ... 0 0 0 1 0 0 ... 0
+                    //  0 0 ... 0 0 0 0 1 0 ... 0
+                    const auto numberOfFilters = 4u;
+                    const auto minFilterSize = num_rows_padded + numberOfFilters;
+                    const auto offsetOfUnalignment = ALIGN(minFilterSize, 8) - minFilterSize;
+                    const auto filterSize = minFilterSize + offsetOfUnalignment;
+                    auto minInputs = ALIGN(((ALIGN(num_rows_out, numberOfFilters) / numberOfFilters) - 1) * numberOfFilters + filterSize, 8);
+                    auto exactOutputs = ((minInputs - filterSize) / numberOfFilters + 1)* numberOfFilters;
+                    concatAligningConvFilter->params["exactOutputs"] = std::to_string(exactOutputs);
+                    std::vector<float> filterWeights(filterSize * 4, 0.f);
+                    for (auto f = 0u; f < numberOfFilters; f++) {
+                        filterWeights[f * filterSize + f + offsetOfUnalignment] = 1;
+                    }
+
+                    concatAligningConvFilter->_weights = make_shared_blob<float>(
+                        TensorDesc(
+                            concatInput->getTensorDesc().getPrecision(),
+                            SizeVector({ filterWeights.size() }),
+                            Layout::C));
+                    concatAligningConvFilter->_weights->allocate();
+
+                    CopyVectorToBlob(concatAligningConvFilter->_weights, filterWeights);
+
+                    // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
+                    dims[1] = num_rows_out;
+
+                    if ((concatInput->getLayout() == Layout::NC && dims[0] > 8) ||
+                        (concatInput->getLayout() == Layout::CN && dims[1] > 8)) {
+                        THROW_GNA_EXCEPTION << "unsupported batch number '" <<
+                            (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
+                            "' in layer '" << concatLayer->name << "'";
+                    }
+
+                    auto outData = std::make_shared<Data>(filterName,
+                        TensorDesc(concatInput->getPrecision(),
+                            dims,
+                            concatInput->getLayout()));
+
+                    auto filterWithQuant = quantized ?
+                        InferenceEngine::injectData<QuantizedLayerParams>(concatAligningConvFilter) :
+                        concatAligningConvFilter;
+                    getCreatorLayer(outData) = filterWithQuant;
+                    filterWithQuant->outData.push_back(outData);
+
+                    CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+                }
+            }
+            offset += outputSize;
+        }
+    }
+}
+
 void ReorderConcatInputsPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
@@ -1169,7 +1346,101 @@ void ReorderConcatInputsPass::run() {
             auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
             LayerInfo infoConcatInput(currConcatLayer);
-            if (!infoConcatInput.isConcatAlignFilter()) {
+            if (!infoConcatInput.isConcatAlignFilter() && !infoConcatInput.isConcatAlignConvolutionFilter()) {
+                continue;
+            }
+
+            auto inputsToConcatPrev = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin) {
+                return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
+                }, input_idx - 1);
+
+            if (inputsToConcatPrev.empty()) {
+                THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << currConcatLayer;
+            }
+
+            auto prevInputToConcat = inputsToConcatPrev.front().first;
+
+            // concat has first input of concat align filter - dont need to reorder it
+            if (prevInputToConcat == currConcatLayer) {
+                continue;
+            }
+
+            bool bFinish = false;
+            // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
+            // using ufs - upper first search
+            gnalog() << "[UFS] searching for: " << prevInputToConcat->name << "\n";
+
+            CNNNetDFS(currConcatLayer, [&currConcatLayer, &prevInputToConcat, &bFinish](CNNLayerPtr layer) {
+                gnalog() << "[UFS] from : " << currConcatLayer->name << " reached: " << layer->name << "\n";
+                // found that direct input to concat is a indirect parent of align filter - so no link required
+                if (layer.get() == prevInputToConcat.get() || LayerInfo(prevInputToConcat).isInput()) {
+                    gnalog() << "[UFS] copy layer insertion needed\n";
+                    bFinish = true;
+                }
+                }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS once link not needed
+                    return make_upstream_order(!bFinish ? from : nullptr);
+                });
+
+            auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
+
+            auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({ linkName, "link", Precision::FP32 }));
+
+            auto link = quantized ?
+                InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
+                linkWithoutQuant;
+
+
+            auto linkOutData = std::make_shared<Data>(linkName,
+                TensorDesc(Precision::FP32,
+                    SizeVector({ 1 }),
+                    Layout::C));
+            getCreatorLayer(linkOutData) = link;
+
+            link->outData.push_back(linkOutData);
+            link->insData.push_back(currConcatLayer->outData.front());
+
+            getInputTo(linkOutData)[prevInputToConcat->name + ".via.link"] = prevInputToConcat;
+            prevInputToConcat->insData.push_back(linkOutData);
+
+            getInputTo(currConcatLayer->outData.front())[linkName] = link;
+        }
+    }
+}
+
+void ReorderConcatInputsConvolutionPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+    int numOfLinkLayers = 0;
+
+    for (auto& l : *pLayers) {
+        // 1st stage locate concat
+        LayerInfo info(l);
+        if (!info.isConcat()) {
+            continue;
+        }
+
+        // 2nd stage locate first input in concat
+        if (l->insData.size() < 2) {
+            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << l->name;
+        }
+
+        auto concatLayer = info.as<ConcatLayer*>();
+        auto getLayerByIndex = [&concatLayer](int idx) {
+            auto input = concatLayer->insData[idx];
+            auto lockedInput = input.lock();
+            if (!lockedInput) {
+                THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
+            }
+            return lockedInput;
+        };
+
+        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto concatInput = getLayerByIndex(input_idx);
+            auto currConcatLayer = getCreatorLayer(concatInput).lock();
+
+            LayerInfo infoConcatInput(currConcatLayer);
+            if (!infoConcatInput.isConcatAlignConvolutionFilter()) {
                 continue;
             }
 
