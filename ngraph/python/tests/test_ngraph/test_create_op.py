@@ -1794,20 +1794,21 @@ def test_rnn_sequence_operator_forward(dtype):
     assert node.get_type_name() == "RNNSequence"
     assert node.get_output_size() == 2
 
+
 def test_multiclass_nms():
-    boxes_data = np.array([0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype='float32')
+    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
     box = ng.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype='float32')
+                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
     score = ng.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.multiclass_nms(box, score, output_type='i32', nms_top_k=3,
-        iou_threshold=0.5, score_threshold=0.0, sort_result_type='classid',
-        nms_eta=1.0)
+    nms_node = ng.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
+                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
+                                 nms_eta=1.0)
 
     assert nms_node.get_type_name() == "MulticlassNms"
     assert nms_node.get_output_size() == 3
@@ -1818,20 +1819,21 @@ def test_multiclass_nms():
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
 
+
 def test_matrix_nms():
-    boxes_data = np.array([0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype='float32')
+    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
     box = ng.constant(boxes_data, dtype=np.float)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype='float32')
+                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
     score = ng.constant(scores_data, dtype=np.float)
 
-    nms_node = ng.matrix_nms(box, score, output_type='i32', nms_top_k=3,
-        score_threshold=0.0, sort_result_type='score', background_class=0,
-        decay_function='linear', gaussian_sigma=2.0, post_threshold=0.0)
+    nms_node = ng.matrix_nms(box, score, output_type="i32", nms_top_k=3,
+                             score_threshold=0.0, sort_result_type="score", background_class=0,
+                             decay_function="linear", gaussian_sigma=2.0, post_threshold=0.0)
 
     assert nms_node.get_type_name() == "MatrixNms"
     assert nms_node.get_output_size() == 3
