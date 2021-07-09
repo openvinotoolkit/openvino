@@ -8,6 +8,10 @@
 #include <ie_common.h>
 #include <math.h>
 
+#include <ie_memcpy.h>
+#include <blob_factory.hpp>
+
+
 #include <cassert>
 #include <map>
 #include <memory>
@@ -466,6 +470,64 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           std::ostream& binBuf,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           Blob::Ptr& binBlob,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+
+        std::stringstream binBuf;
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+
+        std::streambuf* pbuf = binBuf.rdbuf();
+        unsigned long bufSize = binBuf.tellp();
+
+        TensorDesc tensorDesc(Precision::U8, { bufSize }, Layout::C);
+        binBlob = make_shared_blob<uint8_t>(tensorDesc);
+        binBlob->allocate();
+        pbuf->sgetn(binBlob->buffer(), bufSize);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

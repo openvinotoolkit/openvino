@@ -200,6 +200,14 @@ public:
     virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept = 0;
 
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
+    virtual StatusCode serialize(std::ostream& xmlFile, std::ostream& binFile, ResponseDesc* resp) const
+        noexcept = 0;
+
+    INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
+    virtual StatusCode serialize(std::ostream& xmlPath, Blob::Ptr& binPath, ResponseDesc* resp) const
+        noexcept = 0;
+
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief Methods maps framework tensor name to OpenVINO name

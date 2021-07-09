@@ -122,6 +122,12 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
+    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
+        noexcept override;
+
+    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
+        noexcept override;
+
 protected:
     std::map<std::string, DataPtr> _data;
     std::map<std::string, CNNLayerPtr> _layers;
