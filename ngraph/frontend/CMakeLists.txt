@@ -11,10 +11,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(onnx_import)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    add_subdirectory(onnx_editor)
-endif()
-
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     add_subdirectory(paddlepaddle)
 endif()
