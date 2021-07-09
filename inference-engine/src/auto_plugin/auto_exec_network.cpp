@@ -11,6 +11,7 @@
 #include "auto_plugin.hpp"
 #include "auto_exec_network.hpp"
 #include "auto_infer_request.hpp"
+#include "auto_async_infer_request.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
@@ -186,6 +187,14 @@ InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRe
                                               _enablePerfCount);
 }
 
+InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequest() {
+    auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+    return std::make_shared<AutoAsyncInferRequest>(std::static_pointer_cast<AutoInferRequest>(syncRequestImpl),
+                                                   std::static_pointer_cast<AutoExecutableNetwork>(shared_from_this()),
+                                                   std::make_shared<InferenceEngine::ImmediateExecutor>());
+}
+
 void AutoExecutableNetwork::run(InferenceEngine::Task inferTask) {
     ScheduleToWorkerInferRequest(std::move(inferTask), "");
 }
@@ -268,6 +277,8 @@ Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
 }
 
 void AutoExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
+    // fixme: this is a sync with default task
+    inferPipelineTask();
 }
 
 }  // namespace AutoPlugin
