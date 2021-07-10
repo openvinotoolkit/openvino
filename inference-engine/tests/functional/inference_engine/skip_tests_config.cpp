@@ -13,5 +13,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
         // azure is failing after #6199
         ".*/NmsLayerTest.*",
+        // TODO: Snpippets rewrite this test
+        ".*TransformationTests\\.DontStartSubgraphSingleOutput.*"
     };
 }
