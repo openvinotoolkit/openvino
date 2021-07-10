@@ -14,11 +14,13 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace testing;
 using namespace ngraph;
 
 TEST(TransformationTests, StartSubgraphMultipleOutputs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
@@ -51,7 +53,8 @@ TEST(TransformationTests, StartSubgraphMultipleOutputs) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DontStartSubgraphSingleOuptut) {
+TEST(TransformationTests, DontStartSubgraphSingleOutput) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
@@ -82,6 +85,7 @@ TEST(TransformationTests, DontStartSubgraphSingleOuptut) {
 }
 
 TEST(TransformationTests, AttachToSubgraph) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
@@ -118,6 +122,7 @@ TEST(TransformationTests, AttachToSubgraph) {
 }
 
 TEST(TransformationTests, DontAttachToSubgraphIfLoop) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
