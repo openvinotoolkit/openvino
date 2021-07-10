@@ -5,7 +5,7 @@
 
 namespace ONNX_NAMESPACE
 {
-    enum TensorProto_DataType;
+    enum TensorProto_DataType : int;
 }
 
 namespace ngraph

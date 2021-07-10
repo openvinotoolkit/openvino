@@ -22,7 +22,7 @@ namespace LayerTestsDefinitions {
 
 std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::Shape elementwiseConstantShapes;
@@ -45,7 +45,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
     // threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;

@@ -29,8 +29,6 @@ else()
     set(PDPD_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
 endif()
 
-message("PDPD_PROTOC_EXECUTABLE is [${PDPD_PROTOC_EXECUTABLE}]")
-
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
     get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -62,10 +60,6 @@ add_dependencies(${TARGET_NAME} libprotobuf paddlepaddle_ngraph_frontend_proto)
 if(NOT WIN32)
     # Addition dependency on static libprotobuf for non-Windows
     add_dependencies(${TARGET_NAME} libprotobuf_static)
-endif()
-
-if (TARGET ext_protobuf)
-    add_dependencies(${TARGET_NAME} ext_protobuf)
 endif()
 
 target_include_directories(${TARGET_NAME}
