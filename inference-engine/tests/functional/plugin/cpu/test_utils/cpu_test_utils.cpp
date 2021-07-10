@@ -140,7 +140,7 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         // skip policy
         auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
             bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
-            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc) && shape[1] == 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
 

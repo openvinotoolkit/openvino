@@ -49,11 +49,6 @@ bool MKLDNNAdaPoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::No
 
 MKLDNNAdaPoolingNode::MKLDNNAdaPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                                        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
-//    if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::type_info)) {
-//        mode = AdaPoolingMode::AVG;
-//    } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::type_info)) {
-//        mode = AdaPoolingMode::MAX;
-//    }
     auto maxPoolOp = ngraph::as_type_ptr<ngraph::op::v8::AdaptiveMaxPool>(op);
     auto avgPoolOp = ngraph::as_type_ptr<ngraph::op::v8::AdaptiveAvgPool>(op);
     std::string errorMessage;
@@ -77,6 +72,8 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
+    if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
     inputPrecision = getOriginalInputPrecisionAtPort(0);
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -93,7 +90,6 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
         IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
-    // TODO: type of mode
     if (getParentEdgeAt(1)->getDims().ndims() != 1) {
         IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
     }
@@ -172,13 +168,14 @@ std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims
         return memory::format_tag::any;
     };
 
-    if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
-        return { tailFmt() };
-    } else if (false && getParentEdgeAt(0)->getDims()[1] == 1) {  // TODO: remove
-        // plain format for 1-channel tensor is preferable
+    if (getParentEdgeAt(0)->getDims()[1] == 1) {
         return { plainFmt() };
     } else {
-        return { plainFmt(), tailFmt(), blockedFmt() };
+        return {
+                tailFmt(),
+                plainFmt(),
+                blockedFmt()
+        };
     }
 }
 
@@ -221,7 +218,7 @@ void MKLDNNAdaPoolingNode::execute(mkldnn::stream strm) {
 template <typename inputType, typename outputType>
 void MKLDNNAdaPoolingNode::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-//    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
     int *indexDst = nullptr;
 
@@ -234,15 +231,16 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-    auto isTailFmt = srcMemory0.GetDesc().isTailCFormat();
+    auto isTailCFmt = srcMemory0.GetDesc().isTailCFormat();
 
     const auto *src = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
-    // TODO: check length og 1-th input
 
-//    auto nominalRoiCount = static_cast<int>(srcMemory1.GetDims()[0]);
-//    int realRois = 0;
+    if (srcMemory1.GetElementsCount() != spatialDimsCount)
+        IE_THROW() << "Adapooling input spatial dimension (" << srcMemory1.GetElementsCount()
+                   << ") isn't equal to pooling vector size (" << spatialDimsCount << ")";
+
     auto inputDimVector = srcMemory0.GetDims();
     const int N = static_cast<int>(inputDimVector[0]);
     const int C = static_cast<int>(inputDimVector[1]);
@@ -254,7 +252,6 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     const int OH = static_cast<int>(spatialDimsCount >= 2 ? srcPooledSpatialShapes[spatialDimsCount - 2] : 1);
     const int OW = static_cast<int>(srcPooledSpatialShapes[spatialDimsCount - 1]);
 
-//    const int iDHW = ID * IH * IW;
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
 
@@ -268,20 +265,19 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     auto dstStrides = config.outConfs[0].desc.getBlockingDesc().getStrides();
 
     // unified strides array
-    const size_t tailDimsOffset = (isTailFmt ? -1 : 0);
+    const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);
     const size_t inStrides[5] = {
             srcStrides[0],
-            (isTailFmt ? 1 : srcStrides[1]),
+            (isTailCFmt ? 1 : srcStrides[1]),
             (spatialDimsCount == 3 ? srcStrides[2 + tailDimsOffset] : 0),
             (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount + tailDimsOffset] : 0),
             srcStrides[spatialDimsCount + 1 + tailDimsOffset] };
     const size_t outStrides[5] = {
             dstStrides[0],
-            (isTailFmt ? 1 : dstStrides[1]),
+            (isTailCFmt ? 1 : dstStrides[1]),
             (spatialDimsCount == 3 ? dstStrides[2 + tailDimsOffset] : 0),
             (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount + tailDimsOffset] : 0),
             dstStrides[spatialDimsCount + 1 + tailDimsOffset] };
-    // TODO: ?
 //    const memory_desc_wrapper src_d(pd()->src_md());
 //    const memory_desc_wrapper dst_d(pd()->dst_md());
 
@@ -329,7 +325,7 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
         pool = poolAvg;
     }
 
-    if (isTailFmt) {
+    if (isTailCFmt) {
         parallel_for4d(N, OD, OH, OW,
            [&](int n, int od, int oh, int ow) {
                auto srcData = src + n * inStrides[0];

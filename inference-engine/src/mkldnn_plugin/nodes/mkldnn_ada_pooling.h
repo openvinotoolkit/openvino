@@ -13,8 +13,6 @@
 
 namespace MKLDNNPlugin {
 
-enum AdaPoolingMode { AVG, MAX };
-
 class MKLDNNAdaPoolingNode : public MKLDNNNode {
 public:
     MKLDNNAdaPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
