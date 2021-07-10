@@ -3,7 +3,6 @@
 //
 
 #include "test_utils/cpu_test_utils.hpp"
-
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
@@ -18,8 +17,8 @@ namespace {
 }  // namespace
 
 typedef std::tuple<
-    std::vector<int>,                                     // pooled vector
-    std::vector<size_t>                                   // feature map shape
+    std::vector<int>,        // pooled vector
+    std::vector<size_t>      // feature map shape
 > AdaPoolSpecificParams;
 
 typedef std::tuple<
@@ -47,7 +46,6 @@ public:
         std::tie(pooledSpatialShape, inputShape) = adaPar;
         std::ostringstream result;
         result << "AdaPoolTest_";
-        result << std::to_string(obj.index) << "_";
         result << "Ch=" << std::to_string(inputShape[1]) << "_";
         // TODO: ...
 //        result << "pooledH=" << pooledH << "_";
@@ -56,7 +54,8 @@ public:
 //        result << "samplingRatio=" << samplingRatio << "_";
         result << (netPr == Precision::FP32 ? "FP32" : "BF16") << "_";
         result << mode << "_";
-        result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
+        result << std::to_string(obj.index);
         return result.str();
     }
 protected:
@@ -79,14 +78,13 @@ protected:
         // we cannot create abstract Op to use polymorphism
         auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
         adapoolMax->get_rt_info() = getCPUInfo();
-//        auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
-//        adapoolAvg->get_rt_info() = getCPUInfo();
+        auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
+        adapoolAvg->get_rt_info() = getCPUInfo();
 
         selectedType = std::string("unknown_") + inPrc.name();
         threshold = 1e-2;
-//        function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
-//                std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
-        function = std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax");
+        function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
+                std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
     }
 };
 
@@ -107,35 +105,62 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
     std::vector<CPUSpecificParams> resCPUParams;
     if (modeStr == "max") {
         if (dims == "5D") {
-            resCPUParams.push_back(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}});
+            resCPUParams.push_back(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}});  // i.e. two equal output layouts
+            resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc, ncdhw}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x}, {nCdhw16c, ncdhw}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x}, {nCdhw8c, ncdhw}, {}, {}});
+            }
         } else if (dims == "4D") {
+            resCPUParams.push_back(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}});  // i.e. two equal output layouts
             resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc, nchw}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nChw16c, x}, {nChw16c, nchw}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nChw8c, x}, {nChw8c, nchw}, {}, {}});
+            }
         } else {
+            resCPUParams.push_back(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}});  // i.e. two equal output layouts
             resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc, ncw}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCw16c, x}, {nCw16c, ncw}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCw8c, x}, {nCw8c, ncw}, {}, {}});
+            }
         }
     } else {
         if (dims == "5D") {
+            resCPUParams.push_back(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}});
             resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x}, {nCdhw16c}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x}, {nCdhw8c}, {}, {}});
+            }
         } else if (dims == "4D") {
+            resCPUParams.push_back(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}});
             resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nChw16c, x}, {nChw16c}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nChw8c, x}, {nChw8c}, {}, {}});
+            }
         } else {
+            resCPUParams.push_back(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}});
             resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc}, {}, {}});
+            if (with_cpu_x86_avx512f()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCw16c, x}, {nCw16c}, {}, {}});
+            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+                resCPUParams.push_back(CPUSpecificParams{{nCw8c, x}, {nCw8c}, {}, {}});
+            }
         }
     }
-
-    // TODO: if
-//    resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {}, {}});
-//    if (with_cpu_x86_avx512f()) {
-//        resCPUParams.push_back(CPUSpecificParams{{nChw16c, nc, x}, {nChw16c}, {}, {}});
-//    } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
-//        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {}, {}});
-//    }
     return resCPUParams;
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-//        InferenceEngine::Precision::BF16
+        InferenceEngine::Precision::FP32
 };
 
 const std::vector<std::vector<int>> pooled3DVector = {
@@ -143,7 +168,6 @@ const std::vector<std::vector<int>> pooled3DVector = {
         { 3 },
         { 5 }
 };
-// TODO: names of dimensions
 const std::vector<std::vector<int>> pooled4DVector = {
         { 1, 1 },
         { 3, 5 },
@@ -152,32 +176,23 @@ const std::vector<std::vector<int>> pooled4DVector = {
 
 const std::vector<std::vector<int>> pooled5DVector = {
         { 1, 1, 1 },
-//        { 3, 5, 1 },
-//        { 3, 5, 3 },
-};
-
-const std::vector<std::string> modeVector = {
-//        "avg",
-        "max"
+        { 3, 5, 1 },
+        { 3, 5, 3 },
 };
 
 const std::vector<std::vector<size_t>> input3DShapeVector = {
-        SizeVector({ 1, 1, 1 }),
-//        SizeVector({ 1, 1, 7 }),
-//        SizeVector({ 1, 17, 3 }),
-//        SizeVector({ 3, 17, 5 }),
+        SizeVector({ 1, 17, 3 }),
+        SizeVector({ 3, 17, 5 }),
 };
 
 const std::vector<std::vector<size_t>> input4DShapeVector = {
-//        SizeVector({ 1, 1, 1, 1 }),
         SizeVector({ 1, 3, 1, 1 }),
         SizeVector({ 3, 17, 5, 2 }),
 };
 
 const std::vector<std::vector<size_t>> input5DShapeVector = {
-        SizeVector({ 1, 1, 2, 3, 5 }),
-//        SizeVector({ 1, 17, 2, 5, 2 }),
-//        SizeVector({ 3, 17, 4, 5, 4 }),
+        SizeVector({ 1, 17, 2, 5, 2 }),
+        SizeVector({ 3, 17, 4, 5, 4 }),
 };
 
 const auto adaPool3DParams = ::testing::Combine(
@@ -254,5 +269,101 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax5DLayoutTest, AdaPoolLayerCPUTest,
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("5D", "max"))),
                          AdaPoolLayerCPUTest::getTestCaseName);
+
+// in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg3DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1}, {2}}),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 2}, SizeVector{2, 1, 2}})),
+                                 ::testing::Values("avg"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
+                         AdaPoolLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg4DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1, 1},
+                                         {2, 2}
+                                     }),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 1, 2},
+                                         SizeVector{2, 1, 2, 1}
+                                     })),
+                                 ::testing::Values("avg"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
+                     AdaPoolLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg5DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1, 1, 1}, {2, 2, 2}}),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 1, 1, 2}, SizeVector{2, 1, 1, 2, 1}})),
+                                 ::testing::Values("avg"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
+                         AdaPoolLayerCPUTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max3DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1}, {2}}),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 2}, SizeVector{2, 1, 2}})),
+                                 ::testing::Values("max"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
+                         AdaPoolLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max4DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1, 1}, {2, 2}}),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 1, 2}, SizeVector{2, 1, 2, 1}})),
+                                 ::testing::Values("max"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
+                         AdaPoolLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max5DLayoutTest, AdaPoolLayerCPUTest,
+                         ::testing::Combine(
+                             ::testing::Combine(
+                                 ::testing::Combine(
+                                     ::testing::ValuesIn(std::vector<std::vector<int>> {
+                                         {1, 1, 1},
+                                         {2, 2, 2}
+                                     }),
+                                     ::testing::ValuesIn(std::vector<std::vector<size_t>> {
+                                         SizeVector{1, 1, 1, 1, 2},
+                                         SizeVector{2, 1, 1, 2, 1}
+                                     })),
+                                 ::testing::Values("max"),
+                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
+                         AdaPoolLayerCPUTest::getTestCaseName);
+
 } // namespace
 } // namespace CPULayerTestsDefinitions

@@ -77,10 +77,6 @@ void MKLDNNAdaPoolingNode::getSupportedDescriptors() {
 
     inputPrecision = getOriginalInputPrecisionAtPort(0);
     outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    outputPrecision = inputPrecision = Precision::FP32;  // TODO: remove
-
-//    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
-//    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
@@ -103,10 +99,10 @@ void MKLDNNAdaPoolingNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-//    if (!mayiuse(avx512_core)) {
-//        if (outputPrec == Precision::BF16 || inputPrec0 == Precision::BF16)
-//            outputPrec = inputPrec0 = Precision::FP32;
-//    }
+    if (!mayiuse(avx512_core)) {
+        if (outputPrecision == Precision::BF16 || inputPrecision == Precision::BF16)
+            outputPrecision = inputPrecision = Precision::FP32;
+    }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
@@ -171,11 +167,7 @@ std::vector<memory::format_tag> MKLDNNAdaPoolingNode::getAvailableFormatsForDims
     if (getParentEdgeAt(0)->getDims()[1] == 1) {
         return { plainFmt() };
     } else {
-        return {
-                tailFmt(),
-                plainFmt(),
-                blockedFmt()
-        };
+        return { plainFmt(), tailFmt(), blockedFmt() };
     }
 }
 
@@ -197,22 +189,17 @@ struct MKLDNNAdaPoolingNode::AdaPoolingExecute {
 void MKLDNNAdaPoolingNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
-    if (
-//            !((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          !(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)
-//          )
-        )
+    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
+          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
         IE_THROW() <<"AdaPooling doesn't support demanded precisions";
 
     AdaPoolingContext ctx = {
             *this
     };
 
-    OV_SWITCH(MKLDNNPlugin, AdaPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
-              OV_CASE2(mkldnn_f32, mkldnn_f32, float, float)
-//              ,
-//              OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t)
-              )
+OV_SWITCH(MKLDNNPlugin, AdaPoolingExecute, ctx, std::tie(inputPrec, outputPrec),
+          OV_CASE2(mkldnn_f32, mkldnn_f32, float, float),
+          OV_CASE2(mkldnn_bf16, mkldnn_bf16, bfloat16_t, bfloat16_t))
 }
 
 template <typename inputType, typename outputType>
@@ -278,8 +265,6 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
             (spatialDimsCount == 3 ? dstStrides[2 + tailDimsOffset] : 0),
             (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount + tailDimsOffset] : 0),
             dstStrides[spatialDimsCount + 1 + tailDimsOffset] };
-//    const memory_desc_wrapper src_d(pd()->src_md());
-//    const memory_desc_wrapper dst_d(pd()->dst_md());
 
     std::function<void(const inputType *, outputType *, int, int, int, size_t)> pool;
     auto poolMax = [&] (const inputType *srcData, outputType *dstData, int od, int oh, int ow, size_t spatIndOff) {
@@ -312,7 +297,7 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                 for (size_t pixW = wStart; pixW < wEnd; pixW++) {
                     outputType curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
-                    sum += curr;
+                    sum = sum + curr;
                 }
             }
         }
