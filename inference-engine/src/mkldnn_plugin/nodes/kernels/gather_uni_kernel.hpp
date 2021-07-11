@@ -100,7 +100,8 @@ protected:
     Xbyak::Reg64 regIdxIter = r11;
     Xbyak::Reg64 regWorkAmount = r12;
     Xbyak::Reg64 regAux1 = r13;
-    Xbyak::Reg64 regAux2 = r14;
+//    Xbyak::Reg64 regAux2 = r14;
+    Xbyak::Reg64 regSpecIdxSizeInBytes = r14;
     Xbyak::Reg64 regAux3 = r15;
     Xbyak::Reg64 regBetweenBatchAndAxisIter = r15;
     Xbyak::Reg64 regBetweenBatchAndAxisSize = rbx;

@@ -30,6 +30,7 @@ void jitUniGatherKernel<isa>::generate() {
     mov(regDst, ptr[regParams + GET_OFF(dst)]);
     mov(regIndices, ptr[regParams + GET_OFF(indices)]);
     mov(regIdxIter, ptr[regParams + GET_OFF(idxIter)]);
+    mov(regSpecIdxSizeInBytes, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
 
 //    mov(regAux1, ptr[regParams + GET_OFF(dataTypeSize)]);
 //    uni_vpbroadcastd(vmmDictTypeSize, ptr[regAux1]);
@@ -42,8 +43,6 @@ void jitUniGatherKernel<isa>::generate() {
 
     mov(regAux1, ptr[regParams + GET_OFF(vecLen)]);
     uni_vpbroadcastd(vmmVecLen, ptr[regAux1]);
-
-//    mov(regSpecIndicesSize, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
 
     mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizePtr)]);
     uni_vpbroadcastd(vmmSpecIdxSize, ptr[regAux1]);
@@ -88,8 +87,7 @@ void jitUniGatherKernel<isa>::generate() {
     {
         if (jcp_.dataTypeSize == 4) {
             Xbyak::Label lLessThanVector, lEnd4;
-            mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-            cmp(regAux1, vlen);
+            cmp(regSpecIdxSizeInBytes, vlen);
             jl(lLessThanVector, T_NEAR);
                 gatherLongIdx32();
                 jmp(lEnd4, T_NEAR);
@@ -103,12 +101,10 @@ void jitUniGatherKernel<isa>::generate() {
                 uni_vpbroadcastd(vmmSrcAfterBatchSize, ptr[regAux1]);
 
                 gatherShortIdx32();
-//                jmp(lEnd4, T_NEAR);
             L(lEnd4);
         } else if (jcp_.dataTypeSize == 2) {
             Xbyak::Label lLessThanVector, lEnd;
-            mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-            cmp(regAux1, vlen);
+            cmp(regSpecIdxSizeInBytes, vlen);
             jl(lLessThanVector, T_NEAR);
                 gatherLongIdx16();
                 jmp(lEnd, T_NEAR);
@@ -125,8 +121,7 @@ void jitUniGatherKernel<isa>::generate() {
             L(lEnd);
         } else if (jcp_.dataTypeSize == 1) {
             Xbyak::Label lLessThanVector, lEnd;
-            mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-            cmp(regAux1, vlen);
+            cmp(regSpecIdxSizeInBytes, vlen);
             jl(lLessThanVector, T_NEAR);
                 gatherLongIdx8();
                 jmp(lEnd, T_NEAR);
@@ -438,9 +433,8 @@ void jitUniGatherKernel<isa>::fillIndiciesLongIdx(Xbyak::Ymm& dstIndices, Xbyak:
     uni_vpcmpeqd(vmmOnes, vmmOnes, vmmOnes);
     uni_vpaddd(vmmSpecIndices, vmmSpecIndices, vmmVecLen);
 
-    mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
     add(regIdxIter, vlen);
-    cmp(regIdxIter, regAux1);
+    cmp(regIdxIter, regSpecIdxSizeInBytes);
     jge(lIdxStride, T_NEAR);
         // Gather spec indices
         uni_vpaddd(vmmAux0, vmmIdxBatchSum, vmmSpecIndices);
@@ -465,7 +459,7 @@ void jitUniGatherKernel<isa>::fillIndiciesLongIdx(Xbyak::Ymm& dstIndices, Xbyak:
         uni_vpaddd(dstIndices, vmmBeforeAxisSum, vmmAux1);
     jmp(lExit, T_NEAR);
     L(lIdxStride);
-        sub(regIdxIter, regAux1);
+        sub(regIdxIter, regSpecIdxSizeInBytes);
         // increment indices
         vpcmpgtd(vmmAux0, vmmSpecIdxSize, vmmSpecIndices);
         vpandn(vmmAux0, vmmAux0, vmmOnes);
@@ -641,14 +635,13 @@ void jitUniGatherKernel<isa>::gatherLongIdx32() {
     uni_vmovups(ptr[regDst], vmmDst);
 
     add(regIdxIter, vlen);
-    mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-    cmp(regIdxIter, regAux1);
+    cmp(regIdxIter, regSpecIdxSizeInBytes);
     jl(l1, T_NEAR);
         uni_vpaddd(vmmAux0, vmmSpecIndices, vmmVecLen);
         vpcmpgtd(vmmAux1, vmmSpecIdxSize, vmmAux0);
         vpandn(vmmAux0, vmmAux1, vmmSpecIdxSize);
         uni_vpsubd(vmmSpecIndices, vmmSpecIndices, vmmAux0);
-        sub(regIdxIter, regAux1);
+        sub(regIdxIter, regSpecIdxSizeInBytes);
 
         vpandn(vmmAux0, vmmAux1, vmmAxisAndAfterAxisSize);
         uni_vpaddd(vmmBeforeAxisSum, vmmBeforeAxisSum, vmmAux0);
@@ -693,7 +686,13 @@ void jitUniGatherKernel<isa>::gatherShortIdx16() {
     mov(regAux1, ptr[regParams + GET_OFF(shufMask16bitUni)]);
     uni_vmovups(vmmShufMask, ptr[regAux1]);
 
-    auto& vmmPermMask = vmmOnes;
+    auto& vmmPermMask = vmmAux4;
+    if (isa == x64::avx512_common) {
+        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
+    } else {
+        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
+    }
+    uni_vmovups(vmmPermMask, ptr[regAux1]);
 
     // First iteration
     uni_vcvtdq2ps(vmmAux0, vmmBeforeAxisSum);
@@ -728,12 +727,6 @@ void jitUniGatherKernel<isa>::gatherShortIdx16() {
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
     vshufps(vmmDst, vmmDst, vmmAux0, 0x44);
-    if (isa == x64::avx512_common) {
-        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
-    } else {
-        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
-    }
-    uni_vmovups(vmmPermMask, ptr[regAux1]);
     vpermd(vmmDst, vmmPermMask, vmmDst);
 
     uni_vmovups(ptr[regDst], vmmDst);
@@ -758,12 +751,6 @@ void jitUniGatherKernel<isa>::gatherShortIdx16() {
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmDst, vmmDst, vmmAux0, 0x44);
-        if (isa == x64::avx512_common) {
-            mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
-        } else {
-            mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
-        }
-        uni_vmovups(vmmPermMask, ptr[regAux1]);
         vpermd(vmmDst, vmmPermMask, vmmDst);
 
         uni_vmovups(ptr[regDst], vmmDst);
@@ -785,7 +772,10 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
     cmp(regWorkAmount, elPerVec);
     jl(lTail, T_NEAR);
 
-    auto& vmmShufMask = vmmAux1;
+    auto& vmmShufMask = vmmAux4;
+    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
+    uni_vmovups(vmmShufMask, ptr[regAux1]);
+
     auto& vmmPermMask = vmmOnes;
 
     // First iteration
@@ -814,16 +804,12 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
     uni_vpaddd(vmmAux0, vmmAux1, vmmBeforeAxisSum);
     vpgatherdd(vmmDst, ptr[regSrc + vmmAux0], vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmDst);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmDst, vmmDst, vmmShufMask);
 
     fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
     vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmAux0);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
     vshufps(vmmDst, vmmDst, vmmAux0, 0x0);
@@ -834,16 +820,12 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
     vpgatherdd(vmmAux8, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmAux8);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux8, vmmAux8, vmmShufMask);
 
     fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
     vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmAux0);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmAux0);
@@ -880,16 +862,12 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
         vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmDst, vmmDst, vmmShufMask);
 
         fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
         vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmDst, vmmDst, vmmAux0, 0x0);
@@ -898,15 +876,11 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
         vpgatherdd(vmmAux8, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux8, vmmAux8, vmmShufMask);
 
         fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
         vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmAux8, vmmAux8, vmmAux0, 0x0);
@@ -944,7 +918,13 @@ void jitUniGatherKernel<isa>::gatherLongIdx16() {
     mov(regAux1, ptr[regParams + GET_OFF(shufMask16bitUni)]);
     uni_vmovups(vmmShufMask, ptr[regAux1]);
 
-    auto& vmmPermMask = vmmOnes;
+    auto& vmmPermMask = vmmAux4;
+    if (isa == x64::avx512_common) {
+        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
+    } else {
+        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
+    }
+    uni_vmovups(vmmPermMask, ptr[regAux1]);
 
     // First iteration
     // Gather spec indices
@@ -970,10 +950,9 @@ void jitUniGatherKernel<isa>::gatherLongIdx16() {
 //uni_vmovups(ptr[regDst], vmmDst);
 
     add(regIdxIter, vlen);
-    mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-    cmp(regIdxIter, regAux1);
+    cmp(regIdxIter, regSpecIdxSizeInBytes);
     jl(l1, T_NEAR);
-        sub(regIdxIter, regAux1);
+        sub(regIdxIter, regSpecIdxSizeInBytes);
         uni_vpaddd(vmmAux0, vmmSpecIndices, vmmVecLen);
         vpcmpgtd(vmmAux1, vmmSpecIdxSize, vmmAux0);
         vpandn(vmmAux0, vmmAux1, vmmSpecIdxSize);
@@ -996,12 +975,6 @@ void jitUniGatherKernel<isa>::gatherLongIdx16() {
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
     vshufps(vmmDst, vmmDst, vmmAux0, 0x44);
-    if (isa == x64::avx512_common) {
-        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
-    } else {
-        mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
-    }
-    uni_vmovups(vmmPermMask, ptr[regAux1]);
     vpermd(vmmDst, vmmPermMask, vmmDst);
 
     uni_vmovups(ptr[regDst], vmmDst);
@@ -1026,12 +999,6 @@ void jitUniGatherKernel<isa>::gatherLongIdx16() {
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmDst, vmmDst, vmmAux0, 0x44);
-        if (isa == x64::avx512_common) {
-            mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
-        } else {
-            mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
-        }
-        uni_vmovups(vmmPermMask, ptr[regAux1]);
         vpermd(vmmDst, vmmPermMask, vmmDst);
 
         uni_vmovups(ptr[regDst], vmmDst);
@@ -1052,7 +1019,10 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
     cmp(regWorkAmount, elPerVec);
     jl(lTail, T_NEAR);
 
-    auto& vmmShufMask = vmmAux1;
+    auto& vmmShufMask = vmmAux4;
+    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
+    uni_vmovups(vmmShufMask, ptr[regAux1]);
+
     auto& vmmPermMask = vmmOnes;
 
     // First iteration
@@ -1074,16 +1044,13 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
     uni_vpaddd(vmmAux0, vmmAux1, vmmBeforeAxisSum);
     vpgatherdd(vmmDst, ptr[regSrc + vmmAux0], vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmAux0);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmDst, vmmDst, vmmShufMask);
 //uni_vmovups(ptr[regDst], vmmDst);
 
     add(regIdxIter, vlen);
-    mov(regAux1, ptr[regParams + GET_OFF(specIndicesSizeInBytes)]);
-    cmp(regIdxIter, regAux1);
+    cmp(regIdxIter, regSpecIdxSizeInBytes);
     jl(l1, T_NEAR);
-        sub(regIdxIter, regAux1);
+        sub(regIdxIter, regSpecIdxSizeInBytes);
         uni_vpaddd(vmmAux0, vmmSpecIndices, vmmVecLen);
         vpcmpgtd(vmmAux1, vmmSpecIdxSize, vmmAux0);
         vpandn(vmmAux0, vmmAux1, vmmSpecIdxSize);
@@ -1103,8 +1070,6 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
     vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
     vshufps(vmmDst, vmmDst, vmmAux0, 0x0);
@@ -1113,16 +1078,12 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
     vpgatherdd(vmmAux3, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux3, vmmAux3, vmmShufMask);
 
     fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
     vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //add(regDst, vlen);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
-    mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-    uni_vmovups(vmmShufMask, ptr[regAux1]);
     vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
     vshufps(vmmAux3, vmmAux3, vmmAux0, 0x0);
@@ -1151,16 +1112,12 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
         vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmDst, vmmDst, vmmShufMask);
 
         fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
         vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmDst, vmmDst, vmmAux0, 0x0);
@@ -1169,15 +1126,11 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
         vpgatherdd(vmmAux3, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
 //add(regDst, vlen);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux3, vmmAux3, vmmShufMask);
 
         fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
         vpgatherdd(vmmAux0, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
 //uni_vmovups(ptr[regDst], vmmSrcShifts);
-        mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
-        uni_vmovups(vmmShufMask, ptr[regAux1]);
         vpshufb(vmmAux0, vmmAux0, vmmShufMask);
 
         vshufps(vmmAux3, vmmAux3, vmmAux0, 0x0);
@@ -1206,7 +1159,7 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::gatherShortIdx32() {
-    Xbyak::Label lDstIdxLoop1, lTail;
+    Xbyak::Label lDstIdxLoop, lTail;
     cmp(regWorkAmount, elPerVec);
     jl(lTail, T_NEAR);
 
@@ -1238,7 +1191,7 @@ void jitUniGatherKernel<isa>::gatherShortIdx32() {
     add(regDst, vlen);
     sub(regWorkAmount, elPerVec);
 
-    L(lDstIdxLoop1);
+    L(lDstIdxLoop);
     {
         cmp(regWorkAmount, elPerVec);
         jl(lTail, T_NEAR);
@@ -1250,7 +1203,7 @@ void jitUniGatherKernel<isa>::gatherShortIdx32() {
         add(regDst, vlen);
         sub(regWorkAmount, elPerVec);
 
-        jmp(lDstIdxLoop1, T_NEAR);
+        jmp(lDstIdxLoop, T_NEAR);
     }
 
     L(lTail);
