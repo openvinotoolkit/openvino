@@ -67,8 +67,8 @@ protected:
         inPrc = outPrc = netPrecision;
         std::tie(pooledSpatialShape, inputShape) = adaPoolParams;
 
-        ngraph::Shape coordsShape = {pooledSpatialShape.size() };
-        auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, coordsShape, pooledSpatialShape);
+        ngraph::Shape pooledShape = {pooledSpatialShape.size() };
+        auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
         auto params = ngraph::builder::makeParams(ngraph::element::f32, {inputShape});
 
         // we cannot create abstract Op to use polymorphism
