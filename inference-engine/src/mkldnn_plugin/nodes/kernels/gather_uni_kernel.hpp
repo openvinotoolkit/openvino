@@ -138,7 +138,8 @@ protected:
     Vmm vmmSrcAfterBatchSize = Vmm(2);
 //    Vmm vmmAxDim = Vmm(3);
     Vmm vmmBeforeAxisSum = Vmm(3);
-    Vmm vmmDictTypeSize = Vmm(4);
+//    Vmm vmmDictTypeSize = Vmm(4);
+    Vmm vmmAux4 = Vmm(4);
     Vmm vmmSrcShifts = Vmm(5);
 //    Vmm vmmMinusOne = Vmm(6);
     Vmm vmmZeros = Vmm(6);
@@ -146,7 +147,7 @@ protected:
     Vmm vmmAux8 = Vmm(7);
     Vmm vmmAux3 = Vmm(8);
     Vmm vmmPermIdx = Vmm(8);
-    Vmm vmmAux4 = Vmm(9);
+//    Vmm vmmAux4 = Vmm(9);
     Vmm vmmSpecIndices = Vmm(9);
     Vmm vmmAux5 = Vmm(10);
     Vmm vmmIdxBatchSum = Vmm(10);
@@ -170,10 +171,12 @@ protected:
     void fillIndiciesBlk(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
     void vpGatherDD(const Xbyak::Ymm& dst);
     void vpGatherDD(const Xbyak::Zmm& dst);
-    void gatherLongIdx();
-    void gatherShortIdx();
+    void gatherLongIdx32();
+    void gatherShortIdx32();
     void gatherLongIdx16();
     void gatherShortIdx16();
+    void gatherLongIdx8();
+    void gatherShortIdx8();
     void vpGatherDDBlk(const Xbyak::Ymm& dst);
     void gatherAndGroup(const Xbyak::Ymm& dst, const Xbyak::Ymm& shufMask);
     void gatherAndGroup(const Xbyak::Zmm& dst, const Xbyak::Zmm& shufMask);

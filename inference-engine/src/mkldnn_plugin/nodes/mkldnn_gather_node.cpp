@@ -161,31 +161,32 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 //            int axisDimInBytes = axisDim * dataTypeSize;
             int dts = dataTypeSize;
 
-    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
-    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
+//    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
+//    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
+            uint32_t vlen = jitKernel->getVecLen();
+            int idxTypeSize = sizeof(int32_t);
+            auto idxElPerVec = vlen / idxTypeSize;
+
             int batchIndices[16];
             int betweenBatchAndAxisIdx[16];
             int specIndices[16];
             int afterBatchSize = betweenBatchAndAxis * specIndicesSize;
 //            std::vector<int> startVec(vecLen);
 //            std::iota(startVec.begin(), startVec.end(), start);
-            for (int i = 0; i < vecLen; i++) {
+            for (int i = 0; i < idxElPerVec; i++) {
                 batchIndices[i] = (start + i) / afterBatchSize;
                 betweenBatchAndAxisIdx[i] = ((start + i) / specIndicesSize) % betweenBatchAndAxis;
                 specIndices[i] = (start + i) % specIndicesSize;
 
-bIdx += std::to_string(batchIndices[i]) + ";";
-btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
-spIdx += std::to_string(specIndices[i]) + ";";
+//bIdx += std::to_string(batchIndices[i]) + ";";
+//btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
+//spIdx += std::to_string(specIndices[i]) + ";";
             }
-seqStr += bIdx + btw + spIdx + "}\n";
+//seqStr += bIdx + btw + spIdx + "}\n";
             int beforeAxisCounter = betweenBatchAndAxisIdx[0];//start / betweenBatchAndAxis;
-printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %lu; betweenBatchAndAxis: %lu; specIndicesSize: %lu\n",
-        seqStr.c_str(), beforeAxisCounter, srcAfterBatchSizeInBytes, afterAxisSize, betweenBatchAndAxis, specIndicesSize);
+//printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %lu; betweenBatchAndAxis: %lu; specIndicesSize: %lu\n",
+//        seqStr.c_str(), beforeAxisCounter, srcAfterBatchSizeInBytes, afterAxisSize, betweenBatchAndAxis, specIndicesSize);
 
-            uint32_t vlen = jitKernel->getVecLen();
-            int idxTypeSize = sizeof(int32_t);
-            auto idxElPerVec = vlen / idxTypeSize;
             int specIndicesSizeInt = specIndicesSize * idxTypeSize;
             size_t idxIter = specIndices[0] * idxTypeSize;
 
@@ -255,6 +256,14 @@ printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %l
 
         parallel_nt(0, threadBody);
 
+//const char* tmpSrc = reinterpret_cast<const char*>(srcData);
+//std::cout << "SRC DATA:\n";
+//for (int i = 0; i < getParentEdgeAt(GATHER_DATA)->getDims().size(); i++) {
+//    if (i % 4 == 0)
+//        std::cout << "_";
+//    std::cout << std::to_string(tmpSrc[i]) << ";";
+//}
+
 //const short* tmpSrc = reinterpret_cast<const short*>(srcData);
 //std::cout << "SRC DATA:\n";
 //for (int i = 0; i < getParentEdgeAt(GATHER_DATA)->getDims().size(); i++) {
@@ -262,6 +271,14 @@ printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %l
 //    if (i % 16 == 0)
 //        std::cout << "_";
 //    std::cout << tmpSrc[i] << ";";
+//}
+
+//char* tmpDst = reinterpret_cast<char*>(dstData);
+//std::cout << "\nOUT DATA:\n";
+//for (int i = 0; i < getChildEdgeAt(0)->getDims().size(); i++) {
+//    if (i % 4 == 0)
+//        std::cout << "_";
+//    std::cout << std::to_string(tmpDst[i]) << ";";
 //}
 
 //short* tmpDst = reinterpret_cast<short*>(dstData);
@@ -274,7 +291,7 @@ printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %l
 
 //int* tmpDst = reinterpret_cast<int*>(dstData);
 //std::cout << "\nOUT DATA:\n";
-//for (int i = 0; i < getChildEdgeAt(0)->getDims().size() / 2; i++) {
+//for (int i = 0; i < getChildEdgeAt(0)->getDims().size() / 4; i++) {
 //    if (i % 8 == 0)
 //        std::cout << "_";
 //    std::cout << tmpDst[i] << ";";
