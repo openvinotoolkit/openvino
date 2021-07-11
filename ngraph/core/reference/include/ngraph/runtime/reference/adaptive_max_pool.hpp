@@ -17,9 +17,9 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
+            template <typename T, typename IT>
             void adaptive_max_pool_1d(
-                const T* arg, T* out, int64_t* indices, size_t h_in, size_t h_out)
+                const T* arg, T* out, IT* indices, size_t h_in, size_t h_out)
             {
                 for (size_t i = 0; i < h_out; i++)
                 {
@@ -31,10 +31,10 @@ namespace ngraph
                     indices[i] = it - arg;
                 }
             }
-            template <typename T>
+            template <typename T, typename IT>
             void adaptive_max_pool_2d(const T* arg,
                                       T* out,
-                                      int64_t* indices,
+                                      IT* indices,
                                       size_t h_in,
                                       size_t h_out,
                                       size_t w_in,
@@ -63,10 +63,10 @@ namespace ngraph
                     }
                 }
             }
-            template <typename T>
+            template <typename T, typename IT>
             void adaptive_max_pool_3d(const T* arg,
                                       T* out,
-                                      int64_t* indices,
+                                      IT* indices,
                                       size_t d_in,
                                       size_t d_out,
                                       size_t h_in,
@@ -105,10 +105,10 @@ namespace ngraph
                     }
                 }
             }
-            template <typename T>
+            template <typename T, typename IT>
             void adaptive_max_pool(const T* arg,
                                    T* out,
-                                   int64_t* selected_indices,
+                                   IT* selected_indices,
                                    const Shape& arg_shape,
                                    const Shape& out_shape)
             {
