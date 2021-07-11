@@ -42,7 +42,7 @@ struct gatherJitExecArgs {
     const int* betweenBatchAndAxisIdx;
     size_t     betweenBatchAndAxisSize;
     const int* axisAndAfterAxisSize;
-    const int* srcAfterBatchSize;
+    const int* srcAfterBatchSizeInBytes;
     const uint32_t* vecLen;
     const int* permIdx;
     const int* beforeAxisDiff;
@@ -51,7 +51,7 @@ struct gatherJitExecArgs {
     size_t workAmount = 0;
     size_t afterAxisBlockSize = 0;
     size_t beforeAxisCounter = 0;
-    size_t specIndicesSize = 0;
+    size_t specIndicesSizeInBytes = 0;
     int* tmp; // remove
     int* retVal; // remove
 };
@@ -133,16 +133,17 @@ protected:
 
     Vmm vmmAux0 = Vmm(0);
     Vmm vmmAux1 = Vmm(1);
-    Vmm vmmAxDimSum = Vmm(2);
+//    Vmm vmmAxDimSum = Vmm(2);
     Vmm vmmAxisAndAfterAxisSize = Vmm(2);
     Vmm vmmSrcAfterBatchSize = Vmm(2);
-    Vmm vmmAxDim = Vmm(3);
+//    Vmm vmmAxDim = Vmm(3);
     Vmm vmmBeforeAxisSum = Vmm(3);
     Vmm vmmDictTypeSize = Vmm(4);
     Vmm vmmSrcShifts = Vmm(5);
-    Vmm vmmMinusOne = Vmm(6);
+//    Vmm vmmMinusOne = Vmm(6);
     Vmm vmmZeros = Vmm(6);
     Vmm vmmVecLen = Vmm(7);
+    Vmm vmmAux8 = Vmm(7);
     Vmm vmmAux3 = Vmm(8);
     Vmm vmmPermIdx = Vmm(8);
     Vmm vmmAux4 = Vmm(9);
@@ -152,7 +153,7 @@ protected:
     Vmm vmmBeforeAxisDiff = Vmm(10);
     Vmm vmmGatherMask = Vmm(11);
     Vmm vmmSpecIdxSize = Vmm(12);
-    Vmm vmmAux8 = Vmm(13);
+//    Vmm vmmAux8 = Vmm(13);
     Vmm vmmOnes = Vmm(13);
     Vmm vmmAux9 = Vmm(14);
     Vmm vmmAxisDim = Vmm(14);
@@ -171,6 +172,8 @@ protected:
     void vpGatherDD(const Xbyak::Zmm& dst);
     void gatherLongIdx();
     void gatherShortIdx();
+    void gatherLongIdx16();
+    void gatherShortIdx16();
     void vpGatherDDBlk(const Xbyak::Ymm& dst);
     void gatherAndGroup(const Xbyak::Ymm& dst, const Xbyak::Ymm& shufMask);
     void gatherAndGroup(const Xbyak::Zmm& dst, const Xbyak::Zmm& shufMask);
