@@ -25,8 +25,8 @@ std::string MulticlassNmsLayerTest::getTestCaseName(
   std::string targetDevice;
 
   std::tie(inShapeParams, inPrecisions, nmsTopK, inFloatVar, backgroundClass,
-           keepTopK, outType, sortResultType, inboolVar,
-           targetDevice) = obj.param;
+           keepTopK, outType, sortResultType, inboolVar, targetDevice) =
+      obj.param;
 
   size_t numBatches, numBoxes, numClasses;
   std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -161,6 +161,7 @@ void MulticlassNmsLayerTest::Compare(
 void MulticlassNmsLayerTest::SetUp() {
   InputShapeParams inShapeParams;
   InputPrecisions inPrecisions;
+  op::v8::MulticlassNms::Attributes attrs;
   size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
   element::Type outType;
 
@@ -170,7 +171,8 @@ void MulticlassNmsLayerTest::SetUp() {
   InputboolVar inboolVar;
 
   std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, inFloatVar,
-           backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = this->GetParam();
+           backgroundClass, keepTopK, outType, sortResultType, inboolVar,
+           targetDevice) = this->GetParam();
 
   size_t numBatches, numBoxes, numClasses;
   std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -184,10 +186,6 @@ void MulticlassNmsLayerTest::SetUp() {
   bool sortResCB, normalized;
   std::tie(sortResCB, normalized) = inboolVar;
 
-  // TODO del
-  numOfSelectedBoxes =
-      std::min(numBoxes, maxOutBoxesPerClass) * numBatches * numClasses;
-
   const std::vector<size_t> boxesShape{numBatches, numBoxes, 4},
       scoresShape{numBatches, numClasses, numBoxes};
   auto ngPrc = convertIE2nGraphPrc(paramsPrec);
@@ -195,16 +193,19 @@ void MulticlassNmsLayerTest::SetUp() {
   auto paramOuts = helpers::convert2OutputVector(
       helpers::castOps2Nodes<op::Parameter>(params));
 
-  // auto nms = builder::makeMulticlassNms(
-  //     paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec),
-  //     convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr, scoreThr,
-  //     backgroundClass, keepTopK, outType);
+  attrs.iou_threshold = iouThr;
+  attrs.score_threshold = scoreThr;
+  attrs.nms_eta = nmsEta;
+  attrs.sort_result_type = sortResultType;
+  attrs.sort_result_across_batch = sortResCB;
+  attrs.output_type = outType;
+  attrs.nms_top_k = maxOutBoxesPerClass;
+  attrs.keep_top_k = keepTopK;
+  attrs.background_class = backgroundClass;
+  attrs.normalized = normalized;
 
-  auto nms = builder::makeMulticlassNms(
-      paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec),
-      convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr, scoreThr,
-      backgroundClass, keepTopK, outType, sortResultType, sortResCB, nmsEta,
-      normalized);
+  auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1],
+                                                     attrs);
 
   auto nms_0_identity = std::make_shared<opset5::Multiply>(
       nms->output(0), opset5::Constant::create(ngPrc, Shape{1}, {1}));

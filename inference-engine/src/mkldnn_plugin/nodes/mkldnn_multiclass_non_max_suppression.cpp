@@ -11,7 +11,7 @@
 #include <cassert>
 #include <cmath>
 #include <ie_ngraph_utils.hpp>
-#include <ngraph_ops/multiclass_nms_ie_internal.hpp>
+#include <ngraph_ops/nms_static_shape_ie.hpp>
 #include <queue>
 #include <string>
 #include <utility>
@@ -26,10 +26,12 @@ bool MKLDNNMultiClassNonMaxSuppressionNode::isSupportedOperation(
     const std::shared_ptr<ngraph::Node> &op,
     std::string &errorMessage) noexcept {
   try {
-    const auto nms = std::dynamic_pointer_cast<
-        const ngraph::op::internal::MulticlassNonMaxSuppressionIEInternal>(op);
+    const auto nms =
+        std::dynamic_pointer_cast<const ngraph::op::internal::NmsStaticShapeIE<
+            ngraph::op::v8::MulticlassNms>>(op);
     if (!nms) {
-      errorMessage = "Only internal NonMaxSuppression operation is supported";
+      errorMessage =
+          "Only internal MulitClassNonMaxSuppression operation is supported";
       return false;
     }
   } catch (...) {
@@ -48,8 +50,9 @@ MKLDNNMultiClassNonMaxSuppressionNode::MKLDNNMultiClassNonMaxSuppressionNode(
   }
   errorPrefix =
       "multiclass_nms layer with name '" + op->get_friendly_name() + "' ";
-  const auto nms = std::dynamic_pointer_cast<
-      const ngraph::op::internal::MulticlassNonMaxSuppressionIEInternal>(op);
+  const auto nms =
+      std::dynamic_pointer_cast<const ngraph::op::internal::NmsStaticShapeIE<
+          ngraph::op::v8::MulticlassNms>>(op);
 
   if (nms->get_input_size() != 2)
     IE_THROW() << errorPrefix << "has incorrect number of input edges: "
@@ -59,16 +62,17 @@ MKLDNNMultiClassNonMaxSuppressionNode::MKLDNNMultiClassNonMaxSuppressionNode(
     IE_THROW() << errorPrefix << "has incorrect number of output edges: "
                << nms->get_output_size();
 
-  sort_result_across_batch = nms->m_sort_result_across_batch;
-
-  max_output_boxes_per_class = nms->m_nms_top_k;
-  iou_threshold = nms->m_iou_threshold;
-  score_threshold = nms->m_score_threshold;
-  background_class = nms->m_background_class;
-  keep_top_k = nms->m_keep_top_k;
-  sort_result_type = nms->m_sort_result_type;
-  nms_eta = nms->m_nms_eta;
-  normalized = nms->m_normalized;
+  ngraph::op::v8::MulticlassNms::Attributes atrri;
+  atrri = nms->get_attrs();
+  sort_result_across_batch = atrri.sort_result_across_batch;
+  max_output_boxes_per_class = atrri.nms_top_k;
+  iou_threshold = atrri.iou_threshold;
+  score_threshold = atrri.score_threshold;
+  background_class = atrri.background_class;
+  keep_top_k = atrri.keep_top_k;
+  sort_result_type = static_cast<int32_t>(atrri.sort_result_type);
+  nms_eta = atrri.nms_eta;
+  normalized = atrri.normalized;
 
   const SizeVector &boxes_dims = op->get_input_shape(NMS_BOXES);
   num_batches = boxes_dims[0];
@@ -158,33 +162,12 @@ void MKLDNNMultiClassNonMaxSuppressionNode::
 }
 
 void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
-  auto beforeTime = std::chrono::steady_clock::now();
   const float *boxes = reinterpret_cast<const float *>(
       getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
   const float *scores = reinterpret_cast<const float *>(
       getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
-  auto dims_boxes =
-      getParentEdgeAt(NMS_BOXES)->getDesc().getDims(); // TODO right way?
-  /////////////////////printf inputs data//////////////////////////
-  // printf("Input Box:\n");
-  // for (int i = 0; i < dims_boxes[0]; i++)
-  //   for (int j = 0; j < dims_boxes[1]; j++)
-  //     printf("Batch: %d Box %d: %f, %f, %f, %f \n", i, j,
-  //            boxes[i * dims_boxes[1] * 4 + j * 4],
-  //            boxes[i * dims_boxes[1] * 4 + j * 4 + 1],
-  //            boxes[i * dims_boxes[1] * 4 + j * 4 + 2],
-  //            boxes[i * dims_boxes[1] * 4 + j * 4 + 3]);
-
-  // printf("Input Scores:\n");
-  // auto dims_scores = inputs[NMS_SCORES]->getTensorDesc().getDims();
-  // for (int i = 0; i < dims_scores[0]; i++)
-  //   for (int j = 0; j < dims_scores[1]; j++)
-  //     for (int k = 0; k < dims_scores[2]; k++)
-  //       printf("Batch: %d Class %d: %f\n", i, j,
-  //              scores[i * dims_scores[1] * dims_scores[2] +
-  //                     j * dims_scores[2] + k]);
-  /////////////////////printf inputs data//////////////////////////
+  auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getDesc().getDims();
   if (max_output_boxes_per_class == 0)
     return;
   else if (max_output_boxes_per_class == -1)
@@ -326,7 +309,6 @@ void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
   const size_t selectedBoxesNum =
       getChildEdgeAt(NMS_SELECTEDINDICES)->getDesc().getDims()[0];
   const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
-  // printf("validOutputs: %ld\n", validOutputs);
 
   int *selectedIndicesPtr = selected_indices;
   float *selectedoutputsPtr = selected_outputs;
@@ -342,68 +324,6 @@ void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
   std::vector<size_t> m_selected_num;
   m_selected_num.resize(dims_boxes[0]);
 
-  /////////////////////printf output data//////////////////////////
-  // printf("selected_outputs output: \n");
-  // size_t idx = 0lu;
-  // for (; idx < validOutputs; idx++) {
-  //   *selectedIndicesPtr =
-  //       filtBoxes[idx].batch_index * dims_boxes[1] +
-  //       filtBoxes[idx].box_index;
-  //   printf("selectedOutput Num %ld: ", idx);
-  //   *selectedoutputsPtr = filtBoxes[idx].class_index;
-  //   printf("class_id %f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   *selectedoutputsPtr = filtBoxes[idx].score;
-  //   printf("score %f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4];
-  //   printf("ROI %f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 1];
-  //   printf("%f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 2];
-  //   printf("%f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 3];
-  //   printf("%f ", *selectedoutputsPtr);
-  //   selectedoutputsPtr += selectedoutputsStride;
-  //   printf("\n");
-  //   selectedIndicesPtr += selectedIndicesStride;
-  // }
-
-  // printf("selectedIndices output: \n"); // for print, can be merged into
-  // the
-  //                                       // former loop
-  // selectedIndicesPtr = selected_indices;
-  // idx = 0lu;
-  // for (; idx < validOutputs; idx++) {
-  //   m_selected_num[filtBoxes[idx].batch_index]++;
-  //   printf("selectedIndices Num %ld: selectedIndices %d\n", idx,
-  //          *selectedIndicesPtr);
-  //   selectedIndicesPtr += selectedIndicesStride;
-  // }
-
-  // // use '0' instead of '-1' To align with ref
-  // std::fill(selectedoutputsPtr,
-  //           selectedoutputsPtr +
-  //               (selectedBoxesNum - idx) * selectedoutputsStride * 6,
-  //           0);
-  // std::fill(selectedIndicesPtr,
-  //           selectedIndicesPtr +
-  //               (selectedBoxesNum - idx) * selectedIndicesStride,
-  //           0);
-
-  // printf("selected Number output: ");
-  // if (outputs.size() > NMS_SELECTEDNUM) {
-  //   // *selected_num = static_cast<int>(validOutputs);
-  //   for (int i = 0; i < dims_boxes[0]; i++) {
-  //     selected_num[i] = static_cast<int>(m_selected_num[i]);
-  //     printf("%d ", selected_num[i]);
-  //   }
-  // }
-  // printf("\n");
-  /////////////////////printf output data//////////////////////////
   size_t idx = 0lu;
   for (; idx < validOutputs; idx++) {
     *selectedIndicesPtr =
@@ -439,12 +359,6 @@ void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
       selected_num[i] = static_cast<int>(m_selected_num[i]);
     }
   }
-  auto afterTime = std::chrono::steady_clock::now();
-  std::cout << "CPU plugin Node算法耗时:" << std::endl;
-  double duration_millsecond =
-      std::chrono::duration<double, std::milli>(afterTime - beforeTime).count();
-  std::cout << duration_millsecond << "毫秒" << std::endl;
-
   return;
 }
 
@@ -456,15 +370,6 @@ float MKLDNNMultiClassNonMaxSuppressionNode::intersectionOverUnion(
     const float *boxesI, const float *boxesJ, const bool normalized) {
   float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
   const float norm = static_cast<float>(normalized == false);
-  //  box format: y1, x1, y2, x2
-  // yminI = (std::min)(boxesI[0], boxesI[2]);
-  // xminI = (std::min)(boxesI[1], boxesI[3]);
-  // ymaxI = (std::max)(boxesI[0], boxesI[2]);
-  // xmaxI = (std::max)(boxesI[1], boxesI[3]);
-  // yminJ = (std::min)(boxesJ[0], boxesJ[2]);
-  // xminJ = (std::min)(boxesJ[1], boxesJ[3]);
-  // ymaxJ = (std::max)(boxesJ[0], boxesJ[2]);
-  // xmaxJ = (std::max)(boxesJ[1], boxesJ[3]);
 
   // to align with reference
   yminI = boxesI[0];

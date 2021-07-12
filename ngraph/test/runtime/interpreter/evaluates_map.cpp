@@ -1179,7 +1179,6 @@ namespace
         void* pscores = nullptr;
         void* pselected_num = nullptr;
         void* prois;
-        // size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
         size_t num_selected = static_cast<size_t>(info.selected_indices_shape[0]);
 
         outputs[0]->set_shape({num_selected, 6});
@@ -2869,18 +2868,11 @@ namespace
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
-            // if ((is_type<op::v5::NonMaxSuppression>(node) ||
-            //      is_type<op::v8::MulticlassNms>(node) ||
-            //      is_type<op::v8::MatrixNms>(node) ||
-            //      is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
-            //      is_type<op::v8::AdaptiveMaxPool>(node)) &&
-            //      i == 1)
-
-            if (((is_type<op::v5::NonMaxSuppression>(node) ||
-                  is_type<op::v6::ExperimentalDetectronDetectionOutput>(node)) &&
-                 i == 1) ||
-                ((is_type<op::v8::MulticlassNms>(node) || is_type<op::v8::MatrixNms>(node)) &&
-                 ((i == 1) || (i == 2))))
+            if ((is_type<op::v5::NonMaxSuppression>(node) || is_type<op::v8::MulticlassNms>(node) ||
+                 is_type<op::v8::MatrixNms>(node) ||
+                 is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
+                 is_type<op::v8::AdaptiveMaxPool>(node)) &&
+                i == 1)
             {
                 continue;
             }
