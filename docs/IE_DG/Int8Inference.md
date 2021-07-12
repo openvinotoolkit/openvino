@@ -24,7 +24,7 @@ Low-precision 8-bit inference is optimized for:
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-8-bit computation (referred to as `int8`) offers better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it has been proven that the drop in accuracy can be negligible and depends on task requirements, so that the application engineer configure the maximum accuracy drop that is acceptable.
+8-bit computation (referred to as `int8`) offers better performance compared to the results of inference in higher precision (for example, `fp32`), because it allows loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it has been proved that the drop in accuracy can be negligible and depends on task requirements, so that the application engineer configures the maximum accuracy drop that is acceptable.
 
 For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
