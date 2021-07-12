@@ -495,6 +495,7 @@ std::string get_opset_name(
 std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";
