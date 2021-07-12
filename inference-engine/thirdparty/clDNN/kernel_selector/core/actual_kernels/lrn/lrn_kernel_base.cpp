@@ -87,7 +87,7 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<lrn_params>(params);
 
     auto cldnnJit = GetJitConstants(orgParams, dispatchData);
-    auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
     auto fused_deps_total = GetFusedPrimitiveInputsCount(params);
 
