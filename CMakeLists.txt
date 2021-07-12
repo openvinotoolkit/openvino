@@ -4,13 +4,12 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-project(OpenVINO)
+project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
+set(IE_MAIN_SOURCE_DIR ${OpenVINO_SOURCE_DIR}/inference-engine)
 
 find_package(IEDevScripts REQUIRED
-             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
@@ -27,7 +26,7 @@ endif()
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
-message (STATUS "OpenVINO_MAIN_SOURCE_DIR .............. " ${OpenVINO_MAIN_SOURCE_DIR})
+message (STATUS "OpenVINO_SOURCE_DIR ....     .......... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
@@ -64,12 +63,6 @@ function(build_ngraph)
         ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
 
-    if(ENABLE_PYTHON)
-        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
-    endif()
-
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
@@ -91,7 +84,6 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     add_subdirectory(ngraph)
-    set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)

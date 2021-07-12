@@ -9,9 +9,12 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        // TODO: FIX BUG 23741 (Open)
-        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
         // TODO: FIX BUG 31661
+        // TODO: support InferRequest in GNAPlugin
+        ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
+        // TODO: FIX BUG 23741
+        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
+        // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
@@ -19,6 +22,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
+        // TODO: Issue: 34348
+        R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue 32923
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358

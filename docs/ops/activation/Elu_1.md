@@ -20,7 +20,7 @@ Elu(x) = \left\{\begin{array}{r}
 
 where α corresponds to *alpha* attribute.
 
-*Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero. 
+*Elu* is equivalent to *ReLU* operation when *alpha* is equal to zero.
 
 **Attributes**
 
@@ -34,11 +34,11 @@ where α corresponds to *alpha* attribute.
 
 **Inputs**:
 
-*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type `T` and the same shape as input tensor.
+*   **1**: The result of element-wise *Elu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 

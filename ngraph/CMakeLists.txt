@@ -23,7 +23,6 @@ option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
 option(NGRAPH_ONNX_EDITOR_ENABLE "Enable ONNX Editor" OFF)
 option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" OFF)
-option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" OFF)
 option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
@@ -37,7 +36,6 @@ message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_ONNX_EDITOR_ENABLE:            ${NGRAPH_ONNX_EDITOR_ENABLE}")
 message(STATUS "NGRAPH_PDPD_FRONTEND_ENABLE:          ${NGRAPH_PDPD_FRONTEND_ENABLE}")
-message(STATUS "NGRAPH_PYTHON_BUILD_ENABLE:           ${NGRAPH_PYTHON_BUILD_ENABLE}")
 message(STATUS "NGRAPH_USE_PROTOBUF_LITE:             ${NGRAPH_USE_PROTOBUF_LITE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")
 message(STATUS "NGRAPH_UNIT_TEST_BACKENDS_ENABLE:     ${NGRAPH_UNIT_TEST_BACKENDS_ENABLE}")
@@ -143,7 +141,7 @@ if(BUILD_SHARED_LIBS)
         COMPONENT ngraph_dev)
 endif()
 
-configure_package_config_file(${OpenVINO_MAIN_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
+configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     INSTALL_DESTINATION cmake)
 
@@ -180,14 +178,14 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR USE_STATIC_PROTOBUF)
     set(BUILD_STANDALONE_STATIC OFF)
 
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        include(cmake/external_protobuf.cmake)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf ${CMAKE_BINARY_DIR}/_deps/protobuf)
     else()
-        find_package(Protobuf 2.6.1 REQUIRED)
+        find_package(Protobuf REQUIRED)
     endif()
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
         # target onnx_proto will be shared lib, onnx static
-        include(cmake/external_onnx.cmake)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/onnx ${CMAKE_BINARY_DIR}/_deps/onnx)
         if (TARGET ext_protobuf)
             add_dependencies(onnx ext_protobuf)
         endif()
@@ -202,6 +200,6 @@ add_subdirectory(frontend)
 
 add_subdirectory(test)
 
-if (NGRAPH_PYTHON_BUILD_ENABLE)
+if (ENABLE_PYTHON)
     add_subdirectory(python)
 endif()
