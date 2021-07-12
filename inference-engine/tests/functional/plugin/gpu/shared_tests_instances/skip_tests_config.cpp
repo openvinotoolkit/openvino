@@ -55,6 +55,9 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
             // need to implement Export / Import
-            R"(.*IEClassImportExportTestP.*)"
+            R"(.*IEClassImportExportTestP.*)",
+
+            // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
+            R"(.*NormalizeL2LayerTest.*axes=\(\).*)"
     };
 }

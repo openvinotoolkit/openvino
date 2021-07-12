@@ -51,13 +51,16 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
-
-        // incorrect reference implementation
-        R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
         // lpt transformation produce the same names for MatMul and Multiply
         R"(.*MatMulTransformation.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
         R"(.*smoke_Convolution3D.*D=\(1.2.1\)_O=1.*)",
+
+        // TODO: Issue: 35627. CPU Normalize supports from 2D to 4D blobs
+        R"(.*NormalizeL2_1D.*)",
+        R"(.*NormalizeL2_5D.*)",
+        // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+        R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",

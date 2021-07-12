@@ -339,13 +339,7 @@ max_matrix_to_scalar_zero_by_zero
 max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
-normalize_across_empty_axes_input
-normalize_l2_all_mode_add
-normalize_l2_none_mode_add
-normalize_l2_zero_mode_add
-normalize_l2_all_mode_max
-normalize_l2_none_mode_max
-normalize_l2_zero_mode_max
+
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -426,7 +420,6 @@ lrn_across_all_dims
 elu
 elu_negative_alpha
 max_pool_2d_1channel_1image_overpadded
-normalize_across_chw_4d_max_bias
 grn_2d_with_bias
 erf
 divide_adjoint_stability
@@ -676,10 +669,6 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
-normalize_across_1axis_5d
-normalize_across_123axes_5d
-
 # Unsupported operator detected in the graph.
 gemm
 gemm_C
@@ -916,6 +905,56 @@ shape_of_5d_v3
 non_zero
 non_zero_all_1s
 non_zero_all_0s
+
+# NormalizeL2 - output mismatch,
+# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NomalizeL2 - unsorted axes are not supported,
+# message: "Doesn't support reduction axes: (3.1.2)"
+# Issue: 59794
+IE_CPU.normalize_l2_4D_axes_unsorted_312_max
+IE_CPU.normalize_l2_4D_axes_unsorted_312_add
+
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Issue: 35627, 59791
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
 
 # (Constant W, R inputs are required) Ticket: 49207
 # W, R inputs as Parameter, default clip value
