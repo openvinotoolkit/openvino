@@ -335,12 +335,9 @@ public:
         return size() * element_size();
     }
 
-    /**
-     * @brief Provides the number of bytes per element.
-     * Abstract method.
-     * @return The number of bytes per element.
-     */
-    size_t element_size() const noexcept override = 0;
+    size_t element_size() const noexcept override {
+        return tensorDesc.getPrecision().size();
+    }
 
     /**
      * @brief Allocates memory to store the data.
@@ -568,10 +565,6 @@ public:
      *@brief Virtual destructor.
      */
     virtual ~TBlob();
-
-    size_t element_size() const noexcept override {
-        return sizeof(T);
-    }
 
     /**
      * @brief Creates an new empty rvalue LockedMemory object.

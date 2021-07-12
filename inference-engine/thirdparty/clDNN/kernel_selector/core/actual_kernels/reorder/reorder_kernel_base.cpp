@@ -198,7 +198,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -222,7 +222,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

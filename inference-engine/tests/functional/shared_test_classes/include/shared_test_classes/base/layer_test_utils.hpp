@@ -101,7 +101,7 @@ public:
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
                 std::isnan(static_cast<float>(res)) || std::isnan(static_cast<float>(ref))) {
-                IE_THROW() << "Relative comparison of values expected: " << ref << " and actual: " << res
+                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with threshold " << threshold
                            << " failed";
             }

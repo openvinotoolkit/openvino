@@ -22,17 +22,17 @@ namespace InferenceEngine {
 
 namespace gpu {
 /**
-* @brief This class represents an abstraction for GPU plugin remote context
-* which is shared with VA display object.
-* The plugin object derived from this class can be obtained either with
-* GetContext() method of Executable network or using CreateContext() Core call.
-* @note User can also obtain OpenCL context handle from this class.
-*/
+ * @brief This class represents an abstraction for GPU plugin remote context
+ * which is shared with VA display object.
+ * The plugin object derived from this class can be obtained either with
+ * GetContext() method of Executable network or using CreateContext() Core call.
+ * @note User can also obtain OpenCL context handle from this class.
+ */
 class VAContext : public ClContext {
 public:
     /**
-    * @brief A smart pointer to the VAContext object
-    */
+     * @brief A smart pointer to the VAContext object
+     */
     using Ptr = std::shared_ptr<VAContext>;
 
     /**
@@ -47,16 +47,16 @@ public:
 };
 
 /**
-* @brief This class represents an abstraction for GPU plugin remote blob
-* which is shared with VA output surface.
-* The plugin object derived from this class can be obtained with CreateBlob() call.
-* @note User can also obtain OpenCL 2D image handle from this class.
-*/
+ * @brief This class represents an abstraction for GPU plugin remote blob
+ * which is shared with VA output surface.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * @note User can also obtain OpenCL 2D image handle from this class.
+ */
 class VASurfaceBlob : public ClImage2DBlob {
 public:
     /**
-    * @brief A smart pointer to the VASurfaceBlob object
-    */
+     * @brief A smart pointer to the VASurfaceBlob object
+     */
     using Ptr = std::shared_ptr<VASurfaceBlob>;
 
     /**
