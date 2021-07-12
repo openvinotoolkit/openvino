@@ -206,7 +206,6 @@ template <typename inputType, typename outputType>
 void MKLDNNAdaPoolingNode::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &dstMemory = getChildEdgeAt(0)->getMemory();
     int *indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
@@ -214,7 +213,6 @@ void MKLDNNAdaPoolingNode::executeSpecified() {
     }
 
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
-    auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
     auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
