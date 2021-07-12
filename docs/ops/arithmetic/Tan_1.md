@@ -12,11 +12,21 @@
 a_{i} = tan(a_{i})
 \f]
 
+*Example 1*
+
+    input = [0.0, 0.25, -0.25, 0.5, -0.5]
+    output = [0.0, 0.25534192, -0.25534192, 0.54630249, -0.54630249]
+
+*Example 2*
+
+    input = [-2, -1, 0, 1, 2]
+    output = [2, -2, 0, 2, -2]
+
 **Attributes**: *tan*  operation has no attributes.
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape, measured in radians. **Required.**
 
 **Outputs**
 
@@ -24,7 +34,7 @@ a_{i} = tan(a_{i})
 
 **Types**
 
-* *T*: any supported numeric type.
+* *T*: int32,int64,uint32,uint64,float16,float32
 
 
 **Examples**
