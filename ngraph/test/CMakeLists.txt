@@ -387,7 +387,6 @@ set(MULTI_TEST_SRC
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
