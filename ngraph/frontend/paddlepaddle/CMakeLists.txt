@@ -40,7 +40,8 @@ foreach(INFILE ${proto_files})
             COMMAND ${PDPD_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
             DEPENDS ${PDPD_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
             COMMENT "Running C++ protocol buffer compiler (${PDPD_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
-            VERBATIM)
+            VERBATIM
+            COMMAND_EXPAND_LISTS)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
     list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
 endforeach()

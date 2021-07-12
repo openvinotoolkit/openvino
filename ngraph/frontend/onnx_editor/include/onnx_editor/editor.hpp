@@ -15,13 +15,6 @@
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
 
-namespace ONNX_NAMESPACE
-{
-    // forward declaration to avoid the necessity of include paths setting in components
-    // that don't directly depend on the ONNX library
-    class ModelProto;
-} // namespace ONNX_NAMESPACE
-
 namespace ngraph
 {
     namespace onnx_editor
