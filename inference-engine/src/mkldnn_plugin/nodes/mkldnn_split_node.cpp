@@ -437,7 +437,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             auto childEdge = getChildEdgeAt(i);
             auto childPtr = childEdge->getChild();
             auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
-            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[i].desc;
+            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[childEdge->getInputNum()].desc;
 
             if (!vecChildSpd.empty()) {
                 int inNum = childEdge->getOutputNum();
