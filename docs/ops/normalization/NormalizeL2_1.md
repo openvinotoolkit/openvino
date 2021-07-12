@@ -28,7 +28,6 @@ Particular cases:
   * **Description**: *eps* is the number applied by *eps_mode* function to the sum of squares to avoid division by zero when normalizing the value.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *eps_mode*
@@ -36,7 +35,6 @@ Particular cases:
   * **Description**: Specifies how *eps* is combined with the sum of squares to avoid division by zero.
   * **Range of values**: `add` or `max`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
