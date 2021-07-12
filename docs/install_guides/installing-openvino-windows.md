@@ -1,13 +1,14 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for Windows* 10 {#openvino_docs_install_guides_installing_openvino_windows}
 
-> **NOTES**:
+> **NOTE**:
 > - This guide applies to Microsoft Windows\* 10 64-bit. For Linux* OS information and instructions, see the [Installation Guide for Linux](installing-openvino-linux.md).
 
-> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
-> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an OpenVINO™ UI that enables you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
+> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
+> openvino_docs_get_started_get_started_dl_workbench), you can use 
+> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
+> that enables you to import a
+> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
+> on various Intel® platforms. 
 
 ## Introduction
 
@@ -95,9 +96,8 @@ The following components are installed by default:
 - Microsoft Windows\* 10 64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
-   > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/). Make sure that C++ CMake tools for Windows is [enabled](https://docs.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-160#:~:text=The%20Visual%20C%2B%2B%20Tools%20for,Visual%20Studio%20generators%20are%20supported).
+- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/). If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps
@@ -270,7 +270,7 @@ To perform inference on Intel® Vision Accelerator Design with Intel® Movidius�
   1. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
   2. Check with a support engineer if your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs card requires SMBUS connection to PCIe slot (most unlikely). Install the SMBUS driver only if confirmed (by default, it's not required):
       1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\drivers\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
-      2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
+      2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop-up menu.
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
@@ -332,6 +332,7 @@ To learn more about converting deep learning models, go to:
 - [Convert Your TensorFlow* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md)
 - [Convert Your MXNet* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_MxNet.md)
 - [Convert Your ONNX* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md)
+- [Convert Your Kaldi* Model](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md)
 
 ## Additional Resources
 

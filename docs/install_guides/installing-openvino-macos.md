@@ -4,17 +4,16 @@
 > - The Intel® Distribution of OpenVINO™ is supported on macOS\* 10.15.x versions.
 > - An internet connection is required to follow the steps in this guide. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
-> **TIP**: You can quick start with the Model Optimizer inside the OpenVINO™ [Deep Learning Workbench](@ref 
-> openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
-> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is an OpenVINO™ UI that enables you to
-> import a model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for 
-> deployment on various Intel® platforms.
+> **TIP**: If you want to [quick start with OpenVINO™ toolkit](@ref 
+> openvino_docs_get_started_get_started_dl_workbench), you can use 
+> the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench). DL Workbench is the OpenVINO™ toolkit UI 
+> that enables you to import a
+> model, analyze its performance and accuracy, visualize the outputs, optimize and prepare the model for deployment
+> on various Intel® platforms. 
 
 ## Introduction
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance.
-
-The Intel® Distribution of OpenVINO™ toolkit for macOS* includes the Inference Engine, OpenCV* libraries and Model Optimizer tool to deploy applications for accelerated inference on Intel® CPUs and Intel® Neural Compute Stick 2.  
 
 The Intel® Distribution of OpenVINO™ toolkit for macOS*:
 
@@ -53,7 +52,7 @@ The development and target platforms have the same requirements, but you can sel
 
 **Software Requirements**
 
-* CMake 3.10 or higher
+* CMake 3.13 or higher
 	+ [Install](https://cmake.org/download/) (choose "macOS 10.13 or later")
 	+ Add `/Applications/CMake.app/Contents/bin` to path (for default install) 
 * Python 3.6 - 3.7
@@ -108,7 +107,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 
 5. Click **Next** and follow the instructions on your screen.
 
-6. If you are missing external dependencies, you will see a warning screen. Take note of any dependencies you are missing. After installing the Intel® Distribution of OpenVINO™ toolkit core components, you will need to install the missing dependencies. For example, the screen example below indicates you are missing two dependencies:
+6. If you are missing external dependencies, you will see a warning screen. Take note of any dependencies you are missing. After installing the Intel® Distribution of OpenVINO™ toolkit core components, you will need to install the missing dependencies. For example, the screen example below indicates you are missing a dependency:
    ![](../img/openvino-install-macos-02.png)
 
 7. Click **Next**.
@@ -118,7 +117,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>`:
 
    * For root or administrator: `/opt/intel/openvino_<version>/`
-   * For regular users: `/home/<USER>/intel/openvino_<version>/`
+   * For regular users: `/home/<USER>/intel/openvino_<version>/` 
 
    For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
@@ -273,7 +272,7 @@ Now you are ready to get started. To continue, see the following pages:
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
 
-1. From the the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
+1. From the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
 2. Follow the uninstallation wizard instructions.
 3. When uninstallation is complete, click **Finish**. 
 
