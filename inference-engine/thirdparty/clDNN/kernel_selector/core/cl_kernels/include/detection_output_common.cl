@@ -167,6 +167,16 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
     }
 }
 
+inline UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+{
+    const uint confidence_offset =                    // offset in kernel input 'input_confidence'
+            (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
+            CONF_XY_SIZE_PRODUCT +
+            CONF_PADDING;
+
+    return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : -1;
+}
+
 inline UNIT_TYPE4 FUNC(get_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
