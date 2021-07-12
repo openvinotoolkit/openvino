@@ -26,6 +26,11 @@ public:
     void Infer_ThreadUnsafe() override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     ~AutoAsyncInferRequest();
+
+private:
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
+    AutoInferRequest::Ptr                                        _inferRequest;
+    AutoExecutableNetwork::WorkerInferRequest*                   _workerInferRequest = nullptr;
 };
 
 }  // namespace AutoPlugin
