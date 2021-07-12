@@ -1192,12 +1192,3 @@ void MKLDNNGraph::EnforceBF16() {
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
-
-InferenceEngine::Blob::Ptr MKLDNNGraph::convertMemToBlob(const MKLDNNMemory &mem) const {
-    // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
-    auto& memDesc = mem.GetDesc();
-    InferenceEngine::TensorDesc desc = MemoryDescUtils::convertToTensorDesc(memDesc);
-
-    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    return isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, mem.GetData());
-}
