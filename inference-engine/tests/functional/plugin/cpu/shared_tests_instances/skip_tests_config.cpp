@@ -40,7 +40,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*BF16.*(jit_avx(?!5)|jit_sse|ref).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
-        R"(.*BinaryConvolutionLayerTest.*)",
+        //R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
