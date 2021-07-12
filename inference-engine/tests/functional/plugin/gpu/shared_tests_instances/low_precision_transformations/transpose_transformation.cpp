@@ -18,7 +18,7 @@ const std::vector<ngraph::element::Type> precisions = {
 const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
-        ngraph::Shape({ 1, 1000, 1, 1}),
+        { 1, 1000, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
@@ -26,7 +26,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     },
     // U8: per-channel quantization
     {
-        ngraph::Shape({ 1, 3, 1, 1}),
+        { 1, 3, 1, 1},
         { 0, 2, 3, 1},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ngraph::element::f32,
