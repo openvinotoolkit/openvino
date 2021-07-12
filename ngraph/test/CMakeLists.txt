@@ -75,13 +75,10 @@ set(SRC
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
-    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_config.cpp
-    pass_liveness.cpp
     pass_manager.cpp
-    pass_shape_relevance.cpp
     pattern.cpp
     provenance.cpp
     replace_node.cpp
@@ -95,6 +92,7 @@ set(SRC
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
+    type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
     type_prop/avg_pool.cpp
@@ -112,6 +110,7 @@ set(SRC
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
     type_prop/cos.cpp
+    type_prop/cosh.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
@@ -157,11 +156,13 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/matrix_nms.cpp    
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mod.cpp
+    type_prop/multiclass_nms.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
@@ -229,8 +230,10 @@ set(SRC
     visitors/value_map.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
+    visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
@@ -238,6 +241,7 @@ set(SRC
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/cos.cpp
+    visitors/op/cosh.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
@@ -259,9 +263,11 @@ set(SRC
     visitors/op/lstm_cell.cpp
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
+    visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
+    visitors/op/multiclass_nms.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
@@ -373,6 +379,7 @@ set(MULTI_TEST_SRC
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
+    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -428,11 +435,13 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
+    backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
     backend/mish.in.cpp
     backend/mod.in.cpp
+    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
@@ -570,6 +579,7 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -638,12 +648,13 @@ install(TARGETS unit-test
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
+target_link_libraries(unit-test PRIVATE cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
 
 #PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND PDPD_PYTHON_OK)
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})

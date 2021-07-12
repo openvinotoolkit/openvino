@@ -71,8 +71,11 @@ public:
     std::shared_ptr<Node>
         clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void cache_output_descriptor();
+
 private:
     std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_inputs_desc;
+    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
 };
