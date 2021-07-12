@@ -26,22 +26,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    struct filteredBoxes {
-        float score;
-        int batch_index;
-        int class_index;
-        int box_index;
-        filteredBoxes() = default;
-        filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index) :
-                score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
-    };
-
-    struct boxInfo {
-        float score;
-        int idx;
-        int suppress_begin_index;
-    };
-
 private:
     // input
     const size_t NMS_BOXES = 0;
@@ -59,9 +43,9 @@ private:
 
     bool sort_result_descending = true;
 
-    size_t num_batches;
-    size_t num_boxes;
-    size_t num_classes;
+    size_t m_num_batches;
+    size_t m_num_boxes;
+    size_t m_num_classes;
 
     ngraph::op::util::NmsBase::SortResultType m_sort_result_type;
     bool m_sort_result_across_batch;
@@ -73,6 +57,7 @@ private:
     ngraph::op::v8::MatrixNms::DecayFunction m_decay_function;
     float m_gaussian_sigma;
     float m_post_threshold;
+    bool m_normalized;
 
 
     SizeVector outputShape_SELECTED_OUTPUTS;
