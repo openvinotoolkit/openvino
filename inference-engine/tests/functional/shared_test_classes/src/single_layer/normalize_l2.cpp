@@ -25,6 +25,17 @@ std::string NormalizeL2LayerTest::getTestCaseName(testing::TestParamInfo<Normali
     return result.str();
 }
 
+InferenceEngine::Blob::Ptr NormalizeL2LayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    InferenceEngine::Blob::Ptr blobPtr;
+    const std::string& name = info.name();
+    if (name == "data") {
+        blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 10, -5, 7, 222);
+    } else {
+        blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
+    }
+    return blobPtr;
+}
+
 void NormalizeL2LayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> axes;
@@ -34,7 +45,9 @@ void NormalizeL2LayerTest::SetUp() {
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto norm = ngraph::builder::makeNormalizeL2(params[0], axes, eps, epsMode);
+    auto data_input = params[0];
+    data_input->set_friendly_name("data");
+    auto norm = ngraph::builder::makeNormalizeL2(data_input, axes, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }
