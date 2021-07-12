@@ -455,6 +455,26 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             true
         }
     },
+    //  issue #59593: subtract on activations, non-asymmetric, per-channel fq folding,
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.01f}},
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { 0.f }, { 25.4f } },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f })
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.01f}},
+            {},
+            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 0.2f }),
+            true
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

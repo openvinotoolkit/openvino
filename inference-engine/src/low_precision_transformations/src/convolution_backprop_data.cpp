@@ -72,7 +72,9 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
                          NetworkHelper::getDequantization(reshapeFromWeights);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolutionBackpropData);
-            std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
+            auto constantShape = fqOnWeights->input(1).get_shape();
+            std::shared_ptr<ngraph::Node> resultConstant =
+                    NetworkHelper::fold_fake_quantize(fqOnWeights, false, constantShape[1] != 1ul ? 1ul : 0ul);
             if (reshapeFromWeights != nullptr) {
                 resultConstant = fold_reshape<opset1::Reshape>(
                         resultConstant,
