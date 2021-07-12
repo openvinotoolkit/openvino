@@ -16,28 +16,28 @@ public:
         // Create CNNNetwork from ngrpah::Function
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
+    }
+
+protected:
+    inline InferenceEngine::InferRequest createInferRequestWithConfig() {
         // Load config
         configuration.insert({CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)});
         if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
             targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
-            ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
+            ie->SetConfig(configuration, targetDevice);
         }
-    }
-
-    void TearDown() override {
-        configuration.clear();
+        // Load CNNNetwork to target plugins
+        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+        return execNet.CreateInferRequest();
     }
 };
 
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    execNet.CreateInferRequest();
-
+    ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_NO_THROW(createInferRequestWithConfig());
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
@@ -50,13 +50,10 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
 }
 
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Load CNNNetwork to target plugins
-    execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    execNet.CreateInferRequest();
-
+    ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
+    ASSERT_NO_THROW(createInferRequestWithConfig());
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI) ||

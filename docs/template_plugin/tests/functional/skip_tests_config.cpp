@@ -9,11 +9,11 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ExclusiveAsyncRequests.*",
-        ".*ReusableCPUStreamsExecutor.*",
+        R"(.*ExclusiveAsyncRequests.*)",
+        R"(.*ReusableCPUStreamsExecutor.*)",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
         // CVS-51758
-        ".*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*",
-        ".*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*",
+        R"(.*InferRequestPreprocessConversionTest.*oLT=(NHWC|NCHW).*)",
+        R"(.*InferRequestPreprocessDynamicallyInSetBlobTest.*oPRC=0.*oLT=1.*)",
     };
 }
