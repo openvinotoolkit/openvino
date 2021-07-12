@@ -51,7 +51,7 @@ namespace ngraph
             /// \param modelParts Array of model memory buffers
             /// \return Loaded input model
             virtual InputModel::Ptr
-                load_from_memory_fragments(const std::vector<const void*>& modelParts) const;
+                load_from_memory_fragments(const std::vector<const void*>& model_parts) const;
 
             /// \brief Loads an input model by input stream representing main model file
             /// \param stream Input stream of main model
@@ -74,7 +74,7 @@ namespace ngraph
             /// \param partiallyConverted partially converted nGraph function
             /// \return fully converted nGraph function
             virtual std::shared_ptr<ngraph::Function>
-                convert(std::shared_ptr<ngraph::Function> partiallyConverted) const;
+                convert(std::shared_ptr<ngraph::Function> partially_converted) const;
 
             /// \brief Convert only those parts of the model that can be converted leaving others
             /// as-is. Converted parts are not normalized by additional transformations; normalize
