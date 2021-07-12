@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "common")
+set (TARGET_NAME "shared_tests_lib")
 
 file (GLOB SRC *.cpp)
 add_library(${TARGET_NAME} STATIC ${SRC})
