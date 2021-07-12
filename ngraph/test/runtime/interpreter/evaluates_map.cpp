@@ -57,6 +57,7 @@
 #include <ngraph/runtime/reference/prior_box.hpp>
 #include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
+#include <ngraph/runtime/reference/random_uniform.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
@@ -2567,6 +2568,42 @@ namespace
                                               op->get_output_shape(0));
         return true;
     }
+
+//    template <element::Type_t ET>
+//    bool evaluate(const shared_ptr<op::v8::RandomUniform>& op,
+//                  const HostTensorVector& outputs,
+//                  const HostTensorVector& inputs)
+//    {
+//        element::Type_t t_out = op->get_out_type();
+//        char* out;
+//        switch (t_out) {
+//            case element::Type_t::i32: {
+//                out = (char *) outputs[0]->get_data_ptr<const int32_t>();
+//            }
+//                break;
+//            case element::Type_t::i64: {
+//                out = (char *) outputs[0]->get_data_ptr<const int64_t>();
+//            }
+//            case element::Type_t::f16: {
+//                out = (char *) outputs[0]->get_data_ptr<const float16>();
+//            }
+//            case element::Type_t::f32: {
+//                out = (char *) outputs[0]->get_data_ptr<const float>();
+//            }
+//            case element::Type_t::f64: {
+//                out = (char *) outputs[0]->get_data_ptr<const double >();
+//            }
+//            default:
+//                out = nullptr;
+//        }
+//        runtime::reference::random_uniform(inputs[0]->get_data_ptr<const char>(),
+//                                           out,
+//                                 inputs[0]->get_shape(),
+//                                           op->get_out_type().size(),
+//                                           op->get_seed(),
+//                                           op->get_seed2());
+//        return true;
+//    }
 
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
