@@ -34,7 +34,7 @@ public:
         bool isCrorrect);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIncorrectWeights(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         ngraph::element::Type precision,
         ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,

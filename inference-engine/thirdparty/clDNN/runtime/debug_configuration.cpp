@@ -16,23 +16,45 @@ const char *debug_configuration::prefix = "GPU_Debug: ";
 static void print_option(std::string option_name, std::string option_value) {
     GPU_DEBUG_COUT << "Config " << option_name << " = " << option_value << std::endl;
 }
+
+static void get_int_env(const std::string &var, int &val) {
+    if (const auto env_var = std::getenv(var.c_str())) {
+        val = std::stoi(env_var);
+        print_option(var, std::to_string(val));
+    }
+}
+
+static void get_str_env(const std::string &var, std::string &val) {
+    if (const auto env_var = std::getenv(var.c_str())) {
+        val = env_var;
+        print_option(var, val);
+    }
+}
+
 #endif
 
 debug_configuration::debug_configuration()
         : verbose(0)
-        , dump_graphs(std::string()) {
+        , print_multi_kernel_perf(0)
+        , disable_usm(0)
+        , dump_graphs(std::string())
+        , dump_layers_path(std::string())
+        , dump_layers(std::string())
+        , dump_layers_dst_only(0) {
 #ifdef GPU_DEBUG_CONFIG
-    const std::string OV_GPU_VERBOSE("OV_GPU_Verbose");
-    const std::string OV_GPU_DUMP_GRAPHS("OV_GPU_DumpGraphs");
-    if (const auto env_var = std::getenv(OV_GPU_VERBOSE.c_str())) {
-        verbose = std::stoi(env_var);
-        print_option(OV_GPU_VERBOSE, std::to_string(verbose));
+    get_int_env("OV_GPU_Verbose", verbose);
+    get_int_env("OV_GPU_PrintMultiKernelPerf", print_multi_kernel_perf);
+    get_int_env("OV_GPU_DisableUsm", disable_usm);
+    get_str_env("OV_GPU_DumpGraphs", dump_graphs);
+    get_str_env("OV_GPU_DumpLayersPath", dump_layers_path);
+    get_str_env("OV_GPU_DumpLayers", dump_layers);
+    get_int_env("OV_GPU_DumpLayersDstOnly", dump_layers_dst_only);
+    if (dump_layers_path.length() > 0 && !disable_usm) {
+        disable_usm = 1;
+        GPU_DEBUG_COUT << "DisableUsm=1 because of DumpLayersPath" << std::endl;
     }
-
-    if (const auto env_var = std::getenv(OV_GPU_DUMP_GRAPHS.c_str())) {
-        dump_graphs = env_var;
-        print_option(OV_GPU_DUMP_GRAPHS, dump_graphs);
-    }
+    if (dump_layers.length() > 0)
+        dump_layers = " " + dump_layers + " "; // Insert delimiter for easier parsing when used
 #endif
 }
 

@@ -78,7 +78,6 @@ void AutoInferRequest::HotSwapRequests() {
         InferenceEngine::SoExecutableNetworkInternal tempSoExecNetwork;
         if (_autoExecutableNetwork->TryGetActualNetwork(tempSoExecNetwork)) {
             _alreadyActualNetwork = true;
-            std::cout << "!!! DEBUG: HotSwapRequests !!!" << std::endl;
             _inferRequest = {tempSoExecNetwork, tempSoExecNetwork->CreateInferRequest()};
             _inferRequest->SetCallback(_callback);
         }
