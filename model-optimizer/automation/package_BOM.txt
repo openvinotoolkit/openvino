@@ -212,6 +212,8 @@ extensions/front/mxnet/instance_norm_ext.py
 extensions/front/mxnet/leaky_relu.py
 extensions/front/mxnet/lrn_ext.py
 extensions/front/mxnet/max_ext.py
+extensions/front/mxnet/modulated_deformable_conv_ext.py
+extensions/front/mxnet/modulated_deformable_conv_replacer.py
 extensions/front/mxnet/multibox_detection_ext.py
 extensions/front/mxnet/mx_reshape_reverse.py
 extensions/front/mxnet/mx_reshape_to_reshape.py
