@@ -1,12 +1,5 @@
 # Low-Precision 8-bit Integer Inference {#openvino_docs_IE_DG_Int8Inference}
 
-## Table of Contents
-1. [Supported devices](#supported-devices)
-2. [Low-Precision 8-bit Integer Inference Workflow](#low-precision-8-bit-integer-inference-workflow)
-3. [Prerequisites](#prerequisites)
-4. [Inference](#inference)
-5. [Results analysis](#results-analysis)
-
 ## Supported devices
 
 Low-precision 8-bit inference is optimized for:
