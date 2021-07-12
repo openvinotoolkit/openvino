@@ -18,8 +18,7 @@ namespace ngraph
         namespace reference
         {
             template <typename T, typename IT>
-            void adaptive_max_pool_1d(
-                const T* arg, T* out, IT* indices, size_t h_in, size_t h_out)
+            void adaptive_max_pool_1d(const T* arg, T* out, IT* indices, size_t h_in, size_t h_out)
             {
                 for (size_t i = 0; i < h_out; i++)
                 {
