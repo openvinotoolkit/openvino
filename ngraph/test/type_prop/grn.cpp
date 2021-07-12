@@ -16,8 +16,8 @@ TEST(type_prop, grn)
     auto A = make_shared<op::Parameter>(element::f32, data_shape);
     auto grn = make_shared<op::v0::GRN>(A, bias);
 
-    ASSERT_EQ(grn->get_element_type(), element::f32);
-    ASSERT_EQ(grn->get_shape(), data_shape);
+    EXPECT_EQ(grn->get_element_type(), element::f32);
+    EXPECT_EQ(grn->get_shape(), data_shape);
 }
 
 TEST(type_prop, grn_dynamic)
@@ -27,8 +27,8 @@ TEST(type_prop, grn_dynamic)
     auto A = make_shared<op::Parameter>(element::f32, data_shape);
     auto grn = make_shared<op::v0::GRN>(A, bias);
 
-    ASSERT_EQ(grn->get_element_type(), element::f32);
-    ASSERT_EQ(grn->get_shape(), data_shape);
+    EXPECT_EQ(grn->get_element_type(), element::f32);
+    EXPECT_EQ(grn->get_output_partial_shape(0), data_shape);
 }
 
 TEST(type_prop, grn_invalid_data_rank)
@@ -38,7 +38,7 @@ TEST(type_prop, grn_invalid_data_rank)
 
     try
     {
-        auto grn = make_shared<op::GRN>(A, bias);
+        auto grn = make_shared<op::v0::GRN>(A, bias);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
@@ -56,7 +56,7 @@ TEST(type_prop, grn_invalid_data_rank)
 
     try
     {
-        auto grn = make_shared<op::GRN>(A, bias);
+        auto grn = make_shared<op::v0::GRN>(A, bias);
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     }
