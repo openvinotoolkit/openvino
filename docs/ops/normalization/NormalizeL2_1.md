@@ -12,7 +12,7 @@ Each element in the output is the result of dividing the corresponding element o
 
     output[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(eps_mode(sum[j0,..., jN](x[j0, ..., jN]**2), eps))
 
-Where indices `i0, ..., iN` run through all valid indices for the `data` input and summation `sum[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the `axes` input of the operation.
+Where indices `i0, ..., iN` run through all valid indices for the `data` input and summation `sum[j0, ..., jN]` has `jk = ik` for those dimensions `k` that are not in the set of indices specified by the `axes` input of the operation.
 `eps_mode` selects how the reduction value and `eps` are combined. It can be `max` or `add` depending on `eps_mode` attribute value.
 
 Particular cases:
