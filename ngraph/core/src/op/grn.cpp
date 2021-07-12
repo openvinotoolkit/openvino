@@ -35,6 +35,7 @@ bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::GRN::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_GRN_validate_and_infer_types);
     const auto& data_pshape = get_input_partial_shape(0);
 
     if (data_pshape.is_static())
