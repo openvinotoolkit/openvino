@@ -156,7 +156,7 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_mvn_1_no_variance_no_across_channels)
 
 NGRAPH_TEST(${BACKEND_NAME}, evaluate_mvn_1_across_channels_no_variance)
 {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 2, 2});
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 2, 2});
     auto mvn = make_shared<op::v0::MVN>(data, true, false, 1e-9);
     auto fun = make_shared<Function>(OutputVector{mvn}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(fun);
@@ -200,6 +200,51 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_mvn_1_across_channels_with_variance)
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 3, 3});
 
     auto mvn = make_shared<op::v0::MVN>(data, true, true, 1e-9);
+    auto fun = make_shared<Function>(OutputVector{mvn}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(fun);
+
+    // clang-format off
+    test_case.add_input<float>(
+        {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+    test_case.add_expected_output<float>({-1.5491934, -1.161895, -0.7745967,
+                                          -0.38729835, 0.,        0.38729835,
+                                           0.7745967,  1.161895,  1.5491934,
+                                          -1.5491934, -1.161895, -0.7745967,
+                                          -0.38729835, 0.,        0.38729835,
+                                           0.7745967,  1.161895,  1.5491934,
+                                          -1.5491934, -1.161895, -0.7745967,
+                                          -0.38729835, 0.,        0.38729835,
+                                           0.7745967,  1.161895,  1.5491934});
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_mvn_1_reduction_axes_no_variance)
+{
+    const ngraph::AxisSet axes = {1, 2, 3};
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 2, 2});
+    auto mvn = make_shared<op::v0::MVN>(data, axes, false, 1e-9);
+    auto fun = make_shared<Function>(OutputVector{mvn}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(fun);
+
+    // clang-format off
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3});
+
+    test_case.add_expected_output<float>({-3.25, -2.25, -1.25,
+                                          -0.25,  0.75, 1.75,
+                                           2.75,  3.75, 4.75,
+                                          -3.25, -2.25, -1.25});
+    // clang-format on
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, evaluate_mvn_1_reduction_axes_with_variance)
+{
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 3, 3});
+
+    const ngraph::AxisSet axes = {2, 3};
+    auto mvn = make_shared<op::v0::MVN>(data, axes, true, 1e-9);
     auto fun = make_shared<Function>(OutputVector{mvn}, ParameterVector{data});
     auto test_case = test::TestCase<TestEngine>(fun);
 
