@@ -253,7 +253,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
-        // TODO [DS]: How should we handle scalar shapes?
+
         bool isScalar = false;
         if (shape.rank().is_static()) {
             isScalar = shape.rank().get_length() == 0;
@@ -268,7 +268,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         }
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto &shape = op->get_output_partial_shape(i);
-            // TODO [DS]: How should we handle scalar shapes?
+
             bool isScalar = false;
             if (shape.rank().is_static()) {
                 isScalar = shape.rank().get_length() == 0;
@@ -423,9 +423,6 @@ void MKLDNNNode::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_typ
                         auto& curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc;
                         auto& parentDesc = parent_spd->getConfig().outConfs[inNum].desc;
 
-//                        if (MKLDNNExtensionUtils::initTensorsAreEqual(
-//                                getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc,
-//                                parent_spd->getConfig().outConfs[inNum].desc)) {
                         if (curDesc->isCompatible(*parentDesc)) {
                             equalsLocalFormatCount++;
                         }
@@ -678,7 +675,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
             fmt});
 
         return desc.isCompatible(*fmt_tdesc);
-
+// TODO [DS]: code clean up
 //        auto tmp_partial_tdesc = PartialBlkDesc::extractFrom(fmt_tdesc);
 //        auto actual_partial_tdesc = PartialBlkDesc::extractFrom(tdesc);
 //        return tmp_partial_tdesc == actual_partial_tdesc;

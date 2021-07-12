@@ -186,8 +186,6 @@ public:
 
     static mkldnn::memory::format_tag GetPlainFormatByRank(size_t rank);
     static InferenceEngine::Layout GetPlainLayout(const mkldnn::memory::dims& dims);
-    static bool isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory::format_tag format);
-    static bool isConsistant(const Shape& dims, mkldnn::memory::format_tag format);
     static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
     static mkldnn::memory::data_type convertToDataType(const InferenceEngine::Precision &precision);

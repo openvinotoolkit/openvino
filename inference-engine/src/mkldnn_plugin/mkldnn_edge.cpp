@@ -143,6 +143,7 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     if (!inputDesc.isDefined() || !outputDesc.isDefined() || !inputDesc.isCompatible(outputDesc))
         IE_THROW() << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
 
+    //TODO [DS]: code cleanup
 //    if (!MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, inputDesc) ||
 //            (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 &&
 //            (inputDesc.getPrecision() != outputDesc.getPrecision() ||
