@@ -6,7 +6,7 @@
 
 #include <tuple>
 
-#include "transformations/insert_transpose_before_matmul.hpp"
+#include "transformations/handle_transposes_around_matmul.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
@@ -110,7 +110,7 @@ std::shared_ptr<ngraph::Function> InsertTransposeBeforeMatmulTestFixture::get_re
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::InsertTransposeBeforeMatmul>();
+    manager.register_pass<GNAPluginNS::HandleTransposesAroundMatMul>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);

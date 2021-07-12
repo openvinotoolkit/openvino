@@ -63,6 +63,7 @@
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
+#include "transformations/convert_padded2valid_conv.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
