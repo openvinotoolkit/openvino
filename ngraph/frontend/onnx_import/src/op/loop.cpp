@@ -77,10 +77,18 @@ namespace ngraph
                             loop_carried_dependencies[i].get_node()->get_friendly_name();
                     }
 
-                    const Subgraph& body_graph{
-                        node.get_subgraph_from_attribute("body", loop_carried_dependencies_map)};
-                    auto body_outputs = body_graph.get_ng_outputs();
-                    const auto& body_inputs = body_graph.get_ng_parameters();
+                    auto body_graph = node.get_subgraph();
+                    auto body_outputs = body_graph->get_ng_outputs();
+                    const auto& body_inputs = body_graph->get_ng_parameters();
+
+                    // Infer loop body inputs' element type based on carried dependencies
+                    for (size_t i = 0; i < loop_carried_dependencies.size(); i++)
+                    {
+                        body_inputs[i + 2]->set_element_type(
+                            loop_carried_dependencies[i].get_element_type());
+                        body_inputs[i + 2]->set_partial_shape(
+                            loop_carried_dependencies[i].get_partial_shape());
+                    }
 
                     // optional inputs
                     Output<ngraph::Node> trip_count;
@@ -190,22 +198,22 @@ namespace ngraph
                         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
                     }
 
-                    const auto& outputs_from_parent = body_graph.get_outputs_from_parent();
+                    const auto& inputs_from_parent = body_graph->get_inputs_from_parent();
                     CHECK_VALID_NODE(
                         node,
                         static_cast<size_t>(std::distance(body_inputs_it, body_inputs.end())) ==
-                            outputs_from_parent.size(),
+                            inputs_from_parent.size(),
                         "Expected number of invariant parameters is"
-                        " not equal number of provided outputs from parent scope");
+                        " not equal number of provided inputs from parent scope");
 
                     // Set-up parameters from parent graph which are not changed during Loop's
                     // iterations
-                    for (auto out_from_parent_it = outputs_from_parent.begin();
+                    for (auto in_from_parent_it = inputs_from_parent.begin();
                          body_inputs_it != body_inputs.end() &&
-                         out_from_parent_it != outputs_from_parent.end();
-                         ++body_inputs_it, ++out_from_parent_it)
+                         in_from_parent_it != inputs_from_parent.end();
+                         ++body_inputs_it, ++in_from_parent_it)
                     {
-                        loop->set_invariant_input(*body_inputs_it, *out_from_parent_it);
+                        loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
                     }
 
                     // Set-up scan outputs

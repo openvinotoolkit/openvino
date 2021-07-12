@@ -390,8 +390,7 @@ def test_cast_errors():
         for name, value in zip(node.input, [input_data])
     ]
     output_tensors = [
-        make_tensor_value_info(name, onnx.TensorProto.FLOAT16, value.shape)
-        for name, value in zip(node.output, ())
+        make_tensor_value_info(node.output[0], onnx.TensorProto.FLOAT16, input_data.shape)
     ]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
@@ -406,8 +405,7 @@ def test_cast_errors():
         for name, value in zip(node.input, [input_data])
     ]
     output_tensors = [
-        make_tensor_value_info(name, onnx.TensorProto.INT32, value.shape)
-        for name, value in zip(node.output, ())
+        make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)
     ]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
@@ -422,8 +420,7 @@ def test_cast_errors():
         for name, value in zip(node.input, [input_data])
     ]
     output_tensors = [
-        make_tensor_value_info(name, onnx.TensorProto.INT32, value.shape)
-        for name, value in zip(node.output, ())
+        make_tensor_value_info(node.output[0], onnx.TensorProto.INT32, input_data.shape)
     ]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
@@ -438,8 +435,7 @@ def test_cast_errors():
         for name, value in zip(node.input, [input_data])
     ]
     output_tensors = [
-        make_tensor_value_info(name, onnx.TensorProto.COMPLEX128, value.shape)
-        for name, value in zip(node.output, ())
+        make_tensor_value_info(node.output[0], onnx.TensorProto.COMPLEX128, input_data.shape)
     ]  # type: ignore
 
     graph = make_graph([node], "compute_graph", input_tensors, output_tensors)
