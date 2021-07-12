@@ -140,15 +140,15 @@ namespace ngraph
                                 {
                                     T in_y =
                                         (pooled_h > 1)
-                                            ? ((ph == pooled_h - 1)
-                                                ? (height - 1) * roi_h_end
-                                                : (ph * roi_height_scale + roi_h_start * (height - 1)))
+                                            ? ((ph == pooled_h - 1) ? (height - 1) * roi_h_end
+                                                                    : (ph * roi_height_scale +
+                                                                       roi_h_start * (height - 1)))
                                             : 0.5 * (roi_h_start + roi_h_end) * (height - 1);
                                     T in_x =
                                         (pooled_w > 1)
-                                            ? ((pw == pooled_w - 1)
-                                                ? (width - 1) * roi_w_end
-                                                : (pw * roi_width_scale + roi_w_start * (width - 1)))
+                                            ? ((pw == pooled_w - 1) ? (width - 1) * roi_w_end
+                                                                    : (pw * roi_width_scale +
+                                                                       roi_w_start * (width - 1)))
                                             : 0.5 * (roi_w_end + roi_w_start) * (width - 1);
 
                                     const size_t pool_index =
