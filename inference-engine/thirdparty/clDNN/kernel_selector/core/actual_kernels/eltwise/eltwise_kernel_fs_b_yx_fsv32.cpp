@@ -78,7 +78,7 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);

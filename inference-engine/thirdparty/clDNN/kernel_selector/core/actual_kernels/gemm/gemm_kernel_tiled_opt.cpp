@@ -48,6 +48,8 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
 GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gemm_params& params) const {
     const auto& output = params.output;
 
+    GemmKernelTiledOpt::GemmTuningData tuning_data;
+
     auto m_size = output.Y().v;
     auto n_size = output.X().v;
     auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
@@ -83,6 +85,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     JitConstants jit = Parent::GetJitConstants(params);
 
     const auto& output = params.output;
+    GemmTuningData tuning_data = SetTuningParams(params);
 
     auto m_size = output.Y().v;
     auto n_size = output.X().v;

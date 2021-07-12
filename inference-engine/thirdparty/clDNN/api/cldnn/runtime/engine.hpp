@@ -16,6 +16,10 @@
 #include <utility>
 #include <string>
 
+#define CLDNN_THREADING_SEQ 0
+#define CLDNN_THREADING_TBB 1
+#define CLDNN_THREADING_THREADPOOL 2
+
 namespace cldnn {
 
 class stream;

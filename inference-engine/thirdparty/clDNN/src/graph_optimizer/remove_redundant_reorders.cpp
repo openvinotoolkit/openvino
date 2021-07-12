@@ -28,6 +28,7 @@ void remove_redundant_reorders::run(program_impl& p) {
             return;
 
         auto& eng = p.get_engine();
+        node.set_unique_id(node.get_unique_id() + "_reorder");
         auto new_impl = node.type()->choose_impl(eng, node);
         node.set_selected_impl(std::move(new_impl));
     };

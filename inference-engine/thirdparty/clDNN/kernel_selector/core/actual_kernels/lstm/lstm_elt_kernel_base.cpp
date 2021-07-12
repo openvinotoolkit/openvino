@@ -77,7 +77,7 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto& kernel = kd.kernels[0];
     auto cldnnJit = GetJitConstants(newParams);
-    auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
     kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};

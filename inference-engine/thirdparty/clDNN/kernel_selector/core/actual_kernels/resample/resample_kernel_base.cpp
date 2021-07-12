@@ -221,7 +221,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     resample_params& newParams = *static_cast<resample_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

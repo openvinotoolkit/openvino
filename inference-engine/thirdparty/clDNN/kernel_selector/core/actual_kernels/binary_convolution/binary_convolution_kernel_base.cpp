@@ -130,7 +130,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];

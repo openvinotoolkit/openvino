@@ -118,7 +118,7 @@ KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& p
     KernelData k_data = KernelData::Default<lstm_dynamic_timeloop_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(org_params);
-    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, org_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];

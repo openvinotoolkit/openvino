@@ -13,11 +13,7 @@
 #include <memory>
 #include <atomic>
 #include <string>
-#include <unordered_set>
-
-#define CLDNN_THREADING_SEQ 0
-#define CLDNN_THREADING_TBB 1
-#define CLDNN_THREADING_THREADPOOL 2
+#include <set>
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
 #include <tbb/task_arena.h>
@@ -111,26 +107,28 @@ public:
         std::shared_ptr<kernel_string> kernel_strings;
         std::string id;
         bool dump_custom_program;
+        size_t hash_value;
 
         kernel_code(const std::shared_ptr<kernel_string>& _kernel_strings,
                     const std::string& _id,
                     bool _dump_custom_program)
             : kernel_strings(_kernel_strings),
               id(_id),
-              dump_custom_program(_dump_custom_program) {}
+              dump_custom_program(_dump_custom_program),
+              hash_value(_kernel_strings->get_hash()) {}
 
-        bool operator == (const kernel_code& c2) const {
-            return kernel_strings->get_hash() == c2.kernel_strings->get_hash();
+        bool operator == (const kernel_code& rhs) const {
+            return (hash_value == rhs.hash_value);
         }
     };
 
-    struct hash_kernel_code {
-        size_t operator()(const kernel_code& x) const {
-            return std::hash<std::string>()(x.kernel_strings->get_hash());
+    struct cmp_kernel_code {
+        bool operator()(const kernel_code& x1, const kernel_code& x2) const {
+            return (x1.hash_value < x2.hash_value);
         }
     };
 
-    using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
+    using kernels_code = std::set<kernel_code, cmp_kernel_code>;
 
 private:
     static std::mutex _mutex;

@@ -108,7 +108,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
