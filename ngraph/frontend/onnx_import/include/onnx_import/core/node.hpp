@@ -75,9 +75,8 @@ namespace ngraph
 
             bool has_attribute(const std::string& name) const;
 
-            Subgraph get_subgraph_from_attribute(
-                const std::string& name,
-                const std::map<std::size_t, std::string>& carried_dependencies_map) const;
+            bool has_subgraph() const;
+            std::shared_ptr<Subgraph> get_subgraph() const;
 
             template <typename T>
             T get_attribute_value(const std::string& name, T default_value) const;
