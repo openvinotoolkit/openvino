@@ -8,12 +8,6 @@ set(CLDNN_BUILD__PROJ             "cldnn_kernel_selector")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
 set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
-# ================================== Compiler preprocessor definitions =================================
-
-if (CLDNN__ENABLE_PERSISTENT_CACHE)
-  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS CLDNN_ENABLE_PERSISTENT_CACHE)
-endif ()
-
 # ========================================= Source/Header files ========================================
 
 set(__CLDNN_Directory__main           "${CMAKE_CURRENT_SOURCE_DIR}")

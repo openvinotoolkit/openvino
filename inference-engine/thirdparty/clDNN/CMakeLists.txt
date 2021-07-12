@@ -3,23 +3,6 @@
 #
 
 cmake_minimum_required (VERSION 3.1)
-include(CheckCXXCompilerFlag)
-
-# ======================================================================================================
-# ==================================== BUILD CONFIGURATIONS (part 1) ===================================
-# ======================================================================================================
-# The section must be before project definition which is a point for configurations generation
-# for multi-configuration generators.
-
-# Available configuration types:
-# Two standard configurations.
-if(NOT DEFINED CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_CONFIGURATION_TYPES
-        "Debug"
-        "Release"
-        "RelWithDebInfo"
-      )
-endif()
 
 # ======================================================================================================
 # ======================================================================================================
@@ -30,26 +13,6 @@ set(CLDNN__PROJ_NAME "clDNN")
 
 # Default languages: C, C++.
 project("${CLDNN__PROJ_NAME}")
-
-if(POLICY CMP0063)
-    cmake_policy(SET CMP0063 NEW)
-endif()
-
-# ======================================================================================================
-# ==================================== BUILD CONFIGURATIONS (part 2) ===================================
-# ======================================================================================================
-# The section must be after project definition and its supported languages because otherwise
-# used variables are not available yet.
-
-# Populating global property with list of debug configurations.
-set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS "Debug")
-# Use solution folders.
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-# ======================================================================================================
-# ======================================================================================================
-# ======================================================================================================
-
 
 # ======================================================================================================
 # ====================================== HELPER CONSTANT VARIABLES =====================================
