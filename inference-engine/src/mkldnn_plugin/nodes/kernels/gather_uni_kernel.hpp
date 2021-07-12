@@ -122,11 +122,13 @@ protected:
     Xbyak::Xmm xmmMinusOne = Xbyak::Xmm(6);
     Xbyak::Xmm xmmAux2 = Xbyak::Xmm(7);
     Xbyak::Xmm xmmAux3 = Xbyak::Xmm(8);
+    Xbyak::Xmm xmmAux9 = Xbyak::Xmm(9);
     Xbyak::Xmm xmmAux7 = Xbyak::Xmm(12);
     Xbyak::Xmm xmmOnes = Xbyak::Xmm(13);
     Xbyak::Xmm xmmDst = Xbyak::Xmm(15);
 
     Xbyak::Ymm ymmAux0 = Xbyak::Ymm(0);
+    Xbyak::Ymm ymmAux1 = Xbyak::Ymm(1);
     Xbyak::Ymm ymmAux2 = Xbyak::Ymm(7);
     Xbyak::Ymm ymmAux10 = Xbyak::Ymm(16);
 
@@ -163,7 +165,6 @@ protected:
 
     Vmm vmmAux11 = Vmm(17);
 
-    void tail();
     void fillIndicies(Xbyak::Xmm& dst, Xbyak::Xmm& mask);
     void fillIndicies(Xbyak::Ymm& dst, Xbyak::Ymm& mask);
     void fillIndicies(Xbyak::Zmm& dst, Xbyak::Opmask& mask);
@@ -181,6 +182,9 @@ protected:
     void vpGatherDDBlk(const Xbyak::Ymm& dst);
     void gatherAndGroup(const Xbyak::Ymm& dst, const Xbyak::Ymm& shufMask);
     void gatherAndGroup(const Xbyak::Zmm& dst, const Xbyak::Zmm& shufMask);
+    void tail32();
+    void tail16();
+    void tail8();
 };
 
 }  // namespace MKLDNNPlugin

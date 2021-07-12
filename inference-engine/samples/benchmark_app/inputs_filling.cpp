@@ -328,10 +328,14 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
                        << " is expected)" << slog::endl;
             if (precision == InferenceEngine::Precision::FP32) {
                 fillBlobRandom<float, float>(inputBlob);
-            } else if (precision == InferenceEngine::Precision::FP16) {
+            } else if (precision == InferenceEngine::Precision::FP16 || precision == InferenceEngine::Precision::BF16) {
                 fillBlobRandom<short, short>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I32) {
-                fillBlobRandom<int32_t, int32_t>(inputBlob);
+                if (item.first == "indices") {
+                    fillBlobRandom<int32_t, int32_t>(inputBlob, -100, 99);
+                } else {
+                    fillBlobRandom<int32_t, int32_t>(inputBlob);
+                }
             } else if (precision == InferenceEngine::Precision::I64) {
                 fillBlobRandom<int64_t, int64_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::U8) {

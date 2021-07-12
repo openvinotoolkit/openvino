@@ -14,6 +14,7 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I64,
         InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::I32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::BF16,
         InferenceEngine::Precision::I8
@@ -187,5 +188,61 @@ const auto gather7ParamsSubset_NegativeBD = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_Gather7_NegativeBD, Gather7LayerTest, gather7ParamsSubset_NegativeBD, Gather7LayerTest::getTestCaseName);
+
+const auto gatherParamsVec = testing::Combine(
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 30, 50, 1}})),
+        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 16, 16}, {10, 7, 8}, {10, 5, 7}, {10, 5}})),
+        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{2, 1}}),
+        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Vec, Gather7LayerTest, gatherParamsVec, Gather7LayerTest::getTestCaseName);
+
+//const auto gatherParamsTemp11 = testing::Combine(
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{6, 10, 10, 1}})),
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{6, 8, 10}})),
+//        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{2, 1}}),
+//        testing::ValuesIn(netPrecisions),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(CommonTestUtils::DEVICE_CPU)
+//);
+//
+//INSTANTIATE_TEST_CASE_P(smoke_Gather_long2, Gather7LayerTest, gatherParamsTemp11, Gather7LayerTest::getTestCaseName);
+
+//const auto gatherParamsShort1 = testing::Combine(
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 100, 100, 20, 2, 1}})),
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 5}})),
+//        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{4, 1}}),
+//        testing::ValuesIn(netPrecisions),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(CommonTestUtils::DEVICE_CPU)
+//);
+//
+//INSTANTIATE_TEST_CASE_P(smoke_Gather_short1, Gather7LayerTest, gatherParamsShort1, Gather7LayerTest::getTestCaseName);
+
+//const auto gatherParamsShort2 = testing::Combine(
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 30, 50, 2, 1}})),
+//        testing::ValuesIn(std::vector<std::vector<size_t>>({{10, 5}})),
+//        testing::ValuesIn(std::vector<std::tuple<int, int>>{std::tuple<int, int>{3, 1}}),
+//        testing::ValuesIn(netPrecisions),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(InferenceEngine::Layout::ANY),
+//        testing::Values(CommonTestUtils::DEVICE_CPU)
+//);
+//
+//INSTANTIATE_TEST_CASE_P(smoke_Gather_short2, Gather7LayerTest, gatherParamsShort2, Gather7LayerTest::getTestCaseName);
 
 }  // namespace

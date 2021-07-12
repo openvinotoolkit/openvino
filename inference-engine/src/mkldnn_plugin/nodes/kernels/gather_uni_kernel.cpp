@@ -179,7 +179,91 @@ void jitUniGatherKernel<isa>::generate() {
 }
 
 template <x64::cpu_isa_t isa>
-void jitUniGatherKernel<isa>::tail() {
+void jitUniGatherKernel<isa>::tail32() {
+    Xbyak::Label lLessThanVector, l1, l2;
+    cmp(regSpecIdxSizeInBytes, vlen);
+    jl(lLessThanVector, T_NEAR);
+        fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
+        jmp(l1, T_NEAR);
+    L(lLessThanVector);
+        fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
+    L(l1);
+
+    Xbyak::Label lFinish;
+    Xbyak::Reg32 reg32Aux3(regAux3.getIdx());
+
+    mov(regAux1, regWorkAmount);
+    mov(reg32Aux3, 0xFFFFFFFF);
+    uni_vmovups(vmmOnes, vmmZeros);
+
+    for (uint8_t i = 0; i < elPerVec; i++) {
+        cmp(regAux1, 0);
+        je(l2, T_NEAR);
+
+        if (i % 4 == 0)
+            uni_vmovups(vmmAux0, vmmZeros);
+
+        vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i % 4);
+        if (isa == x64::avx2) {
+            vinserti128(vmmOnes, vmmOnes, xmmAux0, i / 4);
+        } else if (isa == x64::avx512_common) {
+            if (i % 8 == 0)
+                uni_vmovups(ymmAux1, vmmZeros);
+            vinserti128(ymmAux1, ymmAux1, xmmAux0, i / 4);
+            vinserti32x4(vmmOnes, vmmOnes, ymmAux1, 4);
+        }
+        sub(regAux1, 1);
+    }
+    L(l2);
+    vpand(vmmGatherMask, vmmGatherMask, vmmOnes);
+    vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
+
+    if (isa == x64::avx512_common) {
+        for (int i = 0; i < 2; i++) {
+            vextracti32x8(ymmAux0, zmmDst, i);
+            for (int j = 0; j < 2; j++) {
+                vextracti128(xmmAux1, ymmAux0, j);
+                for (int k = 0; k < 4; k++) {
+                    cmp(regWorkAmount, 0);
+                    je(lFinish, T_NEAR);
+
+                    vpextrd(reg32Aux3, xmmAux1, k);
+                    mov(ptr[regDst], reg32Aux3);
+
+                    add(regDst, jcp_.dataTypeSize);
+                    sub(regWorkAmount, 1);
+                }
+            }
+        }
+    } else {
+        for (int j = 0; j < 2; j++) {
+            vextracti128(xmmAux1, vmmDst, j);
+            for (int k = 0; k < 4; k++) {
+                cmp(regWorkAmount, 0);
+                je(lFinish, T_NEAR);
+
+                vpextrd(reg32Aux3, xmmAux1, k);
+                mov(ptr[regDst], reg32Aux3);
+
+                add(regDst, jcp_.dataTypeSize);
+                sub(regWorkAmount, 1);
+            }
+        }
+    }
+    L(lFinish);
+}
+
+template <x64::cpu_isa_t isa>
+void jitUniGatherKernel<isa>::tail16() {
+    Xbyak::Label lLessThanVector, l1;
+    cmp(regSpecIdxSizeInBytes, vlen);
+    jl(lLessThanVector, T_NEAR);
+        fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
+        jmp(l1, T_NEAR);
+    L(lLessThanVector);
+        fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
+    L(l1);
+
     Xbyak::Label lFinish;
     Xbyak::Reg32 reg32Aux3(regAux3.getIdx());
     Xbyak::Reg16 reg16Aux3(regAux3.getIdx());
@@ -217,6 +301,94 @@ void jitUniGatherKernel<isa>::tail() {
         L(l1);
     } else {
         Xbyak::Label l1;
+//        uint8_t j = 0;
+        for (uint8_t i = 0; i < elPerVec; i++) {
+            cmp(regAux1, 0);
+            je(l1, T_NEAR);
+
+            vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i % 4);
+            if ((i + 1) % 4 == 0) {
+                vinserti128(vmmOnes, vmmOnes, xmmAux0, i / 4);
+            }
+            sub(regAux1, 1);
+        }
+        L(l1);
+        vpand(vmmGatherMask, vmmGatherMask, vmmOnes);
+        vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
+    }
+
+    if (isa == x64::avx512_common) {
+        for (int i = 0; i < 2; i++) {
+            vextracti32x8(ymmAux0, zmmDst, i);
+            for (int j = 0; j < 2; j++) {
+                vextracti128(xmmAux1, ymmAux0, j);
+                for (int k = 0; k < 4; k++) {
+                    cmp(regWorkAmount, 0);
+                    je(lFinish, T_NEAR);
+
+                    vpextrd(reg32Aux3, xmmAux1, k);
+
+                    if (jcp_.dataTypeSize == 4) {
+                        mov(ptr[regDst], reg32Aux3);
+                    } else if (jcp_.dataTypeSize == 2) {
+                        mov(ptr[regDst], reg16Aux3);
+                    } else if (jcp_.dataTypeSize == 1) {
+                        mov(ptr[regDst], reg8Aux3);
+                    }
+
+                    add(regDst, jcp_.dataTypeSize);
+                    sub(regWorkAmount, 1);
+                }
+            }
+        }
+    } else {
+        for (int j = 0; j < 2; j++) {
+            vextracti128(xmmAux1, vmmDst, j);
+            for (int k = 0; k < 4; k++) {
+                cmp(regWorkAmount, 0);
+                je(lFinish, T_NEAR);
+
+                vpextrd(reg32Aux3, xmmAux1, k);
+
+                if (jcp_.dataTypeSize == 4) {
+                    mov(ptr[regDst], reg32Aux3);
+                } else if (jcp_.dataTypeSize == 2) {
+                    mov(ptr[regDst], reg16Aux3);
+                } else if (jcp_.dataTypeSize == 1) {
+                    mov(ptr[regDst], reg8Aux3);
+                }
+
+                add(regDst, jcp_.dataTypeSize);
+                sub(regWorkAmount, 1);
+            }
+        }
+    }
+    L(lFinish);
+}
+
+template <x64::cpu_isa_t isa>
+void jitUniGatherKernel<isa>::tail8() {
+    Xbyak::Label lLessThanVector, l1;
+    cmp(regSpecIdxSizeInBytes, vlen);
+    jl(lLessThanVector, T_NEAR);
+        fillIndiciesLongIdx(vmmSrcShifts, vmmGatherMask);
+        jmp(l1, T_NEAR);
+    L(lLessThanVector);
+        fillIndiciesShortIdx(vmmSrcShifts, vmmGatherMask);
+    L(l1);
+
+    Xbyak::Label lFinish;
+    Xbyak::Reg32 reg32Aux3(regAux3.getIdx());
+    Xbyak::Reg16 reg16Aux3(regAux3.getIdx());
+    Xbyak::Reg8  reg8Aux3(regAux3.getIdx());
+
+    mov(regAux1, regWorkAmount);
+    mov(reg32Aux3, 0xFFFFFFFF);
+    uni_vmovups(vmmOnes, vmmZeros);
+    uni_vmovups(vmmAux0, vmmZeros);
+
+    if (isa == x64::avx512_common) {
+        Xbyak::Label l1;
         for (uint8_t i = 0; i < elPerVec; i++) {
             cmp(regAux1, 0);
             je(l1, T_NEAR);
@@ -227,49 +399,36 @@ void jitUniGatherKernel<isa>::tail() {
                 vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i);
                 vinserti128(vmmOnes, vmmOnes, xmmAux0, 2);
             } else if (i < 12) {
-//                if (i == 8)
-//                    uni_vmovups(xmmAux0, vmmZeros);
-//                vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i);
-//                vinserti32x4(vmmOnes, vmmOnes, xmmAux0, 3);
+                if (i == 8)
+                    uni_vmovups(xmmAux0, vmmZeros);
+                vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i);
+                vinserti32x4(vmmOnes, vmmOnes, xmmAux0, 3);
             } else {
-//                if (i == 12)
-//                    uni_vmovups(xmmAux0, vmmZeros);
-//                vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i);
-//                vinserti32x4(vmmOnes, vmmOnes, xmmAux0, 4);
+                if (i == 12)
+                    uni_vmovups(xmmAux0, vmmZeros);
+                vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i);
+                vinserti32x4(vmmOnes, vmmOnes, xmmAux0, 4);
             }
             sub(regAux1, 1);
         }
         L(l1);
-    }
+    } else {
+        Xbyak::Label l1;
+//        uint8_t j = 0;
+        for (uint8_t i = 0; i < elPerVec; i++) {
+            cmp(regAux1, 0);
+            je(l1, T_NEAR);
 
-    uni_vcvtdq2ps(vmmAux0, vmmBeforeAxisSum);
-    uni_vcvtdq2ps(vmmAux1, vmmSrcAfterBatchSize);
-    uni_vdivps(vmmAux0, vmmAux0, vmmAux1);
-    vroundps(vmmAux0, vmmAux0, 0x1B);
-    uni_vcvtps2dq(vmmAux0, vmmAux0);
-    uni_vpmulld(vmmAux0, vmmAux0, vmmSpecIdxSize);
-    uni_vpaddd(vmmAux0, vmmAux0, vmmSpecIndices);
-
-    uni_vmovups(vmmSrcShifts, vmmOnes);
-    vpgatherdd(vmmAux1, ptr[regIndices + vmmAux0], vmmOnes);
-    // Compensate negative indices.
-    vpcmpgtd(vmmAux0, vmmZeros, vmmAux1);
-    vpand(vmmAux0, vmmAux0, vmmAxisDim);
-    uni_vpaddd(vmmAux1, vmmAux1, vmmAux0);
-    // Check boundaries
-    vpcmpgtd(vmmGatherMask, vmmAxisDim, vmmAux1);
-    vpcmpgtd(vmmAux0, vmmZeros, vmmAux1);
-    vpandn(vmmGatherMask, vmmAux0, vmmGatherMask);
-    vpand(vmmGatherMask, vmmGatherMask, vmmSrcShifts);
-    // multiply by type size
-    if (jcp_.dataTypeSize == 4) {
-        vpslld(vmmAux1, vmmAux1, 2);
-    } else if (jcp_.dataTypeSize == 2) {
-        vpslld(vmmAux1, vmmAux1, 1);
+            vpinsrd(xmmAux0, xmmAux0, reg32Aux3, i % 4);
+            if ((i + 1) % 4 == 0) {
+                vinserti128(vmmOnes, vmmOnes, xmmAux0, i / 4);
+            }
+            sub(regAux1, 1);
+        }
+        L(l1);
+        vpand(vmmGatherMask, vmmGatherMask, vmmOnes);
+        vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmGatherMask);
     }
-    // Gather data
-    uni_vpaddd(vmmAux1, vmmAux1, vmmBeforeAxisSum);
-    vpgatherdd(vmmDst, ptr[regSrc + vmmAux1], vmmGatherMask);
 
     if (isa == x64::avx512_common) {
         for (int i = 0; i < 2; i++) {
@@ -673,7 +832,7 @@ void jitUniGatherKernel<isa>::gatherLongIdx32() {
     }
 
     L(lTail);
-    tail();
+    tail32();
 }
 
 template <x64::cpu_isa_t isa>
@@ -763,7 +922,7 @@ void jitUniGatherKernel<isa>::gatherShortIdx16() {
     }
 
     L(lTail);
-    tail();
+    tail16();
 }
 
 template <x64::cpu_isa_t isa>
@@ -905,7 +1064,7 @@ void jitUniGatherKernel<isa>::gatherShortIdx8() {
     }
 
     L(lTail);
-    tail();
+    tail8();
 }
 
 template <x64::cpu_isa_t isa>
@@ -1010,7 +1169,7 @@ void jitUniGatherKernel<isa>::gatherLongIdx16() {
     }
 
     L(lTail);
-    tail();
+    tail16();
 }
 
 template <x64::cpu_isa_t isa>
@@ -1154,7 +1313,7 @@ void jitUniGatherKernel<isa>::gatherLongIdx8() {
     }
 
     L(lTail);
-    tail();
+    tail8();
 }
 
 template <x64::cpu_isa_t isa>
@@ -1207,5 +1366,5 @@ void jitUniGatherKernel<isa>::gatherShortIdx32() {
     }
 
     L(lTail);
-    tail();
+    tail32();
 }

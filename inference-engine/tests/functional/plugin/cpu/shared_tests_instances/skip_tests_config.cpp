@@ -69,8 +69,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CoreThreading.*smoke_QueryNetwork.*targetDevice=AUTO_config.*)",
         // Unsupported config KEY_ENFORCE_BF16 for AUTO plugin
         R"(.*smoke_SetBlobOfKindAUTO.*SetBlobOfKindTest.CompareWithRefs.*)",
-        // reference doesn't cover I8, U8 cases. Issue: 55842
-        R"(.*Gather7LayerTest.*netPRC=I8.*)",
     };
 #ifdef __APPLE__
         // TODO: Issue 55717
@@ -79,7 +77,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-       retVector.emplace_back(R"(.*BF16.*)");
+//       retVector.emplace_back(R"(.*BF16.*)");
        retVector.emplace_back(R"(.*bfloat16.*)");
     }
 

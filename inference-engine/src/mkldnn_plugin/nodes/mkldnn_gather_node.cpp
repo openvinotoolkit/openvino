@@ -161,8 +161,8 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 //            int axisDimInBytes = axisDim * dataTypeSize;
             int dts = dataTypeSize;
 
-//    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
-//    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
+    std::string seqStr = std::string("[") + std::to_string(ithr) + "] start: " + std::to_string(start) + "; end: " + std::to_string(end);
+    std::string bIdx = "\nbatchchIndices {", btw = "}\nbetweenBatchAndAxisIdx {", spIdx = "}\nspecIndices {";
             uint32_t vlen = jitKernel->getVecLen();
             int idxTypeSize = sizeof(int32_t);
             auto idxElPerVec = vlen / idxTypeSize;
@@ -178,14 +178,14 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
                 betweenBatchAndAxisIdx[i] = ((start + i) / specIndicesSize) % betweenBatchAndAxis;
                 specIndices[i] = (start + i) % specIndicesSize;
 
-//bIdx += std::to_string(batchIndices[i]) + ";";
-//btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
-//spIdx += std::to_string(specIndices[i]) + ";";
+bIdx += std::to_string(batchIndices[i]) + ";";
+btw += std::to_string(betweenBatchAndAxisIdx[i]) + ";";
+spIdx += std::to_string(specIndices[i]) + ";";
             }
-//seqStr += bIdx + btw + spIdx + "}\n";
+seqStr += bIdx + btw + spIdx + "}\n";
             int beforeAxisCounter = betweenBatchAndAxisIdx[0];//start / betweenBatchAndAxis;
-//printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %lu; betweenBatchAndAxis: %lu; specIndicesSize: %lu\n",
-//        seqStr.c_str(), beforeAxisCounter, srcAfterBatchSizeInBytes, afterAxisSize, betweenBatchAndAxis, specIndicesSize);
+printf("%sbeforeAxisCounter: %d; srcAfterBatchSizeInBytes: %d; afterAxisSize: %lu; betweenBatchAndAxis: %lu; specIndicesSize: %lu\n",
+        seqStr.c_str(), beforeAxisCounter, srcAfterBatchSizeInBytes, afterAxisSize, betweenBatchAndAxis, specIndicesSize);
 
             int specIndicesSizeInt = specIndicesSize * idxTypeSize;
             size_t idxIter = specIndices[0] * idxTypeSize;
@@ -291,7 +291,7 @@ void MKLDNNGatherNode::execute(mkldnn::stream strm) {
 
 //int* tmpDst = reinterpret_cast<int*>(dstData);
 //std::cout << "\nOUT DATA:\n";
-//for (int i = 0; i < getChildEdgeAt(0)->getDims().size() / 4; i++) {
+//for (int i = 0; i < getChildEdgeAt(0)->getDims().size(); i++) {
 //    if (i % 8 == 0)
 //        std::cout << "_";
 //    std::cout << tmpDst[i] << ";";
