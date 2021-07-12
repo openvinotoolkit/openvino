@@ -32,7 +32,7 @@ When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatical
 
 In *Runtime stage*, the quantized model is loaded to the plugin. The plugin uses the `Low Precision Transformation` component to update the model to infer it in low precision:
    - Update `FakeQuantize` layers to have quantized output tensors in low precision range and add dequantization layers to compensate the update. Dequantization layers are pushed through as many layers as possible to have more layers in low precision. After that, most layers have quantized input tensors in low precision range and can be inferred in low precision. Ideally, dequantization layers should be fused in the next `FakeQuantize` layer.
-   - Weights are quantized and stored in `Constant` layers. 
+   - Quantize weights and store them in `Constant` layers. 
 
 ## Prerequisites
 
