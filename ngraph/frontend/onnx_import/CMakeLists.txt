@@ -50,8 +50,8 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE ngraph::builder onnx_common
-                                    PUBLIC ngraph)
+target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder inference_engine_transformations
+    PUBLIC ngraph)
 
 target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
