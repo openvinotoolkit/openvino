@@ -18,7 +18,7 @@ a_{i} = log(a_{i})
 
 **Inputs**
 
-* **1**: An tensor of type *T* and arbitrary shape. **Required.**
+* **1**: An tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**
 

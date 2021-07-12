@@ -51,7 +51,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 * *linear_before_reset*
 
@@ -63,17 +63,17 @@ A single cell in the sequence is implemented in the same way as in <a href="#GRU
 
 **Inputs**
 
-* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from GRUCell 1st input only by additional axis with size `seq_length`. **Required.**
+* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from GRUCell 1st input only by additional axis with size `seq_length`. **Required**.
 
-* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
+* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required**.
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required**.
 
-* **4**: `W` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required.**
+* **4**: `W` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required**.
 
-* **5**: `R` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
+* **5**: `R` - 3D tensor of type *T1* `[num_directions, 3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required**.
 
-* **6**: `B` - 2D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[num_directions, 4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[num_directions, 3 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **6**: `B` - 2D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[num_directions, 4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[num_directions, 3 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required**.
 
 **Outputs**
 

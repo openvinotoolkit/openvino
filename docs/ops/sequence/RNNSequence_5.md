@@ -51,21 +51,21 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
   * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 
-* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from RNNCell 1st input only by additional axis with size `seq_length`. **Required.**
+* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from RNNCell 1st input only by additional axis with size `seq_length`. **Required**.
 
-* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
+* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required**.
 
-* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required**.
 
-* **4**: `W` - 3D tensor of type *T1* `[num_directions, hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
+* **4**: `W` - 3D tensor of type *T1* `[num_directions, hidden_size, input_size]`, the weights for matrix multiplication. **Required**.
 
-* **5**: `R` - 3D tensor of type *T1* `[num_directions, hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required.**
+* **5**: `R` - 3D tensor of type *T1* `[num_directions, hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required**.
 
-* **6**: `B` - 2D tensor of type *T1* `[num_directions, hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **6**: `B` - 2D tensor of type *T1* `[num_directions, hidden_size]`, the sum of biases (weights and recurrence weights). **Required**.
 
 **Outputs**
 

@@ -41,8 +41,8 @@ The result of division by zero is undefined.
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
-* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required**.
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required**.
 
 **Outputs**
 

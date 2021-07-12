@@ -28,7 +28,7 @@
 
 * *step (step_w, step_h)*
 
-  * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height). 
+  * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height).
   * **Range of values**: floating point positive number
   * **Type**: float
   * **Default value**: 0.0
@@ -60,9 +60,9 @@
 
 **Inputs**:
 
-*   **1**: `output_size` - 1D tensor with two integer elements `[height, width]`. Specifies the spatial size of generated grid with boxes. Required.
+*   **1**: `output_size` - 1D tensor with two integer elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required**.
 
-*   **2**: `image_size` - 1D tensor with two integer elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. Optional.
+*   **2**: `image_size` - 1D tensor with two integer elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Optional**.
 
 **Outputs**:
 

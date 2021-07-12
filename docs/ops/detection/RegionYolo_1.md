@@ -78,7 +78,7 @@
 
 **Inputs**:
 
-*   **1**: `data` - 4D tensor of type *T* and shape `[N, C, H, W]`. **Required.**
+*   **1**: `data` - 4D tensor of type *T* and shape `[N, C, H, W]`. **Required**.
 
 **Outputs**:
 

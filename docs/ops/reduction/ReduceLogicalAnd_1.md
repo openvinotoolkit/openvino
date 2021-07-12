@@ -17,7 +17,7 @@ where indices i0, ..., iN run through all valid indices for input `data`, and *l
 
 Particular cases:
 
-1. If `axes` is an empty list, *ReduceLogicalAnd* corresponds to the identity operation. 
+1. If `axes` is an empty list, *ReduceLogicalAnd* corresponds to the identity operation.
 2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**
@@ -32,9 +32,9 @@ Particular cases:
 
 **Inputs**
 
-* **1**: `data` - A tensor of type *T_BOOL* and arbitrary shape. **Required.**
+* **1**: `data` - A tensor of type *T_BOOL* and arbitrary shape. **Required**.
 
-* **2**: `axes` - Axis indices of `data` input tensor, along which the reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required.**
+* **2**: `axes` - Axis indices of `data` input tensor, along which the reduction is performed. A scalar or 1D tensor of unique elements and type *T_IND*. The range of elements is `[-r, r-1]`, where `r` is the rank of `data` input tensor. **Required**.
 
 **Outputs**
 

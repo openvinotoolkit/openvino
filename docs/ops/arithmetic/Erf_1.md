@@ -19,7 +19,7 @@ erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T*. **Required**.
 
 **Outputs**
 

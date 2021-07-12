@@ -31,11 +31,11 @@ Selu(x) = \lambda\cdot\big(\max(0, x) + \min(0, \alpha(e^{x}-1))\big)
 
 **Inputs**
 
-* **1**: `data`. A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: `data`. A tensor of type *T* and arbitrary shape. **Required**.
 
-* **2**: `alpha`. 1D tensor with one element of type *T*. **Required.**
+* **2**: `alpha`. 1D tensor with one element of type *T*. **Required**.
 
-* **3**: `lambda`. 1D tensor with one element of type *T*. **Required.**
+* **3**: `lambda`. 1D tensor with one element of type *T*. **Required**.
 
 **Outputs**
 
