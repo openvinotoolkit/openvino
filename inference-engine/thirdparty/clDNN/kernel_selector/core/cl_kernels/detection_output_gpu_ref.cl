@@ -177,8 +177,8 @@ UNIT_TYPE FUNC(get_largest_score)(__global UNIT_TYPE* input_confidence, const ui
     return idx;
 }
 
-#ifdef DO_STAGE_0_CAFFE
-KERNEL (detection_output_ref_stage_0_caffe)(
+#ifdef DO_STAGE_0_CAFFE_OPT
+KERNEL (detection_output_ref_stage_0_caffe_opt)(
     __global UNIT_TYPE* input_confidence,
     __global uchar *buffer0,
     __global int *buffer2)
@@ -259,7 +259,81 @@ KERNEL (detection_output_ref_stage_0_caffe)(
         }
     }
 }
-#endif /* DO_STAGE_0_CAFFE */
+#endif /* DO_STAGE_0_CAFFE_OPT */
+
+#ifdef DO_STAGE_0_CAFFE
+KERNEL (detection_output_ref_stage_0_caffe)(
+    __global UNIT_TYPE* input_confidence,
+    __global uchar *buffer0,
+    __global int *buffer2)
+{
+    const int classId = get_global_id(0);
+    const int box_gid = get_global_id(1);
+    const int batchId = get_global_id(2);
+
+    const int start_bid = box_gid * NUM_PRIORS_PER_ITEM;
+    const int end_bid = min(start_bid + NUM_PRIORS_PER_ITEM, NUM_OF_PRIORS);
+
+    __local char bit_mask[NUM_BIT_MASK];
+    __local int block_num[NUM_PRIOR_BLOCKS];
+
+    block_num[box_gid] = 0;
+
+    {
+        int mask_id = start_bid / 8;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            bit_mask[mask_id] = 0;
+            unroll_for (int bi = 0; bi < 8; bi++) {
+                if ((i + bi) >= NUM_OF_PRIORS)
+                    break;
+                UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                int valid = (score < 0) ? 0 : 1;
+                bit_mask[mask_id] |= (valid << bi);
+                block_num[box_gid] += valid;
+            }
+            mask_id++;
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        if (box_gid == 0 && get_local_id(1) == 0) {
+            int acc_num = 0;
+            for (int i = 0; i < NUM_PRIOR_BLOCKS; i++) {
+                int n = block_num[i];
+                block_num[i] = acc_num;
+                acc_num += n;
+            }
+            buffer2[batchId * NUM_CLASSES_ACC + classId] = acc_num;
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    {
+        int write_offset = block_num[box_gid];
+        int mask_id = start_bid >> 3;
+        for (int i = start_bid; i < end_bid; i += 8) {
+            for (int bi = 0; bi < 8; bi++) {
+                char bitset = 1 << bi;
+                if ((bit_mask[mask_id] & bitset) && ((i + bi) < NUM_OF_PRIORS)) {
+                    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+                    SCORES_INFO score_info;
+                    score_info.batchId = batchId;
+                    score_info.classId = classId;
+                    score_info.boxId = i + bi;
+                    score_info.score = score;
+                    scoresList[write_offset] = score_info;
+                    write_offset++;
+                }
+            }
+            mask_id++;
+        }
+    }
+}
+#endif /* DO_STAGE_0_CAFFE*/
 
 #ifdef DO_STAGE_0_MXNET
 KERNEL (detection_output_ref_stage_0_mxnet)(
