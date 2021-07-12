@@ -6,9 +6,11 @@
 #include "cpu_memory_desc_utils.h"
 #include "mkldnn_memory.h"
 #include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 #include <limits>
 #include <vector>
 #include <numeric>
+#include <blob_factory.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -378,6 +380,15 @@ MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
         return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(retDesc);
     }
     return desc->clone();
+}
+
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
+    // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
+    auto& memDesc = mem.GetDesc();
+    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
+
+    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
+    return MKLDNNPlugin::isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, mem.GetData());
 }
 
 } // namespace MKLDNNPlugin
