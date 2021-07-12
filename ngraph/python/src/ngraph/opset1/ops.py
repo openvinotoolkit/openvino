@@ -1,6 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+## @package pyexample
+#  @defgroup ngraph_python_api nGraph Python API
+#  nGraph Python API
+#  @ingroup api_ref
+
 """Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
@@ -48,25 +53,31 @@ _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 @unary_op
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = abs(x) to the input node element-wise.
-
+    
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with Abs operation applied on it.
     """
     return _get_node_factory_opset1().create("Abs", [node])
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @unary_op
 def acos(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse cosine function on the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with arccos operation applied on it.
     """
     return _get_node_factory_opset1().create("Acos", [node])
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @binary_op
 def add(
     left_node: NodeInput,
@@ -79,22 +90,31 @@ def add(
         "Add", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @unary_op
 def asin(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse sine function on the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with arcsin operation applied on it.
     """
     return _get_node_factory_opset1().create("Asin", [node])
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @unary_op
+## test
+#
+# @ingroup ngraph_python_api
 def atan(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply inverse tangent function on the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with arctan operation applied on it.
@@ -103,6 +123,9 @@ def atan(node: NodeInput, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
+## test
+#
+# @ingroup ngraph_python_api
 def avg_pool(
     data_batch: NodeInput,
     strides: List[int],
@@ -116,6 +139,7 @@ def avg_pool(
 ) -> Node:
     """Return average pooling node.
 
+    @ingroup ngraph_python_api
     @param data_batch:      The input node providing data.
     @param strides:         The window movement strides.
     @param pads_begin:      The input data optional padding below filled with zeros.
@@ -148,6 +172,9 @@ def avg_pool(
 
 
 @nameable_op
+## test
+#
+# @ingroup ngraph_python_api
 def batch_norm_inference(
     data: NodeInput,
     gamma: NodeInput,
@@ -159,6 +186,7 @@ def batch_norm_inference(
 ) -> Node:
     """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
 
+    @ingroup ngraph_python_api
     @param data: The input tensor with data for normalization.
     @param gamma: The scalar scaling for normalized value.
     @param beta: The bias added to the scaled normalized value.
@@ -188,6 +216,7 @@ def binary_convolution(
 ) -> Node:
     """Create node performing convolution with binary weights, binary input and integer output.
 
+    @ingroup ngraph_python_api
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
     @param strides: The kernel window movement strides.
@@ -225,6 +254,7 @@ def broadcast(
 ) -> Node:
     """Create a node which broadcasts the input node's values along specified axes to a desired shape.
 
+    @ingroup ngraph_python_api
     @param data: The node with input tensor data.
     @param target_shape: The node with a new shape we want to broadcast tensor to.
     @param axes_mapping: The node with a axis positions (0-based) in the result
@@ -251,6 +281,7 @@ def ctc_greedy_decoder(
 ) -> Node:
     """Perform greedy decoding on the logits given in input (best path).
 
+    @ingroup ngraph_python_api
     @param data: Logits on which greedy decoding is performed.
     @param sequence_mask: The tensor with sequence masks for each sequence in the batch.
     @param merge_repeated: The flag for merging repeated labels during the CTC calculation.
@@ -267,6 +298,7 @@ def ctc_greedy_decoder(
 def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies ceiling to the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: The node providing data to ceiling operation.
     @param name: Optional name for output node.
     @return The node performing element-wise ceiling.
@@ -280,6 +312,7 @@ def clamp(
 ) -> Node:
     """Perform clamp element-wise on data from input node.
 
+    @ingroup ngraph_python_api
     @param data: Input tensor. One of: input node, array or scalar.
     @param min_value: The lower bound of the <min_value;max_value> range. Scalar value.
     @param max_value: The upper bound of the <min_value;max_value> range. Scalar value.
@@ -311,6 +344,7 @@ def clamp(
 def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Node:
     """Concatenate input nodes into single new node along specified axis.
 
+    @ingroup ngraph_python_api
     @param nodes: The nodes we want concatenate into single new node.
     @param axis: The axis along which we want to concatenate input nodes.
     @param name: The optional new name for output node.
@@ -323,6 +357,7 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
 def constant(value: NumericData, dtype: NumericType = None, name: Optional[str] = None) -> Constant:
     """Create a Constant node from provided value.
 
+    @ingroup ngraph_python_api
     @param value: One of: array of values or scalar to initialize node with.
     @param dtype: The data type of provided data.
     @param name: Optional name for output node.
@@ -337,6 +372,7 @@ def convert(
 ) -> Node:
     """Return node which casts input node values to specified type.
 
+    @ingroup ngraph_python_api
     @param data: Node which produces the input tensor.
     @param destination_type: Provides the target type for the conversion.
     @param name: Optional name for the output node.
@@ -353,6 +389,7 @@ def convert(
 def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which casts data node values to the type of another node.
 
+    @ingroup ngraph_python_api
     @param data: Node which produces the input tensor
     @param like: Node which provides the target type information for the conversion
     @param name: Optional name for the output node.
@@ -374,6 +411,7 @@ def convolution(
 ) -> Node:
     """Return node performing batched convolution operation.
 
+    @ingroup ngraph_python_api
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
     @param strides: The kernel window movement strides.
@@ -412,6 +450,7 @@ def convolution_backprop_data(
 ) -> Node:
     """Create node performing a batched-convolution backprop data operation.
 
+    @ingroup ngraph_python_api
     @param      data:         The node producing data from forward-prop
     @param      filters:      The node producing the filters from forward-prop.
     @param      output_shape: The node producing output delta.
@@ -458,6 +497,7 @@ def convolution_backprop_data(
 def cos(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply cosine function on the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with cos operation applied on it.
@@ -469,6 +509,7 @@ def cos(node: NodeInput, name: Optional[str] = None) -> Node:
 def cosh(node: NodeInput, name: Optional[str] = None) -> Node:
     """Apply hyperbolic cosine function on the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
     @return New node with cosh operation applied on it.
@@ -492,6 +533,7 @@ def deformable_convolution(
 ) -> Node:
     """Create node performing deformable convolution.
 
+    @ingroup ngraph_python_api
     @param data: The node providing data batch tensor.
     @param filter: The node providing filters tensor.
     @param strides: The distance (in pixels) to slide the filter on the feature map over the axes.
@@ -540,6 +582,7 @@ def deformable_psroi_pooling(
     DeformablePSROIPooling computes position-sensitive pooling
     on regions of interest specified by input.
 
+    @ingroup ngraph_python_api
     @param feature_maps: 4D tensor with feature maps.
     @param coords: 2D tensor describing box consisting of tuples: [batch_id, x_1, y_1, x_2, y_2].
     @param output_dim: A pooled output channel number.
@@ -587,6 +630,7 @@ def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None)
 
     [N, C * `block_size` * `block_size`, H / `block_size`, W / `block_size`]
 
+    @ingroup ngraph_python_api
     @param node: The node with input tensor data.
     @param mode: Specifies how the input depth dimension is split to block coordinates
 
@@ -615,6 +659,7 @@ def detection_output(
 ) -> Node:
     """Generate the detection output using information on location and confidence predictions.
 
+    @ingroup ngraph_python_api
     @param  box_logits:         The 2D input tensor with box logits.
     @param  class_preds:        The 2D input tensor with class predictions.
     @param  proposals:          The 3D input tensor with proposals.
@@ -774,6 +819,7 @@ def divide(
 ) -> Node:
     """Return node which applies f(x) = A/B to the input nodes element-wise.
 
+    @ingroup ngraph_python_api
     @param left_node: The node providing dividend data.
     @param right_node: The node providing divisor data.
     @param auto_broadcast: Specifies rules used for auto-broadcasting of input tensors.
@@ -794,6 +840,7 @@ def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node
     For more information refer to:
     [Fast and Accurate Deep Network Learning by Exponential Linear Units](http://arxiv.org/abs/1511.07289)
 
+    @ingroup ngraph_python_api
     @param data: Input tensor. One of: input node, array or scalar.
     @param alpha: Scalar multiplier for negative values.
     @param name: Optional output node name.
@@ -811,6 +858,7 @@ def equal(
 ) -> Node:
     """Return node which checks if input nodes are equal element-wise.
 
+    @ingroup ngraph_python_api
     @param left_node: The first input node for equal operation.
     @param right_node: The second input node for equal operation.
     @param auto_broadcast: The type of broadcasting specifies rules used for
@@ -827,6 +875,7 @@ def equal(
 def erf(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which calculates Gauss error function element-wise with given tensor.
 
+    @ingroup ngraph_python_api
     @param node: The node providing data for operation.
     @param name: The optional name for new output node.
     @return The new node performing element-wise Erf operation.
@@ -838,6 +887,7 @@ def erf(node: NodeInput, name: Optional[str] = None) -> Node:
 def exp(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies exponential function to the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: The node providing data for operation.
     @param name: The optional name for new output node.
     @return The new node performing natural exponential operation.
@@ -858,6 +908,7 @@ def fake_quantize(
 ) -> Node:
     r"""Perform an element-wise linear quantization on input data.
 
+    @ingroup ngraph_python_api
     @param data:           The node with data tensor.
     @param input_low:      The node with the minimum for input values.
     @param input_high:     The node with the maximum for input values.
@@ -897,6 +948,7 @@ def fake_quantize(
 def floor(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies floor to the input node element-wise.
 
+    @ingroup ngraph_python_api
     @param node: The input node providing data.
     @param name: The optional name for new output node.
     @return The node performing element-wise floor operation.
@@ -913,6 +965,7 @@ def floor_mod(
 ) -> Node:
     """Return node performing element-wise FloorMod (division reminder) with two given tensors.
 
+    @ingroup ngraph_python_api
     @param left_node: The first input node for FloorMod operation.
     @param right_node: The second input node for FloorMod operation.
     @param auto_broadcast: Specifies rules used for auto-broadcasting of input tensors.

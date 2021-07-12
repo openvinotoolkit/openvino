@@ -1,0 +1,139 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local sectionName = argArray[2]
+local indent = ""
+local unnamedStack = {}
+local unnamedStackSize = 0
+local isLastUnnamed = false
+}
+	// $sectionName
+
+%{
+local i = 1
+while i <= #compound.variableArray do
+	local item = compound.variableArray[i]
+
+	if not isUnnamedItem(item) then
+		local modifiers = ""
+		local suffix = ""
+
+		if item.modifiers ~= "" then
+			modifiers = " " .. item.modifiers
+		end
+
+		if item.argString ~= "" then
+			suffix = g_preParamSpace .. item.argString
+		elseif item.bitField  ~= "" then
+			suffix = g_preParamSpace .. ":" .. item.bitField
+		end
+
+		local unnamed = isMemberOfUnnamedType(item)
+		if unnamed then
+			if i > 1 then
+				emit("\n")
+			end
+
+			while unnamed ~= "" do
+				local m, t, n = string.match(unnamed, "^((%a+)[/:](%d+)/*)")
+				if not m then
+					m, t = string.match(unnamed, "^((%a+)/*)")
+					if not m then
+						break
+					end
+				end
+}
+	$indent$t$g_preBodySpace$indent{
+%{
+				unnamed = string.sub(unnamed, string.len(m) + 1)
+				unnamedStackSize = unnamedStackSize + 1
+				unnamedStack[unnamedStackSize] = n
+				indent = indent .. "\t"
+			end -- while
+
+			isLastUnnamed = false
+		end
+
+		if isLastUnnamed then
+			emit("\n")
+			isLastUnnamed = false
+		end
+
+		local static = ""
+		if string.find(item.flags, "static") then
+			static = "static "
+		end
+
+		local initializer = getLinkedTextString(item.initializer, true)
+		if string.len(initializer) > 0 then
+			initializer = " " .. initializer
+		end
+}
+	$indent$static$(getLinkedTextString(item.type, true))$modifiers $(getItemNameForOverview(item))$suffix$initializer;
+%{
+	else -- unnamed item
+		local j
+		for j = 1, unnamedStackSize do
+			if not unnamedStack[j] then -- terminate this stack entry and everything above
+				local k
+				for k = j, unnamedStackSize do
+					unnamedStack[k] = 0
+				end -- for
+
+				break
+			end -- if
+		end -- for
+	end -- if
+
+	while unnamedStackSize > 0 do
+		if not unnamedStack[unnamedStackSize] then
+			break -- wait for unnamed variable @n to terminate this stack entry
+		end
+
+		unnamedStack[unnamedStackSize] = unnamedStack[unnamedStackSize] - 1
+		if unnamedStack[unnamedStackSize] > 0 then
+			break
+		end
+
+		indent = string.sub(indent, 2) -- remove 1 tab
+		unnamedStackSize = unnamedStackSize - 1
+		isLastUnnamed = true
+
+		local useNextItem = false
+		local nextItem = compound.variableArray[i + 1]
+		if nextItem and not isUnnamedItem(nextItem) then
+			local typeString = getLinkedTextString(nextItem.type, false)
+			useNextItem = string.find(typeString, "@") -- next item is a field of THIS unnamed type
+		end
+
+		if useNextItem then
+			local modifiers = ""
+			if nextItem.modifiers ~= "" then
+				modifiers = " " .. nextItem.modifiers
+			end
+
+			i = i + 1 -- skip next
+}
+	$indent}$modifiers $(getItemNameForOverview(nextItem));
+%{
+		else
+}
+	$indent};
+%{
+		end -- if
+	end -- while
+
+	i = i + 1
+end -- while
+}

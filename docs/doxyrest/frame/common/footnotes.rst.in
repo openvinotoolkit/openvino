@@ -1,0 +1,33 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+}
+
+---------------------
+
+.. rubric:: Footnotes
+
+%{
+	for i = 1, #compound.footnoteArray do
+		local item = compound.footnoteArray[i]
+		local text = getItemDetailedDocumentation(item)
+		text = replaceCommonSpacePrefix(text, "\t")
+}
+.. [#$(item.name)]
+
+$text
+
+%{
+	end -- for
+}

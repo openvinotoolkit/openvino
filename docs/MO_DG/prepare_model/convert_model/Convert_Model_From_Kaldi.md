@@ -1,5 +1,15 @@
 # Converting a Kaldi* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with Kaldi\*:
 
 1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for Kaldi\*.

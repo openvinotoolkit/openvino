@@ -4,6 +4,11 @@
 #distutils: language=c++
 #cython: embedsignature=True
 
+## @package pyexample
+#  @defgroup ie_python_api Inference Engine Python API
+#  Inference Engine Python API
+#  @ingroup api_ref
+
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -67,6 +72,7 @@ def read_network(path_to_xml : str, path_to_bin : str):
 
 
 ## This class manages data for reset operations
+#  @ingroup ie_python_api
 cdef class VariableState:
     ## Reset internal variable state for relevant infer request
     # to a value specified as default for according ReadValue node
@@ -92,6 +98,7 @@ cdef class VariableState:
 
 
 ## This class defines Tensor description
+#  @ingroup ie_python_api
 cdef class TensorDesc:
 
     def __eq__(self, other : TensorDesc):
@@ -146,6 +153,7 @@ cdef class TensorDesc:
         self.impl.setLayout(layout_str_to_enum[layout])
 
 ## This class represents Blob
+#  @ingroup ie_python_api
 cdef class Blob:
     ## Class constructor
     # @param tensor_desc: TensorDesc object describing creating Blob object.
@@ -278,6 +286,7 @@ cdef class Blob:
         return tensor_desc
 
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
+#  @ingroup ie_python_api
 cdef class IECore:
     ## Class constructor
     # @param xml_config_file:  A full path to `.xml` file containing plugins configuration.
@@ -538,6 +547,7 @@ cdef class IECore:
         return [d.decode() for d in c_devices]
 
 ## This structure stores info about pre-processing of network inputs (scale, mean image, ...)
+#  @ingroup ie_python_api
 cdef class PreProcessChannel:
     property mean_value:
         def __get__(self):
@@ -561,6 +571,7 @@ cdef class PreProcessChannel:
             deref(self._ptr).meanData = mean_data._ptr
 
 ## This class stores pre-process information for the input
+#  @ingroup ie_python_api
 cdef class PreProcessInfo:
     def __cinit__(self):
         self._ptr = new CPreProcessInfo()
@@ -662,6 +673,7 @@ cdef class PreProcessInfo:
 
 
 ## This class contains information about each input of the network
+#  @ingroup ie_python_api
 cdef class InputInfoPtr:
     ## Name of this input
     @property
@@ -734,6 +746,7 @@ cdef class InputInfoPtr:
 
 ## This class contains const information about each input of the network.
 #  Provides same interface as InputInfoPtr object except properties setters
+#  @ingroup ie_python_api
 cdef class InputInfoCPtr:
     ## Name of this input
     @property
@@ -767,6 +780,7 @@ cdef class InputInfoCPtr:
 
 
 ## This class is the layer data representation.
+#  @ingroup ie_python_api
 cdef class DataPtr:
     ## Default constructor
     def __init__(self):
@@ -812,6 +826,7 @@ cdef class DataPtr:
 
 
 ## This class is the layer constant data representation. Provides same interface as DataPtr object except properties setters
+#  @ingroup ie_python_api
 cdef class CDataPtr:
     ## Name of the data object
     @property
@@ -840,6 +855,7 @@ cdef class CDataPtr:
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
+#  @ingroup ie_python_api
 cdef class ExecutableNetwork:
     ## There is no explicit class constructor. To make a valid instance of `ExecutableNetwork`,
     #  use `load_network()` method of the `IECore` class.
@@ -1037,6 +1053,7 @@ ctypedef extern void (*cb_type)(void*, int) with gil
 
 ## This class provides an interface to infer requests of `ExecutableNetwork` and serves to handle infer requests execution
 #  and to set and get output data.
+#  @ingroup ie_python_api
 cdef class InferRequest:
     ## There is no explicit class constructor. To make a valid `InferRequest` instance, use `load_network()`
     #  method of the `IECore` class with specified number of requests to get `ExecutableNetwork` instance
@@ -1330,6 +1347,7 @@ cdef class InferRequest:
 
 ## This class contains the information about the network model read from IR and allows you to manipulate with
 #  some model parameters such as layers affinity and output layers.
+#  @ingroup ie_python_api
 cdef class IENetwork:
     ## Class constructor
     #

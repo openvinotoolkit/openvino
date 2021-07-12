@@ -14,6 +14,13 @@
  * is allocated and manage inference flow.
 **/
 
+/**
+ *  @defgroup ie_c_api Inference Engine C API
+ *  @ingroup api_ref
+ *  Inference Engine C API
+ */
+
+
 #ifndef IE_C_API_H
 #define IE_C_API_H
 
@@ -329,6 +336,7 @@ INFERENCE_ENGINE_C_API(void) ie_param_free(ie_param_t *param);
 
 /**
  * @defgroup Core Core
+ * @ingroup ie_c_api
  * Set of functions dedicated to working with registered plugins and loading
  * network to the registered devices.
  * @{
@@ -520,6 +528,7 @@ INFERENCE_ENGINE_C_API(void) ie_core_available_devices_free(ie_available_devices
 
 /**
  * @defgroup ExecutableNetwork ExecutableNetwork
+ * @ingroup ie_c_api
  * Set of functions representing of neural networks been loaded to device.
  * @{
  */
@@ -581,6 +590,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_config(con
 
 /**
  * @defgroup InferRequest InferRequest
+ * @ingroup ie_c_api
  * Set of functions responsible for dedicated inference for certain
  * ExecutableNetwork.
  * @{
@@ -665,6 +675,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_set_batch(ie_
 
 /**
  * @defgroup Network Network
+ * @ingroup ie_c_api
  * Set of functions managing network been read from the IR before loading
  * of it to the device.
  * @{
@@ -905,6 +916,7 @@ INFERENCE_ENGINE_C_API(void) ie_network_name_free(char **name);
 
 /**
  * @defgroup Blob Blob
+ * @ingroup ie_c_api
  * Set of functions allowing to research memory from infer requests or make new
  * memory objects to be passed to InferRequests.
  * @{

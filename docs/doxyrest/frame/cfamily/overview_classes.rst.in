@@ -1,0 +1,44 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local itemArray = argArray[2]
+local sectionName = argArray[3]
+}
+	// $sectionName
+
+%{
+local isPrevMl = false
+
+for i = 1, #itemArray do
+	local item = itemArray[i]
+	local targetFileName = getItemFileName(item)
+
+	if compound.compoundKind ~= "group" and not compound.isBaseCompound then
+		generateFile(targetFileName, "class.rst.in", item)
+	end
+
+	local decl = getClassDeclString(item, g_refItemNameTemplate, "\t")
+	local isMl = string.find(decl, "\n")
+	local extraSep = ""
+
+	if i > 1 and isMl or isPrevMl then
+		extraSep = "\n"
+	end
+
+	isPrevMl = isMl
+}
+$extraSep	$decl;
+%{
+end -- for
+}

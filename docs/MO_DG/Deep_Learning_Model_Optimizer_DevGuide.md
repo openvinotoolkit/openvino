@@ -1,5 +1,18 @@
 # Model Optimizer Developer Guide {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
+   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+   openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
+   openvino_docs_MO_DG_Known_Issues_Limitations
+
+@endsphinxdirective
+
 ## Introduction 
 
 Model Optimizer is a cross-platform command-line tool that facilitates the transition between the training and deployment environment, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices.
@@ -33,18 +46,24 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 
 ## Videos
 
-\htmlonly
-<table>
-  <tr>
-    <td><iframe width="220" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
-    <td><iframe width="220" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
-    <td><iframe width="220" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></td>
-  </tr>
-  <tr>
-    <td><strong>Model Optimizer Concept</strong>. <br>Duration: 3:56</td>
-    <td><strong>Model Optimizer Basic<br> Operation</strong>. <br>Duration: 2:57.</td>
-    <td><strong>Choosing the Right Precision</strong>. <br>Duration: 4:18.</td>
-  </tr>
-</table>
-\endhtmlonly
+@sphinxdirective
 
+.. list-table::
+
+   * - .. youtube:: Kl1ptVb7aI8
+          :width: 220px
+
+     - .. youtube:: BBt1rseDcy0
+          :width: 220px
+
+     - .. youtube:: RF8ypHyiKrY
+          :width: 220px
+
+   * - **Model Optimizer Concept.**
+     - **Model Optimizer Basic Operation.**
+     - **Choosing the Right Precision.**
+   * - Duration: 3:56
+     - Duration: 2:57
+     - Duration: 4:18
+
+@endsphinxdirective

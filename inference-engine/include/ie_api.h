@@ -3,6 +3,17 @@
 //
 
 /**
+ *  @defgroup api_ref API Reference
+ *  Inference Engine API
+ */
+
+/**
+ *  @defgroup ie_cpp_api Inference Engine C++ API
+ *  @ingroup api_ref
+ *  Inference Engine C++ API
+ */
+
+/**
  * @brief The macro defines a symbol import/export mechanism essential for Microsoft Windows(R) OS.
  *
  * @file ie_api.h

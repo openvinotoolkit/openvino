@@ -1,5 +1,27 @@
 # Converting a TensorFlow* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_NCF_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_BERT_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_XLNet_From_Tensorflow
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models
+   openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the TensorFlow\* framework:
 
 1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for TensorFlow\* (TensorFlow was used to train your model).
@@ -405,10 +427,14 @@ Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for th
 The Model Optimizer provides explanatory messages if it is unable to run to completion due to issues like typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the [Model Optimizer FAQ](../Model_Optimizer_FAQ.md). The FAQ has instructions on how to resolve most issues. The FAQ also includes links to relevant sections in the Model Optimizer Developer Guide to help you understand what went wrong.
 
 ## Video: Converting a TensorFlow Model
-[![](https://img.youtube.com/vi/QW6532LtiTc/0.jpg)](https://www.youtube.com/watch?v=QW6532LtiTc)
-\htmlonly
-<iframe width="560" height="315" src="https://www.youtube.com/embed/QW6532LtiTc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\endhtmlonly
+
+@sphinxdirective
+
+.. youtube:: QW6532LtiTc
+   :width: 560px
+   :height: 315px
+
+@endsphinxdirective
 
 ## Summary
 In this document, you learned:

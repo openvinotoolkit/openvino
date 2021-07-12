@@ -1,0 +1,60 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local page = argArray[1]
+
+if FORCE_INCLUDE_FILE then
+}
+.. include:: $FORCE_INCLUDE_FILE
+%{
+end -- if
+}
+.. index:: pair: page; $(page.title)
+.. _doxid-$(page.id):
+
+$(getTitle(page.title, 1))
+
+$(getItemDetailedDocumentation(page))
+
+%{
+if #page.subPageArray > 0 then
+}
+.. toctree::
+	:hidden:
+
+%{
+	table.sort(page.subPageArray, cmpTitles)
+	local pageTree = ""
+
+	for i = 1, #page.subPageArray do
+		local page = page.subPageArray[i]
+		local targetFileName = getItemFileName(page)
+
+		generateFile(targetFileName, "page.rst.in", page)
+
+		if targetFileName ~= INTRO_FILE then
+			pageTree = pageTree .. getPageTree(page, targetFileName)
+}
+	$(targetFileName)
+%{
+		end -- if
+	end -- for
+}
+
+.. rubric:: Related Pages:
+
+$pageTree
+
+%{
+end -- if
+}

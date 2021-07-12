@@ -1,5 +1,19 @@
 # Converting a ONNX* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2
+   openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM
+   openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch
+
+@endsphinxdirective
+
 ## Introduction to ONNX
 
 [ONNX*](https://github.com/onnx/onnx) is a representation format for deep learning models. ONNX allows AI developers easily transfer models between different frameworks that helps to choose the best combination for them. Today, PyTorch\*, Caffe2\*, Apache MXNet\*, Microsoft Cognitive Toolkit\* and other tools are developing ONNX support.

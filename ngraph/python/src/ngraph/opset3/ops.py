@@ -44,11 +44,14 @@ _get_node_factory_opset3 = partial(_get_node_factory, "opset3")
 
 # -------------------------------------------- ops ------------------------------------------------
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
+    @ingroup ngraph_python_api
     @param new_value:    Node producing a value to be assigned to a variable.
     @param variable_id:  Id of a variable to be updated.
     @param name:         Optional name for output node.
@@ -60,7 +63,9 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
         {"variable_id": variable_id}
     )
 
-
+## test
+#
+# @ingroup ngraph_python_api
 @nameable_op
 def broadcast(
     data: NodeInput,
@@ -70,7 +75,8 @@ def broadcast(
     name: Optional[str] = None,
 ) -> Node:
     """Create a node which broadcasts the input node's values along specified axes to a desired shape.
-
+    
+    @ingroup python_ngraph_api
     @param data: The node with input tensor data.
     @param target_shape: The node with a new shape we want to broadcast tensor to.
     @param axes_mapping: The node with a axis positions (0-based) in the result
@@ -98,6 +104,7 @@ def bucketize(
 ) -> Node:
     """Return a node which produces the Bucketize operation.
 
+    @ingroup python_ngraph_api
     @param data:              Input data to bucketize
     @param buckets:           1-D of sorted unique boundaries for buckets
     @param output_type:       Output tensor type, "i64" or "i32", defaults to i64
@@ -114,6 +121,9 @@ def bucketize(
 
 
 @nameable_op
+## test
+#
+# @ingroup ngraph_python_api
 def cum_sum(
     arg: NodeInput,
     axis: NodeInput,
@@ -134,6 +144,9 @@ def cum_sum(
     )
 
 
+## test
+#
+# @ingroup ngraph_python_api
 @nameable_op
 def embedding_bag_offsets_sum(
     emb_table: Node,
@@ -164,6 +177,9 @@ def embedding_bag_offsets_sum(
 
 
 @nameable_op
+## test
+#
+# @ingroup ngraph_python_api
 def embedding_bag_packed_sum(
     emb_table: NodeInput,
     indices: NodeInput,

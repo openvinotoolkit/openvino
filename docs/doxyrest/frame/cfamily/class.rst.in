@@ -1,0 +1,36 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local class = argArray[1]
+
+local templatePrefix = ""
+if #class.templateParamArray > 0 or #class.templateSpecParamArray > 0 then
+	templatePrefix = "template "
+end
+
+local titleName = getItemQualifiedName(class)
+
+if FORCE_INCLUDE_FILE then
+}
+.. include:: $FORCE_INCLUDE_FILE
+%{
+end -- if
+}
+.. index:: pair: $(class.compoundKind); $titleName
+.. _doxid-$(class.id):
+
+$(getTitle(templatePrefix .. class.compoundKind .. " " .. titleName, 1))
+
+%{
+includeFile("compound.rst.in", class)
+}

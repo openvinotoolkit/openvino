@@ -1,5 +1,16 @@
 # Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_Style_Transfer_From_MXNet
+   openvino_docs_MO_DG_prepare_model_convert_model_mxnet_specific_Convert_GluonCV_Models
+
+@endsphinxdirective
+
 A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
 
 1. [Configure the Model Optimizer](../Config_Model_Optimizer.md) for MXNet* (MXNet was used to train your model)
