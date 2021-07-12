@@ -29,7 +29,7 @@ public:
 
 protected:
     void SetUp() override;
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 };
 
 }  // namespace LayerTestsDefinitions
-
