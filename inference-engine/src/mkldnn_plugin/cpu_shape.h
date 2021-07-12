@@ -101,7 +101,6 @@ public:
     }
 
     bool operator == (const Shape& rhs) const {
-        // TODO [DS]: Shouldn't we check dims as well?
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
 

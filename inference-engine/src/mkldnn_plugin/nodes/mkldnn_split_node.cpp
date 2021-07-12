@@ -310,7 +310,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isConfigDefined(config))
         return;
-    //TODO [mkutakov]: why did we introduce this loop?
+    //TODO [mkutakov]: code cleanup
 //    for (size_t i = 0; i < config.outConfs.size(); i++) {
 ////        if (config.outConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
 ////                !isUninitTensorDesc(config.outConfs[i].desc))
