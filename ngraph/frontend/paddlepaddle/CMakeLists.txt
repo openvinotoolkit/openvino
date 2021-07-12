@@ -29,8 +29,6 @@ else()
     set(PDPD_PROTOC_EXECUTABLE $<TARGET_FILE:protoc>)
 endif()
 
-message("PDPD_PROTOC_EXECUTABLE is [${PDPD_PROTOC_EXECUTABLE}]")
-
 foreach(INFILE ${proto_files})
     get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
     get_filename_component(FILE_WE ${INFILE} NAME_WE)
@@ -52,7 +50,7 @@ add_custom_target(${TARGET_NAME}_proto DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRUE)
 
 # Disable all warnings for generated code
-set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_FLAGS -w)
+set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w)
 
 # Create shared library
 add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
@@ -62,10 +60,6 @@ add_dependencies(${TARGET_NAME} libprotobuf paddlepaddle_ngraph_frontend_proto)
 if(NOT WIN32)
     # Addition dependency on static libprotobuf for non-Windows
     add_dependencies(${TARGET_NAME} libprotobuf_static)
-endif()
-
-if (TARGET ext_protobuf)
-    add_dependencies(${TARGET_NAME} ext_protobuf)
 endif()
 
 target_include_directories(${TARGET_NAME}

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Sin-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Sin* performs element-wise sine operation with given tensor.
 
@@ -19,11 +19,11 @@ a - value representing angle in radians.
 
 **Inputs**
 
-* **1**: An tensor of type T and arbitrary rank. **Required.**
+* **1**: An tensor of type *T* and arbitrary rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sin operation. A tensor of type T.
+* **1**: The result of element-wise sin operation. A tensor of type *T*.
 
 **Types**
 

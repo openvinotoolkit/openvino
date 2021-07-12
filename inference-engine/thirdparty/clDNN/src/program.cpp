@@ -94,7 +94,6 @@ program_impl::program_impl(engine& engine_ref,
       tuning_cache(nullptr),
       is_body_program(is_body_program) {
     init_primitives();
-    kernel_selector::KernelBase::ResetCounter();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
