@@ -33,15 +33,9 @@
 #include <utility>
 #include <map>
 
-// #define DEBUG_DUMP_PATH "cldnn_dump/"
-
-#ifdef DEBUG_DUMP_PATH
+#ifdef GPU_DEBUG_CONFIG
 #include <iomanip>
 #include <fstream>
-
-#define DUMP_VERBOSE 0
-#define DUMP_SINGLE_LAYER 0
-#define DUMP_LAYER_NAME ""
 #endif
 
 namespace cldnn {
@@ -131,7 +125,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
-#ifdef DEBUG_DUMP_PATH
+#ifdef GPU_DEBUG_CONFIG
 static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
     return val;
@@ -180,6 +174,19 @@ float convert_element(float f) { return f; }
 
 float convert_element(half_t h) { return convert_half_to_float(h); }
 
+static size_t get_x_pitch(const layout& layout) {
+    try {
+        auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
+        auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
+        auto x0 = layout.get_linear_offset(tensor_x0);
+        auto x1 = layout.get_linear_offset(tensor_x1);
+        return (x1 - x0);
+    } catch (...) {
+        // When spatial size of x=0, x_pitch is meaningless
+        return 0;
+    }
+}
+
 template <class T>
 static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
     auto&& size = mem->get_layout().size;
@@ -189,6 +196,8 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
 
     mem_lock<T> lock(mem, stream);
     auto mem_ptr = lock.data();
+    auto x_pitch = get_x_pitch(mem->get_layout());
+    std::stringstream buffer;
 
     for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
         for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
@@ -196,10 +205,11 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
                 for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
                     for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
                         for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                            for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
-                                cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, w));
-                                size_t input_it = mem->get_layout().get_linear_offset(t);
-                                file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                            cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
+                            size_t input_it = mem->get_layout().get_linear_offset(t);
+
+                            for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
+                                buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
                             }
                         }
                     }
@@ -207,6 +217,7 @@ static void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
             }
         }
     }
+    file_stream << buffer.str();
 }
 template <>
 void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream) {
@@ -238,12 +249,13 @@ void dump<uint32_t>(memory::ptr mem, stream& stream, std::ofstream& file_stream)
 }
 
 static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::string filename = layerName;
     std::replace(filename.begin(), filename.end(), '\\', '_');
     std::replace(filename.begin(), filename.end(), '/', '_');
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
-        filename = DEBUG_DUMP_PATH + filename + ".txt";
+        filename = debug_config->dump_layers_path + filename + ".txt";
 
     std::ofstream file_stream(filename);
     auto mem_dt = mem->get_layout().data_type;
@@ -259,6 +271,12 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
         dump<int8_t>(mem, stream, file_stream);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(mem, stream, file_stream);
+}
+#else
+static void log_memory_to_file(memory::ptr mem, stream& stream, std::string layerName) {
+    (void)mem;
+    (void)stream;
+    (void)layerName;
 }
 #endif
 /*
@@ -487,25 +505,24 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
     set_arguments();
 
     for (auto& inst : _exec_order) {
-#ifdef DEBUG_DUMP_PATH
-        auto& node = _program->get_node(inst->id());
-
-        std::string layer_name = node.id();
-#if DUMP_VERBOSE
-        std::cerr << get_primitive_info(inst->id()) << std::endl;
-#endif
-#if DUMP_SINGLE_LAYER
-        if (layer_name == DUMP_LAYER_NAME) {
-#endif
-            std::cerr << "Dump " << layer_name << " layer" << std::endl;
-            for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
-                log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
-                                   layer_name + "_src_" + std::to_string(i));
+        GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+            auto& node = _program->get_node(inst->id());
+            std::string layer_name = node.id();
+            GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                std::cerr << get_primitive_info(inst->id()) << std::endl;
             }
-#if DUMP_SINGLE_LAYER
+
+            GPU_DEBUG_IF(debug_config->dump_layers_dst_only == 0 &&
+                            (debug_config->dump_layers.length() == 0 ||
+                            (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos))) {
+                std::cout << "Dump " << layer_name << " layer src" << std::endl;
+                for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
+                    log_memory_to_file(get_primitive(inst->id())->dep_memory_ptr(i), get_stream(),
+                                    layer_name + "_src_" + std::to_string(i));
+                }
+            }
         }
-#endif
-#endif
+
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
         }
@@ -517,16 +534,16 @@ void network_impl::execute(const std::vector<event::ptr>& events) {
         }
         execute_primitive(inst, events);
 
-#ifdef DEBUG_DUMP_PATH
-        get_stream().finish();
-#if DUMP_SINGLE_LAYER
-        if (layer_name == DUMP_LAYER_NAME)
-#endif
-        {
-            log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+        GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
+            get_stream().finish();
+            auto& node = _program->get_node(inst->id());
+            std::string layer_name = node.id();
+            GPU_DEBUG_IF(debug_config->dump_layers.length() == 0 ||
+                        (debug_config->dump_layers.length() != 0 && debug_config->dump_layers.find(" " + layer_name + " ") != std::string::npos)) {
+                std::cout << "Dump " << layer_name << " layer dst" << std::endl;
+                log_memory_to_file(get_primitive(inst->id())->output_memory_ptr(), get_stream(), layer_name + "_dst_0");
+            }
         }
-
-#endif
     }
 
     for (auto& inst : _program->get_processing_order()) {
