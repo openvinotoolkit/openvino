@@ -427,8 +427,8 @@ def test_sink_function_ctor():
     assert function.get_friendly_name() == "TestFunction"
 
 
-def test_node_opset_version():
+def test_node_version():
     node = ng.add([1], [2])
 
-    assert node.get_opset_version() == "opset1"
-    assert node.opset_version == "opset1"
+    assert node.get_version() == 1
+    assert node.version == 1
