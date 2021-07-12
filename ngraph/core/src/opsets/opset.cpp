@@ -28,8 +28,8 @@ ngraph::Node* ngraph::OpSet::create_insensitive(const std::string& name) const
 {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
     return type_info_it == m_case_insensitive_type_info_map.end()
-           ? nullptr
-           : m_factory_registry.create(type_info_it->second);
+               ? nullptr
+               : m_factory_registry.create(type_info_it->second);
 }
 
 const ngraph::OpSet& ngraph::get_opset1()
