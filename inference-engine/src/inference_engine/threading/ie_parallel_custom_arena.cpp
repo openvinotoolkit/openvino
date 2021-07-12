@@ -6,17 +6,7 @@
 
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 
-#ifndef TBBBIND_2_4_AVAILABLE
-# define TBBBIND_2_4_AVAILABLE 0
-#endif
-
-#define USE_TBBBIND_2_4 (TBBBIND_2_4_AVAILABLE && TBB_INTERFACE_VERSION < 12020)
-#define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
-#define TBB_HYBRID_CPUS_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 12020)
-
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-#endif
+#if !defined(_WIN32) && !defined(_WIN64)
 
 namespace custom {
 namespace detail {
@@ -263,4 +253,7 @@ int default_concurrency(numa_node_id id) {
 
 } // namespace info
 } // namespace custom
+
+#endif
+
 #endif /*IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO*/

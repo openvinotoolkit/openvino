@@ -102,7 +102,7 @@ std::vector<int> getAvailableNUMANodes() {
 }
 // this is impl only with the TBB
 std::vector<int> getAvailableCoresTypes() {
-    return custom::info::core_types();
+    return {std::begin(custom::info::core_types()), std::end(custom::info::core_types())};
 }
 #else
 // as the core types support exists only with the TBB, the fallback is same for any other threading API
