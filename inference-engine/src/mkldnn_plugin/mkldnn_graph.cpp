@@ -296,20 +296,19 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
         }
     }
 
-    // TODO [DS]: Reimplement preprocessing for dynamic shapes
     // Loading mean images
-//    for (const auto& input : inputsInfo) {
-//        MKLDNNDims outDims;
-//        if (!inputNodesMap[input.first]->getChildEdgeAt(0)->getDims().ndims()) {
-//            outDims = MKLDNNDims(InferenceEngine::SizeVector(1, 1));
-//        } else {
-//            outDims = inputNodesMap[input.first]->getChildEdgeAt(0)->getDims();
-//        }
-//        InputInfo::Ptr ii = inputsInfo[input.first];
-//        if (ii && ii->getPreProcess().getNumberOfChannels()) {
-//            _normalizePreprocMap[input.first].Load(outDims, ii);
-//        }
-//    }
+    for (const auto& input : inputsInfo) {
+        Shape outShape;
+        if (!inputNodesMap[input.first]->outputShapes.front().getRank()) {
+            outShape =  Shape(SizeVector({1, 1}));
+        } else {
+            outShape = inputNodesMap[input.first]->outputShapes.front();
+        }
+        InputInfo::Ptr ii = inputsInfo[input.first];
+        if (ii && ii->getPreProcess().getNumberOfChannels()) {
+            _normalizePreprocMap[input.first].Load(outShape, ii);
+        }
+    }
 }
 
 void MKLDNNGraph::InitGraph() {

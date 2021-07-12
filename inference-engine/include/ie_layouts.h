@@ -303,6 +303,13 @@ public:
      * @return the standard memory layout
      */
     static Layout getLayoutByDims(const SizeVector& dims);
+
+    /**
+     * @brief Returns the standard layout for the specified tensor rank
+     *
+     * @param rank of the requested layout
+     * @return the standard memory layout
+     */
     static Layout getLayoutByRank(size_t rank);
 
 private:
