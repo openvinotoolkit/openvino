@@ -16,16 +16,45 @@ using namespace InferenceEngine;
 AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&           inferRequest,
                                const AutoExecutableNetwork::Ptr&      autoExecutableNetwork,
                                const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor)
-                               : AsyncInferRequestThreadSafeDefault(inferRequest, autoExecutableNetwork, callbackExecutor) {
+                               : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor)
+                               , _inferRequest(inferRequest) {
+    // this executor starts the inference while  the task (checking the result) is passed to the next stage
+    struct ThisRequestExecutor : public ITaskExecutor {
+        explicit ThisRequestExecutor(AutoAsyncInferRequest* _this_) : _this{_this_} {}
+        void run(Task task) override {
+            auto workerInferRequest = _this->_workerInferRequest;
+            workerInferRequest->_task = std::move(task);
+            workerInferRequest->_inferRequest->StartAsync();
+        };
+        AutoAsyncInferRequest* _this = nullptr;
+    };
+
     // todo: redefine _pipeline
+    _pipeline = {
+        // schedule a worker for current infer request, then we need sets the device-agnostic blobs to the actual (scheduled device-specific) request
+        { autoExecutableNetwork, [this](){
+            _workerInferRequest = AutoExecutableNetwork::_thisWorkerInferRequest;
+            _inferRequest->SetBlobsToAnotherRequest(_workerInferRequest->_inferRequest);
+        }},
+        // final task in the pipeline:
+        { /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(this), /*task*/ [this] {
+            if (nullptr != _workerInferRequest->_exceptionPtr) {
+                std::rethrow_exception(_workerInferRequest->_exceptionPtr);
+            }
+            // fixme: this causes a exception for both master branch and current. both MULTI:GPU and AUTO:GPU
+//            if (true)
+//                _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+        }}
+    };
 }
 void AutoAsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoAsyncInferRequest::GetPerformanceCounts() const {
     CheckState();
-    return {};
+    return _perfMap;
 }
+
 AutoAsyncInferRequest::~AutoAsyncInferRequest() {
     StopAndWait();
 }

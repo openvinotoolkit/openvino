@@ -153,6 +153,9 @@ public:
 
     ~AutoExecutableNetwork();
 
+    // todo: if pipeline task could have parameters, this could be not needed.
+    static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
+
 private:
     void WaitForActualDevice() const;
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
@@ -166,8 +169,8 @@ private:
     mutable std::atomic<bool> _alreadyActualNetwork = {false};
     std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
     AutoInferencePlugin* _autoPlugin;
-    DeviceMap<std::vector<WorkerInferRequest>> _workerRequests;
-    DeviceMap<NotBusyWorkerRequests>           _idleWorkerRequests;
+    std::vector<WorkerInferRequest> _workerRequests;
+    NotBusyWorkerRequests           _idleWorkerRequests;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
 };
 
