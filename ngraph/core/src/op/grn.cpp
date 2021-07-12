@@ -19,21 +19,21 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::GRN, "GRN", 0);
 
-op::GRN::GRN(const Output<Node>& data, float bias)
+op::v0::GRN::GRN(const Output<Node>& data, float bias)
     : Op({data})
     , m_bias(bias)
 {
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
+bool op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_GRN_visit_attributes);
     visitor.on_attribute("bias", m_bias);
     return true;
 }
 
-void op::GRN::validate_and_infer_types()
+void op::v0::GRN::validate_and_infer_types()
 {
     const auto& data_pshape = get_input_partial_shape(0);
 
@@ -52,7 +52,7 @@ void op::GRN::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::GRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v0_GRN_clone_with_new_inputs);
     if (new_args.size() != 1)
