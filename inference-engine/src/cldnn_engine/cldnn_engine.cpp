@@ -192,7 +192,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
             manager.register_pass<ngraph::pass::ConvertGather0D>();
-            manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
 
             static const precisions_array convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},

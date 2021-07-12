@@ -102,7 +102,6 @@ class Convolution(Op):
             node['bias_term'] = len(node.in_nodes()) == 3
 
         weights_index = node.weights_index if node.has_valid('weights_index') else 1
-
         # Reshape weights kernel to original shape
         # In case of caffe or MXNet framework, values for weights have no structured shape like OIHW
         # so we have to reshape weights to normal shape
@@ -237,6 +236,8 @@ class Convolution(Op):
         for n in node.out_nodes():
             node.out_node(n).shape = output_shape
 
+        # bin attribute is used for pre-processing, but it will be deleted in BlobNormalizer transformation
+        # and the blobs (weights, biases) will be represented as inputs to the node
         mark_input_bins(node, start_port=1 if node.type != 'DeformableConvolution' else 2)
         assign_dims_to_weights(node.in_node(weights_index), node.kernel_spatial_idx, node.input_feature_channel,
                                node.output_feature_channel, len(kernel_shape))
