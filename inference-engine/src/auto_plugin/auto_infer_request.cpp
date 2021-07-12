@@ -86,19 +86,37 @@ void AutoInferRequest::HotSwapRequests() {
 }
 
 void AutoInferRequest::SetBlobsToDeviceRequest() {
-        for (const auto &it : _networkInputs) {
-            const auto &name = it.first;
-            // this assumes the request is already in BUSY state
-            auto blob = GetBlob(name);
-            if (_inferRequest->GetBlob(name) != blob)
-                _inferRequest->SetBlob(name, blob);
-        }
-        for (const auto &it : _networkOutputs) {
-            const auto &name = it.first;
-            // this assumes the request is already in BUSY state
-            auto blob = GetBlob(name);
-            if (_inferRequest->GetBlob(name) != blob)
-                _inferRequest->SetBlob(name, blob);
-        }
+    for (const auto &it : _networkInputs) {
+        const auto &name = it.first;
+        // this assumes the request is already in BUSY state
+        auto blob = GetBlob(name);
+        if (_inferRequest->GetBlob(name) != blob)
+            _inferRequest->SetBlob(name, blob);
     }
+    for (const auto &it : _networkOutputs) {
+        const auto &name = it.first;
+        // this assumes the request is already in BUSY state
+        auto blob = GetBlob(name);
+        if (_inferRequest->GetBlob(name) != blob)
+            _inferRequest->SetBlob(name, blob);
+    }
+}
+
+void AutoInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
+    for (const auto &it : _networkInputs) {
+        auto &name = it.first;
+        // this request is already in BUSY state, so using the internal functions safely
+        auto blob = GetBlob(name);
+        if (req->GetBlob(name) != blob)
+            req->SetBlob(name, blob);
+    }
+    for (const auto &it : _networkOutputs) {
+        auto &name = it.first;
+        // this request is already in BUSY state, so using the internal functions safely
+        auto blob = GetBlob(name);
+        if (req->GetBlob(name) != blob)
+            req->SetBlob(name, blob);
+    }
+}
+
 }  // namespace AutoPlugin

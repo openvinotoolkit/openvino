@@ -39,6 +39,7 @@ public:
     void StartAsync() override;
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
     void SetCallback(Callback callback) override;
+    void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
 
 private:
     void HotSwapRequests();
