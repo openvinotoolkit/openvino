@@ -9,6 +9,9 @@
 
 using namespace LayerTestsDefinitions;
 
+const std::vector<bool> emptyAcrossChannels = {{}};
+const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+
 const std::vector<std::vector<size_t>> inputShapes = {
     {8},
     {1, 16},
@@ -41,17 +44,29 @@ const std::vector<double> epsilon = {
     0.000000001
 };
 
-const auto MvnCases = ::testing::Combine(
+const auto MvnAcrossChannels = ::testing::Combine(
     ::testing::ValuesIn(inputShapes),
     ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::ValuesIn(emptyReductionAxes),
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN, MvnLayerTest, MvnCases, MvnLayerTest::getTestCaseName);
+const auto MvnReductionAxes = ::testing::Combine(
+    ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 10, 5, 17}, {1, 3, 8, 9}}),
+    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::ValuesIn(std::vector<ngraph::AxisSet>{{1, 2, 3}, {2, 3}}),
+    ::testing::ValuesIn(emptyAcrossChannels),
+    ::testing::ValuesIn(normalizeVariance),
+    ::testing::ValuesIn(epsilon),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_AcrossChannels, Mvn1LayerTest, MvnAcrossChannels, Mvn1LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
 
 
 std::vector<InferenceEngine::Precision> dataPrecisions = {
