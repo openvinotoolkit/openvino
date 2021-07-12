@@ -139,12 +139,12 @@ inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
     return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == rhs);
 }
 
-inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs) {
+inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
     if (lhs.size() != rhs.size())
         return false;
 
     for (size_t i = 0; i < lhs.size(); i++) {
-        if (!dimsEqualWeak(lhs[i], rhs[i]))
+        if (i != skipAxis && !dimsEqualWeak(lhs[i], rhs[i]))
             return false;
     }
 

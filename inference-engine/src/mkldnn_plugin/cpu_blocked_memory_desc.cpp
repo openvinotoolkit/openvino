@@ -96,7 +96,9 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs) const {
         return false;
     }
 
-    if (!isEqualOrUndefined(this->getStrides(), rhs.getStrides())) {
+    size_t skipAxis = this->getShape().getRank() > 0 && this->getShape().getDims().front() == 1 ? 0 :
+            Shape::UNDEFINED_DIM; //ignore batch axis if batch size == 1
+    if (!isEqualOrUndefined(this->getStrides(), rhs.getStrides(), skipAxis)) {
         return false;
     }
 

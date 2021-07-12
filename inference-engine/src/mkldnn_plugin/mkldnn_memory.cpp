@@ -979,12 +979,35 @@ bool MKLDNNMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
 }
 
 bool MKLDNNMemoryDesc::isCompatible(const MKLDNNMemoryDesc &rhs) const {
+    using namespace dnnl;
+    using namespace impl;
+    using namespace dnnl::impl::utils;
     if (this->desc == rhs.desc) {
         return true;
     }
     mkldnn::impl::memory_desc_wrapper wrappedThis(this->desc.data);
     mkldnn::impl::memory_desc_wrapper wrappedRhs(rhs.desc.data);
-    return wrappedThis.similar_to(wrappedRhs);
+    if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
+        return false;
+    if (wrappedThis.is_wino_desc() || wrappedThis.is_rnn_packed_desc()) return false;
+
+    const auto &blk = wrappedThis.blocking_desc();
+    const auto &r_blk = wrappedRhs.blocking_desc();
+
+    int stride_start = wrappedThis.ndims() >0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  //ignore batch axis stride if batch size == 1
+
+    // Here is a slightly modified version of mkldnn::impl::memory_desc_wrapper::similar_to() call able to skip specific strides check.
+    return wrappedThis.ndims() == wrappedRhs.ndims()
+           && wrappedThis.format_kind() == wrappedRhs.format_kind()
+           && wrappedThis.data_type() == wrappedRhs.data_type()
+           && array_cmp(wrappedThis.dims(), wrappedRhs.dims(), wrappedThis.ndims())
+           && array_cmp(blk.strides + stride_start, r_blk.strides + stride_start, wrappedThis.ndims() - stride_start)
+           && blk.inner_nblks == r_blk.inner_nblks
+           && array_cmp(blk.inner_blks, r_blk.inner_blks, blk.inner_nblks)
+           && array_cmp(blk.inner_idxs, r_blk.inner_idxs, blk.inner_nblks)
+           && array_cmp(wrappedThis.padded_dims(), wrappedRhs.padded_dims(), wrappedRhs.ndims())
+           && array_cmp(wrappedThis.padded_offsets(), wrappedRhs.padded_offsets(), wrappedThis.ndims())
+           && dimsEqualWeak(wrappedThis.offset0(), wrappedRhs.offset0());
 }
 
 
@@ -1065,7 +1088,9 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         std::transform(outer_order.begin(), outer_order.end(), blk_strides.begin(),
                        [&](size_t i) { return blk_desc.strides[i]; });
 
-        if (!isEqualOrUndefined(blk_strides, rhs.getStrides())) {
+        size_t skipAxis = this->getShape().getRank() > 0 && this->getShape().getDims().front() == 1 ? 0 :
+                Shape::UNDEFINED_DIM; //ignore batch axis if batch size == 1
+        if (!isEqualOrUndefined(blk_strides, rhs.getStrides(), skipAxis)) {
             return false;
         }
     }
