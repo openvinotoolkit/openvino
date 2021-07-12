@@ -130,6 +130,7 @@ const std::vector<std::vector<size_t>> inputShape_3D = {
 
 const std::vector<std::vector<int64_t>> axes_3D = {
     {1, 2},
+    {2, 1},
     {1}
 };
 
@@ -155,6 +156,7 @@ const std::vector<std::vector<size_t>> inputShape_4D = {
 
 const std::vector<std::vector<int64_t>> axes_4D = {
     {1, 2, 3},
+    {3, 1, 2},
     {1}
 };
 
