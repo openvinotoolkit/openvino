@@ -41,6 +41,11 @@
 #define NUM_OF_IMAGE_BBOXES (INPUT_BBOXES_LENGTH / NUM_IMAGES)
 #define NUM_OF_ITEMS_SORT ((NUM_CLASSES_IN / 256) + 1)
 
+#if UNIT_TYPE_SIZE == 2
+#define CMP_TYPE4 short4
+#elif UNIT_TYPE_SIZE == 4
+#define CMP_TYPE4 int4
+#endif
 
 // Number of bboxes to keep in output
 #define KEEP_BBOXES_NUM ((KEEP_TOP_K < NUM_OF_IMAGE_BBOXES)? KEEP_TOP_K : NUM_OF_IMAGE_BBOXES)
@@ -184,17 +189,17 @@ inline UNIT_TYPE4 FUNC(get_score4)(__global UNIT_TYPE* input_confidence, const u
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
     UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
-    int4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    CMP_TYPE4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
     return select((UNIT_TYPE4)(-1, -1, -1, -1), scores, compare);
 }
 
-inline int4 FUNC(filter_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline CMP_TYPE4 FUNC(filter_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
     UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
-    int4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
-    return select((int4)(0, 0, 0, 0), (int4)(1, 1, 1, 1), compare);
+    CMP_TYPE4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    return select((CMP_TYPE4)(0, 0, 0, 0), (CMP_TYPE4)(1, 1, 1, 1), compare);
 }

@@ -134,7 +134,7 @@ inline int FUNC(get_final_detections)(__global int* buffer2)
     return final_detections;
 }
 
-UNIT_TYPE FUNC(jaccardOverlap)(UNIT_TYPE* bbox1, UNIT_TYPE* bbox2)
+inline UNIT_TYPE FUNC(jaccardOverlap)(UNIT_TYPE* bbox1, UNIT_TYPE* bbox2)
 {
     UNIT_TYPE overlap = 0.0;
     bool intersecting = (bbox1[0] < bbox2[2]) & (bbox2[0] < bbox1[2]) & (bbox1[1] < bbox2[3]) & (bbox2[1] < bbox1[3]);
@@ -205,9 +205,9 @@ KERNEL (detection_output_ref_stage_0_caffe)(
             unroll_for (int bi = 0; bi < 8; bi++) {
                 if ((i + bi) >= NUM_OF_PRIORS)
                     break;
-                int4 valid_scores = FUNC_CALL(filter_score4)(input_confidence, (i + bi), classId, batchId);
+                CMP_TYPE4 valid_scores = FUNC_CALL(filter_score4)(input_confidence, (i + bi), classId, batchId);
                 bit_mask[mask_id] |= ((convert_char4(valid_scores)) << bi);
-                block_num[box_gid] += valid_scores;
+                block_num[box_gid] += convert_int4(valid_scores);
             }
             if (classes_leftover) {
                 for (int c = n_classes_this_item; c < NUM_CLASSES_PER_ITEM; c++) {
@@ -242,7 +242,7 @@ KERNEL (detection_output_ref_stage_0_caffe)(
                 char bitset = 1 << bi;
                 if (all((bit_mask[mask_id] & bitset) == (char4)(0, 0, 0, 0)))
                     continue;
-                float4 score4 = FUNC_CALL(get_score4)(input_confidence, (i + bi), classId, batchId);
+                UNIT_TYPE4 score4 = FUNC_CALL(get_score4)(input_confidence, (i + bi), classId, batchId);
                 for (int c = 0; c < n_classes_this_item; c++) {
                     if ((bit_mask[mask_id][c] & bitset) == 0) continue;
                     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId + c) * BUFFER_STRIDE];
@@ -609,10 +609,7 @@ KERNEL (detection_output_ref_stage_final_caffe)(
                 xmax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmax));
                 ymax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymax));
             }
-            output[idx * OUTPUT_ROW_SIZE + 3] = xmin;
-            output[idx * OUTPUT_ROW_SIZE + 4] = ymin;
-            output[idx * OUTPUT_ROW_SIZE + 5] = xmax;
-            output[idx * OUTPUT_ROW_SIZE + 6] = ymax;
+            vstore4((UNIT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + idx * OUTPUT_ROW_SIZE + 3);
             outputIdx++;
         }
     }
@@ -624,12 +621,8 @@ KERNEL (detection_output_ref_stage_final_caffe)(
         unroll_for (uint i = final_detections; i < NUM_OF_IMAGES * KEEP_TOP_K; i++)
         {
             output[i * OUTPUT_ROW_SIZE] = (i == final_detections ? -1.0 : 0.0);
-            output[i * OUTPUT_ROW_SIZE + 1] = 0.0;
-            output[i * OUTPUT_ROW_SIZE + 2] = 0.0;
-            output[i * OUTPUT_ROW_SIZE + 3] = 0.0;
-            output[i * OUTPUT_ROW_SIZE + 4] = 0.0;
-            output[i * OUTPUT_ROW_SIZE + 5] = 0.0;
-            output[i * OUTPUT_ROW_SIZE + 6] = 0.0;
+            vstore4((UNIT_TYPE4)(0.0, 0.0, 0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 1);
+            vstore2((UNIT_TYPE2)(0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 5);
         }
     }
 }
