@@ -300,12 +300,12 @@ class CustomReplacementDescriptorScope(CustomReplacementDescriptor):
                 log.debug("Node {} doesn't have output edges. Consider it output".format(node_name))
                 output_tensors.add((generate_pattern_for_node(graph, pattern, node_name), 0))
 
-        if not self.has('inputs'):
+        if not self.has('inputs') or len(self._replacement_desc['inputs']) == 0:
             self._replacement_desc['inputs'] = [[{'node': desc[0], 'port': desc[1]} for desc in inp]
                                                 for inp in sorted(input_nodes_mapping.values())]
             log.debug('Updated inputs of sub-graph for instance "{}"'.format(self.instances))
 
-        if not self.has('outputs'):
+        if not self.has('outputs') or len(self._replacement_desc['outputs']) == 0:
             self._replacement_desc['outputs'] = [{'node': node, 'port': port} for node, port in sorted(output_tensors)]
             log.debug('Updated outputs of sub-graph for instance "{}"'.format(self.instances))
 
