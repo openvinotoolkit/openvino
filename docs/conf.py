@@ -66,7 +66,7 @@ repositories = {
     'openvino': {
         'github_user': 'ntyukaev',
         'github_repo': 'openvino',
-        'github_version': 'feature/read-the-docs',
+        'github_version': 'feature/ntyukaev/to-sphinx',
         'host_url': 'https://github.com'
     },
     'open_model_zoo': {
