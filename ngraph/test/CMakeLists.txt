@@ -297,6 +297,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
@@ -480,7 +481,6 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp

@@ -89,6 +89,7 @@ VERIFIED_OP_REFERENCES = [
     'Round-5',
     'SpaceToDepth-1',
     'ScatterNDUpdate-4',
+    'Select-1',
     'ShapeOf-1',
     'ShapeOf-3',
     'Sigmoid-1',
