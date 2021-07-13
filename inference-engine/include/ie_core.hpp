@@ -133,6 +133,10 @@ public:
      */
     void AddExtension(const IExtensionPtr& extension);
 
+    void AddExtension(const ExtensionContainer::Ptr& extension);
+    void AddExtension(const std::vector<NewExtension::Ptr>& extensions);
+    void AddExtension(const NewExtension::Ptr& extension);
+
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
      * @param network CNNNetwork object acquired from Core::ReadNetwork
