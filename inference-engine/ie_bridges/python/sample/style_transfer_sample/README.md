@@ -105,7 +105,7 @@ python <path_to_omz_tools>/converter.py --name <model_name>
 3. Perform inference of `car.bmp` and `cat.jpg` using `fast-neural-style-mosaic-onnx` model on a `GPU`, for example:
 
 ```
-python <path_to_sample>/style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
+python <path_to_sample>/style_transfer_sample.py -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
