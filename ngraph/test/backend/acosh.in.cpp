@@ -39,13 +39,32 @@ NGRAPH_TEST(${BACKEND_NAME}, acosh)
 
     vector<float> input{0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f};
     vector<float> expected;
-    for (float f : input)
+    for (float i : input)
     {
-        expected.push_back(std::acosh(f));
+        expected.push_back(std::acosh(i));
     }
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(input);
     test_case.add_expected_output<float>(shape, expected);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, acosh_i32)
+{
+    Shape shape{7};
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    auto f = make_shared<Function>(make_shared<op::Acosh>(A), ParameterVector{A});
+
+    vector<int32_t> input{1, 2, 3, 4, 5, 10, 100};
+    vector<int32_t> expected;
+    for (auto i : input)
+    {
+        expected.push_back(std::roundl(std::acosh(i)));
+    }
+
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>(input);
+    test_case.add_expected_output<int32_t>(shape, expected);
     test_case.run();
 }
