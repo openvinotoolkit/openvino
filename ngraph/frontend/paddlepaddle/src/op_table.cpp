@@ -10,6 +10,8 @@
 #include "op/conv2d.hpp"
 #include "op/deformable_conv.hpp"
 #include "op/elementwise_ops.hpp"
+#include "op/matrix_nms.hpp"
+#include "op/multiclass_nms.hpp"
 #include "op/relu.hpp"
 #include "op/scale.hpp"
 #include "op/split.hpp"
@@ -40,6 +42,8 @@ namespace ngraph
                         {"elementwise_mul", op::elementwise_mul},
                         {"elementwise_pow", op::elementwise_pow},
                         {"elementwise_sub", op::elementwise_sub},
+                        {"matrix_nms", op::matrix_nms},
+                        {"multiclass_nms3", op::multiclass_nms},
                         {"relu", op::relu},
                         {"scale", op::scale},
                         {"split", op::split}};
