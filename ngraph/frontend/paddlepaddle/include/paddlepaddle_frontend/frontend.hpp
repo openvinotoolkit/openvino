@@ -7,6 +7,7 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include "exceptions.hpp"
 #include "model.hpp"
+#include "place.hpp"
 
 namespace ngraph
 {
@@ -21,6 +22,32 @@ namespace ngraph
             /// \param partiallyConverted partially converted nGraph function
             /// \return fully converted nGraph function
             std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+
+            /// \brief Completely convert the remaining, not converted part of a function.
+            /// \param partiallyConverted partially converted nGraph function
+            /// \return fully converted nGraph function
+            std::shared_ptr<ngraph::Function>
+                convert(std::shared_ptr<ngraph::Function> partiallyConverted) const override;
+
+            /// \brief Convert only those parts of the model that can be converted leaving others
+            /// as-is. Converted parts are not normalized by additional transformations; normalize
+            /// function or another form of convert function should be called to finalize the
+            /// conversion process.
+            /// \param model Input model
+            /// \return partially converted nGraph function
+            std::shared_ptr<ngraph::Function>
+                convert_partially(InputModel::Ptr model) const override;
+
+            /// \brief Convert operations with one-to-one mapping with decoding nodes.
+            /// Each decoding node is an nGraph node representing a single FW operation node with
+            /// all attributes represented in FW-independent way.
+            /// \param model Input model
+            /// \return nGraph function after decoding
+            std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override;
+
+            /// \brief Runs normalization passes on function that was loaded with partial conversion
+            /// \param function partially converted nGraph function
+            void normalize(std::shared_ptr<ngraph::Function> function) const override;
 
         protected:
             /// \brief Check if FrontEndPDPD can recognize model from given parts
@@ -40,7 +67,10 @@ namespace ngraph
 
         private:
             static std::shared_ptr<Function>
-                convert_model(const std::shared_ptr<InputModelPDPD>& model);
+                convert_each_node(const std::shared_ptr<InputModelPDPD>& model,
+                                  std::function<std::map<std::string, OutputVector>(
+                                      const std::map<std::string, Output<Node>>&,
+                                      const std::shared_ptr<OpPlacePDPD>&)> func);
         };
 
     } // namespace frontend

@@ -43,7 +43,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
         "RefPDPDFunction");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
-    ASSERT_TRUE(res.valid);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -79,6 +79,6 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
         "RefPDPDFunction");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
-    ASSERT_TRUE(res.valid);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 #endif

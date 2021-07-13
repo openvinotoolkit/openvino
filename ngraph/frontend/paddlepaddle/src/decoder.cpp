@@ -99,6 +99,16 @@ namespace ngraph
             return output_names;
         }
 
+        size_t DecoderPDPDProto::get_output_size() const
+        {
+            size_t res = 0;
+            for (const auto& output : op_place->get_desc().outputs())
+            {
+                res += output.arguments().size();
+            }
+            return res;
+        }
+
         ngraph::element::Type
             DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
         {
@@ -135,5 +145,40 @@ namespace ngraph
                                     " Expected number: 0 or 1");
             return attrs;
         }
+
+        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_input(
+            std::function<Output<Node>(const std::string&)> func) const
+        {
+            std::map<std::string, OutputVector> res;
+            for (const auto& port : op_place->get_desc().inputs())
+            {
+                std::vector<Output<Node>> v;
+                v.reserve(port.arguments_size());
+                for (const auto& inp : port.arguments())
+                {
+                    v.push_back(func(inp));
+                }
+                res.emplace(std::make_pair(port.parameter(), v));
+            }
+            return res;
+        }
+
+        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_output(
+            std::function<Output<Node>(const std::string&)> func) const
+        {
+            std::map<std::string, OutputVector> res;
+            for (const auto& port : op_place->get_desc().outputs())
+            {
+                std::vector<Output<Node>> v;
+                v.reserve(port.arguments_size());
+                for (const auto& out : port.arguments())
+                {
+                    v.push_back(func(out));
+                }
+                res.emplace(std::make_pair(port.parameter(), v));
+            }
+            return res;
+        }
+
     } // namespace frontend
 } // namespace ngraph
