@@ -307,6 +307,8 @@ std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
     ie_ops.insert(opset6.begin(), opset6.end());
     const auto& opset7 = get_opset7().get_type_info_set();
     ie_ops.insert(opset7.begin(), opset7.end());
+    const auto& opset8 = get_opset8().get_type_info_set();
+    ie_ops.insert(opset8.begin(), opset8.end());
     return ie_ops;
 }
 
