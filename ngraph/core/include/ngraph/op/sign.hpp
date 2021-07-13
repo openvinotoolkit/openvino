@@ -17,8 +17,8 @@ namespace ngraph
             class NGRAPH_API Sign : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Sign", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Sign() = default;
                 /// \brief Constructs an elementwise sign operation.
                 ///
