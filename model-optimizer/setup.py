@@ -102,6 +102,7 @@ setup(
     },
     package_data={
       'mo.mo.front.caffe.proto': ['*.proto'],
+      'mo.mo.utils': ['*.json'],
       'mo.extensions.front.mxnet': ['*.json'],
       'mo.extensions.front.onnx': ['*.json'],
       'mo.extensions.front.tf': ['*.json'],
