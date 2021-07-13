@@ -68,8 +68,6 @@ std::vector<std::map<std::string, std::string>> getCorrectConfigs() {
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}},
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}},
 
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-
         {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO},
@@ -227,10 +225,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectConfigs() {
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "ON"}},
         {{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}},
 
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}},
-
         {
             {KEY_LOG_LEVEL, LOG_INFO},
             {InferenceEngine::MYRIAD_COPY_OPTIMIZATION, "ON"},
@@ -272,18 +266,6 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
         {
             {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
             {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"},
-        },
-        {
-            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-            {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"},
         },
     };
     return incorrectMultiConfigs;

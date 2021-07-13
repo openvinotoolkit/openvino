@@ -62,16 +62,8 @@ static bool hasMyriad2() {
 static bool hasAppropriateStick(const config_t &config) {
     bool suitsConfig;
 
-    auto platform = config.find(VPU_MYRIAD_CONFIG_KEY(PLATFORM));
-    if (platform == config.end() || platform->second.empty()) {
-        suitsConfig = hasMyriad2() || hasMyriadX();
-    } else {
-        bool hasRequestedMyriad2 =
-                platform->second == VPU_MYRIAD_CONFIG_VALUE(2450) && hasMyriad2();
-        bool hasRequestedMyriadX =
-                platform->second == VPU_MYRIAD_CONFIG_VALUE(2480) && hasMyriadX();
-        suitsConfig = hasRequestedMyriad2 || hasRequestedMyriadX;
-    }
+    bool hasRequestedMyriadX = hasMyriadX();
+    suitsConfig = hasRequestedMyriadX;
 
     return suitsConfig;
 }

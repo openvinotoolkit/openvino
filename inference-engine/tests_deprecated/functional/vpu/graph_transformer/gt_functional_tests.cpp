@@ -21,12 +21,11 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _platform = CheckMyriadX() ? ncDevicePlatform_t::NC_MYRIAD_X : ncDevicePlatform_t::NC_MYRIAD_2;
 }
 
 void graphTransformerFunctionalTests::CreateModel() {
     const auto compilerLog = std::make_shared<Logger>("Test", LogLevel::Info, consoleOutput());
-    CompileEnv::init(_platform, _configuration, compilerLog);
+    CompileEnv::init(_configuration, compilerLog);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -94,7 +93,6 @@ int64_t graphTransformerFunctionalTests::CompileAndInfer(Blob::Ptr& inputBlob, B
 
     auto compiledGraph = compileModel(
                 _gtModel,
-                _platform,
                 _configuration,
                 compilerLog);
 

@@ -83,7 +83,6 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     }
 #endif
 
-    const ncDevicePlatform_t& configPlatform = config.platform();
     const ncDeviceProtocol_t& configProtocol = config.protocol();
     const std::string& configDevName = config.deviceName();
     PowerConfig powerConfig = config.powerConfig();
@@ -107,7 +106,6 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 #endif
 
     ncDeviceDescr_t in_deviceDesc = {};
-    in_deviceDesc.platform = configPlatform;
     in_deviceDesc.protocol = configProtocol;
 
     if (!configDevName.empty()) {
@@ -119,13 +117,6 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 
         if (it == availableDevicesDesc.end()) {
             IE_THROW() << "Myriad device: " << configDevName << " not found.";
-        } else {
-            ncDeviceDescr_t deviceDesc = *it;
-            if (configPlatform != NC_ANY_PLATFORM &&
-                configPlatform != deviceDesc.platform) {
-                IE_THROW() << "Input value of device name and platform are contradict each other. Device name: " << configDevName
-                                   << "Platform: " << configPlatform;
-            }
         }
 
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
@@ -157,8 +148,8 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 
     // Get device protocol
     status = ncDeviceGetOption(device._deviceHandle, NC_RO_DEVICE_PLATFORM,
-                                          reinterpret_cast<void*>(&device._platform), &dataLength);
-    if (status != NC_OK || dataLength != sizeof(device._platform)) {
+                                          reinterpret_cast<void*>(&device), &dataLength);
+    if (status != NC_OK) {
         _log->warning("Failed to get device platform");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
@@ -266,15 +257,11 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
                 return device->isBooted() && device->isNotFull()
                        && device->isSuitableForConfig(config);
             });
-
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
+        if (availableDevices.empty()) {
             DeviceDesc device;
-            device._platform = config.platform();
             device._protocol = config.protocol();
             return std::make_shared<DeviceDesc>(device);
-        } else if (availableDevices.empty()) {
-            IE_THROW() << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
         }
 
         auto deviceWithMinExecutors = std::min_element(availableDevices.begin(), availableDevices.end(),
@@ -286,7 +273,6 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
     }
 
     _log->info("Device #%d %s (%s protocol) allocated", devicePool.size() - 1,
-        devicePool.back()->_platform == NC_MYRIAD_X ? "MYRIAD-X" : "MYRIAD-2",
         devicePool.back()->_protocol == NC_USB? "USB" : "PCIe");
 
     return devicePool.back();
@@ -376,7 +362,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
         IE_THROW() << "Failed to get output description: " << ncStatusToStr(graphDesc._graphHandle, status);
     }
 
-    unsigned int fifo_elements = (device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
+    unsigned int fifo_elements = 2 * executors;
 
     status = ncFifoCreate("input", NC_FIFO_HOST_WO, &graphDesc._inputFifoHandle);
     if (status != NC_OK) {

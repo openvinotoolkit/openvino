@@ -37,7 +37,6 @@ struct DeviceDesc {
     int _graphNum = 0;
     int _maxGraphNum = 0;
     std::string _name;
-    ncDevicePlatform_t _platform = NC_ANY_PLATFORM;
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
 
     int _deviceIdx = -1;
@@ -60,13 +59,7 @@ struct DeviceDesc {
         }
 
         return isSuitableByName &&
-                ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
                 ((config.protocol() == NC_ANY_PROTOCOL) || (_protocol == config.protocol()));
-    }
-
-    ncDevicePlatform_t revision() const {
-        VPU_THROW_UNLESS(_platform != NC_ANY_PLATFORM, "Cannot get a revision from not booted device");
-        return _platform;
     }
 };
 

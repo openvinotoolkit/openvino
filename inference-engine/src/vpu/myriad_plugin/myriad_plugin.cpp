@@ -95,7 +95,6 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto supportedLayers = getSupportedLayers(
             network,
-            parsedConfigCopy.platform(),
             parsedConfigCopy,
             log,
             GetCore());
@@ -135,7 +134,6 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
-        { KEY_VPU_MYRIAD_PLATFORM, "" },
 
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
         { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
