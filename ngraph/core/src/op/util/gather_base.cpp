@@ -31,60 +31,18 @@ op::util::GatherBase::GatherBase(const Output<Node>& data,
 void op::util::GatherBase::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(util_GatherBase_validate_and_infer_types);
-    const auto& data_type = get_input_element_type(0);
-
-    const auto& data_pshape = get_input_partial_shape(0);
-    const auto& indices_pshape = get_input_partial_shape(1);
     const auto& axis_pshape = get_input_partial_shape(2);
-    auto data_rank = data_pshape.rank();
-    auto indices_rank = indices_pshape.rank();
-    auto axis_rank = axis_pshape.rank();
+    NODE_VALIDATION_CHECK(
+        this,
+        axis_pshape.is_dynamic() || shape_size(axis_pshape.to_shape()) == 1,
+        "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
+        axis_pshape);
 
-    if (axis_rank.is_static() && axis_pshape.is_static())
-    {
-        const auto axis_is_scalar = axis_rank.get_length() == 0;
-        const auto axis_has_one_elem =
-            axis_rank.get_length() == 1 && axis_pshape[0].get_length() == 1;
-        NODE_VALIDATION_CHECK(
-            this,
-            axis_is_scalar || axis_has_one_elem,
-            "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
-            axis_pshape);
-    }
-
+    const auto& indices_pshape = get_input_partial_shape(1);
+    const auto& indices_rank = indices_pshape.rank();
     int64_t batch_dims = m_batch_dims;
     if (batch_dims < 0 && indices_rank.is_static())
-    {
         batch_dims += indices_rank.get_length();
-    }
-
-    bool axis_is_set = false;
-    if (get_constant_from_source(input_value(2)))
-        axis_is_set = true;
-
-    if (axis_is_set)
-    {
-        int64_t axis = get_axis(); // will be normalized to positive if data_rank is static
-
-        // batch_dims, axis both can be positive by default or after normalization if data_rank &
-        // indices_rank are static.
-        // If at least one of them is negative we cannot check their consistency.
-        NODE_VALIDATION_CHECK(
-            this,
-            batch_dims <= axis || batch_dims < 0 || axis < 0,
-            "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
-            batch_dims,
-            ", axis = ",
-            axis);
-
-        NODE_VALIDATION_CHECK(
-            this,
-            data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
-            "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
-            axis,
-            " data_rank = ",
-            data_rank.get_interval());
-    }
 
     if (indices_rank.is_static() && batch_dims >= 0)
     {
@@ -97,33 +55,55 @@ void op::util::GatherBase::validate_and_infer_types()
             indices_rank.get_length());
     }
 
+    const auto& data_pshape = get_input_partial_shape(0);
+    const auto& data_rank = data_pshape.rank();
     if (data_rank.is_static() && indices_rank.is_static())
     {
-        auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
+        const auto& out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
         PartialShape output_pshape = PartialShape::dynamic(out_rank);
 
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +
         // data.shape[axis + 1:]
         int i = 0;
-        for (; i < batch_dims; i++)
+        for (; i < batch_dims; ++i)
         {
             NODE_VALIDATION_CHECK(this,
-                                  data_pshape[i].compatible(indices_pshape[i]),
+                                  Dimension::merge(output_pshape[i], data_pshape[i], indices_pshape[i]),
                                   "Shapes ",
                                   data_pshape,
                                   " and ",
                                   indices_pshape,
                                   " are not consistent. data and indices must have equal or "
                                   "intersecting sizes until batch_dims");
-
-            output_pshape[i] = data_pshape[i] & indices_pshape[i];
         }
 
-        if (axis_is_set)
+        if (const auto& const_op = get_constant_from_source(input_value(2)))
         {
-            int64_t axis = get_axis();
-            for (; i < axis; i++)
+            int64_t axis = const_op->cast_vector<int64_t>()[0];
+            if (axis < 0 && data_rank.is_static())
+                axis += data_rank.get_length();
+
+            // batch_dims, axis both can be positive by default or after normalization if data_rank &
+            // indices_rank are static.
+            // If at least one of them is negative we cannot check their consistency.
+            NODE_VALIDATION_CHECK(
+                    this,
+                    batch_dims <= axis || batch_dims < 0 || axis < 0,
+                    "After normalization batch_dims must be <= axis. But instead got: batch_dims = ",
+                    batch_dims,
+                    ", axis = ",
+                    axis);
+
+            NODE_VALIDATION_CHECK(
+                    this,
+                    data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
+                    "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
+                    axis,
+                    " data_rank = ",
+                    data_rank.get_interval());
+
+            for (; i < axis; ++i)
             {
                 output_pshape[i] = data_pshape[i];
             }
@@ -131,19 +111,19 @@ void op::util::GatherBase::validate_and_infer_types()
             {
                 output_pshape[i] = indices_pshape[batch_dims - axis + i];
             }
-            for (; i < out_rank; i++)
+            for (; i < out_rank; ++i)
             {
                 output_pshape[i] = data_pshape[batch_dims + 1 - indices_rank.get_length() + i];
             }
         }
-        set_output_type(0, data_type, output_pshape);
+        set_output_type(0, get_input_element_type(0), output_pshape);
     }
     else
     {
         Rank out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        set_output_type(0, data_type, PartialShape::dynamic(out_rank));
+        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(out_rank));
     }
 }
 

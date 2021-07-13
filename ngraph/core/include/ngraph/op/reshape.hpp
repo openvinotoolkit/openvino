@@ -65,10 +65,10 @@ namespace ngraph
                                       const HostTensorVector& inputs) const;
 
             private:
-                void calculate_output_shape(std::vector<Dimension>& reshape_pattern,
+                void calculate_output_shape(const std::vector<Dimension>& reshape_pattern,
                                             const int64_t& minus_one_idx,
                                             const PartialShape& input_pshape,
-                                            std::vector<Dimension>& output_shape) const;
+                                            PartialShape& output_shape) const;
             };
         } // namespace v1
     }     // namespace op

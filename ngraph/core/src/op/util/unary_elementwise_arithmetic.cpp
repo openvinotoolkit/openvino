@@ -22,17 +22,13 @@ op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Output<No
 
 void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic()
 {
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
+    const auto& element_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          args_et.is_dynamic() || args_et != element::boolean,
+                          element_type.is_dynamic() || element_type != element::boolean,
                           "Arguments cannot have boolean element type (argument element type: ",
-                          args_et,
+                          element_type,
                           ").");
-
-    set_output_type(0, args_et, args_pshape);
+    set_output_type(0, element_type, get_input_partial_shape(0));
 }
 
 void op::util::UnaryElementwiseArithmetic::validate_and_infer_types()

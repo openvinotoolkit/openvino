@@ -21,54 +21,25 @@ op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Nod
 
 PartialShape op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims)
 {
-    const PartialShape& data_ps = get_input_partial_shape(0);
-    PartialShape result_ps{PartialShape::dynamic()};
-    Rank data_rank = data_ps.rank();
-
-    if (data_rank.is_static() && keep_dims)
-    {
-        result_ps = PartialShape::dynamic(data_rank);
-    }
-
+    auto data_ps = get_input_partial_shape(0);
+    const auto& data_rank = data_ps.rank();
     const auto& axes = get_constant_from_source(input_value(1));
     if (data_rank.is_static() && axes)
     {
-        AxisSet reduction_axes;
-        auto reduction_axes_val = axes->cast_vector<int64_t>();
-        for (auto axis : reduction_axes_val)
+        auto axes_val = axes->cast_vector<int64_t>();
+        normalize_axes(this, data_rank.get_length(), axes_val);
+        if (keep_dims)
         {
-            try
-            {
-                axis = normalize_axis(this, axis, data_rank);
-            }
-            catch (const ngraph_error&)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      false,
-                                      "Reduction axis (",
-                                      axis,
-                                      ") is out of bounds ",
-                                      "(argument shape: ",
-                                      data_ps,
-                                      ", reduction axes: ",
-                                      reduction_axes,
-                                      ")");
-            }
-            reduction_axes.insert(axis);
+            for (const auto& axis : axes_val)
+                data_ps[axis] = 1;
+            return data_ps;
         }
         std::vector<Dimension> dims;
-        for (int64_t i = 0; i < data_rank.get_length(); i++)
-        {
-            if (reduction_axes.count(i) == 0)
-            {
+        for (int64_t i = 0; i < data_rank.get_length(); ++i)
+            if (find(axes_val.begin(), axes_val.end(), i) == axes_val.end())
                 dims.push_back(data_ps[i]);
-            }
-            else if (keep_dims)
-            {
-                dims.emplace_back(Dimension{1});
-            }
-        }
-        result_ps = PartialShape(dims);
+        return dims;
     }
-    return result_ps;
+    else
+        return keep_dims ? PartialShape::dynamic(data_rank) : PartialShape::dynamic();
 }

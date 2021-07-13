@@ -181,6 +181,9 @@ namespace ngraph
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank);
 
+    NGRAPH_API
+    void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
+
     /// \brief      Handle out of range axis.
     ///
     /// \param[in]  node_description   The node with requested axis.

@@ -28,14 +28,50 @@ TEST(type_prop, unsqueeze_dynamic)
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
 
     ASSERT_EQ(unsqueeze->get_element_type(), element::f32);
-    EXPECT_TRUE(
-        unsqueeze->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(),
-                                                                        1,
-                                                                        1,
-                                                                        Dimension::dynamic(),
-                                                                        Dimension::dynamic(),
-                                                                        Dimension::dynamic(),
-                                                                        Dimension::dynamic()}));
+    EXPECT_EQ(
+        unsqueeze->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(),
+                                                                1,
+                                                                1,
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic()}));
+}
+
+TEST(type_prop, unsqueeze_dynamic_negative_axis)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto axes_node =
+        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{-5, -4});
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
+
+    ASSERT_EQ(unsqueeze->get_element_type(), element::f32);
+    EXPECT_EQ(
+        unsqueeze->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(),
+                                                                1,
+                                                                1,
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic()}));
+}
+
+TEST(type_prop, unsqueeze_dynamic_negative_and_positive_axis)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
+    auto axes_node =
+        make_shared<ngraph::op::Constant>(element::u64, Shape{2}, vector<int64_t>{-1, 1});
+    auto unsqueeze = make_shared<op::v0::Unsqueeze>(param, axes_node);
+
+    ASSERT_EQ(unsqueeze->get_element_type(), element::f32);
+    EXPECT_EQ(
+        unsqueeze->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(),
+                                                                1,
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                Dimension::dynamic(),
+                                                                1}));
 }
 
 TEST(type_prop, unsqueeze_incorrect_axes_shape)

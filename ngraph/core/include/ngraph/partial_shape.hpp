@@ -267,6 +267,38 @@ namespace ngraph
         ///        is done in reverse element order.
         const_reverse_iterator crend() const noexcept { return m_dimensions.crend(); }
 
+        /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+        iterator insert(const_iterator position, const Dimension& val)
+        {
+            return m_dimensions.insert(position, val);
+        }
+        /// \brief Returns a read/write iterator that points to the first of inserted elements in
+        /// the shape.
+        iterator insert(const_iterator position, size_t n, const Dimension& val)
+        {
+            return m_dimensions.insert(position, n, val);
+        }
+        /// \brief Returns a read/write iterator that points to the first of inserted range of
+        /// elements in the shape.
+        template <class InputIterator>
+        iterator insert(const_iterator position, InputIterator first, InputIterator last)
+        {
+            return m_dimensions.insert(position, first, last);
+        }
+        /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+        iterator insert(const_iterator position, Dimension&& val) noexcept
+        {
+            return m_dimensions.insert(position, val);
+        }
+        /// \brief Returns a read/write iterator that points to the first of inserted elements in
+        /// the shape.
+        iterator insert(const_iterator position, std::initializer_list<Dimension> il)
+        {
+            return m_dimensions.insert(position, il);
+        }
+        /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+        void reserve(size_t n) { m_dimensions.reserve(n); }
+
     private:
         // Private constructor for PartialShape::dynamic().
         PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions);

@@ -29,41 +29,27 @@ op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 void op::v0::Unsqueeze::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Unsqueeze_validate_and_infer_types);
-    const auto data = input_value(0);
-    auto data_partial_shape = data.get_partial_shape();
-    const auto data_rank = data_partial_shape.rank();
-
-    const auto axes_constant = get_constant_from_source(input_value(1));
-    auto axes_pshape = get_input_partial_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          axes_pshape.rank().compatible(0) || axes_pshape.rank().compatible(1),
-                          "Second input (axes) should not be of rank higher than 1. Got: ",
-                          axes_pshape.rank().get_length());
-
+    auto data_partial_shape = get_input_partial_shape(0);
+    const auto& data_rank = data_partial_shape.rank();
+    const auto& axes_constant = get_constant_from_source(input_value(1));
     if (data_rank.is_dynamic() || !axes_constant)
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;
     }
-
-    const auto axes_values = axes_constant->cast_vector<int64_t>();
-    uint64_t data_rank_value = data_partial_shape.rank().get_length();
-    const int64_t expanded_rank = data_rank_value + axes_values.size();
-
+    const auto& axes_rank = get_input_shape(1).size();
+    NODE_VALIDATION_CHECK(this,
+                          axes_rank == 0 || axes_rank == 1,
+                          "Second input (axes) should not be of rank higher than 1. Got: ",
+                          axes_rank);
+    auto axes_values = axes_constant->cast_vector<int64_t>();
     NODE_VALIDATION_CHECK(this, !axes_values.empty(), "'axes' input is mandatory");
-
-    auto normalized_axes = normalize_axes(this->description(), axes_values, expanded_rank);
-    set<int64_t> axes(begin(normalized_axes), end(normalized_axes));
-    vector<Dimension> output_shape{data_partial_shape};
-    for (auto axis : axes)
-    {
-        NODE_VALIDATION_CHECK(
-            this, axis <= expanded_rank, "provided 'axes' value ", axis, " is not valid.");
-
-        output_shape.insert(next(begin(output_shape), axis), 1);
-    }
-    set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+    const int64_t& expanded_rank = data_rank.get_length() + axes_values.size();
+    normalize_axes(this, expanded_rank, axes_values);
+    sort(axes_values.begin(), axes_values.end());
+    for (const auto& axis : axes_values)
+        data_partial_shape.insert(data_partial_shape.begin() + axis, 1);
+    set_output_type(0, get_input_element_type(0), data_partial_shape);
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
