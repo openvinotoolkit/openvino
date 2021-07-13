@@ -6,7 +6,6 @@
 # pylint: disable=line-too-long
 
 """Pytest configuration for compilation tests."""
-
 import logging
 import sys
 from inspect import getsourcefile
@@ -65,21 +64,26 @@ def pytest_addoption(parser):
 def pytest_generate_tests(metafunc):
     """Generate tests depending on command line options."""
     params = []
-    ids = []
+    collection_ids = []
 
     with open(metafunc.config.getoption("test_conf"), "r") as file:
         test_cases = yaml.safe_load(file)
 
-    for test in test_cases:
-        extra_args = {}
-        model_path = test["model"]["path"]
-        if "marks" in test:
-            extra_args["marks"] = test["marks"]
+    for collection in test_cases:
+        collection_arg = []
+        for model_test in test_cases[collection]:
+            model_arg = []
+            extra_args = {}
+            model_path = model_test["model"]["path"]
+            if "marks" in model_test:
+                extra_args["marks"] = model_test["marks"]
 
-        test_id = model_path.replace("$", "").replace("{", "").replace("}", "")
-        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
-        ids = ids + [test_id]
-    metafunc.parametrize("test_id, model", params, ids=ids)
+            model_arg.append(pytest.param(Path(expand_env_vars(model_path)), id=collection, **extra_args))
+            collection_arg.append(model_arg)
+            if collection not in collection_ids:
+                collection_ids.append(collection)
+        params.append(collection_arg)
+    metafunc.parametrize("model", params, ids=collection_ids)
 
 
 @pytest.fixture(scope="session")
@@ -164,4 +168,4 @@ def test_info(request, pytestconfig):
 def save_session_info(pytestconfig, artifacts):
     """Fixture function for saving additional attributes to configuration file."""
     yield
-    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
+    write_session_info(path=artifacts / SESSION_INFO_FILE, data=str(pytestconfig.session_info))
