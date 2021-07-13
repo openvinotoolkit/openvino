@@ -18,14 +18,16 @@ FakeQuantizeOnData::FakeQuantizeOnData(
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues,
-    const ngraph::element::Type outputPrecision) :
+    const ngraph::element::Type outputPrecision,
+    const std::vector<std::shared_ptr<Variant>>& attributes) :
     quantizationLevel(quantizationLevel),
     constantShape(constantShape),
     inputLowValues(inputLowValues),
     inputHighValues(inputHighValues),
     outputLowValues(outputLowValues),
     outputHighValues(outputHighValues),
-    outputPrecision(outputPrecision)
+    outputPrecision(outputPrecision),
+    attributes(attributes)
 {}
 
 FakeQuantizeOnData::~FakeQuantizeOnData() {}
@@ -55,14 +57,16 @@ FakeQuantizeOnDataWithConstant::FakeQuantizeOnDataWithConstant(
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues,
-    const ngraph::element::Type outputPrecision) :
+    const ngraph::element::Type outputPrecision,
+    const std::vector<std::shared_ptr<Variant>>& attributes) :
     quantizationLevel(quantizationLevel),
     constantShapes(constantShapes),
     inputLowValues(inputLowValues),
     inputHighValues(inputHighValues),
     outputLowValues(outputLowValues),
     outputHighValues(outputHighValues),
-    outputPrecision(outputPrecision)
+    outputPrecision(outputPrecision),
+    attributes(attributes)
 {}
 
 FakeQuantizeOnDataWithConstant::~FakeQuantizeOnDataWithConstant() {}

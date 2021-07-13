@@ -17,35 +17,16 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 namespace LayerTestsUtils {
-
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
-        true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::u8, ngraph::element::i8 },
-        { ngraph::element::i8 });
+    return ngraph::pass::low_precision::LayerTransformation::Params();
 }
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
-        true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::u8 },
-        { ngraph::element::i8 });
+    return ngraph::pass::low_precision::LayerTransformation::Params();
 }
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
-        true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::i8 },
-        { ngraph::element::i8 });
+    return ngraph::pass::low_precision::LayerTransformation::Params();
 }
 
 LayerTransformation::LayerTransformation() {
@@ -65,12 +46,6 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
 }
 
-ngraph::pass::low_precision::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformerNGraph(
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) const {
-    ngraph::pass::low_precision::LowPrecisionTransformer transformer(getLowPrecisionTransformationsNGraph(params));
-    return transformer;
-}
-
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
@@ -82,11 +57,8 @@ std::string LayerTransformation::toString(const ngraph::pass::low_precision::Lay
     using namespace ngraph::pass::low_precision;
     std::ostringstream result;
     result <<
-        (params.supportAsymmetricQuantization ? "asymmetric_" : "symmetric_") <<
         (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<
-        params.precisionsOnActivations[0] << "_" <<
-        params.precisionsOnWeights[0] << "_" <<
-        params.quantizedTensorAlignmentOnActivations;
+        params.deqPrecision;
 
     return result.str();
 }

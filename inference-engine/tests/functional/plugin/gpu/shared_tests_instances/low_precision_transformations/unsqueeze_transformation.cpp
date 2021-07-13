@@ -19,8 +19,8 @@ namespace {
 
     const std::vector<LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
+        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {

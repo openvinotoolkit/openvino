@@ -12,6 +12,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
+#include <low_precision/fold_fake_quantize.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -35,7 +37,7 @@ public:
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::element::Type precision;
     Actual actual;
     Expected expected;
@@ -45,7 +47,7 @@ typedef std::tuple<
     ngraph::Shape,
     FakeQuantizeOnWeightsWithUnsupportedChildTestValues> FakeQuantizeOnWeightsWithUnsupportedChildParams;
 
-class FakeQuantizeOnWeightsWithUnsupportedChild :
+class FakeQuantizeOnWeightsWithUnsupportedChildTransformation :
     public LayerTransformation,
     public testing::WithParamInterface<FakeQuantizeOnWeightsWithUnsupportedChildParams> {
 public:
@@ -62,6 +64,12 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
+
+        ngraph::pass::Manager cleanupManager;
+        cleanupManager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>();
+        cleanupManager.register_pass<ngraph::pass::ConstantFolding>();
+        cleanupManager.run_passes(actualFunction);
+
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeOnWeightsAndUnsupportedChildFunction::get(
             inputShape,
@@ -81,9 +89,9 @@ public:
     }
 };
 
-TEST_P(FakeQuantizeOnWeightsWithUnsupportedChild, CompareFunctions) {
+TEST_P(FakeQuantizeOnWeightsWithUnsupportedChildTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -121,8 +129,8 @@ const std::vector<FakeQuantizeOnWeightsWithUnsupportedChildTestValues> testValue
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
-    FakeQuantizeOnWeightsWithUnsupportedChild,
+    FakeQuantizeOnWeightsWithUnsupportedChildTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
-    FakeQuantizeOnWeightsWithUnsupportedChild::getTestCaseName);
+    FakeQuantizeOnWeightsWithUnsupportedChildTransformation::getTestCaseName);

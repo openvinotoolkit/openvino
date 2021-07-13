@@ -43,7 +43,7 @@ public:
 
     ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };

@@ -31,7 +31,7 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
         "Pooling", "U8"
     },
     {
-        { 256ul, { 1ul }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, { {1ul}, {1ul}, {1ul}, {1ul} }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         "Pooling", "U8"
     },
     {

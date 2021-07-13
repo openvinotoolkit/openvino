@@ -21,7 +21,7 @@ using namespace ngraph::pass;
 
 class FakeQuantizeWithDynamicIntervalsTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool inputLowConst;
     bool inpuHighConst;
     bool outputLowConst;

@@ -45,7 +45,7 @@ public:
 
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -73,21 +73,20 @@ public:
         actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-            low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,

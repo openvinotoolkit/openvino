@@ -5,6 +5,8 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -12,11 +14,24 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void FuseMultiplyToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Multiply>(pass, context);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation, "FuseMultiplyToFakeQuantizeTransformation", 0);
+
+FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = pattern::wrap_type<opset1::Multiply>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseMultiplyToFakeQuantizeTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -64,6 +79,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
     replace_node(multiply, newFakeQuantize);
     NetworkHelper::copyInfo(fakeQuantize, newFakeQuantize);
+
+    const auto intervalAlignment = getAttribute<IntervalsAlignmentAttributePtr>(fakeQuantize);
+    if ((intervalAlignment != nullptr) && (intervalAlignment->get()->levels != 0ul)) {
+        newFakeQuantize->set_levels(intervalAlignment->get()->levels);
+    }
 
     updateOutput(context, newFakeQuantize, multiply);
     return true;

@@ -18,8 +18,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
 // TODO: issue #41231: enable previous LPT version tests

@@ -6,84 +6,41 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/transformation_context.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/layer_transformation.hpp>
+#include <low_precision/transformation_context.hpp>
+#include <low_precision/low_precision.hpp>
+#include <low_precision/align_quantization_parameters.hpp>
+#include <low_precision/markup_per_tensor_quantization.hpp>
+#include <low_precision/markup_can_be_quantized.hpp>
 
 using namespace testing;
 using namespace ngraph::pass;
 
-SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer() {}
+SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
+    const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
+    const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
 
-std::vector<ngraph::element::Type> SimpleLowPrecisionTransformer::getPrecisionsOnActivations(const ngraph::Node& op) const noexcept {
-    const auto it = transformations.find(ngraph::pass::low_precision::LowPrecisionTransformations::getType(op));
-    if (it == transformations.end()) {
-        return std::vector<ngraph::element::Type>();
-    }
+    // TODO: use one pass manager
+    markup = std::make_shared<ngraph::pass::Manager>();
+    markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>();
+    markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>();
+    markup->register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
+    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
+    markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
 
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->getPrecisionsOnActivations();
-}
-
-bool SimpleLowPrecisionTransformer::isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
-    const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
-
-    const auto it = transformations.find(operantionType);
-    if (it == transformations.end()) {
-        return false;
-    }
-
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->isQuantized(layer);
-}
-
-bool SimpleLowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
-    const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
-
-    const auto it = transformations.find(operantionType);
-    if (it == transformations.end()) {
-        return false;
-    }
-
-    const ngraph::pass::low_precision::LayerTransformationPtr transformation = it->second;
-    return transformation->isPrecisionPreserved(layer);
+    common = std::make_shared<ngraph::pass::Manager>();
+    commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();
+    cleanup = common->register_pass<ngraph::pass::GraphRewrite>();
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
-    // initialization
-    for (auto it : branchSpecificTransformations) {
-        ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
-        transformation->setParamsManager(this);
-        transformation->setLayerTransformationsManager(this);
-    }
+    ngraph::pass::low_precision::TypeRelaxedReplacer pass;
+    pass.run_on_function(function);
 
-    for (auto it : transformations) {
-        ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
-        transformation->setParamsManager(this);
-        transformation->setLayerTransformationsManager(this);
-    }
-
-    // transformation
-    {
-        ngraph::pass::low_precision::TypeRelaxedReplacer pass;
-        pass.run_on_function(function);
-    }
-
-    ngraph::pass::low_precision::TransformationContext context(function);
-    {
-        GraphRewrite pass;
-        for (auto it : branchSpecificTransformations) {
-            ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
-            transformation->registerMatcherIn(pass, context);
-        }
-        pass.run_on_function(function);
-    }
-
-    {
-        GraphRewrite pass;
-        for (auto it : transformations) {
-            ngraph::pass::low_precision::LayerTransformationPtr transformation = it.second;
-            transformation->registerMatcherIn(pass, context);
-        }
-        pass.run_on_function(function);
-    }
+    markup->run_passes(function);
+    common->run_passes(function);
 }

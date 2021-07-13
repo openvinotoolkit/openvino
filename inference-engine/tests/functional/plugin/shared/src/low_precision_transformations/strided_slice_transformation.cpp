@@ -59,24 +59,6 @@ void StridedSliceTransformation::SetUp() {
         param.newAxisMask,
         param.shrinkAxisMask,
         param.elipsisMask);
-
-    validate();
-}
-
-void StridedSliceTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    StridedSliceTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {

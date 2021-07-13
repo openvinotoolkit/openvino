@@ -41,7 +41,7 @@ public:
         Multiply multiply;
         Add add;
     };
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -65,8 +65,7 @@ public:
             testValues.actual.precisionAfter);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(
-            low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<low_precision::SubtractMultiplyToMultiplyAddTransformation, ngraph::opset1::Multiply>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = SubtractMultiplyToMultiplyAddFunction::getReference(

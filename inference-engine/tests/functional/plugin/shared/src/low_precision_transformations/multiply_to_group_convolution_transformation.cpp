@@ -37,7 +37,6 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::T
 void MultiplyToGroupConvolutionTransformation::SetUp() {
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     builder::subgraph::FakeQuantizeOnData fqOnData;
     std::tie(precision, shape, targetDevice, fqOnData) = this->GetParam();
 
