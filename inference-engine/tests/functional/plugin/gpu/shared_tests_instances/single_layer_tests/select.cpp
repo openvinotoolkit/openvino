@@ -11,8 +11,10 @@ using namespace LayerTestsDefinitions;
 
 const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::U8,
+    InferenceEngine::Precision::FP16,
+    InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::I32
 };
 
 const std::vector<std::vector<std::vector<size_t>>> noneShapes = {
@@ -61,6 +63,6 @@ const auto numpyCases = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_CLDNN_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none, SelectLayerTest, noneCases, SelectLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_CLDNN_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy, SelectLayerTest, numpyCases, SelectLayerTest::getTestCaseName);

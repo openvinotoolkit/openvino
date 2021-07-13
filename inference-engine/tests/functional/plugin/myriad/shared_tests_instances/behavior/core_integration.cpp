@@ -26,11 +26,11 @@ std::pair<std::string, std::string> plugins[] = {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassBasicTestP_smoke, IEClassBasicTestP,
         ::testing::ValuesIn(plugins));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassNetworkTestP_smoke, IEClassNetworkTestP,
         ::testing::ValuesIn(devices));
 
@@ -38,51 +38,7 @@ INSTANTIATE_TEST_CASE_P(
 // IEClassNetworkTestP tests, customized to add SKIP_IF_CURRENT_TEST_IS_DISABLED()
 //
 
-using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
-
-TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-    std::stringstream strm;
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
-    }
-    if (executableNetwork) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
-}
-
-TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-    std::stringstream strm;
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    ASSERT_NO_THROW(executableNetwork.Export(strm));
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-}
-
-TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
-    ExecutableNetwork executableNetwork;
-    std::string fileName{"ExportedNetwork"};
-    {
-        ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-        ASSERT_NO_THROW(executableNetwork.Export(fileName));
-    }
-    {
-        std::ifstream strm(fileName);
-        ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    }
-    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-}
-
-using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP_VPU;
+using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsFP16) {
     Core ie;
@@ -96,18 +52,18 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
     ASSERT_EQ(optimizationCapabilities.front(), METRIC_VALUE(FP16));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricP, IEClassNetworkTestP_VPU_GetMetric,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
-        smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
+INSTANTIATE_TEST_SUITE_P(
+        smoke_IEClassImportExportTestP, IEClassImportExportTestP,
         ::testing::Values(std::string(CommonTestUtils::DEVICE_MYRIAD), "HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD)));
 
 #if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
 
-INSTANTIATE_TEST_CASE_P(
-        smoke_IEClassImportExportTestP_HETERO_CPU, IEClassNetworkTestP_VPU,
+INSTANTIATE_TEST_SUITE_P(
+        smoke_IEClassImportExportTestP_HETERO_CPU, IEClassImportExportTestP,
         ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD) + ",CPU"));
 #endif
 
@@ -115,27 +71,27 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetMetric
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::ValuesIn(devices));
@@ -144,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetConfig
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassExecutableNetworkGetConfigTest_nightly,
         IEClassExecutableNetworkGetConfigTest,
         ::testing::ValuesIn(devices));
@@ -153,32 +109,32 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class GetMetric
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_ThrowUnsupported,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_AVAILABLE_DEVICES,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_SUPPORTED_METRICS,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetMetricTest_nightly,
         IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::ValuesIn(devices));
@@ -187,26 +143,26 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class GetConfig
 //
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetConfigTest_nightly,
         IEClassGetConfigTest,
         ::testing::ValuesIn(devices));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassGetConfigTest_nightly,
         IEClassGetConfigTest_ThrowUnsupported,
         ::testing::ValuesIn(devices));
 
 // IE Class Query network
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         DISABLED_IEClassQueryNetworkTest_smoke,
         IEClassQueryNetworkTest,
         ::testing::ValuesIn(devices));
 
 // IE Class Load network
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,
         ::testing::ValuesIn(devices));

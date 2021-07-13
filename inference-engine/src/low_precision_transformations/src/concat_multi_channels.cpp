@@ -27,7 +27,9 @@ bool ConcatMultiChannelsTransformation::isMultiChannel(const std::vector<std::sh
     for (const std::shared_ptr<ngraph::opset1::Concat>& concat : concatLayers) {
         const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(concat);
         for (const std::shared_ptr<ngraph::Node>& child : children) {
-            if (is_type<ngraph::opset1::Convolution>(child.get())) {
+            if ((is_type<ngraph::opset1::Convolution>(child.get()) ||
+                is_type<ngraph::opset1::ConvolutionBackpropData>(child.get())) &&
+                this->layerTransformationsManager->isQuantized(child)) {
                 return false;
             }
         }
@@ -62,14 +64,23 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
 
     DataPrecision dataPrecision;
     {
+        std::vector<element::Type> concatChildrenPrecisions = precisionsOnActivations;
         for (auto quantizationLayer : subgraph.quantizationLayers) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer->shared_from_this());
             if (!NetworkHelper::isQuantizeSupported(fq)) {
                 return false;
             }
 
-            const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
+            // define concatenation operation consumers precisions
+            std::vector<element::Type> fqChildrenPrecisions = precisionsOnActivations;
+            fillAvailablePrecisions(quantizationLayer, fqChildrenPrecisions);
+            concatChildrenPrecisions = NetworkHelper::precisionIntersection(concatChildrenPrecisions, fqChildrenPrecisions);
+            if (concatChildrenPrecisions.empty()) {
+                return false;
+            }
 
+            // define FakeQuantize precisions without zero point
+            const DataPrecision tmp = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
             if (dataPrecision.precision == ngraph::element::undefined) {
                 dataPrecision = tmp;
                 continue;
@@ -78,6 +89,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             if ((tmp.precision != dataPrecision.precision) && (tmp.precision == ngraph::element::u8)) {
                 dataPrecision = tmp;
             }
+        }
+
+        if (std::find(concatChildrenPrecisions.begin(), concatChildrenPrecisions.end(), dataPrecision.precision) == concatChildrenPrecisions.end()) {
+            dataPrecision = DataPrecision(concatChildrenPrecisions[0]);
         }
     }
 
@@ -163,7 +178,7 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             // for intermediate layers we should get Dq operations to be inserted between layer and child
             assert(dequantizationsToConcatenate.size() == 1ul);
             const size_t sourceOutputIdx = NetworkHelper::getParentOutputIndex(layer, child);
-            if (layer->get_input_shape(0)[1] != layer->get_output_shape(sourceOutputIdx)[1]) {
+            if (layer->get_input_partial_shape(0)[1] != layer->get_output_partial_shape(sourceOutputIdx)[1]) {
                 dequantizationsToConcatenate[0] = getFoldedDequantization(layer, dequantizationsToConcatenate[0], sourceOutputIdx);
             }
         }
@@ -231,7 +246,7 @@ void ConcatMultiChannelsTransformation::fillDequantization(
                     dequantization.push_back(getConcatenatedDequantization(concat, dequantizationToConcatenate));
                 } else {
                     const size_t sourceOutputIdx = NetworkHelper::getParentOutputIndex(parent, layer);
-                    if (parent->get_input_shape(0)[1] != parent->get_output_shape(sourceOutputIdx)[1]) {
+                    if (parent->get_input_partial_shape(0)[1] != parent->get_output_partial_shape(sourceOutputIdx)[1]) {
                         std::vector<FakeQuantizeDequantization> dequantizationToPropagate;
                         fillDequantization(parent, dequantizationByFakeQuantize, dequantizationToPropagate);
 

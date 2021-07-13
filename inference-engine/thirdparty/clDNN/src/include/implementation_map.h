@@ -34,6 +34,7 @@ struct data;
 struct mutable_data;
 struct input_layout;
 struct prior_box;
+struct loop;
 
 struct primitive_impl;
 
@@ -116,6 +117,13 @@ struct implementation_key<prior_box> {
     type operator()(engine_types engine_type, const layout&) { return engine_type; }
 };
 
+template <>
+struct implementation_key<loop> {
+    typedef cldnn::engine_types type;
+    type operator()(engine_types engine_type, const typed_program_node<loop>&) { return engine_type; }
+    type operator()(engine_types engine_type, const layout&) { return engine_type; }
+};
+
 template <typename primitive_kind>
 class implementation_map {
 public:
@@ -124,6 +132,8 @@ public:
     using factory_type = std::function<primitive_impl*(const typed_program_node<primitive_kind>&)>;
     using map_type = singleton_map<key_type, factory_type>;
 
+    // TODO: Replace enigne_type here with impl_type
+    // And add a check that engine do support specific impl_type
     static factory_type get(engine_types engine_type, const typed_program_node<primitive_kind>& primitive) {
         // lookup in database; throw if not found
         auto key = key_builder()(engine_type, primitive);

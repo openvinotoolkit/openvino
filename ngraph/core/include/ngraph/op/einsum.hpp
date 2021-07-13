@@ -38,6 +38,12 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
+                /// \brief      Get an equation of Einsum operation
+                ///
+                /// \return     Einsum equation
+                ///
+                std::string get_equation() const { return m_equation; }
+
                 /// \brief      Check correctness of equation format and extract input subscripts
                 /// and output subscript
                 ///

@@ -16,7 +16,7 @@ TEST_P(DeformableConvolutionLayerTest, Serialize) {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::I32, InferenceEngine::Precision::I16};
-const std::vector<std::vector<size_t>> offsets = {{1, 18, 28, 28}};
+const std::vector<std::vector<size_t>> offsets = {{1, 18, 26, 26}};
 const std::vector<std::vector<size_t>> filters = {{1, 1, 3, 3}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
@@ -42,7 +42,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_Serialization_ExplicitPadding, DeformableConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_ExplicitPadding, ::testing::ValuesIn(netPrecisions),
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D__Serialization_AutoPadValid, DeformableConvolutionLayerTest,
     ::testing::Combine(
         conv2DParams_AutoPadValid, ::testing::ValuesIn(netPrecisions),

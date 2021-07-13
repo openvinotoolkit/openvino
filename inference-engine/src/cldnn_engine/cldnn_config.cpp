@@ -5,8 +5,8 @@
 #include <sys/stat.h>
 
 #include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include "cldnn_config.h"
-#include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_api.h"
 #include "file_utils.h"
@@ -40,6 +40,7 @@ static void createDirectory(std::string _path) {
     }
 }
 
+IE_SUPPRESS_DEPRECATED_START
 void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
@@ -70,7 +71,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) == 0 ||
+                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -94,7 +96,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     IE_THROW(ParameterMismatch) << "Unsupported queue priority value: " << uVal;
             }
 
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) == 0 ||
+                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -206,7 +209,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS) == 0 ||
+                   key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 nv12_two_inputs = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
@@ -222,7 +226,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) == 0) {
             int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
             try {
                 int val_i = std::stoi(val);
@@ -232,9 +236,17 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                     n_threads = val_i;
                 }
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS << ": " << val
+                IE_THROW() << "Wrong value for property key " << GPUConfigParams::KEY_GPU_MAX_NUM_THREADS << ": " << val
                                    << "\nSpecify the number of threads use for build as an integer."
                                    << "\nOut of range value will be set as a default value, maximum concurrent threads.";
+            }
+        } else if (key.compare(GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                enable_loop_unrolling = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                enable_loop_unrolling = false;
+            } else {
+                IE_THROW(ParameterMismatch) << "Unsupported KEY_GPU_ENABLE_LOOP_UNROLLING flag value: " << val;
             }
         } else {
             IE_THROW(NotFound) << "Unsupported property key by plugin: " << key;
@@ -290,6 +302,7 @@ void Config::adjustKeyMapValues() {
         default: break;
         }
         key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY] = qp;
+        key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY] = qp;
     }
     {
         std::string qt = "0";
@@ -300,6 +313,7 @@ void Config::adjustKeyMapValues() {
         default: break;
         }
         key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE] = qt;
+        key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
     }
     {
         std::string tm = PluginConfigParams::TUNING_DISABLED;
@@ -321,6 +335,13 @@ void Config::adjustKeyMapValues() {
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
     key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
-    key_config_map[CLDNNConfigParams::KEY_CLDNN_MAX_NUM_THREADS] = std::to_string(n_threads);
+    key_config_map[GPUConfigParams::KEY_GPU_MAX_NUM_THREADS] = std::to_string(n_threads);
+
+    if (enable_loop_unrolling)
+        key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::YES;
+    else
+        key_config_map[GPUConfigParams::KEY_GPU_ENABLE_LOOP_UNROLLING] = PluginConfigParams::NO;
 }
+IE_SUPPRESS_DEPRECATED_END
+
 }  // namespace CLDNNPlugin

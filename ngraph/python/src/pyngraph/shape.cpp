@@ -18,9 +18,9 @@ void regclass_pyngraph_Shape(py::module m)
 {
     py::class_<ngraph::Shape, std::shared_ptr<ngraph::Shape>> shape(m, "Shape");
     shape.doc() = "ngraph.impl.Shape wraps ngraph::Shape";
-    shape.def(py::init<const std::initializer_list<size_t>&>());
-    shape.def(py::init<const std::vector<size_t>&>());
-    shape.def(py::init<const ngraph::Shape&>());
+    shape.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_lengths"));
+    shape.def(py::init<const std::vector<size_t>&>(), py::arg("axis_lengths"));
+    shape.def(py::init<const ngraph::Shape&>(), py::arg("axis_lengths"));
     shape.def("__len__", [](const ngraph::Shape& v) { return v.size(); });
     shape.def("__getitem__", [](const ngraph::Shape& v, int key) { return v[key]; });
 

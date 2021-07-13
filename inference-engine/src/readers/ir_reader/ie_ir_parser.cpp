@@ -18,7 +18,9 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph_ops/framework_node.hpp>
 #include <set>
 #include <sstream>
 #include <string>
@@ -47,7 +49,7 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
     }
 }
 
-std::shared_ptr<ICNNNetwork> IRParser::parse(
+CNNNetwork IRParser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     return parser->parse(root, weights);
 }
@@ -167,6 +169,8 @@ public:
         adapter.set(value);
     }
 
+    void use_framework_node(bool flag) { m_use_framework_node = flag; }
+
 private:
     struct IoMap {
         using NodeIdToIoIndex =
@@ -219,6 +223,8 @@ private:
     /// it will be used during Inputs/Outputs Description creation in SubGraph processing
     ///
     IoMap io_map;
+
+    bool m_use_framework_node{false};
 };
 
 XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& node) {
@@ -520,6 +526,24 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
             a->set(buffer);
         }
+    } else if (auto a = ngraph::as_type<
+                        ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
+        const auto & type = XMLParseUtils::GetStrAttr(node, "type");
+        const auto & version = XMLParseUtils::GetStrAttr(node, "version");
+
+        ngraph::op::FrameworkNodeAttrs node_attrs;
+        node_attrs.set_opset_name(version);
+        node_attrs.set_type_name(type);
+
+        pugi::xml_node dn = node.child("data");
+
+        if (!dn.empty()) {
+            for (const auto & data_attr : dn.attributes()) {
+                node_attrs[data_attr.name()] = data_attr.as_string();
+            }
+        }
+
+        a->set(node_attrs);
     } else {
         IE_THROW() << "Error IR reading. Attribute adapter can not be found for " << name
                            << " parameter";
@@ -545,7 +569,7 @@ void XmlDeserializer::on_adapter(
 
 std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
-    OV_ITT_TASK_CHAIN(taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
+    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
         ngraph::ParameterVector parameters;
@@ -604,7 +628,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphNodes");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphNodes");
 
     FunctionNodes func_nodes;
 
@@ -665,7 +689,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         func_nodes.all.emplace_back(node);
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "ConstructNgraphFunction");
 
     auto function = std::make_shared<ngraph::Function>(
         func_nodes.results, func_nodes.sinks, func_nodes.parameters, GetStrAttr(root, "name", ""));
@@ -815,12 +839,25 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
+
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
 
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
+    }
+
+    if (!ngraphNode && m_use_framework_node) {
+        ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
+        XmlDeserializer visitor(node, weights, opsets, variables);
+        ngraphNode->visit_attributes(visitor);
+
+        size_t index{0};
+        for (const auto & output_params : params.outputPorts) {
+            ngraphNode->set_output_type(index, output_params.precision, ngraph::Shape(output_params.dims));
+            ++index;
+        }
     }
 
     if (!ngraphNode) {
@@ -865,6 +902,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     opsets["opset5"] = ngraph::get_opset5();
     opsets["opset6"] = ngraph::get_opset6();
     opsets["opset7"] = ngraph::get_opset7();
+    opsets["opset8"] = ngraph::get_opset8();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -877,13 +915,23 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     }
 }
 
-std::shared_ptr<ICNNNetwork> V10Parser::parse(
+CNNNetwork V10Parser::parse(
     const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
     XmlDeserializer visitor(root, weights, opsets, variables);
+    bool use_framework_node{false};
+    for (const auto & ext : _exts) {
+        const InferenceEngine::Version * version = nullptr;
+        ext->GetVersion(version);
+        if (version && version->description && strcmp(version->description, "framework_node_ext") == 0) {
+            use_framework_node = true;
+            break;
+        }
+    }
+    visitor.use_framework_node(use_framework_node);
     visitor.on_attribute("net", function);
 
-    OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::V10Reader_RT, "ConstructCNNNetwork");
 
     CNNNetwork net(function, _exts);
     parsePreProcess(net, root, weights);
@@ -966,8 +1014,6 @@ void V10Parser::parsePreProcess(
     if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
         IE_THROW() << "mean blob defined without specifying precision.";
 
-    InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
-
     int lastChanNo = -1;
     std::unordered_set<int> idsForMeanImage;
 
@@ -977,7 +1023,6 @@ void V10Parser::parsePreProcess(
             IE_THROW() << "Pre-process channel id invalid: " << chanNo;
         }
         lastChanNo = chanNo;
-        preProcessChannel = pp[chanNo];
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -993,13 +1038,15 @@ void V10Parser::parsePreProcess(
                                        << " extpecting " << width << " x " << height << " x "
                                        << meanSegmentPrecision.size();
                 }
-                preProcessChannel->meanData = make_blob_with_precision(
+                auto meanData = make_blob_with_precision(
                     TensorDesc(meanSegmentPrecision, {height, width}, Layout::HW));
-                preProcessChannel->meanData->allocate();
-                auto lockedMem = preProcessChannel->meanData->buffer();
+                meanData->allocate();
+                auto lockedMem = meanData->buffer();
                 char* data = lockedMem.as<char*>();
                 uint8_t* src_data = weights->cbuffer().as<uint8_t*>() + offset;
                 memcpy(data, src_data, size);
+
+                pp.setMeanImageForChannel(meanData, chanNo);
             }
         }
     }

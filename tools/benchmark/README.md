@@ -142,6 +142,11 @@ Options:
                         parameters. Please note, command line parameters have
                         higher priority then parameters from configuration
                         file.
+  -cdir CACHE_DIR, --cache_dir CACHE_DIR
+                        Optional. Enable model caching to specified directory
+  -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
+                        Optional. Loads model from file directly without
+                        read_network.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -184,4 +189,4 @@ Throughput: 73.28 FPS
 ## See Also
 * [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
 * [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/tree/2018/model_downloader)

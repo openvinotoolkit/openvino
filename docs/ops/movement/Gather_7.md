@@ -10,18 +10,20 @@ TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) oper
 
 **Detailed description**
 
-    output[p_0, p_1, ..., p_{axis-1}, p_axis, ..., p_{axis + k}, ...] = 
-       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, p_b, ..., p_{axis}, j], ...]
+    output[p_0, p_1, ..., p_{axis-1}, i_b, ..., i_{M-1}, p_{axis+1}, ..., p_{N-1}] = 
+       data[p_0, p_1, ..., p_{axis-1}, indices[p_0, p_1, ..., p_{b-1}, i_b, ..., i_{M-1}], p_{axis+1}, ..., p_{N-1}]
 
-Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, and `b` is 
-the number of batch dimensions.
+Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, `b` is 
+the number of batch dimensions. `N` and `M` are numbers of dimensions of `data` and `indices` tensors, respectively.
 
 **Attributes**:
 * *batch_dims*
   * **Description**: *batch_dims* (also denoted as `b`) is a leading number of dimensions of `data` tensor and `indices` 
   representing the batches, and *Gather* starts to gather from the `b` dimension. It requires the first `b` 
-  dimensions in `data` and `indices` tensors to be equal.
-  * **Range of values**: `[0; min(data.rank, indices.rank))` and `batch_dims <= axis`
+  dimensions in `data` and `indices` tensors to be equal. If `batch_dims` is less than zero, normalized value is used 
+  `batch_dims = indices.rank + batch_dims`.
+  * **Range of values**: `[-min(data.rank, indices.rank); min(data.rank, indices.rank)]` and `batch_dims' <= axis'`.
+  Where `batch_dims'` and `axis'` stand for normalized `batch_dims` and `axis` values.
   * **Type**: *T_AXIS*
   * **Default value**: 0
   * **Required**: *no*
@@ -112,16 +114,36 @@ output = [[[[ 5,  6,  7,  8],
 output_shape = (2, 1, 3, 4)
 ```
 
+Example 5 with negative *batch_dims* value:
+```
+batch_dims = -1  <-- normalized value will be indices.rank + batch_dims = 2 - 1 = 1
+axis = 1
+
+indices = [[0, 0, 4], <-- this is applied to the first batch 
+           [4, 0, 0]]  <-- this is applied to the second batch
+indices_shape = (2, 3)
+
+data    = [[1, 2, 3, 4, 5],  <-- the first batch
+           [6, 7, 8, 9, 10]]  <-- the second batch 
+data_shape = (2, 5)
+
+output  = [[ 1, 1, 5],
+           [10, 6, 6]]
+output_shape = (2, 3)
+```
+
 **Inputs**
 
 * **1**:  `data` tensor of type *T* with arbitrary data. **Required**.
 
-* **2**:  `indices` tensor of type *T_IND* with indices to gather. The values for indices are in the range `[0, data[axis] - 1]`. 
-**Required**.
+* **2**:  `indices` tensor of type *T_IND* with indices to gather. 0D tensor (scalar) for indices is also allowed. 
+  The values for indices are in the range `[0, data[axis] - 1]`.
+  **Required**.
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example, 
-*axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. 
-Allowed values are from `[-len(data.shape), len(indices.shape) - 1]` and `axis >= batch_dims`. 
+*axis* equal to 1 means that gathering is performed over the first dimension. Negative `axis` means reverse indexing and 
+  will be normalized to value `axis = data.rank + axis`. Allowed values are from `[-len(data.shape), len(data.shape) - 1]` 
+  and `axis' >= batch_dims'`. Where `axis'` and `batch_dims'` stand for normalized `batch_dims` and `axis` values.
 **Required**.
 
 **Outputs**
@@ -133,9 +155,9 @@ of the output tensor is `data.shape[:axis] + indices.shape[batch_dims:] + data.s
 
 * *T*: any supported type.
 
-* *T_IND*: `int32` or `int64`.
+* *T_IND*: any supported integer types.
 
-* *T_AXIS*: `int32` or `int64`.
+* *T_AXIS*: any supported integer types.
 
 **Example**
 

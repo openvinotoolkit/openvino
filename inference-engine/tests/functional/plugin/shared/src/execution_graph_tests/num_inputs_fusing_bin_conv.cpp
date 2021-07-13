@@ -17,8 +17,6 @@
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
-
 namespace ExecutionGraphTests {
 
 std::string ExecGraphInputsFusingBinConv::getTestCaseName(testing::TestParamInfo<std::string> obj) {
@@ -58,60 +56,26 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
+    auto function = execGraphInfo.getFunction();
+    ASSERT_NE(function, nullptr);
 
-    if (auto function = execGraphInfo.getFunction()) {
-        // try to convert to old representation and check that conversion passed well
-        std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedExecGraph;
-        ASSERT_NO_THROW(convertedExecGraph = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(execGraphInfo));
+    for (const auto & op : function->get_ops()) {
+        const auto & rtInfo = op->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            IE_ASSERT(nullptr != value);
 
-        for (const auto & op : function->get_ops()) {
-            const auto & rtInfo = op->get_rt_info();
-            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                IE_ASSERT(rtInfo.end() != it);
-                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-                IE_ASSERT(nullptr != value);
+            return value->get();
+        };
 
-                return value->get();
-            };
-
-            auto layerType = getExecValue("layerType");
-            if (layerType == "BinaryConvolution") {
-                auto originalLayersNames = getExecValue("originalLayersNames");
-                ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_EQ(op->get_input_size(), 2);
-            }
-
-            // IR v7 does not have output nodes
-            if (ngraph::op::is_output(op))
-                continue;
-
-            IE_SUPPRESS_DEPRECATED_START
-            InferenceEngine::CNNLayerPtr cnnLayer;
-            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedExecGraph), op->get_friendly_name()));
-            ASSERT_EQ(cnnLayer->name, op->get_friendly_name());
-            auto variantType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(
-                op->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE]);;
-            ASSERT_EQ(cnnLayer->type, variantType->get());
-
-            for (const auto & kvp : cnnLayer->params) {
-                auto variant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(op->get_rt_info()[kvp.first]);
-                ASSERT_EQ(variant->get(), kvp.second);
-            }
-            IE_SUPPRESS_DEPRECATED_END
+        auto layerType = getExecValue("layerType");
+        if (layerType == "BinaryConvolution") {
+            auto originalLayersNames = getExecValue("originalLayersNames");
+            ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
+            ASSERT_EQ(op->get_input_size(), 2);
         }
-    } else {
-        IE_SUPPRESS_DEPRECATED_START
-        std::vector<InferenceEngine::CNNLayerPtr> nodes;
-        ASSERT_NO_THROW(nodes = TopologicalSort(execGraphInfo));
-        for (auto &node : nodes) {
-            if (node->type == "BinaryConvolution") {
-                std::string originalLayersNames = node->params["originalLayersNames"];
-                ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_EQ(node->insData.size(), 2);
-            }
-        }
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     fnPtr.reset();

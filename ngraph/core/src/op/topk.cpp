@@ -205,7 +205,7 @@ namespace topk
 } // namespace topk
 
 // v1 version starts
-constexpr NodeTypeInfo op::v1::TopK::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::TopK, "TopK", 1);
 
 static const std::uint64_t UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 
@@ -306,7 +306,8 @@ void op::v1::TopK::validate_and_infer_types()
         }
         else
         {
-            output_shape[m_normalized_axis] = -1;
+            output_shape[m_normalized_axis] =
+                Dimension(0, input_partial_shape[m_normalized_axis].get_max_length());
         }
     }
 
@@ -491,6 +492,50 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                get_index_element_type());
 }
 
+bool op::v1::TopK::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_TopK_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: break;
+    default: return false;
+    }
+
+    if (op::is_constant(input_value(1).get_node()))
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i32:
+        case ngraph::element::i64: break;
+        default: return false;
+        }
+    }
+    else
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: break;
+        default: return false;
+        }
+    }
+
+    return true;
+}
+
 // v3 version starts
 constexpr NodeTypeInfo op::v3::TopK::type_info;
 
@@ -573,4 +618,48 @@ bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 {
     NGRAPH_OP_SCOPE(v3_TopK_evaluate);
     return op::v1::TopK::evaluate(outputs, inputs);
+}
+
+bool op::v3::TopK::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_TopK_has_evaluate);
+
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: break;
+    default: return false;
+    }
+
+    if (op::is_constant(input_value(1).get_node()))
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i32:
+        case ngraph::element::i64: break;
+        default: return false;
+        }
+    }
+    else
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: break;
+        default: return false;
+        }
+    }
+
+    return true;
 }

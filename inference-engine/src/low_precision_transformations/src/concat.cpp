@@ -43,21 +43,23 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         return false;
     }
 
-    // precisions can be different
+    // Concat operations precision is defined:
+    // 1. consumers after Concat
+    // 2. FakeQuantize precisions without zero point
     ngraph::Node& quantizationLayer = *subgraph.quantizationLayers[0];
     std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer.shared_from_this());
     if (!NetworkHelper::isQuantizeSupported(fq)) {
         return false;
     }
-
     DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
     if (dataPrecision.precision == ngraph::element::undefined) {
         return false;
     }
 
-    std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
+    std::vector<element::Type> concatChildrenPrecisions = precisionsOnActivations;
+
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
-        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
+        fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
         if (fq == nullptr) {
             return false;
         }
@@ -73,20 +75,27 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             return false;
         }
 
+        // define concatenation operation consumers precisions
+        std::vector<element::Type> fqChildrenPrecisions = precisionsOnActivations;
+        fillAvailablePrecisions(subgraph.quantizationLayers[i], fqChildrenPrecisions);
+        concatChildrenPrecisions = NetworkHelper::precisionIntersection(concatChildrenPrecisions, fqChildrenPrecisions);
+        if (concatChildrenPrecisions.empty()) {
+            return false;
+        }
+
+        // define FakeQuantize precisions without zero point
         const DataPrecision dataPrecision2 = getDataPrecision(subgraph.quantizationLayers[i]->shared_from_this(), quantizationDetails, false);
         if (dataPrecision2.precision == ngraph::element::undefined) {
             return false;
         }
 
         if (dataPrecision.precision != dataPrecision2.precision) {
-            // quantization levels are the same, difference can be in sign
-            // wider interval (precision) is preferable: use signed if least one interval is signed
             dataPrecision = dataPrecision.precision.is_signed() ? dataPrecision : dataPrecision2;
         }
     }
 
-    if (dataPrecision.precision == ngraph::element::undefined) {
-        return false;
+    if (std::find(concatChildrenPrecisions.begin(), concatChildrenPrecisions.end(), dataPrecision.precision) == concatChildrenPrecisions.end()) {
+        dataPrecision = DataPrecision(concatChildrenPrecisions[0]);
     }
 
     std::vector<QuantizationDetails> quantizationLayersDetails;
@@ -158,7 +167,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             dequantizationMul,
             dequantizationSub,
             subgraph.quantizationLayers[0]->get_output_element_type(0),
-            subgraph.quantizationLayers[0]->get_output_shape(0),
+            subgraph.quantizationLayers[0]->get_output_partial_shape(0),
             updatePrecisions ? dataPrecision.precision : subgraph.quantizationLayers[0]->get_output_element_type(0),
             deqPrecision);
 
@@ -240,8 +249,17 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     }
 
     const auto axis = concat->get_axis();
-    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, concat->get_output_partial_shape(0).rank());
-    return normalizedAxis == 1ul;
+    const auto outPShape = concat->get_output_partial_shape(0);
+    const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outPShape.rank());
+    if (normalizedAxis != 1ul) {
+        return false;
+    }
+
+    if (outPShape.rank().is_dynamic() || outPShape[normalizedAxis].is_dynamic()) {
+        return false;
+    }
+
+    return true;
 }
 
 void ConcatTransformation::fillDequantizationNodes(
@@ -281,8 +299,8 @@ void ConcatTransformation::fillDequantizationNodes(
         for (size_t i = 0; i < layerDequantizations.size(); ++i) {
             const auto& dequantization = layerDequantizations[i];
             const ngraph::element::Type precision = deqPrecision;
-            ngraph::Shape targetShape(layer->get_input_shape(i).size(), 1ul);
-            targetShape[1] = layer->get_input_shape(i)[1];
+            ngraph::Shape targetShape(layer->get_input_partial_shape(i).rank().get_length(), 1ul);
+            targetShape[1] = layer->get_input_partial_shape(i)[1].get_length();
 
             if (dequantization.convert != nullptr) {
                 convertNodes.push_back(dequantization.convert);
@@ -414,7 +432,13 @@ void ConcatTransformation::addDequantizationLayers(
                         const std::string originalName = layer->get_friendly_name();
                         const std::string newName = layer->get_friendly_name() + LayerTransformation::originalLayerPostfix;
                         layer->set_friendly_name(newName);
-                        source->set_friendly_name(originalName);
+
+                        // Split & VariadicSplit have other naming rules
+                        if (is_type<opset1::Split>(layer) || is_type<opset1::VariadicSplit>(layer)) {
+                            source->set_friendly_name(originalName + "." + std::to_string(i));
+                        } else {
+                            source->set_friendly_name(originalName);
+                        }
                         subgraph.layers[layer->get_friendly_name()] = layer;
                     }
                 }

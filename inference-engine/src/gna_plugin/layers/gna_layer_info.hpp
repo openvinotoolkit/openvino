@@ -70,12 +70,14 @@ class LayerInfo {
             [this]() { return isFullyConnected(); },
             [this]() { return isAffineFilter(); },
             [this]() { return isConcatAlignFilter(); },
+            [this]() { return isConvolutionFilter(); },
             [this]() { return isEltwise(); },
             [this]() { return isScaleShift(); },
             [this]() { return isConvolution(); },
             [this]() { return isPooling(); },
             [this]() { return isPower(); },
-            [this]() { return isCropAffined(); }
+            [this]() { return isCropAffined(); },
+            [this]() { return isGemm(); },
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -88,6 +90,32 @@ class LayerInfo {
     static bool isBatchSizeConstrained(const std::string name) {
         static InferenceEngine::details::caseless_set<std::string> layersWithConstrains = {"memory", "convolution"};
         return layersWithConstrains.find(name) != layersWithConstrains.end();
+    }
+    size_t getOutputBatchSize() const {
+        if (!layer) {
+            THROW_GNA_EXCEPTION << "layer is null";
+        }
+        if (!layer->outData[0]) {
+            THROW_GNA_EXCEPTION << "output data of layer '" << layer->name << "' is null";
+        }
+        auto& dims = layer->outData[0]->getDims();
+        auto layout = layer->outData[0]->getLayout();
+        switch (dims.size()) {
+        case 1:
+            return 1;
+        case 2:
+            if (layout == InferenceEngine::Layout::NC) {
+                return dims[0];
+            } else if (layout == InferenceEngine::Layout::CN) {
+                return dims[1];
+            } else {
+                THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
+            }
+        case 4:
+            return dims[0];
+        default:
+            THROW_GNA_EXCEPTION << "batch size is not define in layer '" << layer->name << "'";
+        }
     }
     bool isActivation() const noexcept {
         IS_VALID();
@@ -129,6 +157,9 @@ class LayerInfo {
     }
     bool isAffineFilter() const noexcept {
         return isOfType("AffineFilter");
+    }
+    bool isConvolutionFilter() const noexcept {
+        return isOfType("ConvolutionFilter");
     }
     bool isRelu() const noexcept {
         return isOfType("relu");
@@ -215,6 +246,9 @@ class LayerInfo {
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
     }
+    bool isGemm() const noexcept {
+        return isOfType("Gemm");
+    }
     bool isSplit() const noexcept {
         return isOfType("split");
     }
@@ -260,7 +294,7 @@ class LayerInfo {
                 return false;
             }
             // check dims in between
-            for (int j = permute.first + 1; j != permute.second; j++) {
+            for (int j = std::min(permute.first, permute.second) + 1; j < std::max(permute.first, permute.second); j++) {
                 if (inputsOrderTransformed[j] != 1) {
                     return false;
                 }

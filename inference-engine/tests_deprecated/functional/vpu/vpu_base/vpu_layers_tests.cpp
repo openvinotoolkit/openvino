@@ -10,9 +10,9 @@
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ie_memcpy.h"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
-#include <common/include/vpu/utils/error.hpp>
+#include <vpu/utils/error.hpp>
 
 #include "blob_factory.hpp"
 #include "debug.h"

@@ -65,12 +65,12 @@ std::shared_ptr<ngraph::Variant> VariantWrapper<PrimitivesPriority>::init(const 
 
 std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> &node) {
     const auto &rtInfo = node->get_rt_info();
-    using PrimitivesPriorityWraper = VariantWrapper<PrimitivesPriority>;
+    using PrimitivesPriorityWrapper = VariantWrapper<PrimitivesPriority>;
 
-    if (!rtInfo.count(PrimitivesPriorityWraper::type_info.name)) return "";
+    if (!rtInfo.count(PrimitivesPriorityWrapper::type_info.name)) return "";
 
-    const auto &attr = rtInfo.at(PrimitivesPriorityWraper::type_info.name);
-    PrimitivesPriority pp = as_type_ptr<PrimitivesPriorityWraper>(attr)->get();
+    const auto &attr = rtInfo.at(PrimitivesPriorityWrapper::type_info.name);
+    PrimitivesPriority pp = as_type_ptr<PrimitivesPriorityWrapper>(attr)->get();
     return pp.getPrimitivesPriority();
 }
 

@@ -22,8 +22,6 @@
 
 #include "execution_graph_tests/unique_node_names.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
-
 namespace ExecutionGraphTests {
 
 std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
@@ -46,11 +44,8 @@ void ExecGraphUniqueNodeNames::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-
     auto concat = std::make_shared<ngraph::opset1::Concat>(split->outputs(), 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
@@ -74,33 +69,22 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     int expectedReorders = 2;
     std::unordered_set<std::string> names;
 
-    if (auto function = execGraphInfo.getFunction()) {
-        for (const auto & op : function->get_ops()) {
-            ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end()) <<
-                "Node with name " << op->get_friendly_name() << "already exists";
-            names.insert(op->get_friendly_name());
+    auto function = execGraphInfo.getFunction();
+    ASSERT_NE(function, nullptr);
 
-            const auto & rtInfo = op->get_rt_info();
-            auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
-            ASSERT_NE(rtInfo.end(), it);
-            auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
-            ASSERT_NE(nullptr, opType);
+    for (const auto & op : function->get_ops()) {
+        ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end()) <<
+            "Node with name " << op->get_friendly_name() << "already exists";
+        names.insert(op->get_friendly_name());
 
-            if (opType->get() == "Reorder") {
-                numReorders++;
-            }
-        }
-    } else {
-        auto nodes = TopologicalSort(execGraphInfo);
-        for (auto &node : nodes) {
-            IE_SUPPRESS_DEPRECATED_START
-            ASSERT_TRUE(names.find(node->name) == names.end()) <<
-                "Node with name " << node->name << "already exists";
-            names.insert(node->name);
-            if (node->type == "Reorder") {
-                numReorders++;
-            }
-            IE_SUPPRESS_DEPRECATED_END
+        const auto & rtInfo = op->get_rt_info();
+        auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+        ASSERT_NE(rtInfo.end(), it);
+        auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+        ASSERT_NE(nullptr, opType);
+
+        if (opType->get() == "Reorder") {
+            numReorders++;
         }
     }
 

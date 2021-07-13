@@ -78,7 +78,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::Shape outputShape;
     ngraph::Shape scalesShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -205,7 +205,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // opset1
     // nearest mode - move dequantization
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
@@ -230,9 +230,90 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
+    // nearest mode - move dequantization
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(
+            ngraph::AxisSet{2, 3},
+            "nearest",
+            false,
+            false,
+            {0},
+            {0}),
+        interp4Attributes(),
+        1,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // per-channel dequantization
+    {
+        { Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(
+            ngraph::AxisSet{2, 3},
+            "nearest",
+            false,
+            false,
+            {0},
+            {0}),
+        interp4Attributes(),
+        1,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        }
+    },
+
+    // per-channel dequantization and dynamic channels
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{},
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(
+            ngraph::AxisSet{2, 3},
+            "nearest",
+            false,
+            false,
+            {0},
+            {0}),
+        interp4Attributes(),
+        1,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+
     // mode is not nearest - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
@@ -259,7 +340,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
 
     // AxisSet is not {2,3} - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 8, 32, 32 },
         ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
@@ -286,7 +367,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
 
     // align_corners set to true - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
@@ -313,7 +394,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
 
     // have pads - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{},
         LayerTransformation::createParamsU8I8(),
@@ -341,7 +422,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
     // v4::Interpolate
     // nearest mode - move dequantization
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
@@ -364,9 +445,84 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 
+    // nearest mode - move dequantization
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {-0.32f}, {0.1f}}
+        }
+    },
+
+    // per-channel dequantization
+    {
+        { Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        }
+    },
+
+    // per-channel dequantization and dynamic channels
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        ngraph::Shape{ 1, 4, 32, 32 },
+        ngraph::Shape{ 1, 1, 2, 2 },
+        LayerTransformation::createParamsU8I8(),
+        interpAttributes(),
+        interp4Attributes(
+            ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+            ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}),
+        4,
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}}
+        },
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {{-0.32f, -0.31f, 0.31f, 0.32f}}, {{0.1f, 0.2f, 0.3f, 0.4f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+
     // mode is not nearest - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
@@ -391,7 +547,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
 
     // align_corners set to true - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
@@ -416,7 +572,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
 
     // have pads - not transformed
     {
-        ngraph::Shape{ 1, 4, 16, 16 },
+        { 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
@@ -446,7 +602,7 @@ TEST_P(InterpolateTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     InterpolateTransformation,
     ::testing::ValuesIn(testValues),

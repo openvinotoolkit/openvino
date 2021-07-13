@@ -9,8 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "cpp_interfaces/base/ie_infer_async_request_base.hpp"
-#include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 
@@ -21,7 +20,7 @@ namespace InferenceEngine {
  * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
-class ExecutableNetworkThreadSafeDefault : public ExecutableNetworkInternal {
+class ExecutableNetworkThreadSafeDefault : public IExecutableNetworkInternal {
 public:
     /**
      * @brief A shared pointer to a ExecutableNetworkThreadSafeDefault object

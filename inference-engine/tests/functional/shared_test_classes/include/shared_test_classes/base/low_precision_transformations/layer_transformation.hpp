@@ -8,8 +8,6 @@
 #include <tuple>
 #include <memory>
 
-#include <legacy/ie_util_internal.hpp>
-
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <low_precision/transformer.hpp>
 
@@ -25,8 +23,6 @@ public:
 
 class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphFactory {
 };
-
-IE_SUPPRESS_DEPRECATED_START
 
 class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
@@ -61,12 +57,10 @@ protected:
 
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShapes,
+        const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ngraph::pass::low_precision::LayerTransformation::Params& params);
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 typedef std::tuple<
     InferenceEngine::Precision,

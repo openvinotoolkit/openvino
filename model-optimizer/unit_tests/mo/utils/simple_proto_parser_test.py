@@ -36,10 +36,10 @@ correct_proto_message_8 = 'model {good_list: [3.0, 5.0, ]}'
 correct_proto_message_9 = '    first_stage_anchor_generator {grid_anchor_generator {height_stride: 16, width_stride:' \
                           ' 16 scales: [ 0.25, 0.5, 1.0, 2.0], aspect_ratios: [] }}'
 
-correct_proto_message_10 = 'train_input_reader {label_map_path: "C:\mscoco_label_map.pbtxt"' \
+correct_proto_message_10 = r'train_input_reader {label_map_path: "C:\mscoco_label_map.pbtxt"' \
                            ' tf_record_input_reader { input_path: "PATH_TO_BE_CONFIGURED/  mscoco_train.record" }}'
 
-correct_proto_message_11 = 'model {path: "C:\[{],}" other_value: [1, 2, 3, 4]}'
+correct_proto_message_11 = r'model {path: "C:\[{],}" other_value: [1, 2, 3, 4]}'
 
 incorrect_proto_message_1 = 'model { bad_no_value }'
 
@@ -121,14 +121,14 @@ class TestingSimpleProtoParser(unittest.TestCase):
     def test_correct_proto_reader_from_string_with_windows_path(self):
         result = SimpleProtoParser().parse_from_string(correct_proto_message_10)
         expected_result = {
-            'train_input_reader': {'label_map_path': "C:\mscoco_label_map.pbtxt",
+            'train_input_reader': {'label_map_path': r"C:\mscoco_label_map.pbtxt",
                                    'tf_record_input_reader': {
                                        'input_path': "PATH_TO_BE_CONFIGURED/  mscoco_train.record"}}}
         self.assertDictEqual(result, expected_result)
 
     def test_correct_proto_reader_from_string_with_special_characters_in_string(self):
         result = SimpleProtoParser().parse_from_string(correct_proto_message_11)
-        expected_result = {'model': {'path': "C:\[{],}",
+        expected_result = {'model': {'path': r"C:\[{],}",
                                      'other_value': [1, 2, 3, 4]}}
         self.assertDictEqual(result, expected_result)
 

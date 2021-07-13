@@ -5,7 +5,6 @@
 #include "condition_inst.h"
 #include "network_impl.h"
 #include "implementation_map.h"
-#include "math_utils.h"
 #include "register_gpu.hpp"
 
 #include <algorithm>
@@ -17,29 +16,35 @@ namespace gpu {
 struct condition_gpu : typed_primitive_impl<condition> {
     const condition_node& outer;
 
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<condition_gpu>(*this);
+    }
+
     explicit condition_gpu(const condition_node& outer) : outer(outer) {}
 
-    event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, condition_inst& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         for (auto& a : events) {
             a->wait();
         }
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
+        auto ev = instance.get_network().get_stream().create_user_event(false);
 
         bool exec_branch = choose_branch_to_exec(instance);
-        memory_impl::ptr memory_to_copy;
+        memory::ptr memory_to_copy;
         if (exec_branch)
-            memory_to_copy = (memory_impl::ptr) &execute_branch(instance.get_net_true(), instance.result_id(), instance.input_memory());
+            memory_to_copy = execute_branch(instance.get_net_true(), instance.result_id(), instance.input_memory_ptr());
         else
-            memory_to_copy = (memory_impl::ptr) &execute_branch(instance.get_net_false(), instance.result_id(), instance.input_memory());
+            memory_to_copy = execute_branch(instance.get_net_false(), instance.result_id(), instance.input_memory_ptr());
         // just copy memory
-        mem_lock<float> inp_ptr{memory_to_copy};
-        mem_lock<float> out_ptr{instance.output_memory()};
+        mem_lock<float> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
+        mem_lock<float> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
         std::copy(inp_ptr.begin(), inp_ptr.end(), out_ptr.begin());
-        dynamic_cast<cldnn::user_event*>(ev.get())->set();  // set as complete
+        ev->set();
         return ev;
     }
 
     static primitive_impl* create(const condition_node& arg) { return new condition_gpu(arg); }
+
+    void init_kernels() override {}
 
 private:
     /*
@@ -67,11 +72,11 @@ private:
     Returns boolean flag, which says what branch should be executed.
     */
     bool choose_branch_to_exec(condition_inst& instance) const {
-        mem_lock<float> lock_compare_data{instance.compare_memory()};
+        mem_lock<float> lock_compare_data{instance.compare_memory_ptr(), instance.get_network().get_stream()};
         auto compare_layout = instance.compare_memory().get_layout();
         auto compare_ptr = lock_compare_data.begin();
 
-        mem_lock<float> lock_input{instance.input_memory()};
+        mem_lock<float> lock_input{instance.input_memory_ptr(), instance.get_network().get_stream()};
         auto input_layout = instance.input_memory().get_layout();
         auto input_ptr = lock_input.begin();
 
@@ -101,12 +106,12 @@ private:
         return true;
     }
 
-    memory_impl& execute_branch(network_impl::ptr branch,
-                                const primitive_id& input_id,
-                                memory_impl& input_memory) const {
+    memory::ptr execute_branch(network_impl::ptr branch,
+                           const primitive_id& input_id,
+                           memory::ptr input_memory) const {
         branch->set_input_data(input_id, input_memory);
         branch->execute({});
-        return branch->get_outputs().at(0)->output_memory();
+        return branch->get_outputs().at(0)->output_memory_ptr();
     }
 };
 

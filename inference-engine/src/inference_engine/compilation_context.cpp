@@ -13,7 +13,6 @@
 #include <xml_parse_utils.h>
 
 #include "ie_itt.hpp"
-#include "cpp_interfaces/exception2status.hpp"
 #include "transformations/serialize.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception.hpp"
@@ -43,7 +42,7 @@ static int32_t as_int32_t(T v) {
 }
 
 class OstreamHashWrapper final: public std::streambuf {
-    std::size_t    m_res = {};
+    std::size_t m_res = 0;
 public:
     std::size_t getResult() const { return m_res; }
     std::streamsize xsputn(const char* s, std::streamsize n) override {
@@ -66,7 +65,7 @@ public:
 //////////////////////////////////////////////////
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
-    size_t seed {};
+    size_t seed = 0;
     auto absPath = filePath;
     try {
         absPath = FileUtils::absoluteFilePath(filePath);
@@ -87,7 +86,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
 
 std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
     std::ostream xml(&xmlHash);
@@ -102,7 +101,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     serializer.run_on_function(net.getFunction());
 
     // 2. Compute hash on serialized data and options
-    size_t seed {};
+    size_t seed = 0;
     seed = hash_combine(seed, xmlHash.getResult());
     seed = hash_combine(seed, binHash.getResult());
 
@@ -163,8 +162,8 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
-    size_t seed {};
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
+    size_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
     } catch (...) {
