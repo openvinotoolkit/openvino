@@ -178,11 +178,3 @@ Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
     return Input<Node>(this, input_index);
 }
 
-namespace ngraph
-{
-    constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::type_info;
-
-    constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::type_info;
-} // namespace ngraph
