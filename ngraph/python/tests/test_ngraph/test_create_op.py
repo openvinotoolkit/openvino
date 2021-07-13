@@ -47,7 +47,7 @@ def test_adaptive_max_pool(dtype, ind_type):
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
     assert list(node.get_output_shape(1)) == [2, 24, 16, 16]
-    assert node.get_output_element_type(1) == Type.i32 if ind_type == 'i32' else Type.i64
+    assert node.get_output_element_type(1) == Type.i32 if ind_type == "i32" else Type.i64
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
