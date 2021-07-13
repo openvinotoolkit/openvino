@@ -110,8 +110,7 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
-    NOT DEFINED OpenVINO_SOURCE_DIR)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND NOT DEFINED OpenVINO_SOURCE_DIR)
     function(add_gflags)
         # common gflags settings
         set(GFLAGS_IS_SUBPROJECT TRUE)
@@ -127,11 +126,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
     add_gflags()
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib" AND NOT DEFINED OpenVINO_SOURCE_DIR)
     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy" AND NOT DEFINED OpenVINO_SOURCE_DIR)
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
