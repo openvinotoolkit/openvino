@@ -2,15 +2,19 @@
 
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+from github.GithubException import UnknownObjectException
 
 import datetime
 import time
 import re
 import logging
 import requests
+from retrying import retry
+
+
 from ms_teams_communicator import MSTeamsCommunicator
 from jenkins_wrapper import JenkinsWrapper
-from jenkins import NotFoundException
+from jenkins import NotFoundException, JenkinsException
 from git_wrapper import GitWrapper, GitWrapperError
 import os
 import json
@@ -24,12 +28,13 @@ log.setLevel(logging.INFO)
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 _BUILD_DURATION_THRESHOLD = datetime.timedelta(minutes=60)
 _CI_START_THRESHOLD = datetime.timedelta(minutes=30)
-_AWAITING_JENKINS_THRESHOLD = datetime.timedelta(minutes=5)
+_AWAITING_JENKINS_THRESHOLD = 30  # minutes
 _WATCHDOG_DIR = os.path.expanduser('~')
 _PR_REPORTS_CONFIG_KEY = 'pr_reports'
-_CI_BUILD_FAIL_MESSAGE = 'ERROR:   py3: commands failed'
+_CI_BUILD_FAIL_MESSAGE = ['ERROR:   py3: commands failed',
+                          "The command '/bin/sh -c make -j $(nproc) install' returned a non-zero code"]
 _CI_BUILD_SUCCESS_MESSAGE = 'py3: commands succeeded'
-_GITHUB_CI_CHECK_NAME = 'OpenVINO-ONNX'
+_GITHUB_CI_CHECK_NAME = 'OpenVino ONNX CI'
 
 INTERNAL_ERROR_MESSAGE_HEADER = '!!! --- !!! INTERNAL WATCHDOG ERROR !!! --- !!!'
 ERROR_MESSAGE_HEADER = '!!! OpenVino-ONNX CI Error !!!'
@@ -66,22 +71,28 @@ class Watchdog:
     """
 
     def __init__(self, jenkins_token, jenkins_server, jenkins_user, github_credentials, git_org,
-                 git_project, msteams_url, ci_job_name, watchdog_job_name):
+                 git_project, msteams_url, ci_job_name, watchdog_job_name, jenkins_watchdog_token,
+                 jenkins_watchdog_user, jenkins_watchdog_server):
         self._config_path = os.path.join(_WATCHDOG_DIR, '{}/.{}_ci_watchdog.json'.format(_WATCHDOG_DIR, git_project))
         # Jenkins Wrapper object for CI job
         self._jenkins = JenkinsWrapper(jenkins_token,
                                        jenkins_user=jenkins_user,
                                        jenkins_server=jenkins_server)
+        self._jenkins_watchdog = JenkinsWrapper(jenkins_watchdog_token,
+                                                jenkins_user=jenkins_watchdog_user,
+                                                jenkins_server=jenkins_watchdog_server)
+        self._jenkins_watchdog.jenkins._session.verify = False
         # Load GitHub token and log in, retrieve pull requests
         self._git = GitWrapper(github_credentials, repository=git_org, project=git_project)
         # Create MS Teams api object
         self._msteams_hook = MSTeamsCommunicator(msteams_url)
-        self._ci_job_name = ci_job_name.lower()
+        self._ci_job_name = ci_job_name.lower().replace("_", " ")
         self._watchdog_job_name = watchdog_job_name
         # Read config file
         self._config = self._read_config_file()
         # Time at Watchdog initiation
         self._now_time = datetime.datetime.now()
+        self._now_time_utc = datetime.datetime.utcnow()
         self._current_prs = {}
         self._ms_teams_enabled = True
 
@@ -103,6 +114,8 @@ class Watchdog:
         for pr in pull_requests:
             try:
                 self._check_pr(pr)
+            except requests.exceptions:
+                log.info("Internal Jenkins issue during retrieve Pull Request")
             except Exception as e:
                 log.exception(str(e))
                 self._queue_message(str(e), message_severity='internal', pr=pr)
@@ -129,6 +142,7 @@ class Watchdog:
             data = {_PR_REPORTS_CONFIG_KEY: {}}
         return data
 
+    @retry(wait_fixed=2000, stop_max_delay=10000)
     def _check_pr(self, pr):
         """Check pull request (if there's no reason to skip).
 
@@ -250,6 +264,7 @@ class Watchdog:
         else:
             return False
 
+    @retry(wait_fixed=2000, stop_max_delay=10000)
     def _check_missing_status(self, pr):
         """Verify if missing status is expected.
 
@@ -259,22 +274,38 @@ class Watchdog:
         :param pr:                  Single PR being currently checked
         :type pr:                   github.PullRequest.PullRequest
         """
-        pr_time_delta = self._now_time - pr.updated_at
+        pr_time_delta = self._now_time_utc - pr.updated_at
         try:
-            build_number = self._build_scheduled(pr)
+            user = pr.user
+            openvino_member_status = user.get_organization_membership("openvinotoolkit").state
+
+            if openvino_member_status != "active":
+                message = ('Following committer organization membership status'
+                           'is not active: \n\t\t\t{}'.format(user.html_url))
+                log.info(message)
+                return None
+
+            build_number = self._build_scheduled(pr, pr_time_delta)
             if self._build_in_queue(pr, build_number):
-                message = ('PR# {}: build waiting in queue after {} minutes.'
-                           .format(pr.number, pr_time_delta.seconds / 60))
-                severity = 'warning'
+
+                message = 'PR# {}: build waiting in queue after {} minutes.' \
+                          ''.format(pr.number, round(pr_time_delta.total_seconds() / 60))
+                log.info(message)
+            elif pr_time_delta.total_seconds() / 60 < _AWAITING_JENKINS_THRESHOLD:
+                message = "Waiting to queue for {} minutes".format(round(pr_time_delta.seconds / 60))
+                log.info(message)
             else:
                 message = ('PR# {}: missing status on GitHub after {} minutes.'
-                           .format(pr.number, pr_time_delta.seconds / 60))
+                           .format(pr.number, round(pr_time_delta.total_seconds() / 60)))
                 severity = 'error'
-            self._queue_message(message, message_severity=severity, pr=pr)
-        except TypeError:
-            log.info('Committer outside of OpenVino organization')
+                self._queue_message(message, message_severity=severity, pr=pr)
 
-    def _build_scheduled(self, pr):
+        except UnknownObjectException:
+            message = ('Following commiter outside of OpenVino organization: \n{}'
+                       .format(user.html_url))
+            log.info(message)
+
+    def _build_scheduled(self, pr, time_delta):
         """Check if Jenkins build corresponding to PR was scheduled.
 
         This method takes last Jenkins build for given PR and compares hash from Jenkins console output
@@ -292,6 +323,11 @@ class Watchdog:
         try:
             # Retrieve console output from last Jenkins build for job corresponding to this PR
             last_build_number = self._jenkins.get_job_info(project_name_full)['lastBuild']['number']
+        except:
+            log.info("There is no Jenkins build for PR-{}".format(pr))
+            return None
+
+        try:
             console_output = self._jenkins.get_build_console_output(project_name_full, last_build_number)
             # Check if CI build was scheduled - commit hash on GH must match hash in last Jenkins build console output
             # Retrieve hash from Jenkins output
@@ -300,12 +336,12 @@ class Watchdog:
             if retrieved_sha == pr.get_commits().reversed[0].sha:
                 return last_build_number
             else:
-                return -1
+                return None
         except (NotFoundException, AttributeError, requests.exceptions.HTTPError):
             message = ('PR #{}: Jenkins build corresponding to commit {} not found!'
                        .format(pr_number, pr.get_commits().reversed[0].sha))
-            self._queue_message(message, message_severity='error', pr=pr)
-            return -1
+            log.info(message)
+            return None
 
     def _build_in_queue(self, pr, build_number):
         """Check if Jenkins build waits in queue.
@@ -323,15 +359,15 @@ class Watchdog:
         pr_number = str(pr.number)
         project_name_full = self._ci_job_name + '/PR-' + pr_number
         # Retrieve console output
-        try:
+        if build_number:
+            log.info('Check if the build is in console output: {}'.format(pr_number))
             console_output = self._jenkins.get_build_console_output(project_name_full, build_number)
-        except NotFoundException:
-            return False
-        # Check if build is waiting in queue (and not already running on an executor)
-        if 'Waiting for next available executor on' in console_output \
-                and 'Running on' not in console_output:
-            log.info('CI for PR %s: WAITING IN QUEUE', pr_number)
-            return True
+
+            # Check if build is waiting in queue (and not already running on an executor)
+            if 'Waiting for next available executor on' in console_output \
+                    and 'Running on' not in console_output:
+                log.info('CI for PR %s: WAITING IN QUEUE', pr_number)
+                return True
         else:
             return False
 
@@ -347,28 +383,40 @@ class Watchdog:
         :type status:               github.CommitStatus.CommitStatus
         :type pr:                   github.PullRequest.PullRequest
         """
-        try:
-            # Retrieve build number for Jenkins build related to this PR
-            build_number = self._retrieve_build_number(status.target_url)
-            # CI build finished - verify if expected output is present
-            finished_statuses = ['Build finished', 'This commit cannot be built', 'This commit looks good']
-            pending_statuses = ['This commit is being built', 'Testing in progress',
-                                'This commit is scheduled to be built']
-            if any(phrase in status.description for phrase in finished_statuses):
-                self._check_finished(pr, build_number)
-            # CI build in progress - verify timeouts for build queue and duration
-            elif any(phrase in status.description for phrase in pending_statuses):
-                self._check_in_progress(pr, build_number)
-            else:
-                message = 'ONNX CI job for PR# {}: unrecognized status: {}'.format(pr.number, status.description)
-                self._queue_message(message, message_severity='error', pr=pr)
-        except Exception:
-            # Log Watchdog internal error in case any status can't be properly verified
-            message = 'Failed to verify status "{}" for PR# {}'.format(status.description, pr.number)
-            log.exception(message)
-            self._queue_message(message, message_severity='internal', pr=pr)
 
-    def _retrieve_build_number(self, url):
+        @retry(wait_fixed=2000, stop_max_delay=10000)
+        def check_statuses():
+            # Retrieve build number for Jenkins build related to this PR
+            build_number = self._retrieve_build_number(status.target_url, pr)
+            if build_number:
+                # CI build finished - verify if expected output is present
+                finished_statuses = ['Build finished',
+                                     'This commit cannot be built',
+                                     'This commit looks good']
+                pending_statuses = ['This commit is being built',
+                                    'Testing in progress',
+                                    'This commit is scheduled to be built']
+
+                if any(phrase in status.description for phrase in finished_statuses):
+                    self._check_finished(pr, build_number)
+                # CI build in progress - verify timeouts for build queue and duration
+                elif any(phrase in status.description for phrase in pending_statuses):
+                    self._check_in_progress(pr, build_number)
+                elif status.description == 'The build of this commit was aborted':
+                    pass
+                else:
+                    message = 'ONNX CI job for PR# {}: unrecognized status: {}'.format(pr.number, status.description)
+                    self._queue_message(message, message_severity='error', pr=pr)
+
+        try:
+            check_statuses()
+        except AttributeError:
+            self._check_missing_status()
+        except requests.exceptions.ProxyError:
+            message = 'Failed to verify status "{}" for PR# {} due to GitHub issue'.format(status.description, pr.number)
+            log.info(message)
+
+    def _retrieve_build_number(self, url, pr):
         """Retrieve Jenkins CI job build number from URL address coming from GitHub commit status.
 
         :param url:         URL address from GitHub commit status
@@ -379,12 +427,18 @@ class Watchdog:
         """
         # Retrieve the build number from url string
         match_obj = re.search('(?:/PR-[0-9]+/)([0-9]+)', url)
+        pr_time_delta = self._now_time_utc - pr.updated_at
         try:
             number = int(match_obj.group(1))
             return number
         except Exception:
-            log.exception('Failed to retrieve build number from url link: %s', url)
-            raise
+            if pr_time_delta.total_seconds() / 60 < _AWAITING_JENKINS_THRESHOLD:
+                message = "Waiting to queue for {} minutes".format(round(pr_time_delta.seconds / 60))
+                log.info(message)
+                return None
+            else:
+                log.exception('Failed to retrieve build number from url link: %s', url)
+                raise
 
     def _queue_message(self, message, message_severity='info', pr=None):
         """Add a message to message queue in communicator object.
@@ -430,7 +484,7 @@ class Watchdog:
         # Check if FINISH was valid FAIL / SUCCESS
         project_name_full = self._ci_job_name + '/PR-' + pr_number
         build_output = self._jenkins.get_build_console_output(project_name_full, build_number)
-        if _CI_BUILD_FAIL_MESSAGE not in build_output \
+        if all(message not in build_output for message in _CI_BUILD_FAIL_MESSAGE) \
                 and _CI_BUILD_SUCCESS_MESSAGE not in build_output:
             message = ('ONNX CI job for PR #{}: finished but no tests success or fail '
                        'confirmation is present in console output!'.format(pr_number))
@@ -446,12 +500,12 @@ class Watchdog:
         """
         if any(messages for messages in self._msteams_hook.messages):
             try:
-                watchdog_build = self._jenkins.get_job_info(self._watchdog_job_name)['lastBuild']
+                watchdog_build = self._jenkins_watchdog.get_job_info(self._watchdog_job_name)['lastBuild']
                 watchdog_build_number = watchdog_build['number']
                 watchdog_build_link = watchdog_build['url']
             except Exception:
                 watchdog_build_number = 'UNKNOWN'
-                watchdog_build_link = self._jenkins.jenkins_server
+                watchdog_build_link = self._jenkins_watchdog.jenkins_server
             send = self._watchdog_job_name + '- build ' + str(
                 watchdog_build_number) + ' - ' + watchdog_build_link
 
@@ -482,7 +536,7 @@ class Watchdog:
         # If build still waiting in queue
         if build_delta > _CI_START_THRESHOLD and self._build_in_queue(pr, build_number):
             message = ('ONNX CI job build #{}, for PR #{} waiting in queue after {} '
-                       'minutes'.format(build_number, pr_number, str(build_delta.seconds / 60)))
+                       'minutes'.format(build_number, pr_number, str(round(build_delta.total_seconds() / 60))))
             self._queue_message(message, message_severity='warning', pr=pr)
         elif build_delta > _BUILD_DURATION_THRESHOLD:
             # CI job take too long, possibly froze - communicate failure
