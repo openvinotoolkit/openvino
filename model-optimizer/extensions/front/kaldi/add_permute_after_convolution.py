@@ -48,7 +48,7 @@ class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
         convolution_nodes = [node for node in nodes_with_weights if Node(graph, node).op == 'Convolution']
         for convolution_node in convolution_nodes:
             target_node = self.search_target_node(Node(graph, convolution_node))
-            permute_node = create_op_with_const_inputs(graph, Transpose, {1: int64_array([0, 3, 2, 1])},
+            permute_node = create_op_with_const_inputs(graph, Transpose, {1: int64_array([0, 2, 3, 1])},
                                                        {'name': target_node.name + '/Transpose'})
             target_node.insert_node_after(permute_node, 0)
 

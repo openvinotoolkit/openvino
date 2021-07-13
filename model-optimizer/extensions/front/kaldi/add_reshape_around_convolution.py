@@ -50,8 +50,8 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
         #   shape = [in_shape[0], t= in_shape[1]/(patch_stride*t), C=1, patch_stride]
         sp_dim_1 = 1
         if node.has_valid('patch_stride'):
-            channel_dim = 2
-            sp_dim_2 = 3
+            channel_dim = 3
+            sp_dim_2 = 2
             frame_height = node.patch_stride
         else:
             channel_dim = 3
