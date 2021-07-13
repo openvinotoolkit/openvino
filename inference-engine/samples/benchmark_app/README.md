@@ -95,6 +95,7 @@ Options:
     -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
     -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
     -load_from_file             Optional. Loads model from file directly without ReadNetwork.
+    -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
   CPU-specific performance options:
     -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices

@@ -52,6 +52,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
+    if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
+        showUsage();
+        throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
+    }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
@@ -100,11 +104,10 @@ static void next_step(const std::string additional_info = "") {
 }
 
 template <typename T>
-T getMedianValue(const std::vector<T>& vec) {
+T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
     std::vector<T> sortedVec(vec);
     std::sort(sortedVec.begin(), sortedVec.end());
-    return (sortedVec.size() % 2 != 0) ? sortedVec[sortedVec.size() / 2ULL]
-                                       : (sortedVec[sortedVec.size() / 2ULL] + sortedVec[sortedVec.size() / 2ULL - 1ULL]) / static_cast<T>(2.0);
+    return sortedVec[(sortedVec.size() / 100) * percentile];
 }
 
 /**
@@ -624,7 +627,7 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
-        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies());
+        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
 
@@ -634,8 +637,14 @@ int main(int argc, char* argv[]) {
                                                                                          {"total number of iterations", std::to_string(iteration)},
                                                                                      });
             if (device_name.find("MULTI") == std::string::npos) {
+                std::string latency_label;
+                if (FLAGS_latency_percentile == 50) {
+                    latency_label = "latency (ms)";
+                } else {
+                    latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
+                }
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {
-                                                                                             {"latency (ms)", double_to_string(latency)},
+                                                                                             {latency_label, double_to_string(latency)},
                                                                                          });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"throughput", double_to_string(fps)}});
@@ -684,8 +693,15 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Count:      " << iteration << " iterations" << std::endl;
         std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
-        if (device_name.find("MULTI") == std::string::npos)
-            std::cout << "Latency:    " << double_to_string(latency) << " ms" << std::endl;
+        if (device_name.find("MULTI") == std::string::npos) {
+            std::cout << "Latency";
+            if (FLAGS_latency_percentile == 50) {
+                std::cout << ":    ";
+            } else {
+                std::cout << " (" << FLAGS_latency_percentile << " percentile):    ";
+            }
+            std::cout << double_to_string(latency) << " ms" << std::endl;
+        }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
