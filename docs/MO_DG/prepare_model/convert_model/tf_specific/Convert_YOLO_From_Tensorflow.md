@@ -173,12 +173,25 @@ cd darkflow
 
 #### <a name="yolov1-v2-to-tf"></a>Convert DarkNet\* YOLOv1 or YOLOv2 Model to TensorFlow\*
 
-To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository and run the following command:<br>
+To convert YOLOv1 or YOLOv2 model to TensorFlow, go to the root directory of the cloned DarkFlow repository, place downloaded above \*.cfg and \*.weights files in the current directory and run the following command:<br>
+- For YOLOv1:
 ```sh
-python3 ./flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --savepb
+python3 flow --model yolov1.cfg --load yolov1.weights --savepb
 ```
 
-If the model was successfully converted, you can find the `<model_name>.meta` and `<model_name>.pb` files
+- For YOLOv2 with VOC dataset `--labels` argument should be specified and additional changes in the original exporting script are required. 
+In the file [https://github.com/thtrieu/darkflow/blob/b187c65/darkflow/utils/loader.py#L121](https://github.com/thtrieu/darkflow/blob/b187c65630f9aa1bb8b809c33ec67c8cc5d60124/darkflow/utils/loader.py#L121) 
+change line 121 from `self.offset = 16` to `self.offset = 20`. Then run:
+```sh
+python3 flow --model yolov2-voc.cfg --load yolov2-voc.weights --labels voc-labels.txt --savepb
+```
+VOC labels can be found on the following link https://raw.githubusercontent.com/szaza/android-yolo-v2/master/assets/tiny-yolo-voc-labels.txt
+
+General conversion command is:
+```sh
+python3 flow --model <path_to_model>/<model_name>.cfg --load <path_to_model>/<model_name>.weights --labels <path_to_dataset_labels_file> --savepb
+```
+For YOLOv1  the argument `--labels` can be skipped. If the model was successfully converted, you can find the `<model_name>.meta` and `<model_name>.pb` files
 in `built_graph`  subdirectory of the cloned DarkFlow repository.
 
 File `<model_name>.pb` is a TensorFlow representation of the YOLO model.
