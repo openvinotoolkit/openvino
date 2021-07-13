@@ -43,8 +43,8 @@ public:
      * @param ptrNumBytesPerElement pointer to number bytes per element (size of float by default)
      * @return none.
      */
-    void LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows,
-                  uint32_t* ptrNumColumns, uint32_t* ptrNumBytesPerElement) override;
+    void LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows, uint32_t* ptrNumColumns,
+                  uint32_t* ptrNumBytesPerElement) override;
 
     /**
      * @brief Save Kaldi ARK speech feature vector file
@@ -83,8 +83,8 @@ public:
      * @param ptrNumBytesPerElement pointer to number bytes per element (size of float by default)
      * @return none.
      */
-    void LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows,
-                  uint32_t* ptrNumColumns, uint32_t* ptrNumBytesPerElement) override;
+    void LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows, uint32_t* ptrNumColumns,
+                  uint32_t* ptrNumBytesPerElement) override;
 
     /**
      * @brief Save Numpy* uncompressed NPZ speech feature vector file

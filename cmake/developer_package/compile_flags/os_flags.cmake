@@ -293,7 +293,7 @@ else()
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             ie_add_compiler_flags(-Wno-error=switch
-                                  -Werror=inconsistent-missing-override)
+                                  -Winconsistent-missing-override)
         else()
             ie_add_compiler_flags(-Wmaybe-uninitialized
                                   -Wsuggest-override)
