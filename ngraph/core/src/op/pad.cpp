@@ -152,26 +152,23 @@ void op::v1::Pad::validate_and_infer_types()
         std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
         for (size_t i = 0; i < implied_rank; i++)
         {
-            if (arg_shape[i].is_static())
+            result_dims[i] = arg_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
+            if (i > 1)
             {
-                ptrdiff_t result_dim =
-                    pads_begin_coord[i] + arg_shape[i].get_length() + pads_end_coord[i];
-                result_dims[i] = static_cast<size_t>(result_dim);
-                if (i > 1)
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_pad_mode != op::PadMode::EDGE ||
-                                              arg_shape[i].get_length() >= 1,
-                                          "EDGE padding mode requires an input of dimension of "
-                                          "at least 1 at each "
-                                          "spatial axis.");
-                    NODE_VALIDATION_CHECK(this,
-                                          m_pad_mode != op::PadMode::REFLECT ||
-                                              arg_shape[i].get_length() >= 2,
-                                          "REFLECT padding mode requires an input of dimension "
-                                          "of at least 2 at each "
-                                          "spatial axis.");
-                }
+                NODE_VALIDATION_CHECK(this,
+                                      m_pad_mode != op::PadMode::EDGE ||
+                                          arg_shape[i].is_dynamic() ||
+                                          arg_shape[i].get_length() >= 1,
+                                      "EDGE padding mode requires an input of dimension of "
+                                      "at least 1 at each "
+                                      "spatial axis.");
+                NODE_VALIDATION_CHECK(this,
+                                      m_pad_mode != op::PadMode::REFLECT ||
+                                          arg_shape[i].is_dynamic() ||
+                                          arg_shape[i].get_length() >= 2,
+                                      "REFLECT padding mode requires an input of dimension "
+                                      "of at least 2 at each "
+                                      "spatial axis.");
             }
         }
         set_output_type(0, get_input_element_type(0), result_dims);
