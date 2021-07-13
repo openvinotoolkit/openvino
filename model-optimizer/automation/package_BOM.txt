@@ -42,6 +42,7 @@ extensions/back/NormalizeToNormalizeL2.py
 extensions/back/op_versioning.py
 extensions/back/OptimizeTransposeReshapeSequence.py
 extensions/back/PackBinaryWeights.py
+extensions/back/PadNormalizer.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
 extensions/back/ProposalMutation.py
