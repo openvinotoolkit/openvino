@@ -135,7 +135,7 @@ protected:
         expectedPrecisions["Add_4"] = "ndef";
         expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
-        expectedPrecisions["TopK_1"] = "FP32";
+        expectedPrecisions["TopK_1"] = "BF16";
     }
 };
 

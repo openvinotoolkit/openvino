@@ -10,6 +10,7 @@ namespace LayerTestsDefinitions {
 
 TEST_P(TopKLayerTest, CompareWithRefsDynamicBath) {
     Run();
+    clearCustomizedCompare();
 }
 
 }  // namespace LayerTestsDefinitions

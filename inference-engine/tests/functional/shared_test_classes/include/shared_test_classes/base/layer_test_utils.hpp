@@ -85,26 +85,47 @@ public:
 
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
-        for (std::size_t i = 0; i < size; ++i) {
-            const T_NGRAPH &ref = expected[i];
-            const auto &res = actual[i];
-            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
-            if (absoluteDifference <= threshold) {
-                continue;
+        if (compareDirectly) {
+            for (std::size_t i = 0; i < size; ++i) {
+                CompareElement(expected[i], actual[i], i, threshold);
             }
-            double max;
-            if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
-                max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
-            } else {
-                max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+        } else {
+            for (std::size_t o = 0; o < outer_size; o++) {
+                for (std::size_t i = 0; i < inner_size; i++) {
+                    std::vector<T_NGRAPH> v_expected;
+                    std::vector<T_IE> v_actual;
+                    for (std::size_t k = 0; k < sort_size; k++) {
+                        v_expected.push_back(expected[(o * sort_size + k) * inner_size + i]);
+                        v_actual.push_back(actual[(o * sort_size + k) * inner_size + i]);
+                    }
+                    std::sort(v_expected.begin(), v_expected.end());
+                    std::sort(v_actual.begin(), v_actual.end());
+                    for (std::size_t k = 0; k < sort_size; k++) {
+                        CompareElement(v_expected[k], v_actual[k], k, threshold);
+                    }
+                }
             }
-            double diff = static_cast<float>(absoluteDifference) / max;
-            if (max == 0 || (diff > static_cast<float>(threshold)) ||
-                std::isnan(static_cast<float>(res)) || std::isnan(static_cast<float>(ref))) {
-                IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
-                           << " at index " << i << " with threshold " << threshold
-                           << " failed";
-            }
+        }
+    }
+
+    template<class T_IE, class T_NGRAPH>
+    static void CompareElement(const T_NGRAPH &ref, const T_IE &res, std::size_t i, float threshold) {
+        const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+        if (absoluteDifference <= threshold) {
+            return;
+        }
+        double max;
+        if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
+            max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
+        } else {
+            max = std::max(CommonTestUtils::ie_abs(res), CommonTestUtils::ie_abs(T_IE(ref)));
+        }
+        double diff = static_cast<float>(absoluteDifference) / max;
+        if (max == 0 || (diff > static_cast<float>(threshold)) ||
+            std::isnan(static_cast<float>(res)) || std::isnan(static_cast<float>(ref))) {
+            IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
+                       << " at index " << i << " with threshold " << threshold
+                       << " failed";
         }
     }
 
@@ -140,6 +161,16 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+
+    bool compareAllTensor = true;
+    static bool compareDirectly;
+    static std::size_t outer_size;
+    static std::size_t sort_size;
+    static std::size_t inner_size;
+
+    virtual void setCustomizedCompare(bool compAllTensor, bool compDirectly, size_t sort_sz, size_t axis_idx,
+                              const InferenceEngine::SizeVector &inputShape);
+    virtual void clearCustomizedCompare();
 
     virtual void Validate();
 

@@ -19,12 +19,14 @@ const std::vector<int64_t> axes = {
         0,
         1,
         2,
+        3
 };
 
 const std::vector<int64_t> k = {
         1,
         5,
-        10,
+        9,
+        10
 };
 
 const std::vector<ngraph::opset4::TopK::Mode> modes = {
@@ -35,6 +37,7 @@ const std::vector<ngraph::opset4::TopK::Mode> modes = {
 const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
         ngraph::opset4::TopK::SortType::SORT_INDICES,
         ngraph::opset4::TopK::SortType::SORT_VALUES,
+        ngraph::opset4::TopK::SortType::NONE
 };
 
 
@@ -48,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK, TopKLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({10, 10, 10})),
+                ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         TopKLayerTest::getTestCaseName);
 }  // namespace

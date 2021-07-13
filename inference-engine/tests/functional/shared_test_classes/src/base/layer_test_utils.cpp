@@ -22,6 +22,11 @@
 
 namespace LayerTestsUtils {
 
+bool LayerTestsCommon::compareDirectly = true;
+std::size_t LayerTestsCommon::outer_size = 1;
+std::size_t LayerTestsCommon::sort_size = 1;
+std::size_t LayerTestsCommon::inner_size = 1;
+
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
     core = PluginCache::get().ie(targetDevice);
 }
@@ -305,6 +310,27 @@ void LayerTestsCommon::ConfigureNetwork() {
     }
 }
 
+void LayerTestsCommon::setCustomizedCompare(bool compAllTensor, bool compDirectly, size_t sort_sz,
+                                            size_t axis_idx, const InferenceEngine::SizeVector &inputShape) {
+    compareAllTensor = compAllTensor;
+    compareDirectly = compDirectly;
+    sort_size = sort_sz;
+    outer_size = 1;
+    for (size_t i = 0; i < axis_idx; i++)
+        outer_size *= inputShape[i];
+    inner_size = 1;
+    for (size_t i = axis_idx + 1; i < static_cast<size_t>(inputShape.size()); i++)
+        inner_size *= inputShape[i];
+}
+
+void LayerTestsCommon::clearCustomizedCompare() {
+    compareAllTensor = true;
+    compareDirectly = true;
+    outer_size = 1;
+    sort_size = 1;
+    inner_size = 1;
+}
+
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     CoreConfiguration(this);
@@ -427,7 +453,11 @@ void LayerTestsCommon::Validate() {
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
-    Compare(expectedOutputs, actualOutputs);
+    if (compareAllTensor) {
+        Compare(expectedOutputs, actualOutputs);
+    } else {
+        Compare(expectedOutputs[0], actualOutputs[0]);
+    }
 }
 
 std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) {

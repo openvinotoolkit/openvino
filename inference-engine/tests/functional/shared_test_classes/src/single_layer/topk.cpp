@@ -37,6 +37,17 @@ void TopKLayerTest::SetUp() {
     ngraph::opset4::TopK::SortType sort;
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = this->GetParam();
 
+    // Spec TopK_3.md allows to use unstable sorting, thus
+    // a. Skip comparing of index results, because an element in actual index tensor can be different with
+    //    its counterpart in expected index tensor
+    // b. If SortType is SORT_INDICES or NONE, the test program still needs to apply std::sort for all pairs
+    //    of 1xk value vectors in expected and actual output tensor before comparing them
+    size_t axis_idx = axis < 0 ? static_cast<size_t>(axis + static_cast<int64_t>(inputShape.size())) : static_cast<size_t>(axis);
+    if (sort == ngraph::opset4::TopK::SortType::SORT_VALUES)
+        setCustomizedCompare(false, true, static_cast<size_t>(keepK), axis_idx, inputShape);
+    else
+        setCustomizedCompare(false, false, static_cast<size_t>(keepK), axis_idx, inputShape);
+
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramIn = ngraph::helpers::convert2OutputVector(
