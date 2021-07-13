@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
     : op::util::SubGraphOp(values)
