@@ -24,6 +24,7 @@ public:
         readParam(blobDumpNodeType, "OV_CPU_BLOB_DUMP_NODE_TYPE");
         readParam(blobDumpNodeName, "OV_CPU_BLOB_DUMP_NODE_NAME");
         readParam(execGraphPath, "OV_CPU_EXEC_GRAPH_PATH");
+        readParam(verbose, "OV_CPU_VERBOSE");
     }
 
     std::string blobDumpDir;
@@ -33,9 +34,10 @@ public:
     std::string blobDumpNodeType;
     std::string blobDumpNodeName;
     std::string execGraphPath;
+    std::string verbose;
 
 private:
-    void readParam(std::string& param, const char* envVar) {
+    static void readParam(std::string& param, const char* envVar) {
         if (const char* envValue = std::getenv(envVar))
             param = envValue;
     }

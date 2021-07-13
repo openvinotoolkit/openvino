@@ -3,6 +3,7 @@
 //
 
 #include "mkldnn_node.h"
+#include "dnnl_debug.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_itt.h"
 
@@ -46,6 +47,7 @@
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
+#include "mkldnn/iml_type_mapper.h"
 
 #include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"

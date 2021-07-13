@@ -197,6 +197,106 @@ static std::string NameFromType(Type type) {
     }
 }
 
+static std::string algToString(Algorithm alg) {
+#define CASE(_alg) do {                        \
+    if (alg == _alg) return #_alg;       \
+} while (0)
+    CASE(Undefined);
+    CASE(PoolingMax);
+    CASE(PoolingAvg);
+    CASE(ConvolutionCommon);
+    CASE(ConvolutionGrouped);
+    CASE(DeconvolutionCommon);
+    CASE(DeconvolutionGrouped);
+    CASE(EltwiseAdd);
+    CASE(EltwiseMultiply);
+    CASE(EltwiseSubtract);
+    CASE(EltwiseDivide);
+    CASE(EltwiseFloorMod);
+    CASE(EltwiseMod);
+    CASE(EltwiseMaximum);
+    CASE(EltwiseMinimum);
+    CASE(EltwiseSquaredDifference);
+    CASE(EltwisePowerDynamic);
+    CASE(EltwisePowerStatic);
+    CASE(EltwiseMulAdd);
+    CASE(EltwiseEqual);
+    CASE(EltwiseNotEqual);
+    CASE(EltwiseGreater);
+    CASE(EltwiseGreaterEqual);
+    CASE(EltwiseLess);
+    CASE(EltwiseLessEqual);
+    CASE(EltwiseLogicalAnd);
+    CASE(EltwiseLogicalOr);
+    CASE(EltwiseLogicalXor);
+    CASE(EltwiseLogicalNot);
+    CASE(EltwiseRelu);
+    CASE(EltwiseGelu);
+    CASE(EltwiseElu);
+    CASE(EltwiseTanh);
+    CASE(EltwiseSigmoid);
+    CASE(EltwiseAbs);
+    CASE(EltwiseSqrt);
+    CASE(EltwiseSoftRelu);
+    CASE(EltwiseExp);
+    CASE(EltwiseClamp);
+    CASE(EltwiseSwish);
+    CASE(EltwisePrelu);
+    CASE(EltwiseMish);
+    CASE(EltwiseHswish);
+    CASE(EltwiseHsigmoid);
+    CASE(EltwiseRoundHalfToEven);
+    CASE(EltwiseRoundHalfAwayFromZero);
+    CASE(EltwiseErf);
+    CASE(FQCommon);
+    CASE(FQQuantization);
+    CASE(FQBinarization);
+    CASE(ROIPoolingMax);
+    CASE(ROIPoolingBilinear);
+    CASE(ROIAlignMax);
+    CASE(ROIAlignAvg);
+    CASE(PSROIPoolingAverage);
+    CASE(PSROIPoolingBilinear);
+    CASE(PSROIPoolingBilinearDeformable);
+    CASE(ReduceL1);
+    CASE(ReduceL2);
+    CASE(ReduceAnd);
+    CASE(ReduceOr);
+    CASE(ReduceMax);
+    CASE(ReduceMean);
+    CASE(ReduceMin);
+    CASE(ReduceProd);
+    CASE(ReduceSum);
+    CASE(ReduceLogSum);
+    CASE(ReduceLogSumExp);
+    CASE(ReduceSumSquare);
+    CASE(MathAbs);
+    CASE(MathAcos);
+    CASE(MathAcosh);
+    CASE(MathAsin);
+    CASE(MathAsinh);
+    CASE(MathAtan);
+    CASE(MathAtanh);
+    CASE(MathCeiling);
+    CASE(MathCos);
+    CASE(MathCosh);
+    CASE(MathErf);
+    CASE(MathFloor);
+    CASE(MathHardSigmoid);
+    CASE(MathLog);
+    CASE(MathNegative);
+    CASE(MathReciprocal);
+    CASE(MathSelu);
+    CASE(MathSign);
+    CASE(MathSin);
+    CASE(MathSinh);
+    CASE(MathSoftPlus);
+    CASE(MathSoftsign);
+    CASE(MathTan);
+#undef CASE
+    return "Undefined";
+}
+
 class PrimitiveDescInfo {
 public:
     PrimitiveDescInfo(const InferenceEngine::LayerConfig& conf, impl_desc_type type): config(conf) {

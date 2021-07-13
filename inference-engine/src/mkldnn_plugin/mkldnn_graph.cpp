@@ -39,6 +39,7 @@
 #include "utils/node_dumper.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/verbose.h"
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
@@ -806,28 +807,33 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
         IE_THROW() << "Wrong state. Topology is not ready.";
     }
 
+    auto execute = [](const MKLDNNNodePtr& node, const mkldnn::stream& s) {
+        PERF(node);
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+
+        node->execute(s);
+    };
+
     mkldnn::stream stream(eng);
 
     ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        if (request != nullptr) {
+    for (const auto& node : graphNodes) {
+        if (request)
             request->ThrowIfCanceled();
-        }
-
-        PERF(graphNodes[i]);
 
         if (batch > 0)
-            graphNodes[i]->setDynamicBatchLim(batch);
+            node->setDynamicBatchLim(batch);
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
-        if (!graphNodes[i]->isConstant()) {
-            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
-            graphNodes[i]->execute(stream);
-        }
+        if (node->isConstant()) continue;
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(graphNodes[i]));
+        execute(node, stream);
+
+        ENABLE_CPU_DEBUG_CAP(print(node, config.debugCaps.verbose));
+
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
     }
 
     if (infer_count != -1) infer_count++;
