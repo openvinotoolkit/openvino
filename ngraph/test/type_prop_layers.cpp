@@ -7,7 +7,6 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 #include "ngraph/op/interpolate.hpp"
-#include "ngraph/op/prior_box_clustered.hpp"
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/op/reorg_yolo.hpp"
 #include "ngraph/op/roi_pooling.hpp"
@@ -43,19 +42,6 @@ TEST(type_prop_layers, interpolate)
     EXPECT_TRUE(make_shared<op::v0::Interpolate>(image, dyn_output_shape, attrs)
                     ->get_output_partial_shape(0)
                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
-}
-
-TEST(type_prop_layers, prior_box_clustered)
-{
-    op::PriorBoxClusteredAttrs attrs;
-    attrs.widths = {4.0f, 2.0f, 3.2f};
-    attrs.heights = {1.0f, 2.0f, 1.1f};
-
-    auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {19, 19});
-    auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
-    auto pbc = make_shared<op::PriorBoxClustered>(layer_shape, image_shape, attrs);
-    // Output shape - 4 * 19 * 19 * 3 (attrs.widths.size())
-    ASSERT_EQ(pbc->get_shape(), (Shape{2, 4332}));
 }
 
 TEST(type_prop_layers, region_yolo1)

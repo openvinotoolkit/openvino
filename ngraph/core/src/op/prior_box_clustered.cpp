@@ -52,9 +52,9 @@ void op::PriorBoxClustered::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           m_attrs.widths.size() == m_attrs.heights.size(),
-                          "Size of heights vector",
-                          m_attrs.widths.size(),
-                          " doesn't match size of widths vector ",
+                          "Size of heights vector: ",
+                          m_attrs.heights.size(),
+                          " doesn't match size of widths vector: ",
                           m_attrs.widths.size());
 
     set_input_is_relevant_to_shape(0);

@@ -34,6 +34,7 @@ typedef std::tuple<
         bool,                // clip
         float,               // step_width
         float,               // step_height
+        float,               // step
         float,               // offset
         std::vector<float>> priorBoxClusteredSpecificParams;
 
@@ -63,6 +64,7 @@ protected:
     std::vector<float> variances;
     float step_width;
     float step_height;
+    float step;
     float offset;
     bool clip;
 
