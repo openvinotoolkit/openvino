@@ -58,8 +58,6 @@ void MatrixNmsLayerTest::GenerateInputs() {
 
 void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                      const std::vector<Blob::Ptr> &actualOutputs) {
-    std::cout << "Btach" << numBatches << "Boxes " << numBoxes << "Classes" << numClasses << std::endl;
-    std::cout << maxOutputBoxesPerClass << "Batch " << maxOutputBoxesPerBatch << std::endl;
     auto batchIndex = -1;
     std::vector<int32_t> numPerBatch(numBatches);
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
@@ -67,8 +65,6 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
         const auto _dims = actual->getTensorDesc().getDims();
         if (_dims.size() == 1 && _dims[0] == numBatches) {
             batchIndex = outputIndex;
-            std::cout << "Index for valid " << batchIndex << std::endl;
-
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
             IE_ASSERT(memory);
             const auto lockedMemory = memory->wmap();
@@ -84,7 +80,6 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
 
         //Compare Selected Outputs & Selected Indices
         if (outputIndex != batchIndex) {
-            std::cout << "Compare Selected" << std::endl;
             const auto &expectedBuffer = expected.second.data();
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
             IE_ASSERT(memory);
@@ -105,8 +100,6 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
             auto expected_offset = 0;
             auto actual_offset = 0;
             for (size_t i = 0; i < numPerBatch.size(); i++) {
-                std::cout << "Batch " << i  << " " << numPerBatch[i] << std::endl;
-                std::cout << "MaxPerBatch " << i << " " << maxOutputBoxesPerBatch << std::endl;
                 auto validNums = numPerBatch[i];
                 switch (precision) {
                     case InferenceEngine::Precision::FP32: {
@@ -161,7 +154,6 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                 actual_offset += maxOutputBoxesPerBatch;
             }
         } else {
-            std::cout << "Compare Valid" << std::endl;
             const auto &expectedBuffer = expected.second.data();
             auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
             IE_ASSERT(memory);
