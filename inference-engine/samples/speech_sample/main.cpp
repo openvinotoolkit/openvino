@@ -236,7 +236,8 @@ float getGnaFrequencyMHz() {
     const uint8_t cannon_lake_model = 102;
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
-    const uint8_t next_model = 140;
+    const uint8_t tgl_model = 140;
+    const uint8_t next_model = 151;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -254,6 +255,7 @@ float getGnaFrequencyMHz() {
         switch (model) {
         case cannon_lake_model:
         case ice_lake_model:
+        case tgl_model:
         case next_model:
             return 400;
         case gemini_lake_model:
@@ -287,13 +289,14 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
 /**
  * @brief Print a report on the performance counts
  * @param utterancePerfMap reference to a map to store performance counters
- * @param callsNum frame index
+ * @param numberOfFrames number of frames
  * @param stream output stream
  * @param fullDeviceName full device name string
+ * @param numberOfFramesOnHw number of frames delivered to GNA HW
  * @return none.
  */
-void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& utterancePerfMap, size_t callsNum, std::ostream& stream,
-                              std::string fullDeviceName) {
+void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& utterancePerfMap, size_t numberOfFrames,
+                              std::ostream& stream, std::string fullDeviceName, const uint64_t numberOfFramesOnHw) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
@@ -305,29 +308,29 @@ void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEn
     stream << std::setw(46) << "(ms)";
     stream << std::setw(24) << "(us per call)";
     stream << std::endl;
-
+    // if GNA HW counters
+    // get frequency of GNA module
+    float freq = getGnaFrequencyMHz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
-        float current_units = static_cast<float>(it.second.realTime_uSec);
-        float call_units = current_units / callsNum;
-        // if GNA HW counters
-        // get frequency of GNA module
-        float freq = getGnaFrequencyMHz();
-        current_units /= freq * 1000;
-        call_units /= freq;
+        float current_units_us = static_cast<float>(it.second.realTime_uSec) / freq;
+        float call_units_us = current_units_us / numberOfFrames;
         if (FLAGS_d.find("GNA") != std::string::npos) {
             stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
         } else {
             stream << std::setw(30) << std::left << counter_name;
         }
-        stream << std::setw(16) << std::right << current_units;
-        stream << std::setw(21) << std::right << call_units;
+        stream << std::setw(16) << std::right << current_units_us / 1000;
+        stream << std::setw(21) << std::right << call_units_us;
         stream << std::endl;
     }
     stream << std::endl;
     std::cout << std::endl;
     std::cout << "Full device name: " << fullDeviceName << std::endl;
     std::cout << std::endl;
+    stream << "Number of frames delivered to GNA HW: " << numberOfFramesOnHw;
+    stream << "/" << numberOfFrames;
+    stream << std::endl;
 #endif
 }
 
@@ -346,16 +349,20 @@ void getPerformanceCounters(InferenceEngine::InferRequest& request, std::map<std
 }
 
 /**
- * @brief Summarize performance counts
+ * @brief Summarize performance counts and total number of frames executed on the GNA HW device
  * @param perfCounters reference to a map to get performance counters
  * @param totalPerfCounters reference to a map to save total performance counters
+ * @param totalRunsOnHw reference to a total number of frames computed on GNA HW
  * @return none.
  */
 void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& perfCounters,
-                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters) {
+                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters, uint64_t& totalRunsOnHw) {
+    auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].realTime_uSec += pair.second.realTime_uSec;
+        runOnHw |= pair.second.realTime_uSec > 0;  // if realTime is above zero, that means that a primitive was executed on the device
     }
+    totalRunsOnHw += runOnHw;
 }
 
 /**
@@ -443,6 +450,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
                                                  "GPU",
                                                  "GNA_AUTO",
                                                  "GNA_HW",
+                                                 "GNA_HW_WITH_SW_FBACK",
                                                  "GNA_SW_EXACT",
                                                  "GNA_SW",
                                                  "GNA_SW_FP32",
@@ -829,6 +837,7 @@ int main(int argc, char* argv[]) {
             /** Work with each utterance **/
             for (uint32_t utteranceIndex = 0; utteranceIndex < numUtterances; ++utteranceIndex) {
                 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> utterancePerfMap;
+                uint64_t totalNumberOfRunsOnHw = 0;
                 std::string uttName;
                 uint32_t numFrames(0), n(0);
                 std::vector<uint32_t> numFrameElementsInput;
@@ -984,7 +993,7 @@ int main(int argc, char* argv[]) {
                                     // retrieve new counters
                                     getPerformanceCounters(inferRequest.inferRequest, callPerfMap);
                                     // summarize retrieved counters with all previous
-                                    sumPerformanceCounters(callPerfMap, utterancePerfMap);
+                                    sumPerformanceCounters(callPerfMap, utterancePerfMap, totalNumberOfRunsOnHw);
                                 }
                             }
                             // -----------------------------------------------------------------------------------------------------
@@ -1092,7 +1101,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms" << std::endl;
                 if (FLAGS_pc) {
                     // print performance results
-                    printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
+                    printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d), totalNumberOfRunsOnHw);
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
