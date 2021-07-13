@@ -218,3 +218,56 @@ class CompressQuantizeWeights(BackReplacementPattern):
 
         self.quantize_data(fake_quantize, dst_type, quantized_type, mode)
         self.dequantize_data(fake_quantize, dst_type, quantized_type)
+
+
+class ZeroPointOptimizer(BackReplacementPattern):
+    enabled = True
+    force_clean_up = True
+
+    def run_after(self):
+        return [CompressQuantizeWeights]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('const', dict(type='Const')),
+                ('const_d', dict()),
+                ('convert', dict(type='Convert')),
+                ('convert_d', dict()),
+                ('const_zp', dict(type='Const')),
+                ('const_zp_d', dict()),
+                ('sub', dict(type='Subtract')),
+            ],
+            edges=[
+                ('const', 'const_d'),
+                ('const_d', 'convert'),
+                ('convert', 'convert_d'),
+                ('convert_d', 'sub', {'in': 0}),
+                ('const_zp', 'const_zp_d'),
+                ('const_zp_d', 'sub', {'in': 1}),
+            ]
+        )
+
+    def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
+        sub = match['sub']
+        zero_point = sub.in_port(1).data.get_value()
+        if zero_point is None or np.allclose(zero_point, 0):
+            return
+
+        convert = match['convert']
+        dst_type = convert.dst_type
+        weights = convert.in_port(0).data.get_value()
+        if weights is None or weights.dtype != np.int8:
+            return
+
+        int8_zero_point = np.round(zero_point).astype(np.int8)
+        adj_zero_point = (zero_point - int8_zero_point).astype(dst_type)
+
+        original = weights.astype(dst_type) - zero_point
+        transformed = (weights - int8_zero_point).astype(np.int8) - adj_zero_point
+
+        if not np.allclose(original, transformed) or not np.allclose(adj_zero_point, 0):
+            return
+
+        match['const_d']['value'] = (weights - int8_zero_point).astype(np.int8)
+        match['const_zp_d']['value'] = np.zeros(adj_zero_point.shape, dst_type)
