@@ -74,7 +74,7 @@ namespace ngraph
                     for (std::size_t i = 0; i < loop_carried_dependencies.size(); i++)
                     {
                         loop_carried_dependencies_map[i + 2] =
-                            loop_carried_dependencies[i].get_node()->get_friendly_name();
+                            *(loop_carried_dependencies[i].get_tensor().get_names().begin());
                     }
 
                     auto body_graph = node.get_subgraph();

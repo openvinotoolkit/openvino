@@ -96,6 +96,7 @@ namespace ngraph
                     }
 
                     initializers.emplace(initializer_tensor.name(), tensor);
+                    ng_constant->get_output_tensor(0).set_names({initializer_tensor.name()});
                     add_provenance_tag_to_initializer(tensor, ng_constant);
                     m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
                 }
@@ -330,7 +331,15 @@ namespace ngraph
                     break;
                 }
 
-                ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+                auto onnx_node_name = onnx_node.get_name();
+                if (onnx_node_name.empty())
+                {
+                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+                }
+                else
+                {
+                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
+                }
 
                 // null node does not have tensor
                 if (!ngraph::op::is_null(ng_node_vector[i]))
