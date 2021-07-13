@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/opsets/opset3.hpp"
 
 #include "util/visitor.hpp"
 
@@ -15,7 +15,7 @@ using ngraph::test::NodeBuilder;
 
 TEST(attributes, shuffle_channels_op)
 {
-    using ShuffleChannels = opset1::ShuffleChannels;
+    using ShuffleChannels = opset3::ShuffleChannels;
 
     NodeBuilder::get_ops().register_factory<ShuffleChannels>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
