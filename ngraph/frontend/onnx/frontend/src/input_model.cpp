@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <frontend_manager/frontend_exceptions.hpp>
 #include <onnx_frontend/input_model.hpp>
 #include <onnx_frontend/place.hpp>
-#include <frontend_manager/frontend_exceptions.hpp>
-
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-
-InputModelONNX::InputModelONNX(const std::string& path) : m_editor(path)
-{}
+InputModelONNX::InputModelONNX(const std::string& path)
+    : m_editor(path)
+{
+}
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const
 {
@@ -29,6 +29,15 @@ std::vector<Place::Ptr> InputModelONNX::get_inputs() const
 Place::Ptr InputModelONNX::get_place_by_tensor_name(const std::string& tensor_name) const
 {
     return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+}
+
+Place::Ptr
+    InputModelONNX::get_place_by_operation_name_and_input_port(const std::string& operation_name,
+                                                               int input_port_index)
+{
+    const auto edge =
+        m_editor.find_input_edge(onnx_editor::EditorNode(operation_name), input_port_index);
+    return std::make_shared<PlaceInputEdgeONNX>(edge, m_editor);
 }
 
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape)
@@ -58,10 +67,10 @@ std::shared_ptr<Function> InputModelONNX::convert()
 // Editor features
 void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional)
 {
-    //const auto consumers = m_editor.find_output_consumers()
-    //NGRAPH_CHECK(place->, "");
-    //const auto input_name = place->get_names()[0];
-    //return m_editor.cut_graph_fragment();
+    // const auto consumers = m_editor.find_output_consumers()
+    // NGRAPH_CHECK(place->, "");
+    // const auto input_name = place->get_names()[0];
+    // return m_editor.cut_graph_fragment();
 }
 
 void InputModelONNX::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional)
@@ -71,7 +80,7 @@ void InputModelONNX::cut_and_add_new_output(Place::Ptr place, const std::string&
 
 Place::Ptr InputModelONNX::add_output(Place::Ptr place)
 {
-    // TODO
+    m_editor.serialize("test.onnx");
     return nullptr;
 }
 
@@ -85,40 +94,64 @@ void InputModelONNX::remove_output(Place::Ptr place)
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs)
 {
     extract_subgraph({}, outputs);
+    const auto outs_after_extraction = m_editor.model_outputs();
+    NGRAPH_CHECK(outs_after_extraction.size() == outputs.size(),
+                 "Number of outputs after override_all_outputs should be the same as before");
+    NGRAPH_CHECK(std::all_of(std::begin(outputs),
+                             std::end(outputs),
+                             [](const Place::Ptr& place) { return place->is_output(); }),
+                 "Provided outputs does not replace all existing one");
 }
 
 void InputModelONNX::override_all_inputs(const std::vector<Place::Ptr>& inputs)
 {
+    const auto outputs_before_extraction = m_editor.model_outputs();
+    const auto inputs_number_before_extraction = m_editor.model_inputs().size();
     extract_subgraph({inputs}, {});
+    NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
+                            std::end(outputs_before_extraction),
+                            std::begin(m_editor.model_outputs())),
+                 "All outputs should be preserved after override_all_inputs. Provided inputs does "
+                 "not satisfy all outputs");
+    NGRAPH_CHECK(inputs_number_before_extraction == m_editor.model_inputs().size(),
+                 "Not enough inputs provided during override_all_inputs. Number of inputs after "
+                 "overriding should be preserved.");
+    NGRAPH_CHECK(std::all_of(std::begin(inputs),
+                             std::end(inputs),
+                             [](const Place::Ptr& place) { return place->is_output(); }),
+                 "Provided inputs does not replace all existing one");
 }
 
-void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
+void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs,
+                                      const std::vector<Place::Ptr>& outputs)
 {
     std::vector<onnx_editor::InputEdge> onnx_inputs;
     onnx_inputs.reserve(inputs.size());
-    for(const auto& input: inputs)
+    for (const auto& input : inputs)
     {
-        NGRAPH_CHECK(input->is_input(), "Non-input place was passed as extraction subgraph argument");
-        if(const auto input_port = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input))
+        if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(input))
         {
             onnx_inputs.push_back(input_port->get_input_edge());
         }
-        else if(const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(input))
+        else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(input))
         {
             auto name = tensor->get_names()[0];
             const auto consumers = m_editor.find_output_consumers(name);
-            std::transform(std::begin(consumers), std::end(consumers), std::back_inserter(onnx_inputs), [](const onnx_editor::InputEdge& edge){return edge;});
+            std::transform(std::begin(consumers),
+                           std::end(consumers),
+                           std::back_inserter(onnx_inputs),
+                           [](const onnx_editor::InputEdge& edge) { return edge; });
         }
     }
 
     std::vector<onnx_editor::OutputEdge> onnx_outputs;
     onnx_outputs.reserve(outputs.size());
-    for(const auto& output: outputs)
+    for (const auto& output : outputs)
     {
-        NGRAPH_CHECK(output->is_output(), "Non-output place was passed as extraction subgraph argument");
         const auto output_port = output->get_producing_port();
         const auto onnx_output_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(output_port);
-        NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
+        NGRAPH_CHECK(onnx_output_edge,
+                     "Non-onnx output place was passed as extraction subgraph argument");
         onnx_outputs.push_back(onnx_output_edge->get_output_edge());
     }
     m_editor.cut_graph_fragment(onnx_inputs, onnx_outputs);

@@ -194,7 +194,8 @@ struct onnx_editor::ONNXModelEditor::Impl
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))}
+        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(
+              onnx_common::parse_from_file(model_path))}
     {
     }
 
@@ -310,6 +311,50 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
                    extract_name<ONNX_NAMESPACE::TensorProto>);
 
     return inputs_and_initializers;
+}
+
+std::vector<std::string> onnx_editor::ONNXModelEditor::model_outputs() const
+{
+    const auto& graph = m_pimpl->m_model_proto->graph();
+    std::vector<std::string> outputs;
+    outputs.reserve(graph.output_size());
+
+    std::transform(graph.output().begin(),
+                   graph.output().end(),
+                   std::back_inserter(outputs),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+
+    return outputs;
+}
+
+bool onnx_editor::ONNXModelEditor::is_input(const InputEdge& edge) const
+{
+    update_mapper_if_needed();
+    const auto port_name = m_pimpl->m_edge_mapper.get_input_port_name(edge);
+    if (port_name.empty())
+    {
+        return false;
+    }
+    else
+    {
+        const auto inputs = model_inputs();
+        return std::count(std::begin(inputs), std::end(inputs), port_name) > 0;
+    }
+}
+
+bool onnx_editor::ONNXModelEditor::is_output(const OutputEdge& edge) const
+{
+    update_mapper_if_needed();
+    const auto port_name = m_pimpl->m_edge_mapper.get_output_port_name(edge);
+    if (port_name.empty())
+    {
+        return false;
+    }
+    else
+    {
+        const auto outputs = model_outputs();
+        return std::count(std::begin(outputs), std::end(outputs), port_name) > 0;
+    }
 }
 
 std::string onnx_editor::ONNXModelEditor::model_string() const

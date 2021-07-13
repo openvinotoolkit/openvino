@@ -96,6 +96,18 @@ namespace ngraph
             ///
             bool is_correct_and_unambiguous_node(const EditorNode& node) const;
 
+            /// \brief     Get name of input port indicated by the input edge.
+            ///
+            /// \note      Empty string is returned if the port name is not found.
+            ///
+            std::string get_input_port_name(const InputEdge& edge) const;
+
+            /// \brief     Get name of output port indicated by the input edge.
+            ///
+            /// \note      Empty string is returned if the port name is not found.
+            ///
+            std::string get_output_port_name(const OutputEdge& edge) const;
+
         private:
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;

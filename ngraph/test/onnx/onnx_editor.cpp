@@ -1462,3 +1462,37 @@ NGRAPH_TEST(onnx_editor, cut_operator_with_no_schema)
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
+
+NGRAPH_TEST(onnx_editor, is_model_input)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    EXPECT_TRUE(editor.is_input(InputEdge{0, 0}));
+    EXPECT_TRUE(editor.is_input(InputEdge{2, 1}));
+    const auto edge1 = editor.find_input_edge(EditorOutput{"conv1"}, EditorInput{"in4"});
+    EXPECT_TRUE(editor.is_input(edge1));
+
+    EXPECT_FALSE(editor.is_input(InputEdge{1, 2}));
+    EXPECT_FALSE(editor.is_input(InputEdge{3, 0}));
+    EXPECT_FALSE(editor.is_input(InputEdge{11, 0}));
+    const auto edge2 = editor.find_input_edge(EditorOutput{"conv1"}, 2);
+    EXPECT_FALSE(editor.is_input(edge2));
+}
+
+NGRAPH_TEST(onnx_editor, is_model_output)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    EXPECT_TRUE(editor.is_output(OutputEdge{4, 0}));
+    EXPECT_TRUE(editor.is_output(OutputEdge{5, 1}));
+    const auto edge1 = editor.find_output_edge(EditorNode{"split_name"}, EditorOutput{"split2"});
+    EXPECT_TRUE(editor.is_output(edge1));
+
+    EXPECT_FALSE(editor.is_output(OutputEdge{4, 1}));
+    EXPECT_FALSE(editor.is_output(OutputEdge{0, 0}));
+    EXPECT_FALSE(editor.is_output(OutputEdge{11, 0}));
+    const auto edge2 = editor.find_output_edge("add2");
+    EXPECT_FALSE(editor.is_output(edge2));
+}

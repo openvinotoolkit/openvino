@@ -101,6 +101,17 @@ namespace ngraph
             ///        can discard some inputs and initializers from the original graph.
             std::vector<std::string> model_inputs() const;
 
+            /// \brief Returns a list of all outputs of the in-memory model, including initializers.
+            ///        The returned value might depend on the previous operations executed on an
+            ///        instance of the model editor.
+            std::vector<std::string> model_outputs() const;
+
+            /// \brief     Returns true if input edge is input of the model. Otherwise false.
+            bool is_input(const InputEdge& edge) const;
+
+            /// \brief     Returns true if output edge is input of the model. Otherwise false.
+            bool is_output(const OutputEdge& edge) const;
+
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
 

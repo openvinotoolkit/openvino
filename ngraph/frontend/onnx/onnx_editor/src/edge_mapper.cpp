@@ -256,3 +256,31 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
 {
     return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
 }
+
+std::string onnx_editor::EdgeMapper::get_input_port_name(const InputEdge& edge) const
+{
+    if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_inputs.size()) &&
+        edge.m_port_idx >= 0 &&
+        edge.m_port_idx < static_cast<int>(m_node_inputs[edge.m_node_idx].size()))
+    {
+        return m_node_inputs[edge.m_node_idx][edge.m_port_idx];
+    }
+    else
+    {
+        return "";
+    }
+}
+
+std::string onnx_editor::EdgeMapper::get_output_port_name(const OutputEdge& edge) const
+{
+    if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_outputs.size()) &&
+        edge.m_port_idx >= 0 &&
+        edge.m_port_idx < static_cast<int>(m_node_outputs[edge.m_node_idx].size()))
+    {
+        return m_node_outputs[edge.m_node_idx][edge.m_port_idx];
+    }
+    else
+    {
+        return "";
+    }
+}
