@@ -95,6 +95,7 @@ set(SRC
     type_prop/asinh.cpp
     type_prop/assign.cpp
     type_prop/atan.cpp
+    type_prop/atanh.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -232,6 +233,7 @@ set(SRC
     visitors/op/adaptive_max_pool.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
+    visitors/op/atanh.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
