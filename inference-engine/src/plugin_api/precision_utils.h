@@ -79,12 +79,31 @@ namespace InferenceEngine {
  * @ingroup ie_dev_api_precision
  */
 using ie_fp16 = short;
+using ie_bf16 = short;
 
 /**
  * @brief Namespace for precision utilities
  * @ingroup ie_dev_api_precision
  */
 namespace PrecisionUtils {
+
+/**
+ * @brief      Converts a single-precision floating point value to a truncated single percision floating point value
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param[in]  x     A single-precision floating point value
+ * @return     A truncated single floating point value
+ */
+INFERENCE_ENGINE_API_CPP(ie_bf16) f32tobf16(float x);
+
+/**
+ * @brief      Convers a truncated single percision floating point value to a single-precision floating point value
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param[in]  x   truncated single percision floating point
+ * @return     A single-precision floating point value
+ */
+INFERENCE_ENGINE_API_CPP(float) bf16tof32(ie_bf16 x);
 
 /**
  * @brief      Converts a single-precision floating point value to a half-precision floating poit value
@@ -131,6 +150,35 @@ f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, 
  */
 INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
+
+
+/**
+ * @brief      Converts a truncated single percision floating point array to single-precision floating point array
+ * 	           and applies `scale` and `bias` is needed
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      dst    A destination array of single-precision floating point values
+ * @param[in]  src    A source array of truncated single percision floating point values
+ * @param[in]  nelem  A number of elements in arrays
+ * @param[in]  scale  An optional scale parameter
+ * @param[in]  bias   An optional bias parameter
+ */
+INFERENCE_ENGINE_API_CPP(void)
+bf16tof32Arrays(float* dst, const ie_bf16* src, size_t nelem, float scale = 1.f, float bias = 0.f);
+
+/**
+ * @brief      Converts a single-precision floating point array to a truncated single percision floating point array
+ *             and applies `scale` and `bias` if needed
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      dst    A destination array of truncated single percision floating point values
+ * @param[in]  src    A sources array of single-precision floating point values
+ * @param[in]  nelem  A number of elements in arrays
+ * @param[in]  scale  An optional scale parameter
+ * @param[in]  bias   An optional bias parameter
+ */
+INFERENCE_ENGINE_API_CPP(void)
+f32tobf16Arrays(ie_bf16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
 #if defined(_MSC_VER)
 #pragma warning(push)

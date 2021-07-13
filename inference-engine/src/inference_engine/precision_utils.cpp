@@ -23,6 +23,18 @@ void f32tof16Arrays(short* dst, const float* src, size_t nelem, float scale, flo
     }
 }
 
+void bf16tof32Arrays(float* dst, const short* src, size_t nelem, float scale, float bias) {
+    const ie_fp16* _src = reinterpret_cast<const ie_fp16*>(src);
+    for (size_t i = 0; i < nelem; i++) {
+        dst[i] = PrecisionUtils::bf16tof32(_src[i]);
+    }
+}
+
+void f32tobf16Arrays(short* dst, const float* src, size_t nelem, float scale, float bias) {
+    for (size_t i = 0; i < nelem; i++) {
+        dst[i] = PrecisionUtils::f32tobf16(src[i] * scale + bias);
+    }
+}
 // Function to convert F32 into F16
 // F32: exp_bias:127 SEEEEEEE EMMMMMMM MMMMMMMM MMMMMMMM.
 // F16: exp_bias:15  SEEEEEMM MMMMMMMM
@@ -95,6 +107,25 @@ float f16tof32(ie_fp16 x) {
 
     // finaly represent result as float and return
     return asfloat(u);
+}
+
+ie_bf16 f32tobf16(float x) {
+    union {
+        uint32_t i;
+        float f;
+    };
+    f = x;
+    ie_bf16 res = i >>16;
+    return res;
+}
+
+float bf16tof32(ie_bf16 x) {
+    union {
+        uint32_t i;
+        float f;
+    };
+    i = x << 16;
+    return f;
 }
 
 // This function convert f32 to f16 with rounding to nearest value to minimize error
