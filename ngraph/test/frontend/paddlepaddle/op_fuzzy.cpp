@@ -2,19 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
-
-#include "util/engine/test_engines.hpp"
-#include "util/test_control.hpp"
-#include <cnpy.h>
 #include "op_fuzzy.hpp"
-#include "ngraph/ngraph.hpp"
-
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ngraph;
-using namespace ngraph::frontend;
-using TestEngine = test::IE_CPU_Engine;
 
 static const std::string PDPD = "pdpd";
 using PDPDFuzzyOpTest = FrontEndFuzzyOpTest;
