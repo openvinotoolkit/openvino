@@ -1193,7 +1193,6 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                 size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
 
                 if (0 == num_rows_padded && ALIGN(num_rows_in, 32) > 32) {
-
                     gnalog() << "Inserted Concat Aligning Layer between: " << prevLayer->name << " and " << l->name << std::endl;
 
                     // insert the filter
