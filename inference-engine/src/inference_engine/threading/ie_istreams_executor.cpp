@@ -26,6 +26,19 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() {
         CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
     };
 }
+int IStreamsExecutor::Config::GetDefaultNumStreams() {
+    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    // bare minimum of streams (that evenly divides available number of core)
+    const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
+    if (0 == num_cores % 4)
+        return std::max(4, num_cores / 4);
+    else if (0 == num_cores % 5)
+        return std::max(5, num_cores / 5);
+    else if (0 == num_cores % 3)
+        return std::max(3, num_cores / 3);
+    else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+        return 1;
+}
 
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {
         if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
@@ -49,17 +62,8 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
                 _streams = static_cast<int>(getAvailableNUMANodes().size());
             } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-                const int sockets = static_cast<int>(getAvailableNUMANodes().size());
                 // bare minimum of streams (that evenly divides available number of cores)
-                const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
-                if (0 == num_cores % 4)
-                    _streams = std::max(4, num_cores / 4);
-                else if (0 == num_cores % 5)
-                    _streams = std::max(5, num_cores / 5);
-                else if (0 == num_cores % 3)
-                    _streams = std::max(3, num_cores / 3);
-                else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
-                    _streams = 1;
+                _streams = GetDefaultNumStreams();
             } else {
                 int val_i;
                 try {

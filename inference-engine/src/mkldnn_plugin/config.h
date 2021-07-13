@@ -25,6 +25,7 @@ struct Config {
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
+    std::string ovPerfMode = "";
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
 
 #if defined(__arm__) || defined(__aarch64__)

@@ -11,6 +11,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -112,14 +113,12 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
-    auto nGraphFunc = clonedNetwork.getFunction();
-
+static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
-        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
+            _enableLPT &&
         ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
@@ -365,12 +364,199 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     });
 
     postLPTPassManager.run_passes(nGraphFunc);
+}
 
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
+Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network,
+        const float L2_cache_size, const float L3_cache_size, const float memThresholdAssumeLimited) {
+    auto startTime = Time::now();
+    const auto nGraphFunc = network.getFunction();
+    int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
+            total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
+    auto memLimitedFactor = [&] (int size_data_moved, int datatype_size = 4) -> float { return  (L2_cache_size * 1.0f/*util factor, tbd */
+                                                                                                 / (size_data_moved * datatype_size));};
+    auto isLowPrecision = [&] (ngraph::element::Type type) -> bool {
+        return (type == ngraph::element::i8) || (type == ngraph::element::u8);
+    };
+    auto isHalfPrecision = [&] (ngraph::element::Type type) -> bool {
+        return (type == ngraph::element::bf16) || (type == ngraph::element::f16);
+    };
+
+    float worst_case = NetworkPerfStats::memThresholdUnknown;
+    float worst_case_all = NetworkPerfStats::memThresholdUnknown;
+    // Traverse nGraph Function in topological order
+    for (auto & node : nGraphFunc->get_ordered_ops()) {
+        // todo : bias data size (always fp)
+        const auto node_name = node->get_type_info().name;
+        if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name)
+            && std::strcmp("ConvolutionBackpropData", node_name)) {
+                int inputs_data_size_bytes = 0;
+                if (!std::strcmp("GRUSequence", node_name)
+                    || !std::strcmp("TensorIterator", node_name)) {
+//                        || !std::strcmp("LSTMSequence", node_name)) {
+                    // RNN and alikes are not considered
+                    std::cout << "TYPE: " << node_name << "  Name: " << node->get_friendly_name()
+                              << " considering non-supported! falling back..." << std::endl;
+                    NetworkPerfStats res;
+                    res.maxMemTolerance = NetworkPerfStats::memThresholdUnknown;
+                    return res;
+                }
+                for (int i = 0; i < node->get_input_size(); i++) {
+                    auto type = node->input_value(i).get_element_type();
+                    const bool isINT8 = isLowPrecision(type); // bf16 tbd
+                    const bool isBF16 = isHalfPrecision(type); // bf16 tbd
+                    const int data_type_size = isINT8 ? 1 : isBF16 ? 2 : 4;
+                    ngraph::Input<ngraph::Node> input = node->input(i);
+                    const auto shapeInput = input.get_shape();
+                    const auto non_const = !get_constant_from_source(node->input_value(i));
+                    const auto dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                               std::multiplies<int>());
+                    const auto not_amortized = non_const || (dataSizeInput * data_type_size) > L3_cache_size;
+                    inputs_data_size_bytes += not_amortized * (dataSizeInput * data_type_size);
+            }
+            // no need to track outputs, as these are inputs to some layers
+            const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
+            if (factor < worst_case_all) {
+                worst_case_all = factor;
+                std::cout << "TYPE: " << node_name << "  Name: " << node_name
+                          << " inputs_data_size_bytes " << inputs_data_size_bytes << ", factor: " << factor << std::endl;
+            }
+            continue;
+        }
+        // todo: asymmetric conv (zero-point comes via Sub/Mul)
+        // auto type0 = node->input_value(0).get_element_type(); //input
+        auto type1 = node->input_value(1).get_element_type(); //weights
+        const bool isINT8 = isLowPrecision(type1);
+        const bool isBF16orFP16 = isHalfPrecision(type1);
+        const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
+
+        int dataSizeInput = 0, dataSizeOutput = 0;
+        std::cout << "Type: " << node_name << "  Name: "
+                  << node->get_friendly_name();
+        if (!std::strcmp("MatMul", node_name)) {
+            ngraph::Input<ngraph::Node> input0 = node->input(0);
+            ngraph::Input<ngraph::Node> input1 = node->input(1);
+            ngraph::Output<ngraph::Node> output = node->output(0);
+            // Check that input and output shape a fully defined (not dynamic)
+            if (input0.get_partial_shape().is_static() && input1.get_partial_shape().is_static()
+                && output.get_partial_shape().is_static()) {
+                const auto shapeInput0 = input0.get_shape();
+                const auto shapeInput1 = input1.get_shape();
+                const auto non_const  = !get_constant_from_source(node->input_value(1));
+                const auto shapeOutput = output.get_shape();
+                const auto dataSizeInput0 = std::accumulate(shapeInput0.begin(), shapeInput0.end(), 1,
+                                                            std::multiplies<int>());
+                const auto dataSizeInput1 = std::accumulate(shapeInput1.begin(), shapeInput1.end(), 1,
+                                                            std::multiplies<int>());
+                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                 std::multiplies<int>());
+                const auto total_data = dataSizeInput0 + non_const*dataSizeInput1 + dataSizeOutput;
+                total_gemms++;
+                const auto factor = memLimitedFactor(total_data, data_type_size);
+                mem_limited_gemms += factor < memThresholdAssumeLimited;
+                worst_case = std::min(factor, worst_case);
+                std::cout <<  (isINT8 ? " INT8," : isBF16orFP16 ? " BF16/FP16," : " FP32")
+                          << ", Input0: " << dataSizeInput0
+                          << ", Input1: " << dataSizeInput1 << (non_const ? " non_const, " : " const")
+                          << ", Output: " << dataSizeOutput
+                          << ", total_data: " << total_data
+                          << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+            }
+        } else if (!std::strcmp("Convolution", node_name)) {
+            // Check that input and output shape a fully defined (not dynamic)
+            ngraph::Input<ngraph::Node> input = node->input(0);
+            ngraph::Output<ngraph::Node> output = node->output(0);
+            ngraph::Input<ngraph::Node> kernels = node->input(1);
+            const auto shape = kernels.get_shape();
+            total_convs++;
+
+            std::cout << " kernel is " << shape[2] << "x" << shape[3];
+            if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+                std::cout << ", considering flops/byte amortizing the mem"  << std::endl;
+                compute_convs++;
+                continue;
+            }
+
+            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                const auto shapeInput = input.get_shape();
+                const auto shapeOutput = output.get_shape();
+                if (shapeInput.size() > 4/*5D*/ && isINT8) {
+                    std::cout << ", considering 5D amortizing mem, "  << std::endl;
+                    compute_convs++;
+                    continue;
+                }
+                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                std::multiplies<int>());
+                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                 std::multiplies<int>());
+                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
+                mem_limited_convs += factor < memThresholdAssumeLimited;
+                worst_case = std::min(factor, worst_case);
+                std::cout <<  (isINT8 ? " INT8 " : isBF16orFP16 ? " BF16/FP16 " : " FP32")
+                          << ", dataSize: " << dataSizeInput + dataSizeOutput
+                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+            }
+        } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
+            // Check that input and output shape a fully defined (not dynamic)
+            ngraph::Input<ngraph::Node> input = node->input(0);
+            ngraph::Output<ngraph::Node> output = node->output(0);
+            ngraph::Input<ngraph::Node> kernels = node->input(1);
+            const auto shape = kernels.get_shape();
+            total_deconvs++;
+
+            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                const auto shapeInput = input.get_shape();
+                const auto shapeOutput = output.get_shape();
+                if (shapeInput.size() > 4/*5D*/ && isINT8) {
+                    std::cout << ", considering 5D amortizing mem, "  << std::endl;
+                    compute_deconvs++;
+                    continue;
+                }
+                dataSizeInput = std::accumulate(shapeInput.begin(), shapeInput.end(), 1,
+                                                std::multiplies<int>());
+                dataSizeOutput = std::accumulate(shapeOutput.begin(), shapeOutput.end(), 1,
+                                                 std::multiplies<int>());
+                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
+                mem_limited_deconvs += factor < memThresholdAssumeLimited;
+                worst_case = std::min(factor, worst_case);
+                std::cout << ", kernel "<< shape[2]<< "x" << shape[2]
+                          << (isINT8 ? " INT8," : isBF16orFP16 ? " BF16/FP16," : " FP32,")
+                          << ", dataSize: " << dataSizeInput + dataSizeOutput
+                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
+            }
+        }
+    }
+    std::cout << "Total convs: " << total_convs << ". Mem limited: " << mem_limited_convs << ". Compute: " << compute_convs << std::endl;
+    std::cout << "Total DEconvs: " << total_deconvs<< ". Mem limited: " << mem_limited_deconvs << ". Compute: " << compute_deconvs << std::endl;
+    // std::cout << "Total OTHER OPS: " << total_other_ops << ". Mem limited: " << mem_limited_other_ops << std::endl;
+    std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
+
+    NetworkPerfStats res;
+    res.maxMemTolerance = worst_case;
+    res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
+    res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
+    res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
+//    if (!total_convs && !total_deconvs && !total_gemms) {
+//        std::cout << "WORST CASE ALL: " << worst_case_all << std::endl;
+//        res.maxMemTolerance = worst_case_all;
+//    } else {
+    std::cout << "WORST CASE: " << worst_case << std::endl;
+//    }
+    auto time = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+    std::cout << "NetworkMemBandwidthTolerance time: " << time << " ms" << std::endl;
+    return res;
+}
+static bool hasAVX512();
+
 InferenceEngine::IExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
@@ -394,23 +580,110 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     // TODO: handle input precision differently - per input and not one per network...
 
+    auto config = orig_config;
+    CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
+    const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+    const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+            || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+    auto nGraphFunc = clonedNetwork.getFunction();
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
+
+    // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
+    //const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
+    // if (mode != config.end() || !engConfig.ovPerfMode.empty()) {
+        //const auto mode_name = (mode != config.end()) ? mode->second : engConfig.ovPerfMode;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        //const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        // if (streams == config.end() && !streamsSet) { // for EXPERIMENT: overriding the user streams settings
+            //if (mode_name == CONFIG_VALUE(LATENCY)) {
+            //    config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            // } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                // const float memThresholdAssumeLimitedMuch   = NetworkPerfStats::memThresholdAssumeLimited/8;
+                auto isa = dnnl::get_effective_cpu_isa();
+                float isaThreshold = 1.0;
+                switch (isa) {
+                    case dnnl::cpu_isa::sse41 :
+                        isaThreshold = 0.5f;
+                        break;
+                    case dnnl::cpu_isa::avx2:
+                    case dnnl::cpu_isa::avx512_core:
+                        isaThreshold = 1.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_vnni:
+                    case dnnl::cpu_isa::avx2_vnni:
+                        isaThreshold = 2.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_amx:
+                        isaThreshold = 4.0f;
+                        break;
+                }
+                const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/isaThreshold;
+                std::cout << "isa:" << static_cast<int>(isa) << ", isaThreshold: " << isaThreshold << std::endl;
+                const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+                const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
+                std::cout<< "L3_cache_size " << L3_cache_size << std::endl;
+
+                Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork,
+                        L2_cache_size, L3_cache_size, memThresholdAssumeLimitedForISA);
+                const auto num_cores = getNumberOfCPUCores();
+                const auto num_streams_default_not_ht = num_cores / 2;
+                const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
+                // this is first heuristic in series (carefully separating int8, bf16 and float32):
+                //      memory bandwidth limited
+                //      compute limited
+                //      Hybrid specific
+                //      etc
+                int num_streams;
+                if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
+                    if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
+                        || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
+                        std::cout << "  case 1.1" <<std::endl;
+                        num_streams = num_cores;
+                    } else {
+                        num_streams = default_num_streams;
+                        std::cout << "case 0" <<std::endl;
+                    }
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedForISA) {
+//                               && NetworkToleranceForLowCache.ratio_mem_limited_convs <= memLimitedRatioThresholdForISA) {
+                    std::cout << "  case 1.0 or 1.2" <<std::endl;
+                    num_streams = num_cores;
+                } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
+                    num_streams = std::max(default_num_streams, num_streams_default_not_ht);
+                    std::cout << "case 2" <<std::endl;
+                } else {
+//                    if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedMuch) {
+                        num_streams = std::min(default_num_streams, num_streams_default_not_ht);
+                        std::cout << "case 3" << std::endl;
+//                    } else {
+//                        num_streams = default_num_streams/2;
+//                        std::cout << "case 3.1" << std::endl;
+//                    }
+                }
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
+
+                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
+                          << (NetworkToleranceForLowCache.maxMemTolerance <= NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
+                          << ", NUM_STREAMS " << num_streams << std::endl;
+            //}
+        //}
+    //}
+    ConvertToCPUSpecificOpset(nGraphFunc);
+
+    // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
-
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
-
-    CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
-
-    Transformation(clonedNetwork, conf);
 
     return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
+    streamsSet = (config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) != config.end());
     engConfig.readProperties(config);
 }
 
@@ -525,7 +798,10 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
         auto clonedNetwork = InferenceEngine::details::cloneNetwork(network);
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
-        Transformation(clonedNetwork, conf);
+        const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
+        const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
+                               || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+        Transformation(clonedNetwork, enableLPT);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (auto op : ops) {
