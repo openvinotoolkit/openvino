@@ -20,38 +20,21 @@ namespace ngraph
         public:
             FrontEndPDPD() = default;
 
-            /**
-             * @brief Reads model from file and deducts file names of weights
-             * @param path path to folder which contains __model__ file or path to .pdmodel file
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_file(const std::string& path) const override;
+            bool supported_by_variants(
+                const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
-            /**
-             * @brief Reads model and weights from files
-             * @param paths vector containing path to .pdmodel and .pdiparams files
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_files(const std::vector<std::string>& paths) const override;
+            std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
 
+        protected:
             /**
-             * @brief Reads model from stream
-             * @param model_stream stream containing .pdmodel or __model__ files. Can only be used
-             * if model have no weights
-             * @return InputModel::Ptr
-             */
-            InputModel::Ptr load_from_stream(std::istream& model_stream) const override;
-
-            /**
-             * @brief Reads model from stream
-             * @param paths vector of streams containing .pdmodel and .pdiparams files. Can't be
-             * used in case of multiple weight files
+             * @brief Reads model from 1 or 2 given file names or 1 or 2 std::istream containing
+             * model in protobuf format and weights
+             * @param params Can be path to folder which contains __model__ file or path to .pdmodel
+             * file
              * @return InputModel::Ptr
              */
             InputModel::Ptr
-                load_from_streams(const std::vector<std::istream*>& paths) const override;
-
-            std::shared_ptr<Function> convert(InputModel::Ptr model) const override;
+                load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
         };
 
     } // namespace frontend

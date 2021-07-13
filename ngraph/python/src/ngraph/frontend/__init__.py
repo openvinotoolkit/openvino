@@ -11,7 +11,6 @@ Low level wrappers for the FrontEnd c++ api.
 # main classes
 from _pyngraph import FrontEndManager
 from _pyngraph import FrontEnd
-from _pyngraph import FrontEndCapabilities
 from _pyngraph import InputModel
 from _pyngraph import Place
 
