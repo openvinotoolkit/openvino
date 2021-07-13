@@ -8,8 +8,18 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-if (MSVC)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-suggest-override)
+endif()
+
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+
+# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+# These two options can't be mixed, because they requires link two imcompatiable runtime.
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
+if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
@@ -38,9 +48,6 @@ if (CMAKE_GENERATOR STREQUAL "Ninja")
 else()
     set(MAKE_UTIL $(MAKE))
 endif()
-
-set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
 if (NOT BUILD_STANDALONE_STATIC)
     add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
@@ -116,7 +123,8 @@ if (NOT BUILD_STANDALONE_STATIC)
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
+            "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()
 
 # forward variables used in the other places

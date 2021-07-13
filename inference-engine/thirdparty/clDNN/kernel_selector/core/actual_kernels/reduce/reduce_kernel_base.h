@@ -17,8 +17,6 @@ struct reduce_params : public base_params {
     ReduceMode reduceMode;
     std::vector<uint16_t> reduceAxes;
     int32_t keepDims;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

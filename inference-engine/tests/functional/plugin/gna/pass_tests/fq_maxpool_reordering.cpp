@@ -59,7 +59,7 @@ public:
         return result.str();
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution);
     }
 

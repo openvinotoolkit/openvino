@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-suggest-override -Wno-undef)
+endif()
+
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
@@ -114,6 +118,35 @@ endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_gtest_libraries()
+endif()
+
+#
+# Protobuf
+#
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+    set(BEFORE_PROTOBUF_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS ON)
+    # protobuf type for ONNX importer / editor
+    set(BUILD_STANDALONE_STATIC OFF)
+
+    if(NOT NGRAPH_USE_SYSTEM_PROTOBUF)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf ${CMAKE_BINARY_DIR}/_deps/protobuf)
+    else()
+        find_package(Protobuf REQUIRED)
+    endif()
+
+    set(BUILD_SHARED_LIBS ${BEFORE_PROTOBUF_BUILD_SHARED_LIBS})
+    unset(BEFORE_PROTOBUF_BUILD_SHARED_LIBS)
+    unset(BUILD_STANDALONE_STATIC)
+endif()
+
+#
+# ONNX
+#
+
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    add_subdirectory(onnx)
 endif()
 
 #

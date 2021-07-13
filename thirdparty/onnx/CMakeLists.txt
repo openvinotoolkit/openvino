@@ -7,6 +7,11 @@
 #------------------------------------------------------------------------------
 
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(BUILD_SHARED_LIBS ON)
+
+if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
+    set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
+endif()
 
 macro(onnx_set_target_properties)
     target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
@@ -32,7 +37,8 @@ macro(onnx_set_target_properties)
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-    export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+    export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE
+            "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endmacro()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library")

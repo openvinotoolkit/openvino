@@ -42,7 +42,7 @@ if (ENABLE_CLDNN)
     add_subdirectory(clDNN)
 endif()
 
-if(ENABLE_MKL_DNN)
+function(ie_add_mkldnn)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
     set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
@@ -56,6 +56,14 @@ if(ENABLE_MKL_DNN)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wno-suggest-override -Wno-undef)
+    endif()
+
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+endfunction()
+
+if(ENABLE_MKL_DNN)
+    ie_add_mkldnn()
 endif()

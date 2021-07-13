@@ -25,7 +25,7 @@ protected:
         return CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         std::string libraryName = get_mock_engine_name();
         sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
         createPluginEngineProxy = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");

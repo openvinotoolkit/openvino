@@ -19,7 +19,6 @@ addIeTargetTest(
             $<TARGET_PROPERTY:ngraphFunctions,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
-            unitTestUtils
             mvnc
             ngraph
             interpreter_backend
@@ -29,3 +28,5 @@ addIeTargetTest(
             VPU
             MYRIAD
 )
+
+link_system_libraries(${TARGET_NAME} PRIVATE unitTestUtils)

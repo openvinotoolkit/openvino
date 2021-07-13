@@ -13,6 +13,11 @@
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "common_test_utils/common_utils.hpp"
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
+
 namespace GraphTest {
 
 using namespace InferenceEngine;
@@ -318,3 +323,7 @@ class MockCopier {
 }
 
 MATCHER_P2(IsBetween, a, b, std::string(negation ? "isn't" : "is") + " between " + ::testing::PrintToString(a) + " and " + ::testing::PrintToString(b)) { return a <= arg && arg <= b; }
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif

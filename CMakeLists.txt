@@ -63,16 +63,8 @@ function(build_ngraph)
         ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
     endif()
 
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
-    elseif(UNIX)
-        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
-    endif()
-
     # WA for GCC 7.0
-    if (UNIX)
-        ie_add_compiler_flags(-Wno-error=return-type -Wno-undef)
-    elseif(WIN32)
+    if(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
 
