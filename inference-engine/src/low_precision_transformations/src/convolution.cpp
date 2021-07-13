@@ -101,6 +101,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 newShift }));
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
+            ngraph::copy_runtime_info(subtract, newSubtract);
 
             newSubtract->set_output_type(0, subtract->get_output_element_type(0), newSubtract->get_output_partial_shape(0));
             subtract = newSubtract;
@@ -172,6 +173,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         replace_node(convolution, newMultiplyAfter);
+        ngraph::copy_runtime_info(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
         if (is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
@@ -179,6 +181,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 convolution->get_input_node_ptr(0)->get_input_source_output(0),
                 convolution->input_value(1)});
             replace_node(convolution, newConvolution);
+            ngraph::copy_runtime_info(convolution, newConvolution);
             convolution = newConvolution;
         }
     }
@@ -232,6 +235,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         false),
                     convolution->get_output_element_type(0)));
             replace_node(convolution, newMultiplyAfter);
+            ngraph::copy_runtime_info(convolution, newMultiplyAfter->input_value(0).get_node_shared_ptr());
             convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
 
@@ -254,6 +258,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     std::make_shared<opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
                 NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
+                ngraph::copy_runtime_info(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
         }
 
@@ -282,6 +287,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 false);
 
             replace_node(reshapeFromWeights, newWeights);
+            ngraph::copy_runtime_info(reshapeFromWeights->get_input_node_shared_ptr(0), newWeights);
         }
     }
 
