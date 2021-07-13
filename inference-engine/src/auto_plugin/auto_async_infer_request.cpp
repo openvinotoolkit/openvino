@@ -13,11 +13,11 @@
 namespace AutoPlugin {
 using namespace InferenceEngine;
 
-AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&           inferRequest,
-                               const AutoExecutableNetwork::Ptr&      autoExecutableNetwork,
-                               const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor)
-                               : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor)
-                               , _inferRequest(inferRequest) {
+AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&                 inferRequest,
+                                             const AutoExecutableNetwork::Ptr&            autoExecutableNetwork,
+                                             const InferenceEngine::ITaskExecutor::Ptr&   callbackExecutor)
+                                             : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor)
+                                             , _inferRequest(inferRequest) {
     // this executor starts the inference while  the task (checking the result) is passed to the next stage
     struct ThisRequestExecutor : public ITaskExecutor {
         explicit ThisRequestExecutor(AutoAsyncInferRequest* asyncInferRequest) : _asyncInferRequest{asyncInferRequest} {}

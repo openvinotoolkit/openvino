@@ -128,7 +128,7 @@ public:
     void run(InferenceEngine::Task inferTask) override;
     bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
 
-    ~AutoExecutableNetwork();
+    ~AutoExecutableNetwork() final;
 
     // todo: if pipeline task could have parameters, this could be not needed.
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
