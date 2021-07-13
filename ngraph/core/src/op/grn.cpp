@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 NGRAPH_RTTI_DEFINITION(op::v0::GRN, "GRN", 0);
 
 op::v0::GRN::GRN(const Output<Node>& data, float bias)
