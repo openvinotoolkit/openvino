@@ -42,7 +42,7 @@ const auto fqParams = ::testing::Combine(
         ::testing::ValuesIn(broadcasts)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTestRevise,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
-                        FakeQuantizeLayerTest::getTestCaseName);
+                        FakeQuantizeLayerTestRevise::getTestCaseName);
 
 
 const std::vector<size_t> singleShape = {3, 4, 2, 5};
@@ -65,7 +65,7 @@ const auto noneBroadcastFqParams = ::testing::Combine(
         ::testing::Values(noneBroadcast)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeNoneBroadcast, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeNoneBroadcast, FakeQuantizeLayerTestRevise,
                         ::testing::Combine(
                                 noneBroadcastFqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeNoneBroadcast, FakeQuantizeLayerTest,
                                 ::testing::Values(singleShape),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
-                        FakeQuantizeLayerTest::getTestCaseName);
+                        FakeQuantizeLayerTestRevise::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapesPerChannel = {{11, 10, 22, 19}, {11, 10, 5, 6}};
 const std::vector<std::vector<size_t>> constShapesPerChannelAxis0 = {{11, 1, 1, 1}};
@@ -98,7 +98,7 @@ const auto fqParamsPerChannelAxis1 = ::testing::Combine(
         ::testing::Values(numpyBroadcast)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTestRevise,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis0,
                                 ::testing::ValuesIn(netPrecisions),
@@ -109,9 +109,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis0, FakeQuantizeLayerTes
                                 ::testing::ValuesIn(inputShapesPerChannel),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
-                        FakeQuantizeLayerTest::getTestCaseName);
+                        FakeQuantizeLayerTestRevise::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTestRevise,
                         ::testing::Combine(
                                 fqParamsPerChannelAxis1,
                                 ::testing::ValuesIn(netPrecisions),
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannelAxis1, FakeQuantizeLayerTes
                                 ::testing::ValuesIn(inputShapesPerChannel),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::Values(config)),
-                        FakeQuantizeLayerTest::getTestCaseName);
+                        FakeQuantizeLayerTestRevise::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapesPerChannel2D = {{1, 10}};
 const std::vector<std::vector<size_t>> constShapesPerChannel2D = { {10}, {1, 10}, {1} };
@@ -134,7 +134,7 @@ const auto fqParamsPerChannel2D = ::testing::Combine(
     ::testing::Values(numpyBroadcast)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTestRevise,
     ::testing::Combine(
         fqParamsPerChannel2D,
         ::testing::ValuesIn(netPrecisions),
@@ -145,7 +145,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTest,
         ::testing::ValuesIn(inputShapesPerChannel2D),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(config)),
-    FakeQuantizeLayerTest::getTestCaseName);
+    FakeQuantizeLayerTestRevise::getTestCaseName);
 
 
 //TODO add test for PDPD
