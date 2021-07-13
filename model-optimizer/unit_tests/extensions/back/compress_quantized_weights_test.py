@@ -17,7 +17,7 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, val
     shaped_const_with_data
 
 
-def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=[127], ol=[-127], oh=[127]):
+def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=[127], ol=[-127], oh=[127], zp=[0]):
     shape = [1, 2, 3, 4] if data is None else np.array(data).shape
     data = np.ones(shape, dtype=original) if data is None else np.array(data, dtype=original)
     int_data = data.astype(dtype=np.int8)
@@ -30,6 +30,9 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
         **regular_op_with_shaped_data(
             'cast', shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': transformed}),
 
+        **regular_op_with_shaped_data(
+            'cast_zp', np.array(zp).shape, {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': original}),
+
         **valued_const_with_data('il', np.array(il)),
         **valued_const_with_data('ih', np.array(ih)),
         **valued_const_with_data('ol', np.array(ol)),
@@ -39,7 +42,7 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
             'FQ', shape, {'type': 'FakeQuantize', 'infer': FakeQuantize.infer, 'stop_value_propagation': True,
                           'levels': levels, 'op': 'FakeQuantize'}),
 
-        **valued_const_with_data('zp', np.array([0])),
+        **valued_const_with_data('zp', np.array(zp)),
         **valued_const_with_data('scale', np.array([1])),
 
         **regular_op_with_shaped_data(
@@ -93,7 +96,7 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
 
     def test_dequantize(self):
         original_type = np.float32
-        nodes = nodes_dict(original_type, np.int8)
+        nodes = nodes_dict(original_type, np.int8, il=[-8], ih=[7], ol=[-5], oh=[10], zp=[-3])
 
         graph = build_graph(nodes, [
             *connect('weights:0', '0:cast'),
@@ -121,7 +124,8 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
             *connect('cast:0', '0:sub'),
-            *connect('zp:0', '1:sub'),
+            *connect('zp:0', '0:cast_zp'),
+            *connect('cast_zp:0', '1:sub'),
             *connect('sub:0', '0:mul'),
             *connect('scale:0', '1:mul'),
             *connect('mul:0', 'output'),
@@ -164,9 +168,7 @@ class CompressionDataTypeTest(unittest.TestCase):
 
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
-            *connect('cast:0', '0:sub'),
-            *connect('zp:0', '1:sub'),
-            *connect('sub:0', '0:mul'),
+            *connect('cast:0', '0:mul'),
             *connect('scale:0', '1:mul'),
             *connect('mul:0', 'output'),
         ], nodes_with_edges_only=True)

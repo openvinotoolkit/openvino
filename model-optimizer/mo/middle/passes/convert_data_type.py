@@ -17,16 +17,32 @@ but to have unique data type in SUPPORTED_DATA_TYPES map
 """
 
 
-class packed_U1(np.generic):
-       pass
+class PackedType(np.generic):
+    custom_type = True
+
+    minimum_value = None
+    maximum_value = None
+
+    closest_numpy_type = None
 
 
-class packed_U4(np.generic):
-    pass
+class packed_U1(PackedType):
+    minimum_value = 0
+    maximum_value = 1
+    closest_numpy_type = np.uint8
 
 
-class packed_I4(np.generic):
-    pass
+class packed_U4(PackedType):
+    minimum_value = 0
+    maximum_value = 15
+    closest_numpy_type = np.uint8
+
+
+class packed_I4(PackedType):
+    minimum_value = -8
+    maximum_value = 7
+    closest_numpy_type = np.int8
+
 
 
 SUPPORTED_DATA_TYPES = {
@@ -93,12 +109,12 @@ def precision_to_destination_type(data_type_str):
     raise Error('Data type "{}" is not supported'.format(data_type_str))
 
 
-def convert_blob(blob: np.ndarray, dst_type: type):
+def convert_blob(blob: np.ndarray, dst_type: type, strict=True):
     if blob.dtype == dst_type:
         return blob, None, None
 
     converted_blob = blob.astype(dtype=dst_type, casting="unsafe")
-    if dst_type in (np.int32, np.int64, np.uint8, np.int8) and not np.array_equal(blob, converted_blob):
+    if strict and dst_type in (np.int32, np.int64, np.uint8, np.int8) and not np.array_equal(blob, converted_blob):
         raise Error('The conversion of blob with value "{}" to dst_type "{}" results in rounding'.format(
             blob, dst_type))
 

@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 
 from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Sub, Div, Mul, Negative
+from extensions.ops.elementwise import Sub, Div, Mul
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
@@ -71,12 +71,11 @@ class CompressQuantizeWeights(BackReplacementPattern):
                 WARNING: division by zero imposes restriction -- input_high can not be equal to input_low
             zero_point = input_low - output_low / scale
 
-    TODO: steps 5 and 6 are NOT IMPLEMENTED YET
-    TODO: DOES LPT NEED IT???
-    Step 5: Having zero_point == 0 is really beneficial for performance, so we try to fuse Subtract up to the Constant.
-        It is not always possible because of the quantized_dtype possible range of values.
+    TODO: step 5 is NOT IMPLEMENTED YET AS LPT hasn't report it needs it
+    Step 5: Having zero_point == 0 is really beneficial for performance, so we try to fuse Subtract up to the Constant
+        to achieve zero_point==0. It is not always possible because of the quantized_dtype possible range of values.
 
-    Step 6: (Optional) From the nature of Subtract and Multiply operations they may be optimized out in cases:
+    Step 6: From the nature of Subtract and Multiply operations they may be optimized out in cases:
             zero_point == 0
             scale == 1
 
@@ -191,9 +190,10 @@ class CompressQuantizeWeights(BackReplacementPattern):
         shift.in_port(1).connect(descaled_output_low.out_port(0))
 
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
-        sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
-        sub_zp.in_port(0).connect(dequantizing_cast.out_port(0))
-        sub_zp.in_port(1).connect(shift.out_port(0))
+        sub_zp = CompressQuantizeWeights.get_zero_point(dequantizing_cast, shift, name, [
+            in_low.node, in_high.node, out_low.node, out_high.node,
+            input_range, output_range, scale, descaled_output_low, shift
+        ], dst_type, quantized_type)
 
         mul_scale = Mul(graph, {'name': name + '/mulpiply_by_scale'}).create_node()
         mul_scale.in_port(0).connect(sub_zp.out_port(0))
@@ -202,6 +202,54 @@ class CompressQuantizeWeights(BackReplacementPattern):
         fake_quantize.out_port(0).get_connection().set_source(mul_scale.out_port(0))
 
         graph.remove_nodes_from([fake_quantize.id, fake_quantize.out_node(0)])
+
+    @staticmethod
+    def get_zero_point(x: Node, shift: Node, name: str, nodes_to_evaluate: List[Node], dst_type: type,
+                       quantized_type: type):
+        graph = x.graph
+
+        sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
+        sub_zp.in_port(0).connect(x.out_port(0))
+        sub_zp.in_port(1).connect(shift.out_port(0))
+
+        # propagate shapes and values of the nodes above to be able to check the value
+        for n in nodes_to_evaluate:
+            n.infer(n)
+
+        value = shift.out_port(0).data.get_value()
+        if value is None:  # value propagation failed (FQ inputs are not Constant - no room for optimization)
+            return sub_zp
+
+        original_value = np.array(value, dtype=dst_type)
+        low_precision_value = np.array(original_value, dtype=np.int32)  # larger int type avoids exceeding type range
+
+        eps = np.finfo(dst_type).eps if np.issubdtype(dst_type, np.floating) else 0
+        if not np.allclose(original_value, low_precision_value, atol=eps):
+            return sub_zp  # we can not represent original value in lower precision
+
+        is_custom_type = getattr(quantized_type, "custom_type", False)
+        minimum_lp_value = getattr(quantized_type, "minimum_value") if is_custom_type else np.iinfo(quantized_type).min
+        maximum_lp_value = getattr(quantized_type, "maximum_value") if is_custom_type else np.iinfo(quantized_type).max
+
+        if np.any(low_precision_value < minimum_lp_value) or np.any(low_precision_value > maximum_lp_value):
+            return sub_zp  # we can not represent original value in lower precision
+
+        if np.all(low_precision_value == 0):
+            return x  # zero point is equal to 0 -- optimizing subtraction out
+
+        quantizing_cast = Cast(graph, dict(
+            name="{}_{}".format(sub_zp.name, np_data_type_to_destination_type(quantized_type)),
+            dst_type=quantized_type, stop_value_propagation=False)).create_node()
+
+        dequantizing_cast = Cast(graph, dict(
+            name="{}/to_{}".format(quantizing_cast.name, np_data_type_to_destination_type(dst_type)),
+            dst_type=dst_type, stop_value_propagation=True)).create_node()
+
+        shift.out_port(0).connect(quantizing_cast.in_port(0))
+        quantizing_cast.out_port(0).connect(dequantizing_cast.in_port(0))
+        dequantizing_cast.out_port(0).connect(sub_zp.in_port(1))
+
+        return sub_zp
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         fake_quantize = match['fake_quantize']
