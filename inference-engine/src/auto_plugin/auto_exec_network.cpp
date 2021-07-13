@@ -85,13 +85,13 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     auto LoadNetworkAsync =
         [this, core, modelPath, network](const std::string& device) -> IE::SoExecutableNetworkInternal {
             IE::SoExecutableNetworkInternal executableNetwork;
-            std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
+            // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
             if (!modelPath.empty()) {
                 executableNetwork = core->LoadNetwork(modelPath, device, {});
             } else {
                 executableNetwork = core->LoadNetwork(network, device, {});
             }
-            std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
 
             uint32_t optimalNum {0};
             try {
@@ -195,9 +195,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRe
     } else {
         inferRequest = {_networkFirstReady, _networkFirstReady->CreateInferRequest()};
     }
-    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest,
-                                              shared_from_this(), _alreadyActualNetwork,
-                                              _enablePerfCount);
+    return std::make_shared<AutoInferRequest>(_networkInputs, _networkOutputs, inferRequest);
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequest() {
