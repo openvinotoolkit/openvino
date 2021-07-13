@@ -110,9 +110,16 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto reshape = opsMap.find(reshapeWrapper)->second.get_node()->shared_from_this();
+        auto reshapeFound = opsMap.find(reshapeWrapper);
+        if (reshapeFound == opsMap.end())
+            return false;
+        auto reshape = reshapeFound->second.get_node()->shared_from_this();
 
-        auto child = reshape->get_output_target_inputs(0).begin()->get_node();
+        auto outputTargetInputs = reshape->get_output_target_inputs(0);
+        if (outputTargetInputs.empty()) {
+            return false;
+        }
+        auto child = outputTargetInputs.begin()->get_node();
         if (is_type<opset1::GroupConvolution>(child)) {
             return false;
         }

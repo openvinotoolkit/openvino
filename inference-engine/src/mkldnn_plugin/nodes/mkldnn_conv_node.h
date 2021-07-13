@@ -61,6 +61,11 @@ public:
 
     bool isWinograd() const { return isWino; }
 
+    void setSumScale(float sumScale, InferenceEngine::Precision sumPrc) {
+        this->sumScale = sumScale;
+        this->sumPrc = sumPrc;
+    }
+
 protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
@@ -102,6 +107,11 @@ private:
     const size_t Y_AXIS = 1;
 
     bool isWino = false;
+
+    mkldnn::memory::data_type outputDataType;
+
+    float sumScale = 1.0f;
+    InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
 };
 
 }  // namespace MKLDNNPlugin

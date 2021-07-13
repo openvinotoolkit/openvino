@@ -18,9 +18,9 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
@@ -130,7 +130,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    const size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
 
@@ -879,7 +879,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    const size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_dst = r8;
     Xbyak::Reg64 reg_work_amount = r9;

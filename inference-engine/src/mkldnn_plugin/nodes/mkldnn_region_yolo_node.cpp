@@ -13,7 +13,7 @@
 #include "common/cpu_convert.h"
 #include <cpu/x64/jit_generator.hpp>
 #include <emitters/jit_bf16_emitters.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "utils/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;
@@ -98,7 +98,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    const size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
 

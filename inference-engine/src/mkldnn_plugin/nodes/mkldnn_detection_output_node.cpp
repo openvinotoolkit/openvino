@@ -187,6 +187,9 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     }
 
     if (with_add_box_pred) {
+        if (!arm_conf_data) {
+            IE_THROW() << errorPrefix << ". Cannot get arm_conf_data";
+        }
         for (int n = 0; n < N; ++n) {
             for (int p = 0; p < _num_priors; ++p) {
                 if (arm_conf_data[n*_num_priors*2 + p * 2 + 1] < _objectness_score) {

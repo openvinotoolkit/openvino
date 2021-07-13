@@ -13,9 +13,9 @@
 #include <mkldnn_extension_utils.h>
 #include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn_extension_utils.h"
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include "common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include <mkldnn_selective_build.h>
@@ -217,7 +217,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 private:
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
             Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    const size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;

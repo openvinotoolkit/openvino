@@ -327,7 +327,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), engine(eng), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+          type(TypeFromName(type)), profiling(name), fusingPort(0) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
@@ -518,9 +518,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     SEARCH_TYPE(reorder);
     SEARCH_TYPE(jit);
     SEARCH_TYPE(gemm);
+    SEARCH_TYPE(brgconv);
+    SEARCH_TYPE(brgemm);
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);
+    SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
@@ -915,6 +918,13 @@ void MKLDNNNode::cleanup() {
 const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,

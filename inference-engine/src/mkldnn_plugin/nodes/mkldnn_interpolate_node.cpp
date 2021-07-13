@@ -16,9 +16,9 @@
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
@@ -3056,7 +3056,7 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
         arg.src_ptr[3] = static_cast<int*>(&sequenceOW[0]);
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
-        arg.work_amount = static_cast<size_t>(OW * OH);
+        arg.work_amount = static_cast<size_t>(OW) * static_cast<size_t>(OH);
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         (*interpolateKernel)(&arg);
     });
