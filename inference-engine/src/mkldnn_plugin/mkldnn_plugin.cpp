@@ -82,6 +82,8 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/filter_fused.hpp>
+#include <snippets/op/subgraph.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -312,7 +314,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
-    bool tokenizeSubgraphs = Config::TokenizationMode::Node;
+    bool tokenizeSubgraphs = Config::TokenizationMode::Subgraph;
     if (!with_cpu_x86_avx2()) {
         // forse disable subgraph tokenization for SSE4.1 targets since not supported.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
@@ -518,6 +520,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         std::cout << std::endl << std::endl;
 #endif
         ngraph::pass::Manager tokenization_manager;
+        tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>(tokenizeSubgraphs == Config::TokenizationMode::Node);
         tokenization_manager.run_passes(nGraphFunc);
 #if defined (DUMP_TOKENIZATION)
