@@ -8,7 +8,8 @@
       "coords": 4,
       "num": 6,
       "masks": [[3, 4, 5], [0, 1, 2]],
-      "entry_points": ["detector/yolo-v3-tiny/Reshape", "detector/yolo-v3-tiny/Reshape_4"]
+      "entry_points": ["detector/yolo-v3-tiny/Reshape", "detector/yolo-v3-tiny/Reshape_4"],
+      "include_postprocess": false
     }
   }
 ]
