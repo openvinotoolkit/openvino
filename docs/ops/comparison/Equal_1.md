@@ -4,7 +4,16 @@
 
 **Category**: Comparison binary operation
 
-**Short description**: *Equal* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules.
+**Short description**: *Equal* performs element-wise comparison operation with two given input tensors applying multi-directional broadcast rules specified in the *auto_broadcast* attribute.
+
+**Detailed description**
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and *auto_broadcast* attributes is not *none*. Broadcasting is performed according to *auto_broadcast* value.
+
+After broadcasting *Equal* does the following with the input tensors *a* and *b*:
+
+\f[
+o_{i} = a_{i} == b_{i}
+\f]
 
 **Attributes**:
 
@@ -20,25 +29,16 @@
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
-* **2**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise comparison operation. A tensor of type boolean.
+* **1**: The result of element-wise **comparison** operation applied to the input tensors. A tensor of type **boolean** and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
 * *T*: arbitrary supported type.
-
-**Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *Equal* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} == b_{i}
-\f]
 
 **Examples**
 
