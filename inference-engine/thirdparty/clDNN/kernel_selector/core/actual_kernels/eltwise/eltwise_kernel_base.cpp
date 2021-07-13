@@ -39,6 +39,25 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
     }
 }
 
+std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> limited_size_lws) {
+    const size_t lws_max = info.maxWorkGroupSize;
+    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
+    size_t total_lws = 1;
+    std::vector<size_t> lws;
+    for (size_t i = 0; i < gws.size(); ++i) {
+        auto rest_lws = lws_max / total_lws;
+        size_t lws_idx = 0;
+        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i]) lws_idx++;
+
+        while (gws[i] % optimal_lws_values[lws_idx]) lws_idx++;
+
+        lws.push_back(optimal_lws_values[lws_idx]);
+        total_lws *= optimal_lws_values[lws_idx];
+    }
+
+    return lws;
+}
+
 ParamsKey eltwise_params::GetParamsKey() const {
     ParamsKey k = base_params::GetParamsKey();
 
@@ -569,6 +588,7 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
     if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
          params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
+         params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
          params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) &&
         params.output.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
@@ -584,17 +604,21 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 32;
-    } else if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 && params.output.Feature().v % 32 == 0) {
+    } else if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+                params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32)) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = 32;
-            dispatchData.lws[2] = 1;
+            auto bs_fsv32_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
+                                                                        params.engineInfo, {32, 32, 1024});
+            dispatchData.lws[0] = bs_fsv32_local[2];
+            dispatchData.lws[1] = bs_fsv32_local[0];
+            dispatchData.lws[2] = bs_fsv32_local[1];
         } else if (dispatchData.gws[0] == params.output.LogicalSize()) {
             dispatchData.lws = local;
         } else {
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = 1;
-            dispatchData.lws[2] = 32;
+            auto bs_fsv32_local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[2], dispatchData.gws[0], dispatchData.gws[1]}, params.engineInfo);
+            dispatchData.lws[0] = bs_fsv32_local[1];
+            dispatchData.lws[1] = bs_fsv32_local[2];
+            dispatchData.lws[2] = bs_fsv32_local[0];
         }
     } else {
         dispatchData.lws[0] = local[0];

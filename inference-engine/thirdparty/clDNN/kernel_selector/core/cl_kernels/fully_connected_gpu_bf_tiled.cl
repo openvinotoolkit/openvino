@@ -4,6 +4,7 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 // JIT Parameters:
 // SIMD         - sub-group size/simd width, one of {8, 16};

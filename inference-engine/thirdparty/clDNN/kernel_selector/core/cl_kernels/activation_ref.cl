@@ -15,11 +15,11 @@
 KERNEL(activation)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
-#ifdef PARAMETERIZED
-    , __global ADDITIONAL_PARAMS_TYPE* params
-#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
+#endif
+#ifdef PARAMETERIZED
+    , __global ADDITIONAL_PARAMS_TYPE* params
 #endif
     )
 {
