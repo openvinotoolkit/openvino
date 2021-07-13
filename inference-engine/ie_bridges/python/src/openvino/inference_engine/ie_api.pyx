@@ -284,7 +284,9 @@ cdef class IECore:
     #                          If the parameter is not specified, the default configuration is handled automatically.
     # @return Instance of IECore class
     def __cinit__(self, xml_config_file: str = ""):
-        self.impl = C.IECore(xml_config_file.encode())
+        cdef string c_xml_config_file = xml_config_file.encode()
+        with nogil:
+            self.impl = C.IECore(c_xml_config_file)
 
     ## Get a `namedtuple` object with versions of the plugin specified
     #  @param device_name: Name of the the registered plugin
@@ -326,12 +328,15 @@ cdef class IECore:
         cdef string weights_
         cdef string model_
         cdef IENetwork net = IENetwork()
+        cdef size_t bin_size
         if init_from_buffer:
             model_ = bytes(model)
-            net.impl = self.impl.readNetwork(model_, weights, len(weights))
+            bin_buffer = <uint8_t*> weights
+            bin_size = len(weights)
+            with nogil:
+                net.impl = self.impl.readNetwork(model_, bin_buffer, bin_size)
         else:
             weights_ = "".encode()
-
             model = os.fspath(model)
             if not os.path.isfile(model):
                 raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
@@ -342,8 +347,8 @@ cdef class IECore:
                 if not os.path.isfile(weights):
                     raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
                 weights_ = weights.encode()
-
-            net.impl = self.impl.readNetwork(model_, weights_)
+            with nogil:
+                net.impl = self.impl.readNetwork(model_, weights_)
         return net
 
     ## Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
@@ -367,16 +372,22 @@ cdef class IECore:
     cpdef ExecutableNetwork load_network(self, network: [IENetwork, str], str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
+        cdef string c_device_name
+        cdef string c_network_path
         if num_requests < 0:
             raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
                              "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
+        c_device_name = device_name.encode()
         if isinstance(network, str):
-            exec_net.impl = move(self.impl.loadNetworkFromFile((<str>network).encode(), device_name.encode(), c_config, num_requests))
+            c_network_path = network.encode()
+            with nogil:
+                exec_net.impl = move(self.impl.loadNetworkFromFile(c_network_path, c_device_name, c_config, num_requests))
         else:
-            exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, device_name.encode(), c_config, num_requests))
+            with nogil:
+                exec_net.impl = move(self.impl.loadNetwork((<IENetwork>network).impl, c_device_name, c_config, num_requests))
         return exec_net
 
     ## Creates an executable network from a previously exported network
@@ -534,7 +545,9 @@ cdef class IECore:
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
-        cdef vector[string] c_devices = self.impl.getAvailableDevices()
+        cdef vector[string] c_devices
+        with nogil:
+            c_devices = self.impl.getAvailableDevices()
         return [d.decode() for d in c_devices]
 
 ## This structure stores info about pre-processing of network inputs (scale, mean image, ...)
@@ -897,15 +910,19 @@ cdef class ExecutableNetwork:
     ## A tuple of `InferRequest` instances
     @property
     def requests(self):
+        cdef size_t c_infer_requests_size
+        with nogil:
+            c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
-            for i in range(deref(self.impl).infer_requests.size()):
+            for i in range(c_infer_requests_size):
                 infer_request = InferRequest()
-                infer_request.impl = &(deref(self.impl).infer_requests[i])
+                with nogil:
+                    infer_request.impl = &(deref(self.impl).infer_requests[i])
                 infer_request._inputs_list = list(self.input_info.keys())
                 infer_request._outputs_list = list(self.outputs.keys())
                 self._infer_requests.append(infer_request)
 
-        if len(self._infer_requests) != deref(self.impl).infer_requests.size():
+        if len(self._infer_requests) != c_infer_requests_size:
             raise Exception("Mismatch of infer requests number!")
 
         return self._infer_requests
@@ -1022,16 +1039,26 @@ cdef class ExecutableNetwork:
     #                  If not specified, `timeout` value is set to -1 by default.
     #  @return Request status code: OK or RESULT_NOT_READY
     cpdef wait(self, num_requests=None, timeout=None):
+        cdef int status_code
+        cdef int64_t c_timeout
+        cdef int c_num_requests
         if num_requests is None:
             num_requests = len(self.requests)
+        c_num_requests = <int> num_requests
         if timeout is None:
             timeout = WaitMode.RESULT_READY
-        return deref(self.impl).wait(<int> num_requests, <int64_t> timeout)
+        c_timeout = <int64_t> timeout
+        with nogil:
+            status_code = deref(self.impl).wait(c_num_requests, c_timeout)
+        return status_code
 
     ## Get idle request ID
     #  @return Request index
     cpdef get_idle_request_id(self):
-        return deref(self.impl).getIdleRequestId()
+        cdef int request_id
+        with nogil:
+            request_id = deref(self.impl).getIdleRequestId()
+        return request_id
 
 ctypedef extern void (*cb_type)(void*, int) with gil
 
@@ -1177,8 +1204,8 @@ cdef class InferRequest:
     cpdef infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-
-        deref(self.impl).infer()
+        with nogil:
+            deref(self.impl).infer()
 
     ## Starts asynchronous inference of the infer request and fill outputs array
     #
@@ -1197,7 +1224,8 @@ cdef class InferRequest:
             self._fill_inputs(inputs)
         if self._py_callback_used:
             self._py_callback_called.clear()
-        deref(self.impl).infer_async()
+        with nogil:
+            deref(self.impl).infer_async()
 
     ## Waits for the result to become available. Blocks until specified timeout elapses or the result
     #  becomes available, whichever comes first.
@@ -1213,9 +1241,14 @@ cdef class InferRequest:
     #
     #  Usage example: See `async_infer()` method of the the `InferRequest` class.
     cpdef wait(self, timeout=None):
+        cdef int status
+        cdef int64_t c_timeout
+        cdef int c_wait_mode
         if self._py_callback_used:
             # check request status to avoid blocking for idle requests
-            status = deref(self.impl).wait(WaitMode.STATUS_ONLY)
+            c_wait_mode = WaitMode.STATUS_ONLY
+            with nogil:
+                status = deref(self.impl).wait(c_wait_mode)
             if status != StatusCode.RESULT_NOT_READY:
                 return status
             if not self._py_callback_called.is_set():
@@ -1230,8 +1263,10 @@ cdef class InferRequest:
 
         if timeout is None:
             timeout = WaitMode.RESULT_READY
-
-        return deref(self.impl).wait(<int64_t> timeout)
+        c_timeout = <int64_t> timeout
+        with nogil:
+            status = deref(self.impl).wait(c_timeout)
+        return status
 
     ## Queries performance measures per layer to get feedback of what is the most time consuming layer.
     #
@@ -1392,7 +1427,8 @@ cdef class IENetwork:
                 weights_ = weights.encode()
                 self.impl = C.IENetwork(model_, weights_)
             else:
-                self.impl = C.IENetwork()
+                with nogil:
+                    self.impl = C.IENetwork()
             free(bin_buffer)
         free(xml_buffer)
 
@@ -1405,7 +1441,9 @@ cdef class IENetwork:
     ## A dictionary that maps input layer names to InputInfoPtr objects.
     @property
     def input_info(self):
-        cdef map[string, C.InputInfo.Ptr] c_inputs = self.impl.getInputsInfo()
+        cdef map[string, C.InputInfo.Ptr] c_inputs
+        with nogil:
+            c_inputs = self.impl.getInputsInfo()
         inputs = {}
         cdef InputInfoPtr input_info_ptr
         for input in c_inputs:
@@ -1438,7 +1476,9 @@ cdef class IENetwork:
     ## A dictionary that maps output layer names to DataPtr objects
     @property
     def outputs(self):
-        cdef map[string, C.DataPtr] c_outputs = self.impl.getOutputs()
+        cdef map[string, C.DataPtr] c_outputs
+        with nogil:
+            c_outputs = self.impl.getOutputs()
         outputs = {}
         cdef DataPtr data_ptr
         for output in c_outputs:
