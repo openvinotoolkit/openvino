@@ -1,7 +1,12 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include "op/argmax.hpp"
+#include "op/assign_value.hpp"
+#include "op/batch_norm.hpp"
+#include "op/cast.hpp"
+#include "op/clip.hpp"
+#include "op/concat.hpp"
 #include "op/conv2d.hpp"
 #include "op/elementwise_ops.hpp"
 #include "op/relu.hpp"
@@ -18,7 +23,13 @@ namespace ngraph
         {
             std::map<std::string, CreatorFunction> get_supported_ops()
             {
-                return {{"conv2d", op::conv2d},
+                return {{"arg_max", op::argmax},
+                        {"assign_value", op::assign_value},
+                        {"batch_norm", op::batch_norm},
+                        {"cast", op::cast},
+                        {"clip", op::clip},
+                        {"concat", op::concat},
+                        {"conv2d", op::conv2d},
                         {"elementwise_add", op::elementwise_add},
                         {"elementwise_div", op::elementwise_div},
                         {"elementwise_max", op::elementwise_max},
