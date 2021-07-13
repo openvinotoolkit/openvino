@@ -983,6 +983,8 @@ class Graph(nx.MultiDiGraph):
             return list(reversed(order))
 
     def clean_up(self, undead_node_types: list = None):
+        # to avoid circular dependencies
+        from extensions.middle.PartialInfer import type_infer
         if undead_node_types is None:
             undead_node_types = []
 
@@ -996,6 +998,8 @@ class Graph(nx.MultiDiGraph):
         eliminate_dead_nodes(self)
         # Add Const op for constant data nodes
         add_constant_operations(self)
+        if not self.stage != 'front':
+            type_infer(self)
 
 
 def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):
