@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithIntermediateTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;
@@ -39,7 +39,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
 
 InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
@@ -60,7 +60,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 
 void ConcatWithIntermediateTransformation::SetUp() {
     ngraph::element::Type ngPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
@@ -78,7 +78,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
 
 void ConcatWithIntermediateTransformation::validate() {
     ngraph::element::Type netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;

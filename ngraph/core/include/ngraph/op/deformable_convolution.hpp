@@ -176,7 +176,7 @@ namespace ngraph
                 }
 
             private:
-                int64_t m_bilinear_interpolation_pad;
+                bool m_bilinear_interpolation_pad;
             };
         } // namespace v8
     }     // namespace op
