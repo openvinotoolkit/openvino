@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -46,8 +44,8 @@ void MKLDNNGRNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32, false, 0}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32, false, 0}},
+                         {{GeneralLayout::ncsp, Precision::FP32, false, 0}},
                          impl_desc_type::ref_any);
 }
 
@@ -55,7 +53,7 @@ void MKLDNNGRNNode::execute(mkldnn::stream strm) {
     const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    SizeVector dims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    SizeVector dims = getParentEdgeAt(0)->getShape().getStaticDims();
 
     int N = static_cast<int>((dims.size() > 0) ? dims[0] : 1);
     int C = static_cast<int>((dims.size() > 1) ? dims[1] : 1);

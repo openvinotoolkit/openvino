@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -82,9 +80,9 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
         output_precision = Precision::I32;
     }
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, input_precision},
-                          {TensorDescCreatorTypes::ncsp, boundaries_precision}},
-                         {{TensorDescCreatorTypes::ncsp, output_precision}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, input_precision},
+                          {GeneralLayout::ncsp, boundaries_precision}},
+                         {{GeneralLayout::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 

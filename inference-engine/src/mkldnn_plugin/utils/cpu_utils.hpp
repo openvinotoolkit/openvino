@@ -90,5 +90,4 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     }
     return precision;
 }
-
 }  // namespace MKLDNNPlugin

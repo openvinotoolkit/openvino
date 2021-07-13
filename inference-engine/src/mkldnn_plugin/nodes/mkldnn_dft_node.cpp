@@ -48,20 +48,20 @@ MKLDNNDFTNode::MKLDNNDFTNode(const std::shared_ptr<ngraph::Node>& op, const mkld
     }
 
     /* Data */
-    inputShape = inDims[DATA_INDEX].ToSizeVector();
+    inputShape = inputShapes[DATA_INDEX].getStaticDims();
     if (inputShape.size() < 2) {
         IE_THROW() << layerErrorPrefix << " has invalid 'data' input tensor with rank: " << inputShape.size();
     }
 
     /* Axes */
-    const auto axesRank = inDims[AXES_INDEX].ndims();
+    const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
         IE_THROW() << layerErrorPrefix << " has invalid 'axes' input tensor with rank: " << axesRank;
     }
 
     /* Signal size */
     if (inputsNumber > SIGNAL_SIZE_INDEX) {
-        const auto signalSizeRank = inDims[SIGNAL_SIZE_INDEX].ndims();
+        const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
             IE_THROW() << layerErrorPrefix << " has invalid 'signal_size' input tensor with rank: " << signalSizeRank;
         }
@@ -93,12 +93,12 @@ void MKLDNNDFTNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<DataConfigurator> inDataConfigurators({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                                                       {TensorDescCreatorTypes::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{GeneralLayout::ncsp, Precision::FP32},
+                                                       {GeneralLayout::ncsp, Precision::I32}});
     if (getOriginalInputsNumber() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({TensorDescCreatorTypes::ncsp,  Precision::I32});
+        inDataConfigurators.push_back({GeneralLayout::ncsp,  Precision::I32});
 
-    addSupportedPrimDesc(inDataConfigurators, {{TensorDescCreatorTypes::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{GeneralLayout::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
 
 namespace {
@@ -225,7 +225,7 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->GetPtr());
-    axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getDims()[0]);
+    axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getShape().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {
             axis += inputShape.size() - 1;
@@ -233,7 +233,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     }
     std::sort(axes.begin(), axes.end());
 
-    outputShape = getChildEdgeAt(0)->getDims().ToSizeVector();
+    outputShape = getChildEdgeAt(0)->getShape().getStaticDims();
     for (size_t axis : axes) {
         size_t nComplex = outputShape[axis];
         // FFT uses different twiddle factors
@@ -247,8 +247,8 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     const auto *input = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->GetPtr());
     auto *output = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->GetPtr());
 
-    auto inputStrides = inputDataEdge->getDesc().getBlockingDesc().getStrides();
-    auto outputStrides = outputDataEdge->getDesc().getBlockingDesc().getStrides();
+    auto inputStrides = inputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto outputStrides = outputDataEdge->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
     if (inputShape != outputShape) {
         copyDataToOutputWithSignalSize(input, inputShape, inputStrides, output, outputShape, outputStrides);
     } else {
@@ -257,7 +257,7 @@ void MKLDNNDFTNode::execute(mkldnn::stream strm) {
     }
 
     // 1d case
-    if (inputDataEdge->getDesc().getDims().size() == 2) {
+    if (inputDataEdge->getShape().getRank() == 2) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             fft(output, nComplex * 2, true);

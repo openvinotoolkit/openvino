@@ -89,9 +89,9 @@ void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
 
     _dataTypeSize = inDataPrecision.size();
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, inDataPrecision},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                         {{TensorDescCreatorTypes::ncsp, inDataPrecision}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, inDataPrecision},
+                          {GeneralLayout::ncsp, Precision::I32}},
+                         {{GeneralLayout::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 
@@ -101,10 +101,11 @@ void MKLDNNGatherNDNode::gatherElementwise() {
     const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(_indicesIndex)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto strides = getParentEdgeAt(_dataIndex)->getDesc().getBlockingDesc().getStrides();
+    auto strides = getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
     const size_t* srcMultipliers = strides.data() + _batchDims;
 
-    const size_t cycles = getChildEdgeAt(0)->getBlob()->byteSize() / (sizeof(dataType) * _batchNum);
+    const size_t cycles = getChildEdgeAt(0)->getShape().getElementsCount() *
+                          getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().size() / (sizeof(dataType) * _batchNum);
     const size_t CS = cycles * _sliceRank;
     const size_t CB = cycles * _blockSize;
     const size_t workAmount = _batchNum * cycles;
@@ -149,11 +150,11 @@ void MKLDNNGatherNDNode::gatherBlocks() {
 
     std::vector<size_t> srcMultipliers(_sliceRank);
     for (size_t i = 0; i < _sliceRank ; i++)
-        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getDesc().getBlockingDesc().getStrides()[i + _batchDims];
+        srcMultipliers[i] = _dataTypeSize * getParentEdgeAt(_dataIndex)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides()[i + _batchDims];
 
     const size_t batchStep = _batchStep * _dataTypeSize;
     const size_t dataStep = _blockSize * _dataTypeSize;
-    const size_t cycles = getChildEdgeAt(0)->getBlob()->byteSize() / (dataStep * _batchNum);
+    const size_t cycles = getChildEdgeAt(0)->getMemory().GetSize() / (dataStep * _batchNum);
     const size_t CS = cycles * _sliceRank;
     const size_t CB = cycles * dataStep;
     const size_t workAmount = _batchNum * cycles;

@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -116,13 +115,13 @@ void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -132,12 +131,12 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     const float *loc_data    = reinterpret_cast<const float *>(getParentEdgeAt(idx_location)->getMemoryPtr()->GetPtr());
     const float *conf_data   = reinterpret_cast<const float *>(getParentEdgeAt(idx_confidence)->getMemoryPtr()->GetPtr());
     const float *prior_data  = reinterpret_cast<const float *>(getParentEdgeAt(idx_priors)->getMemoryPtr()->GetPtr());
-    const float *arm_conf_data = inDims.size() > 3 ?
+    const float *arm_conf_data = inputShapes.size() > 3 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_confidence)->getMemoryPtr()->GetPtr()) : nullptr;
-    const float *arm_loc_data = inDims.size() > 4 ?
+    const float *arm_loc_data = inputShapes.size() > 4 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_location)->getMemoryPtr()->GetPtr()) : nullptr;
 
-    const int N = getParentEdgeAt(idx_confidence)->getDims()[0];
+    const int N = getParentEdgeAt(idx_confidence)->getShape().getStaticDims()[0];
 
     float *decoded_bboxes_data = _decoded_bboxes.data();
     float *reordered_conf_data = _reordered_conf.data();
@@ -286,8 +285,8 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         }
     }
 
-    const int num_results = getChildEdgesAtPort(0)[0]->getDims()[2];
-    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getDims()[3];
+    const int num_results = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[2];
+    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[3];
     if (DETECTION_SIZE != 7) {
         IE_THROW() << NOT_IMPLEMENTED;
     }
@@ -300,7 +299,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     else
         dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
 
-    if (dst_data_size > getChildEdgesAtPort(0)[0]->getBlob()->byteSize()) {
+    if (dst_data_size > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
         IE_THROW() << OUT_OF_BOUNDS;
     }
     memset(dst_data, 0, dst_data_size);

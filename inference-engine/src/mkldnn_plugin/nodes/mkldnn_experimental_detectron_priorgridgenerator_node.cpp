@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 
 #include <ngraph/opsets/opset6.hpp>
@@ -55,22 +53,22 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronPriorGridGeneratorNode::execute(mkldnn::stream strm) {
-    const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getDims()[0];
-    assert(getParentEdgeAt(INPUT_PRIORS)->getDims()[1] == 4);
+    const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getShape().getStaticDims()[0];
+    assert(getParentEdgeAt(INPUT_PRIORS)->getShape().getStaticDims()[1] == 4);
 
     // Execute
-    const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getDims()[3];
-    const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getDims()[2];
-    const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getDims()[3]) / layer_width;
-    const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getDims()[2]) / layer_height;
+    const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getShape().getStaticDims()[3];
+    const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getShape().getStaticDims()[2];
+    const float step_w = stride_w_ ? stride_w_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getShape().getStaticDims()[3]) / layer_width;
+    const float step_h = stride_h_ ? stride_h_ : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getShape().getStaticDims()[2]) / layer_height;
 
     const auto *bottom_data_0 = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *top_data_0 = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());

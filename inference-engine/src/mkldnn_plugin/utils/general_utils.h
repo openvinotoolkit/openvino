@@ -40,6 +40,11 @@ constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+template<typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
 inline std::string getExceptionDescWithoutStatus(const InferenceEngine::Exception& ex) {
     std::string desc = ex.what();
     IE_SUPPRESS_DEPRECATED_START

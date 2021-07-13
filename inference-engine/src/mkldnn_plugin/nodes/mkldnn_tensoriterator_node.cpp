@@ -10,6 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include <ie_ngraph_utils.hpp>
 #include <utils/general_utils.h>
+#include "common/blocked_desc_creator.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -17,15 +18,16 @@ using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static InferenceEngine::LayerConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
-    InferenceEngine::LayerConfig config;
+static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
+    NodeConfig config;
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& dims = op->get_input_shape(i);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
 
-        InferenceEngine::DataConfig data_conf {};
-        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
+        PortConfig data_conf {};
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+        data_conf.desc = descCreator->createUniqueDesc(prec, dims);
         config.inConfs.push_back(data_conf);
     }
 
@@ -33,8 +35,9 @@ static InferenceEngine::LayerConfig make_plain_config(const std::shared_ptr<ngra
         const auto& dims = op->get_output_shape(i);
         const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
 
-        InferenceEngine::DataConfig data_conf {};
-        data_conf.desc = InferenceEngine::TensorDesc { prec, dims, InferenceEngine::TensorDesc::getLayoutByDims(dims) };
+        PortConfig data_conf {};
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+        data_conf.desc = descCreator->createUniqueDesc(prec, dims);
         config.outConfs.push_back(data_conf);
     }
 

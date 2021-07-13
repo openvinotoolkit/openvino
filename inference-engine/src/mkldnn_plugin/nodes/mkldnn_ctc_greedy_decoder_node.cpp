@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "base.hpp"
 
 #include <string>
 #include <vector>
@@ -59,9 +58,9 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -70,9 +69,9 @@ void MKLDNNCTCGreedyDecoderNode::execute(mkldnn::stream strm) {
     const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
     float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    const size_t T = getParentEdgeAt(DATA_INDEX)->getDims()[0];
-    const size_t B = getParentEdgeAt(DATA_INDEX)->getDims()[1];
-    const int C = getParentEdgeAt(DATA_INDEX)->getDims()[2];
+    const size_t T = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[0];
+    const size_t B = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[1];
+    const int C = getParentEdgeAt(DATA_INDEX)->getShape().getStaticDims()[2];
     const size_t BC = B * C;
     const size_t CB1 = C * (B - 1);
 

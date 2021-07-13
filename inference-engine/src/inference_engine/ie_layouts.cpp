@@ -161,8 +161,8 @@ bool TensorDesc::operator!=(const TensorDesc& rhs) const {
     return !(*this == rhs);
 }
 
-Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
-    switch (dims.size()) {
+Layout TensorDesc::getLayoutByRank(size_t rank) {
+    switch (rank) {
     case 0:
         return Layout::SCALAR;
     case 1:
@@ -178,6 +178,10 @@ Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
     default:
         return Layout::BLOCKED;
     }
+}
+
+Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
+    return getLayoutByRank(dims.size());
 }
 
 size_t TensorDesc::offset(const SizeVector& v) const {

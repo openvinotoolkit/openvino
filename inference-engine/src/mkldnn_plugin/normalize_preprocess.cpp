@@ -12,7 +12,7 @@ using namespace InferenceEngine;
 NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
 }
 
-void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
+void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo) {
     PreProcessInfo &pp = inputInfo->getPreProcess();
     size_t inChannels = pp.getNumberOfChannels();
     if (inChannels == 0) {
@@ -20,7 +20,7 @@ void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr input
         return;
     }
 
-    if (inChannels != inputDims[1]) {
+    if (!dimsEqualStrong(inChannels, inputShape.getDims()[1])) {
         IE_THROW() << "channels mismatch between mean and input";
     }
 

@@ -68,6 +68,7 @@ protected:
         MatMulNodeType nodeType;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, nodeType, fusingParams) = this->GetParam();
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
 
@@ -120,7 +121,7 @@ namespace fullyConnected {
 
 const auto fusingBiasFC = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<Node> inpNode, const element::Type& ngPrc, ParameterVector& params) {
-                auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_input_shape(1).back()}), std::vector<float>{}, true);
+                auto bias = builder::makeConstant(ngPrc, Shape({inpNode->get_output_shape(0).back()}), std::vector<float>{}, true);
                 return std::make_shared<opset1::Add>(inpNode, bias);
             }, "fusingBiasFC"}}), {"Add"}};
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -341,27 +339,27 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::initSupportedPrimitiveD
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> inDataConf;
+    std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream strm) {
-    const int levels_num = inDims.size() - INPUT_FEATURES_START;
-    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getDims()[0];
-    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getDims()[1];
+    const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
+    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getShape().getStaticDims()[0];
+    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getShape().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     auto *input_rois = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ROIS)->getMemoryPtr()->GetPtr());
     auto *output_rois_features = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROI_FEATURES)[0]->getMemoryPtr()->GetPtr());
     float *output_rois = nullptr;
-    if (OUTPUT_ROIS < outDims.size()) {
+    if (OUTPUT_ROIS < outputShapes.size()) {
         output_rois = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
     }
 
@@ -381,8 +379,8 @@ void MKLDNNExperimentalDetectronROIFeatureExtractorNode::execute(mkldnn::stream 
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
             auto *featuremap = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemoryPtr()->GetPtr());
-            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getDims()[2];
-            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getDims()[3];
+            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getShape().getStaticDims()[2];
+            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getShape().getStaticDims()[3];
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
                                               featuremap,
                                               1.0f / pyramid_scales_[i],

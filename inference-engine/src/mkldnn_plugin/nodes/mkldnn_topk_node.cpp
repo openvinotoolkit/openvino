@@ -84,14 +84,14 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<DataConfigurator> outDataConf;
+    std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
-    outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
+    outDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
     for (int i = 1; i < getOriginalOutputsNumber(); ++i)
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::I32);
+        outDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, Precision::I32}},
                          outDataConf,
                          impl_desc_type::ref_any);
 }
@@ -102,24 +102,24 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
     float* dst_data = nullptr;
     int* dst_idx = nullptr;
 
-    if (outDims.size() == 1) {
+    if (outputShapes.size() == 1) {
         if (getOriginalOutputPrecisionAtPort(0) == Precision::FP32) {
             dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         } else {
             dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
         }
-        SizeVector dstDims = getChildEdgesAtPort(0)[0]->getDims().ToSizeVector();
+        SizeVector dstDims = getChildEdgesAtPort(0)[0]->getShape().getStaticDims();
 
         if (dstDims[axis] != static_cast<size_t>(src_k)) {
             std::string errorMsg = "Output tensor dimension mismatch";
             IE_THROW() << errorMsg;
         }
-    } else if (outDims.size() == 2) {
+    } else if (outputShapes.size() == 2) {
         dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(TOPK_VALUE)[0]->getMemoryPtr()->GetPtr());
-        SizeVector dst_data_dims = getChildEdgesAtPort(TOPK_VALUE)[0]->getDims().ToSizeVector();
+        SizeVector dst_data_dims = getChildEdgesAtPort(TOPK_VALUE)[0]->getShape().getStaticDims();
 
         dst_idx = reinterpret_cast<int *>(getChildEdgesAtPort(TOPK_INDEX)[0]->getMemoryPtr()->GetPtr());
-        SizeVector dst_idx_dims = getChildEdgesAtPort(TOPK_INDEX)[0]->getDims().ToSizeVector();
+        SizeVector dst_idx_dims = getChildEdgesAtPort(TOPK_INDEX)[0]->getShape().getStaticDims();
 
         if (dst_idx_dims[axis] != static_cast<size_t>(src_k) || dst_data_dims[axis] != static_cast<size_t>(src_k)) {
             std::string errorMsg = "Output tensors dimension mismatch";
@@ -133,7 +133,7 @@ void MKLDNNTopKNode::execute(mkldnn::stream strm) {
     if (src_dims[axis] < static_cast<size_t>(src_k))
         src_k = src_dims[axis];
 
-    SizeVector in_dims = getParentEdgeAt(TOPK_DATA)->getDims().ToSizeVector();
+    SizeVector in_dims = getParentEdgeAt(TOPK_DATA)->getShape().getStaticDims();
 
     if (src_k == 1) {
         if (is_last_dim) {

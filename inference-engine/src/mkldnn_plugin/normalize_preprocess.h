@@ -6,7 +6,7 @@
 
 #include "ie_input_info.hpp"
 
-#include "mkldnn_dims.h"
+#include "cpu_shape.h"
 #include "ie_parallel.hpp"
 #include <vector>
 #include <limits>
@@ -18,7 +18,7 @@ public:
     NormalizePreprocess();
 
 public:
-    void Load(const MKLDNNDims& inputDims, InferenceEngine::InputInfo::Ptr inputInfo);
+    void Load(const Shape& inputShape, InferenceEngine::InputInfo::Ptr inputInfo);
     void NormalizeImage(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout);
 
     template<typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
@@ -84,6 +84,7 @@ private:
 
     std::vector<float> stdScales;
 
+    // TOOD [DS]: should we rewrite meanBuffer to MKLDNNMemory?
     InferenceEngine::TBlob<float>::Ptr meanBuffer;
 };
 

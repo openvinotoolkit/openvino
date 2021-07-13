@@ -25,15 +25,16 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    template<typename T>
+    void batchToSpaceKernel();
+
+private:
     InferenceEngine::SizeVector inDims;
     InferenceEngine::SizeVector outDims;
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> cropsBeginIn;
 
     std::string errorPrefix;
-
-    template<typename T>
-    void batchToSpaceKernel();
 };
 
 }  // namespace MKLDNNPlugin

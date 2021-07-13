@@ -19,8 +19,8 @@ public:
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
 
     void execute(mkldnn::stream strm) override;
 
@@ -40,6 +40,8 @@ private:
     void copyWeightsData();
 
 private:
+    using MKLDNNMemoryDescPtr = std::unique_ptr<MKLDNNMemoryDesc>;
+
     InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
@@ -76,9 +78,9 @@ private:
         CellState   = 2
     };
 
-    MKLDNNMemoryDesc w_data_d;
-    MKLDNNMemoryDesc w_state_d;
-    MKLDNNMemoryDesc w_bias_d;
+    MKLDNNMemoryDescPtr w_data_d;
+    MKLDNNMemoryDescPtr w_state_d;
+    MKLDNNMemoryDescPtr w_bias_d;
 
     std::vector<size_t > in_data_dims;
     std::vector<size_t > out_data_dims;

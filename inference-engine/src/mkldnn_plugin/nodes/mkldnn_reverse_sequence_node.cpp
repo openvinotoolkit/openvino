@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base.hpp"
-
 #include <string>
 #include <vector>
 
@@ -85,9 +83,9 @@ void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
     if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
         lengthsPrecision = Precision::I32;
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, lengthsPrecision}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
+                          {GeneralLayout::ncsp, lengthsPrecision}},
+                         {{GeneralLayout::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
@@ -96,7 +94,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(REVERSESEQUENCE_DATA)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getDesc().getPrecision()) {
+    switch (getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()) {
         case Precision::FP32: {
             float *seq_lengths_data = reinterpret_cast<float *>(getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemoryPtr()->GetPtr());
             for (i = 0; i < src_dims[batch_axis]; i++) {
@@ -171,7 +169,7 @@ void MKLDNNReverseSequenceNode::execute(mkldnn::stream strm) {
         break;
         default:
             IE_THROW() << "ReverseSequence layer does not support "
-                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getDesc().getPrecision()  << " precision";
+                        << getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().GetDesc().getPrecision()  << " precision";
     }
 }
 
