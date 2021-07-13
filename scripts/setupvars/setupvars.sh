@@ -103,6 +103,11 @@ if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_t
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit:$PYTHONPATH"
 fi
 
+if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tests" ]; then
+    export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools:$MO_ROOT:$PYTHONPATH"
+fi
+
 if [ -z "$python_version" ]; then
     python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
 fi
