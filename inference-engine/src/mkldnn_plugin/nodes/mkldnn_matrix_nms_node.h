@@ -46,6 +46,7 @@ private:
     size_t m_num_batches;
     size_t m_num_boxes;
     size_t m_num_classes;
+    size_t m_max_boxes_per_batch;
 
     ngraph::op::util::NmsBase::SortResultType m_sort_result_type;
     bool m_sort_result_across_batch;

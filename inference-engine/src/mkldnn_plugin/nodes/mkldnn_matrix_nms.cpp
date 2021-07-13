@@ -99,6 +99,16 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     m_gaussian_sigma = attrs.gaussian_sigma;
     m_post_threshold = attrs.post_threshold;
     m_normalized = attrs.normalized;
+    int64_t max_output_boxes_per_class = 0;
+    size_t  real_num_classes = m_background_class == -1 ? m_num_classes : m_num_classes - 1;
+    if (m_nms_top_k >= 0)
+        max_output_boxes_per_class = std::min(m_num_boxes, static_cast<size_t>(m_nms_top_k));
+    else
+        max_output_boxes_per_class = m_num_boxes;
+
+    m_max_boxes_per_batch = max_output_boxes_per_class * real_num_classes;
+    if (m_keep_top_k >= 0)
+        m_max_boxes_per_batch = std::min(m_max_boxes_per_batch, static_cast<size_t>(m_keep_top_k));
 }
 
 void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
@@ -463,18 +473,27 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr()->GetPtr());
     std::copy(num_per_batch.begin(), num_per_batch.end(), valid_outputs);
 
+    int64_t output_offset = 0;
+    int64_t original_offset = 0;
     for (size_t i = 0; i < m_num_batches; i++) {
-        valid_outputs[i] = static_cast<int>(num_per_batch[i]);
-    }
-    for (size_t i = 0; i < filtered_boxes.size(); i++) {
-        selected_indices[i] = static_cast<int>(filtered_boxes[i].index);
-        auto selected_base = selected_outputs + i * 6;
-        selected_base[0] = filtered_boxes[i].class_index;
-        selected_base[1] = filtered_boxes[i].score;
-        selected_base[2] = filtered_boxes[i].box.x1;
-        selected_base[3] = filtered_boxes[i].box.y1;
-        selected_base[4] = filtered_boxes[i].box.x2;
-        selected_base[5] = filtered_boxes[i].box.y2;
+        auto real_boxes = num_per_batch[i];
+        valid_outputs[i] = static_cast<int>(real_boxes);
+
+        for (size_t j = 0; j < real_boxes; j++) {
+            auto original_index = original_offset + j;
+            selected_indices[j + output_offset] = static_cast<int>(filtered_boxes[original_index].index);
+            auto selected_base = selected_outputs + (output_offset + j) * 6;
+            selected_base[0] = filtered_boxes[original_index].class_index;
+            selected_base[1] = filtered_boxes[original_index].score;
+            selected_base[2] = filtered_boxes[original_index].box.x1;
+            selected_base[3] = filtered_boxes[original_index].box.y1;
+            selected_base[4] = filtered_boxes[original_index].box.x2;
+            selected_base[5] = filtered_boxes[original_index].box.y2;
+        }
+        std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (m_max_boxes_per_batch - real_boxes) * 6, -1);
+        std::fill_n(selected_indices + (output_offset + real_boxes), m_max_boxes_per_batch - real_boxes, -1);
+        output_offset += m_max_boxes_per_batch;
+        original_offset += real_boxes;
     }
 }
 
