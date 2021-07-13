@@ -97,8 +97,6 @@ class memory_pool {
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine* _engine;
-    std::atomic<uint64_t> _temp_memory_used;
-    std::atomic<uint64_t> _max_peak_memory_used;
 
 public:
     explicit memory_pool(engine& engine);
@@ -127,11 +125,6 @@ public:
     void clear_pool();
     void clear_pool_for_network(uint32_t network_id);
     void release_memory(memory* memory, const primitive_id& id, uint32_t network_id);
-
-    uint64_t get_temp_memory_used() const { return _temp_memory_used; }
-    uint64_t get_max_peak_device_memory_used() const { return _max_peak_memory_used; }
-    void add_memory_used(size_t value);
-    void subtract_memory_used(size_t value);
 };
 
 }  // namespace cldnn
