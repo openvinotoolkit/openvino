@@ -46,7 +46,7 @@ Summary &Summary::getInstance() {
     return *p_instance;
 }
 
-void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status) {
+void Summary::updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status, const char* className) {
     auto it = opsStats.find(op);
     if (it != opsStats.end()) {
         auto &passrate = it->second;
@@ -118,7 +118,8 @@ std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
     return oldOpsStat;
 }
 
-void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status) {
+void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status,
+                             const char* className) {
     bool isFunctionalGraph = false;
     for (const auto &op : function->get_ordered_ops()) {
         if (!ngraph::is_type<ngraph::op::Parameter>(op) &&
@@ -135,19 +136,28 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
             ngraph::is_type<ngraph::op::Result>(op)) && isFunctionalGraph) {
             continue;
         } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
-            updateOPsStats(op->get_type_info(), status);
+            updateOPsStats(op->get_type_info(), status, className);
             auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
             auto ti_body = ti->get_function();
-            updateOPsStats(ti_body, status);
+            updateOPsStats(ti_body, status, className);
         } else if (ngraph::is_type<ngraph::op::v5::Loop>(op)) {
-            updateOPsStats(op->get_type_info(), status);
+            updateOPsStats(op->get_type_info(), status, className);
             auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
             auto loop_body = loop->get_function();
-            updateOPsStats(loop_body, status);
+            updateOPsStats(loop_body, status, className);
         } else {
-            updateOPsStats(op->get_type_info(), status);
+            updateOPsStats(op->get_type_info(), status, className);
         }
     }
+}
+
+void Summary::savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                             unsigned long skipped, unsigned long crashed) {
+    std::string outputFilePath = "./part_report.txt";
+    std::ofstream file;
+    file.open(outputFilePath, std::ios_base::app);
+    file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
+    file.close();
 }
 
 void Summary::saveReport() {
