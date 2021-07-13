@@ -71,7 +71,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         const QuantizationDetails& quantizationDetails = QuantizationDetails::getDetails(fq);
 
         // per tensor scale is supported only
-        if (quantizationDetails.inputHighValues.size() != 1ul) {
+        if (quantizationDetails.outputHighValues.size() != 1ul) {
             return false;
         }
 
@@ -123,7 +123,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
     FakeQuantizeDequantization dequantization;
 
-    if ((quantizationLayersDetails[0].inputHighValues.size() == 1)) {
+    if ((quantizationLayersDetails[0].outputHighValues.size() == 1)) {
         float outputLowValue = quantizationLayersDetails[0].outputLowValues[0];
         float outputHighValue = quantizationLayersDetails[0].outputHighValues[0];
 
