@@ -17,7 +17,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include "node_context.hpp"
+#include "node_context_impl.hpp"
 
 
 namespace ngraph

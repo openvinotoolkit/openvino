@@ -17,9 +17,7 @@
 #pragma once
 
 // TODO: include it by just frontend_manager.hpp without path
-//#include "../../include/frontend_manager/frontend_manager.hpp"
 #include <frontend_manager/frontend.hpp>
-//#include "../../src/node_context.hpp"
 
 namespace tensorflow { class GraphDef; class NodeDef; namespace ngraph_bridge { class GraphIteratorProto; }  }
 
@@ -82,6 +80,8 @@ namespace ngraph
             FrontEndTensorflow ()
             {
             }
+
+            virtual void add_extension (InferenceEngine::NewExtension::Ptr) override;
 
             virtual InputModel::Ptr load_from_file (const std::string& path) const override
             {

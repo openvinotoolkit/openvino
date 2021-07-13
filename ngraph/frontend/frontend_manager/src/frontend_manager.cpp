@@ -122,6 +122,12 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
+void FrontEnd::add_extension(InferenceEngine::NewExtension::Ptr extension)
+{
+    // Ignore all extensions as we have to register only known ones and silently ignore others.
+    // As this is a base class we don't know any extension type.
+}
+
 InputModel::Ptr FrontEnd::load_from_file(const std::string& path) const
 {
     FRONT_END_NOT_IMPLEMENTED(load_from_file);

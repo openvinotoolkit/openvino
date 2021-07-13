@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <ie_extension.h>
 #include "frontend_manager_defs.hpp"
 #include "input_model.hpp"
 #include "ngraph/function.hpp"
@@ -25,6 +26,9 @@ namespace ngraph
             FrontEnd();
 
             virtual ~FrontEnd();
+
+            ///\brief Add a new conversion rule or override an existing one
+            virtual void add_extension(InferenceEngine::NewExtension::Ptr extension);
 
             /// \brief Loads an input model by specified model file path
             /// If model is stored in several files (e.g. model topology and model weights) -

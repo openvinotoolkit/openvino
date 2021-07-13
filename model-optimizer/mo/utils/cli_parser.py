@@ -646,7 +646,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    // TODO: Move this out of ONNX specific paramters to common to disable all new frontends
+    # TODO: Move this out of ONNX specific paramters to common to disable all new frontends
     onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     onnx_group.add_argument("--use_legacy_frontend",

@@ -16,7 +16,6 @@
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE)
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
-#include "pyngraph/frontend_manager.hpp"
 #include "pyngraph/dimension.hpp"
 #include "pyngraph/frontend/frontend.hpp"
 #include "pyngraph/frontend/frontend_manager.hpp"

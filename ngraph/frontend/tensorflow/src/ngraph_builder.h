@@ -26,16 +26,16 @@
 #include "graph.hpp"
 
 // TODO: remove explicit proto dependency from this common header
-#include "graph.pb.h"
+//#include "graph.pb.h"
 
-#include "node_context.hpp"
+#include "node_context_impl.hpp"
 
 #include "ngraph/ngraph.hpp"
 
 namespace tensorflow {
 
 using ngraph::OutputVector;
-using ngraph::frontend::tensorflow::NodeContext;
+using ngraph::frontend::tensorflow::detail::NodeContext;
 
 // TODO: Get rid of direct usage of this structures and remove the following usages:
 using ngraph::frontend::tensorflow::detail::TFNodeDecoder;

@@ -19,7 +19,7 @@
 #include <ngraph/variant.hpp>
 
 
-// TODO: remove explicit proto dependency from this common header
+#include "../include/tensorflow_frontend/node_context.hpp"
 #include "graph.pb.h"
 
 namespace tensorflow
@@ -157,127 +157,9 @@ namespace tensorflow {
             attrs.getAttrValue(attr_name, result);
             return Status::OK();
         }
-    }
-
-/// Generic NodeContext that hides graph representation
-/// It is base class for specific implementations for protobuf and run-time graph
-class NodeContext
-{
-    OutputVector m_ng_inputs;
-    std::shared_ptr<detail::TFNodeDecoder> m_decoder;
-
-    // If shape is overridden for a particular node, it exists in the following map
-    const std::map<std::string, ngraph::PartialShape>& m_overridden_shapes;
-
-    // For special kind inputs (args) there are shapes defined externally here:
-    const std::vector<ngraph::PartialShape>& m_indexed_shapes;
-
-public:
-
-    NodeContext (
-            const OutputVector& _ng_inputs,
-            std::shared_ptr<detail::TFNodeDecoder> _decoder,
-            const std::map<std::string, ngraph::PartialShape>& overridden_shapes,
-            const std::vector<ngraph::PartialShape>& indexed_shapes = {}) :
-        m_ng_inputs(_ng_inputs),
-        m_decoder(_decoder),
-        m_overridden_shapes(overridden_shapes),
-        m_indexed_shapes(indexed_shapes)
-    {}
-
-    size_t get_ng_input_size() const
-    {
-        return m_ng_inputs.size();
-    }
-
-    /// Returns a vector of already converted inputs for this node
-    const OutputVector& get_ng_inputs () const
-    {
-        return m_ng_inputs;
-    }
-
-    Output<Node> get_ng_input (size_t input_port) const
-    {
-        return m_ng_inputs[input_port];
-    }
-
-    virtual std::string get_op_type() const
-    {
-        return m_decoder->op();
-    }
-
-    virtual std::vector<std::string> get_output_names() const
-    {
-        // TODO
-        throw "Not implemented";
-    }
-
-    virtual std::vector<std::string> get_names() const
-    {
-        std::vector<std::string> names;
-        names.push_back(m_decoder->name());
-        return names;
-    }
-
-    virtual std::string get_name() const
-    {
-        return get_names()[0];
-    }
-
-    /// Temporary method for the transition period during migration to NodeContext
-    // TODO: Remove this method and port all dependent code to the remaining methods
-    const detail::TFNodeDecoder* _get_decoder() const
-    {
-        return m_decoder.get();
-    }
-
-    template <typename T>
-    T get_attribute(const std::string& name) const
-    {
-        try {
-            T result;
-            m_decoder->getAttrValue(name.c_str(), &result);
-            // TODO: no real processing of case when there is no default: getAttrValue will provide default even you don't need it
-            return result;
-        }
-        catch(...)
-        {
-            std::cerr << "[ ERROR ] When accecing attribute '" << name << "' value.\n";
-            throw;
-        }
-    }
-
-    template <typename T>
-    T get_attribute(const std::string& name, const T& default_value) const
-    {
-        T result;
-        try {
-            m_decoder->getAttrValue(name.c_str(), &result);
-        } catch(...)  // TODO: replace by more narrow filter
-        {
-            result = default_value;
-        }
-        return result;
-    }
-
-    // Meta-attributes like op type, domain, version -- some FW specific but common for all operations properties
 
 
-    template <typename T>
-    T get_meta_attribute(const std::string& name) const;
-
-    template <typename T>
-    T get_meta_attribute(const std::string& name, const T& default_value) const;
-
-    const std::map<std::string, ngraph::PartialShape>& get_overridden_shapes () const {
-        return m_overridden_shapes;
-    }
-
-    const std::vector<ngraph::PartialShape>& get_indexed_shapes () const {
-        return m_indexed_shapes;
-    }
-};
-
+}
 }
 }
 }

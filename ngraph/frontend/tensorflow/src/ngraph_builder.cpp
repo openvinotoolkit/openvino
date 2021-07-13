@@ -17,8 +17,8 @@
 #include <numeric>
 #include <fstream>
 
-#include "graph.pb.h"
-#include "tensor.pb.h"
+//#include "graph.pb.h"
+//#include "tensor.pb.h"
 
 #include "ngraph/op/util/logical_reduction.hpp"
 #include "ngraph/pass/constant_folding.hpp"
@@ -36,6 +36,7 @@
 #include "graph.hpp"
 
 #include "../include/tensorflow_frontend/tensorflow.hpp"
+#include "../include/tensorflow_frontend/extension.hpp"
 
 
 using namespace std;
@@ -2338,6 +2339,7 @@ static OutputVector TranslateSqueezeOp(const NodeContext& node) {
   return { ConstructNgNode<opset::Squeeze>(node.get_name(), ng_input, ng_const) };
 }
 
+/*
 static OutputVector ArgOp(const NodeContext& node) {
     auto ng_et = node.get_attribute<ngraph::element::Type>("T");
     auto overridden_shape = node.get_overridden_shapes().find(node.get_name());
@@ -2348,6 +2350,7 @@ static OutputVector ArgOp(const NodeContext& node) {
                     overridden_shape->second;
     return {ConstructNgNode<opset::Parameter>(node.get_name(), ng_et, ng_shape)};
 }
+ */
 
 
 static OutputVector PlaceholderOp(const NodeContext& node) {
@@ -2628,9 +2631,9 @@ static Status TranslateZerosLikeOp(const TFNodeDecoder* op,
 
 #endif
 
-const static std::map<
+static std::map<
     const string,
-    const function<ngraph::OutputVector(const ngraph::frontend::tensorflow::NodeContext&)>>
+    const function<ngraph::OutputVector(const NodeContext&)>>
     TRANSLATE_OP_MAP{
         {"Abs", TranslateUnaryOp<opset::Abs>},
         {"Acos", TranslateUnaryOp<opset::Acos>},
@@ -2705,15 +2708,17 @@ const static std::map<
         // Do nothing! NoOps sometimes get placed on nGraph for bureaucratic
         // reasons, but they have no data flow inputs or outputs.
         {"NoOp", [](const NodeContext& node) {
-            throw errors::InvalidArgument("NoOp has " + to_string(node.get_ng_input_size()) +
-                                          " inputs, should have 1");
+            if(node.get_ng_input_size() != 1) {
+                throw errors::InvalidArgument("NoOp has " + to_string(node.get_ng_input_size()) +
+                                              " inputs, should have 1");
+            }
                 return OutputVector{node.get_ng_input(0)};
         }},
         //{"OneHot", TranslateOneHotOp},
         //{"Pack", TranslatePackOp},
         {"Pad", TranslatePadOp},
         {"PadV2", TranslatePadOp},
-        {"_Arg", ArgOp},
+        //{"_Arg", ArgOp}, // should be registered as an extension in OVTF
         {"Placeholder", PlaceholderOp},
         {"Pow", TranslateBinaryOp<opset::Power>},
         // PreventGradient is just Identity in dataflow terms, so reuse that.
@@ -3014,7 +3019,7 @@ void Builder::TranslateGraph(
 
     //const function<Status(const TFNodeDecoder*, const std::vector<const ngraph::frontend::tensorflow::detail::TensorWrapper*>&,
     //                      Builder::OpMap&)>* op_fun;
-      const function<ngraph::OutputVector (const ngraph::frontend::tensorflow::NodeContext&)>* op_fun;
+      const function<ngraph::OutputVector (const NodeContext&)>* op_fun;
 
       try {
       op_fun = &(TRANSLATE_OP_MAP.at(op->type_string()));
@@ -3187,5 +3192,12 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
     {
         std::cerr << "[ ERROR ] Exception happens during TF model conversion: " << status << "\n";
         throw;
+    }
+}
+
+void ngraph::frontend::FrontEndTensorflow::add_extension (InferenceEngine::NewExtension::Ptr _extension) {
+    if(auto extension = std::dynamic_pointer_cast<ngraph::frontend::TFConversionExtension>(_extension))
+    {
+        ::tensorflow::ngraph_bridge::TRANSLATE_OP_MAP.insert(std::make_pair(extension->get_op_type(), extension->get_converter()));
     }
 }
