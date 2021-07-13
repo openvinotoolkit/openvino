@@ -50,3 +50,6 @@
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
 	url = https://github.com/intel/ittapi.git
+[submodule "thirdparty/benchmark"]
+	path = thirdparty/benchmark
+	url = https://github.com/google/benchmark.git

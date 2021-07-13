@@ -13,3 +13,7 @@ add_subdirectory(ie_test_utils)
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
+
+if(ENABLE_OP_BENCHMARKS)
+    add_subdirectory(op_benchmarks)
+endif()

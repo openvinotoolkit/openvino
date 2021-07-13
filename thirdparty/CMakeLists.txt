@@ -112,9 +112,31 @@ function(add_gtest_libraries)
                                       TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
+if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS OR ENABLE_OP_BENCHMARKS)
     add_gtest_libraries()
 endif()
+
+#
+# Google Benchmark framework
+#
+function(add_gbench_libraries)
+    if (UNIX)
+        ie_add_compiler_flags(-Wno-undef)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            ie_add_compiler_flags(-Wno-deprecated-copy)
+        endif()
+    endif()
+
+    set(BUILD_SHARED_LIBS OFF)
+    set(BENCHMARK_ENABLE_TESTING OFF)
+    set(BENCHMARK_ENABLE_INSTALL OFF)
+    add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+endfunction()
+
+if(ENABLE_OP_BENCHMARKS)
+    add_gbench_libraries()
+endif()
+
 
 #
 # Install
