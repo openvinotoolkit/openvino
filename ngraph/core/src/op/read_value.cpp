@@ -79,6 +79,7 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
 {
     NGRAPH_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    m_variable->update({PartialShape::dynamic(), element::dynamic, m_variable->get_info().variable_id});
     return make_shared<ReadValue>(new_args.at(0), m_variable);
 }
 
