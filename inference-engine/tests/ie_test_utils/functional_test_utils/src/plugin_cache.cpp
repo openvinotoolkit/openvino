@@ -94,3 +94,12 @@ PluginCache::PluginCache() {
     auto &listeners = testing::UnitTest::GetInstance()->listeners();
     listeners.Append(new TestListener);
 }
+
+bool PluginCache::isDeviceAvailable(const std::string& name) {
+    const auto devices = ie_core->GetAvailableDevices();
+    const auto available = std::find_if(begin(devices), end(devices), [&name](const std::string& d) {
+            return d.find(name) != std::string::npos;
+    }) != devices.end();
+
+    return available;
+}
