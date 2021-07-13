@@ -12,6 +12,11 @@
 using ::testing::Return;
 using ::testing::_;
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
+
 class IstreamMock final: public std::streambuf {
 public:
     MOCK_METHOD3(seekoff, std::streampos(std::streamoff, std::ios_base::seekdir,

@@ -16,7 +16,6 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            unitTestUtils
             inference_engine_lp_transformations
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
@@ -26,3 +25,5 @@ addIeTargetTest(
         LABELS
             IE
 )
+
+link_system_libraries(${TARGET_NAME} PRIVATE unitTestUtils)

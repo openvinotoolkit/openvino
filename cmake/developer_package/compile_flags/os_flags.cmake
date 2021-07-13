@@ -292,9 +292,11 @@ else()
     elseif(UNIX)
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            ie_add_compiler_flags(-Wno-error=switch)
+            ie_add_compiler_flags(-Wno-error=switch
+                                  -Werror=inconsistent-missing-override)
         else()
-            ie_add_compiler_flags(-Wmaybe-uninitialized)
+            ie_add_compiler_flags(-Wmaybe-uninitialized
+                                  -Wsuggest-override)
         endif()
     endif()
 
@@ -315,3 +317,27 @@ else()
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
     endif()
 endif()
+
+# Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
+function(link_system_libraries TARGET_NAME)
+    set(MODE PRIVATE)
+
+    foreach(arg IN LISTS ARGN)
+        if(arg MATCHES "(PRIVATE|PUBLIC|INTERFACE)")
+            set(MODE ${arg})
+        else()
+            if(TARGET "${arg}")
+                target_include_directories(${TARGET_NAME}
+                    SYSTEM ${MODE}
+                        $<TARGET_PROPERTY:${arg},INTERFACE_INCLUDE_DIRECTORIES>
+                        $<TARGET_PROPERTY:${arg},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+                )
+            endif()
+
+            target_link_libraries(${TARGET_NAME}
+                ${MODE}
+                    ${arg}
+            )
+        endif()
+    endforeach()
+endfunction()

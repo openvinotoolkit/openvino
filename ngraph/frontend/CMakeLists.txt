@@ -3,6 +3,45 @@
 #
 
 if(NOT WIN32)
+    # Setup CMAKE_ARGS to be forwarded to External Projects
+    set(NGRAPH_FORWARD_CMAKE_ARGS
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}
+        -DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}
+        -DCMAKE_CXX_EXTENSIONS:BOOL=${CMAKE_CXX_EXTENSIONS}
+        -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=${CMAKE_EXPORT_COMPILE_COMMANDS}
+        -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE}
+        -DCMAKE_DEBUG_POSTFIX=${CMAKE_DEBUG_POSTFIX}
+        -DCMAKE_RELEASE_POSTFIX=${CMAKE_RELEASE_POSTFIX}
+    )
+
+    if(CMAKE_TOOLCHAIN_FILE)
+        set(NGRAPH_FORWARD_CMAKE_ARGS
+                ${NGRAPH_FORWARD_CMAKE_ARGS}
+                -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+                )
+    endif()
+
+    if (CMAKE_OSX_SYSROOT)
+        set(NGRAPH_FORWARD_CMAKE_ARGS
+                ${NGRAPH_FORWARD_CMAKE_ARGS}
+                -DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT}
+                )
+    endif()
+
+    if (NOT MSVC)
+        if(NOT CMAKE_BUILD_TYPE)
+            set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+        endif()
+
+        set(NGRAPH_FORWARD_CMAKE_ARGS
+                ${NGRAPH_FORWARD_CMAKE_ARGS}
+                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                )
+    endif()
+    message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS ${NGRAPH_FORWARD_CMAKE_ARGS}")
+
     # There seems no suitable other way to identify exact output binary name for libprotobuf
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         # Use 'protobufd' directly as it is done in the same way in protobuf cmake files

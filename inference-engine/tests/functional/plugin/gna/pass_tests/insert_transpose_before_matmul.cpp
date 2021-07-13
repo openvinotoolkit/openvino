@@ -51,7 +51,7 @@ public:
         return result.str();
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
 

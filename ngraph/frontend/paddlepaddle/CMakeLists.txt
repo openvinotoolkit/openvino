@@ -77,9 +77,9 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 if(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
+    link_system_libraries(${TARGET_NAME} PRIVATE libprotobuf)
 else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
+    link_system_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager

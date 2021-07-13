@@ -14,6 +14,11 @@ using namespace InferenceEngine;
 
 using ms = std::chrono::milliseconds;
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
+
 class MockWatchdogDevice : public Watchdog::IDevice {
  public:
     using time_point  = Watchdog::IDevice::time_point;
@@ -22,6 +27,11 @@ class MockWatchdogDevice : public Watchdog::IDevice {
     MOCK_METHOD(bool, isTimeout, (), (const, noexcept));
     MOCK_METHOD(void *, getHandle, (), (const, noexcept));
 };
+
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
 class MVNCWatchdogTests: public TestsCommon {
  protected:
