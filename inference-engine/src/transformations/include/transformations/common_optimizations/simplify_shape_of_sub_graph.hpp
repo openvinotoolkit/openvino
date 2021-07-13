@@ -20,6 +20,7 @@ namespace pass {
 class TRANSFORMATIONS_API SimplifyShapeOfSubGraph;
 class TRANSFORMATIONS_API SharedShapeOf;
 class TRANSFORMATIONS_API GroupedGatherElimination;
+class TRANSFORMATIONS_API GatherNopElimination;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -57,4 +58,14 @@ class ngraph::pass::SimplifyShapeOfSubGraph: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief GatherNopElimination transformation optimizes out useless Gather operations
+ */
+class ngraph::pass::GatherNopElimination: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    GatherNopElimination();
 };
