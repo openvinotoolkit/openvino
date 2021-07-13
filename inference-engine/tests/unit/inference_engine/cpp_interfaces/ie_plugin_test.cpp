@@ -164,11 +164,6 @@ TEST(InferencePluginTests, throwsOnUninitializedImportNetwork) {
     ASSERT_THROW(plg.ImportNetwork({}, {}), Exception);
 }
 
-TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
-    InferencePlugin plg;
-    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), Exception);
-}
-
 TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
     InferencePlugin plg;
     ASSERT_THROW(plg.SetConfig({{}}), Exception);

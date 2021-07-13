@@ -7,12 +7,13 @@
 #include <algorithm>
 
 #include "mkldnn_extension_mngr.h"
+#include "nodes/list.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {
-    _extensions.push_back(extension);
+MKLDNNExtensionManager::MKLDNNExtensionManager()
+    : _extensions {{ std::make_shared<Extensions::Cpu::MKLDNNExtensions>() }} {
 }
 
 InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(const std::shared_ptr<ngraph::Node>& op) {
@@ -50,4 +51,8 @@ std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::Crea
         }
     }
     return factory;
+}
+
+const std::vector<InferenceEngine::IExtensionPtr> & MKLDNNExtensionManager::Extensions() const {
+    return _extensions;
 }

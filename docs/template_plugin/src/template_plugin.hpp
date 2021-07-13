@@ -25,7 +25,6 @@ public:
                                                      const std::map<std::string, std::string>& config) const override;
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                                                         const std::map<std::string, std::string>& config) override;
-    void AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::IExecutableNetworkInternal::Ptr ImportNetwork(std::istream& model, const std::map<std::string, std::string>& config) override;

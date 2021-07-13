@@ -136,6 +136,24 @@ public:
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 
     /**
+     * @brief Registers extension
+     * @param extension Pointer to already loaded extension
+     */
+    virtual void AddExtension(const IExtensionPtr& extension) = 0;
+
+    /**
+     * @brief Unregisters extension
+     * @param extension Pointer to already loaded extension
+     */
+    virtual void DelExtension(const IExtensionPtr& extension) = 0;
+
+    /**
+     * @brief Provides a list of extensions
+     * @return A list of registered extensions
+     */
+    virtual std::vector<IExtensionPtr> GetExtensions() const = 0;
+
+    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;

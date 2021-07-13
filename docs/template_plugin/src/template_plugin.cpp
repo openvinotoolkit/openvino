@@ -195,13 +195,6 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
 }
 // ! [plugin:query_network]
 
-// ! [plugin:add_extension]
-void Plugin::AddExtension(const InferenceEngine::IExtensionPtr& /*extension*/) {
-    // TODO: add extensions if plugin supports extensions
-    IE_THROW(NotImplemented);
-}
-// ! [plugin:add_extension]
-
 // ! [plugin:set_config]
 void Plugin::SetConfig(const ConfigMap& config) {
     _cfg = Configuration {config, _cfg};

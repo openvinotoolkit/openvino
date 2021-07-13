@@ -173,8 +173,6 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     // Fields are ordered by deletion order
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
-    mutable std::map<std::string, InferencePlugin> plugins;
-
     class CoreConfig final {
     public:
         struct CacheConfig {
@@ -217,14 +215,15 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     struct PluginDescriptor {
         FileUtils::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
-        std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
+    mutable std::mutex extensionsMutex;  // to lock parallel access to extensions
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
+    mutable std::map<std::string, InferencePlugin> plugins;
 
     bool DeviceSupportsImportExport(const std::string& deviceName) const override {
         auto parsed = parseDeviceNameIntoConfig(deviceName);
@@ -444,20 +443,9 @@ public:
                 }
             }
 
-            // check extensions
-            auto extensionsNode = pluginNode.child("extensions");
-            std::vector<FileUtils::FilePath> listOfExtentions;
-
-            if (extensionsNode) {
-                FOREACH_CHILD(extensionNode, extensionsNode, "extension") {
-                    FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
-                    listOfExtentions.push_back(extensionLocation);
-                }
-            }
-
             // fill value in plugin registry for later lazy initialization
             {
-                PluginDescriptor desc = {pluginPath, config, listOfExtentions};
+                PluginDescriptor desc = {pluginPath, config};
                 pluginRegistry[deviceName] = desc;
             }
         }
@@ -693,13 +681,6 @@ public:
                     plugin.SetCore(mutableCore);
                 }
 
-                // Add registered extensions to new plugin
-                allowNotImplemented([&](){
-                    for (const auto& ext : extensions) {
-                        plugin.AddExtension(ext);
-                    }
-                });
-
                 // configuring
                 {
                     if (DeviceSupportsCacheDir(plugin)) {
@@ -710,12 +691,6 @@ public:
                     }
                     allowNotImplemented([&]() {
                         plugin.SetConfig(desc.defaultConfig);
-                    });
-
-                    allowNotImplemented([&]() {
-                        for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
-                        }
                     });
                 }
 
@@ -770,7 +745,7 @@ public:
             if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
         }
 
-        PluginDescriptor desc = {pluginPath, {}, {}};
+        PluginDescriptor desc = {pluginPath, {}};
         pluginRegistry[deviceName] = desc;
     }
 
@@ -841,8 +816,8 @@ public:
      * @brief Registers the extension in a Core object
      *        Such extensions can be used for both CNNNetwork readers and device plugins
      */
-    void AddExtension(const IExtensionPtr& extension) {
-        std::lock_guard<std::mutex> lock(pluginsMutex);
+    void AddExtension(const IExtensionPtr& extension) final {
+        std::lock_guard<std::mutex> lock(extensionsMutex);
 
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
@@ -851,20 +826,26 @@ public:
             opsetNames.insert(it.first);
         }
 
-        // add extensions for already created plugins
-        for (auto& plugin : plugins) {
-            try {
-                plugin.second.AddExtension(extension);
-            } catch (...) {}
-        }
         extensions.emplace_back(extension);
+    }
+
+    void DelExtension(const IExtensionPtr& extension) final {
+        std::lock_guard<std::mutex> lock(extensionsMutex);
+        auto it = std::find(extensions.begin(), extensions.end(), extension);
+        if (it != extensions.end()) {
+            for (const auto& it : extension->getOpSets()) {
+                opsetNames.erase(it.first);
+            }
+            extensions.erase(it);
+        }
     }
 
     /**
      * @brief Provides a list of extensions
      * @return A list of registered extensions
      */
-    const std::vector<IExtensionPtr>& GetExtensions() const {
+    std::vector<IExtensionPtr> GetExtensions() const final {
+        std::lock_guard<std::mutex> lock(extensionsMutex);
         return extensions;
     }
 };

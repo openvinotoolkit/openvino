@@ -151,6 +151,7 @@ public:
      * @param extension Pointer to already loaded extension
      * @param deviceName Device name to identify plugin to add an executable extension
      */
+    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension without device name")
     void AddExtension(IExtensionPtr extension, const std::string& deviceName);
 
     /**
@@ -282,9 +283,6 @@ public:
      * <ie>
      *     <plugins>
      *         <plugin name="" location="">
-     *             <extensions>
-     *                 <extension location=""/>
-     *             </extensions>
      *             <properties>
      *                 <property key="" value=""/>
      *             </properties>
@@ -297,7 +295,6 @@ public:
      * - `location` specifies absolute path to dynamic library with plugin. A path can also be relative to inference
      * engine shared library. It allows to have common config for different systems with different configurations.
      * - Properties are set to plugin via the `SetConfig` method.
-     * - Extensions are set to plugin via the `AddExtension` method.
      *
      * @param xmlConfigFile A path to .xml file with plugins to register.
      */

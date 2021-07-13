@@ -52,10 +52,6 @@ public:
         PLUGIN_CALL_STATEMENT(return _ptr->GetVersion());
     }
 
-    void AddExtension(const InferenceEngine::IExtensionPtr& extension) {
-        PLUGIN_CALL_STATEMENT(_ptr->AddExtension(extension));
-    }
-
     void SetConfig(const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
