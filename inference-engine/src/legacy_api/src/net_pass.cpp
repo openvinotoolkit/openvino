@@ -613,6 +613,12 @@ bool unrollTI(CNNLayerPtr cur, CNNNetwork& net) {
     for (size_t i = 0; i < first_class.size(); i++) {
         auto& rule = first_class[i];
         auto out_data = ti->outData[rule.from];
+        
+        if (num == 1) {
+            body_list[0].outputs[rule.to]->getInputTo() = out_data->getInputTo();
+            body_list[0].outputs[rule.to]->getInputTo().begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            continue;
+        }        
 
         if (num == 1) {
             auto to_data = body_list[0].outputs[rule.to];
