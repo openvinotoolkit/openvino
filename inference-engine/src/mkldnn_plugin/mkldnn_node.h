@@ -701,7 +701,6 @@ protected:
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
-    InferenceEngine::Blob::Ptr ext_scales;
     MKLDNNWeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Undefined;
