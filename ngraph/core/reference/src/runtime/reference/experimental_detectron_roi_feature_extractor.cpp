@@ -116,32 +116,22 @@ namespace
                                            std::vector<PreCalc<T>>& pre_calc)
     {
         int64_t pre_calc_index = 0;
-//        std::cout << "            pre_calc_index: " << pre_calc_index << "\n";
-//        std::cout << "            Loop with respect to ph in range(0, pooled_height)\n";
         for (int64_t ph = 0; ph < pooled_height; ph++)
         {
-//            std::cout << "                ph: " << ph << "\n";
-//            std::cout << "                Loop with respect to pw in range(0, pooled_width)\n";
             for (int64_t pw = 0; pw < pooled_width; pw++)
             {
-//                std::cout << "                    pw: " << pw << "\n";
-//                std::cout << "                    Loop with respect to iy in range(0, iy_upper)\n";
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
-                    std::cout << "                        iy: " << iy << "\n";
+//                    std::cout << "                        iy: " << iy << "\n";
                     const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
                                  static_cast<T>(static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
                                      static_cast<T>(roi_bin_grid_h);
                     std::cout << "                        yy: " << yy << "\n";
-//                    std::cout << "                        Loop with respect to ix in range(0, ix_upper)\n";
-
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
-//                        std::cout << "                            ix: " << ix << "\n";
                         const T xx =
                             roi_start_w + static_cast<T>(pw) * bin_size_w +
                             static_cast<T>(static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w / static_cast<T>(roi_bin_grid_w);
-//                        std::cout << "                            xx: " << xx << "\n";
 
                         T x = xx;
                         T y = yy;
