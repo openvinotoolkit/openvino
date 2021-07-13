@@ -62,6 +62,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         }
     } else {
         if (deviceName_.empty()) {
+            std::cout << "Warning: deviceName is empty\n";
             deviceName_ = "AUTO";
         }
         DeviceIDParser parser(deviceName_);
