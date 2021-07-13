@@ -15,6 +15,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna/gna_config.hpp>
 #endif
 
 namespace GNAPluginNS {
@@ -293,7 +294,7 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
     void DestroyGNAStruct(Gna2Model *gnaModel);
 #else
 

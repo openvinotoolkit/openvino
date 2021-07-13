@@ -117,19 +117,19 @@ protected:
         std::tie(bias, transpBias, maxpoolPool, maxpoolStride) = miscParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        Shape biasShape{ bias };
-        Shape transpBiasShape{ transpBias };
-        Shape maxpoolShape{ maxpoolPool };
-        Strides maxpoolStrides{ maxpoolStride };
+        Shape biasShape{bias};
+        Shape transpBiasShape{transpBias};
+        Shape maxpoolShape{maxpoolPool};
+        Strides maxpoolStrides{maxpoolStride};
 
-        auto input = builder::makeParams(ngPrc, { inputShape });
-        auto transposeInOrder = op::Constant::create(element::i64, Shape{ 4 }, { 0, 3, 1, 2 });
+        auto input = builder::makeParams(ngPrc, {inputShape});
+        auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.05f, 0.05f);
         auto conv = builder::makeConvolution(transposeIn, ngPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, numOutChannels, false, filterWeights);
-        auto transposeOutOrder = op::Constant::create(element::i64, Shape{ 4 }, { 0, 2, 3, 1 });
+        auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
         auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
@@ -145,9 +145,10 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolTransp:
         {
             auto bcastAdd = std::make_shared<Add>(conv, biasConst);
-            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpoolShape,
+            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{0, 0}, Shape{0, 0}, maxpoolShape,
                 op::RoundingType::FLOOR, op::PadType::VALID);
-            lastOp = std::make_shared<Transpose>(maxpool, transposeOutOrder);
+            auto transpose = std::make_shared<Transpose>(maxpool, transposeOutOrder);
+            auto lastOp = std::make_shared<Relu>(transpose);
         }
         break;
 
@@ -162,7 +163,7 @@ protected:
         case modelType::TranspConvBcastAddMaxPoolActTransp:
         {
             auto bcastAdd = std::make_shared<Add>(conv, biasConst);
-            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{ 0, 0 }, Shape{ 0, 0 }, maxpoolShape,
+            auto maxpool = std::make_shared<MaxPool>(bcastAdd, maxpoolStrides, Shape{0, 0}, Shape{0, 0}, maxpoolShape,
                 op::RoundingType::FLOOR, op::PadType::VALID);
             auto activation = std::make_shared<Relu>(maxpool);
             lastOp = std::make_shared<Transpose>(activation, transposeOutOrder);
@@ -190,7 +191,7 @@ protected:
         }
 
         auto result = std::make_shared<Result>(lastOp);
-        function = std::make_shared<Function>(ResultVector{ result }, ParameterVector{ input });
+        function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
     }
 };
 
@@ -259,34 +260,33 @@ const std::vector<modelType> models = {
     modelType::TranspConvBcastAddActTransp,
     modelType::TranspConvTranspBcastAdd,
     modelType::TranspConvTranspBcastAddAct,
-    //TODO: enable when 50386 and 50379 are fixed
-    //modelType::TranspConvBcastAddMaxPoolTransp,
-    //modelType::TranspConvBcastAddMaxPoolActTransp,
+    modelType::TranspConvBcastAddMaxPoolTransp,
+    modelType::TranspConvBcastAddMaxPoolActTransp
 };
 
-const std::vector<std::vector<size_t>> input1DNHWC = { {1, 1, 16, 8} };
-const std::vector<std::vector<size_t >> kernels1D = { {1, 2}, {1, 3}, {1, 4} };
-const std::vector<std::vector<size_t >> strides1D = { {1, 1} };
-const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0, 2} };
-const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0, 3} };
-const std::vector<std::vector<size_t >> dilations1D = { {1, 1} };
-const std::vector<size_t> numOutChannels1D = { 4 };
-const std::vector<std::vector<size_t >> biases1D = { {1, 4, 1, 1} };
-const std::vector<std::vector<size_t >> transpBiases1D = { {1, 1, 1, 4} };
-const std::vector<std::vector<size_t >> maxpool1DPools = { {1, 2} };
-const std::vector<std::vector<size_t >> maxpool1DStrides = { {1, 1} };
+const std::vector<std::vector<size_t>> input1DNHWC = {{1, 1, 16, 8}};
+const std::vector<std::vector<size_t >> kernels1D = {{1, 2}, {1, 3}, {1, 4}};
+const std::vector<std::vector<size_t >> strides1D = {{1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0, 2}};
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0, 3}};
+const std::vector<std::vector<size_t >> dilations1D = {{1, 1}};
+const std::vector<size_t> numOutChannels1D = {4};
+const std::vector<std::vector<size_t >> biases1D = {{1, 4, 1, 1}};
+const std::vector<std::vector<size_t >> transpBiases1D = {{1, 1, 1, 4}};
+const std::vector<std::vector<size_t >> maxpool1DPools = {{1, 2}};
+const std::vector<std::vector<size_t >> maxpool1DStrides = {{1, 1}};
 
-const std::vector<std::vector<size_t>> input2DNHWC = { {1, 16, 16, 32} };
-const std::vector<std::vector<size_t >> kernels2D = { {2, 2}, {4, 1}, {1, 3} };
-const std::vector<std::vector<size_t >> strides2D = { {1, 1}, {1, 2}, {2, 1}, {2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2D = { {1, 2} };
-const std::vector<std::vector<ptrdiff_t>> padEnds2D = { {3, 1} };
-const std::vector<std::vector<size_t >> dilations2D = { {1, 1} };
-const std::vector<size_t> numOutChannels2D = { 8 };
-const std::vector<std::vector<size_t >> biases2D = { {1, 8, 1, 1} };
-const std::vector<std::vector<size_t >> transpBiases2D = { {1, 1, 1, 8} };
-const std::vector<std::vector<size_t >> maxpool2DPools = { {2, 2} };
-const std::vector<std::vector<size_t >> maxpool2DStrides = { {2, 1} };
+const std::vector<std::vector<size_t>> input2DNHWC = {{1, 16, 16, 32}};
+const std::vector<std::vector<size_t >> kernels2D = {{2, 2}, {4, 1}, {1, 3}};
+const std::vector<std::vector<size_t >> strides2D = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{1, 2}};
+const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{3, 1}};
+const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
+const std::vector<size_t> numOutChannels2D = {8};
+const std::vector<std::vector<size_t >> biases2D = {{1, 8, 1, 1}};
+const std::vector<std::vector<size_t >> transpBiases2D = {{1, 1, 1, 8}};
+const std::vector<std::vector<size_t >> maxpool2DPools = {{2, 2}};
+const std::vector<std::vector<size_t >> maxpool2DStrides = {{2, 1}};
 
 const auto conv1DParams = ::testing::Combine(
     ::testing::ValuesIn(kernels1D),
