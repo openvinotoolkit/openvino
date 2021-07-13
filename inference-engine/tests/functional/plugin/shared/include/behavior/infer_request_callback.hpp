@@ -157,4 +157,21 @@ TEST_P(CallbackTests, LegacyCastAndSetuserDataGetUserData) {
     ASSERT_EQ(42, userData);
 }
 
+TEST_P(CallbackTests, ImplDoseNotCopyCallback) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::CNNNetwork cnnNet(function);
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto req = execNet.CreateInferRequest();
+    {
+        auto somePtr = std::make_shared<int>(42);
+        req.SetCompletionCallback([somePtr] {
+            ASSERT_EQ(1, somePtr.use_count());
+        });
+    }
+
+    ASSERT_NO_THROW(req.StartAsync());
+    ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
+}
+
 }  // namespace BehaviorTestsDefinitions
