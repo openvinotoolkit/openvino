@@ -17,6 +17,7 @@
 #include <transformations/common_optimizations/hswish_fusion.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -35,6 +36,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
