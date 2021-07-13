@@ -31,11 +31,11 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    conda update --all
    ```
 3. Install the Intel® Distribution of OpenVINO™ Toolkit:
- - Ubuntu* 20.04 
+ - Ubuntu* 20.04
    ```sh
    conda install openvino-ie4py-ubuntu20 -c intel
    ```
- - Ubuntu* 18.04 
+ - Ubuntu* 18.04
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
    ```

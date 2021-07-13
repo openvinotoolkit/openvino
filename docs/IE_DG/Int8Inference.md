@@ -17,10 +17,10 @@ Low-precision 8-bit inference is optimized for:
 
 ## Introduction
 
-A lot of investigation was made in the field of deep learning with the idea of using low-precision computation during inference in order to boost deep learning pipelines and achieve higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to the
+A lot of investigation was made in the field of deep learning with the idea of using low-precision computations during inference in order to boost deep learning pipelines and gather higher performance. For example, one of the popular approaches is to shrink the precision of activations and weights values from `fp32` precision to smaller ones, for example, to `fp11` or `int8`. For more information about this approach, refer to
 **Brief History of Lower Precision in Deep Learning** section in [this whitepaper](https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training).
 
-8-bit computation (referred to as `int8`) offers better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it has been proven that the drop in accuracy can be negligible and depends on task requirements, so that an application engineer configure the maximum accuracy drop that is acceptable.
+8-bit computations (referred to as `int8`) offer better performance compared to the results of inference in higher precision (for example, `fp32`), because they allow loading more data into a single processor instruction. Usually the cost for significant boost is reduced accuracy. However, it is proved that an accuracy drop can be negligible and depends on task requirements, so that the application engineer can set up the maximum accuracy drop that is acceptable.
 
 Let's explore the quantized [TensorFlow* implementation of ResNet-50](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf) model. Use the [Model Downloader](@ref omz_tools_downloader) tool to download the `fp16` model from [OpenVINO™ Toolkit - Open Model Zoo repository](https://github.com/openvinotoolkit/open_model_zoo):
 ```sh
@@ -35,14 +35,14 @@ The simplest way to infer the model and collect performance counters is the [C++
 ```sh
 ./benchmark_app -m resnet-50-tf.xml -d CPU -niter 1 -api sync -report_type average_counters  -report_folder pc_report_dir
 ```
-If you infer the model with the OpenVINO™ CPU plugin and collect performance counters, all operations (except the last non-quantized SoftMax) are executed in INT8 precision.  
+If you infer the model with the Inference Engine CPU plugin and collect performance counters, all operations (except the last non-quantized SoftMax) are executed in INT8 precision.  
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
 For 8-bit integer computations, a model must be quantized. Quantized models can be downloaded from [Overview of OpenVINO™ Toolkit Intel's Pre-Trained Models](@ref omz_models_group_intel). If the model is not quantized, you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers on activations and weights for most layers. Read more about mathematical computations in the [Uniform Quantization with Fine-Tuning](https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
-1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `levels` attribute which defines quants count. Quants count defines precision which is used during inference. For `int8` range `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+1. *Offline stage*, or *model quantization*. During this stage, [FakeQuantize](../ops/quantization/FakeQuantize_1.md) layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed; quantized tensors are in the original precision range (`fp32`). The `FakeQuantize` layer has a `levels` attribute that defines quants count. Quants count defines precision, which is used during inference. For `int8` range, the `levels` attribute value has to be 255 or 256. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
    When you pass the quantized IR to the OpenVINO™ plugin, the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference but supports all operations from the model, the model is inferred in precision that this plugin supports.
 

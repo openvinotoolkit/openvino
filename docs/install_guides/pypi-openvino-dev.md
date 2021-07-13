@@ -29,7 +29,6 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Inference Engine](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                                                |
 
-
 ## System Requirements
 The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
 
@@ -41,7 +40,7 @@ The table below lists the supported operating systems and Python* versions requi
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
 |   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
 |   CentOS* 7, 64-bit                                          | 3.6, 3.7, 3.8                                       |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
+|   macOS* 10.15.x                                             | 3.6, 3.7, 3.8                                       |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8                                       |
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.

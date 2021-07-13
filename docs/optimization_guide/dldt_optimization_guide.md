@@ -17,7 +17,7 @@ Below, there are the three main steps of the deployment process:
 
 	- *Performance flow*: This is an offline step where general topology-level optimizations happen automatically (see <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>).
 
-	- *Tools*: OpenVINO™ features the Model Optimizer that enables automatic and seamless transition from a training to deployment environment.
+	- *Tools*: OpenVINO™ features the Model Optimizer, which enables automatic and seamless transition from a training to deployment environment.
 
 2.	**Model Inference/Execution**<br>
 	After conversion, Inference Engine consumes the IR to perform inference. While Inference Engine API itself is target-agnostic, internally, it has a notion of plugins, which are device-specific libraries facilitating the hardware-assisted acceleration.
@@ -133,13 +133,13 @@ Please refer to the code of the [Benchmark App](../../inference-engine/samples/b
 
 ## Device-Specific Optimizations <a name="device-specific-optimizations"></a>
 
-The Inference Engine supports several target devices (CPU, GPU, Intel® Movidius™ Myriad™ 2 VPU, Intel® Movidius™ Myriad™ X VPU, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU) and FPGA), and each of them has a corresponding plugin. If you want to optimize a specific device, keep in mind the following tips to increase the performance.
+The Inference Engine supports several target devices (CPU, GPU, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ Vision Processing Units (VPU)), and each of them has a corresponding plugin. If you want to optimize a specific device, keep in mind the following tips to increase performance.
 
 ### CPU Checklist <a name="cpu-checklist"></a>
 
 The CPU plugin completely relies on the Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) for major primitives acceleration, for example, Convolutions or FullyConnected.
 
-The only hint you can get from that is how the major primitives are accelerated (and you cannot change this). For example, on machines with Intel® Core™ processors, you should see variations of the `jit_avx2` when inspecting the <a href="#performance-counters">internal inference performance counters</a> (and additional '_int8' postfix for [int8 inference](../IE_DG/Int8Inference.md)). If you are an advanced user, you can further trace the CPU execution with (see <a href="#vtune-examples">Intel® VTune™</a>).
+The only hint you can get from that is how the major primitives are accelerated (and you cannot change this). For example, on machines with Intel® Core™ processors, you should see variations of the `jit_avx2` when inspecting the <a href="#performance-counters">internal inference performance counters</a> (and additional '_int8' postfix for [int8 inference](../IE_DG/Int8Inference.md)). If you are an advanced user, you can further trace the CPU execution with (see <a href="#vtune-examples">Intel&reg; VTune™</a>).
 
 Internally, the Inference Engine has a threading abstraction level, which allows for compiling the [open source version](https://github.com/openvinotoolkit/openvino) with either Intel® Threading Building Blocks (Intel® TBB) which is now default, or OpenMP* as an alternative parallelism solution. When using inference on the CPU, this is particularly important to align threading model with the rest of your application (and any third-party libraries that you use) to avoid oversubscription. For more information, see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a> section.
 
@@ -156,11 +156,12 @@ Other general recommendations:
 
 #### Throughput Mode for CPU <a name="cpu-streams"></a>
 Unlike most accelerators, CPU is perceived as an inherently latency-oriented device.
-In fact, the OpenVINO does support the "throughput" mode for the CPU, which allows the Inference Engine to efficiently run multiple inference requests on the CPU simultaneously, greatly improving the overall throughput.
+In fact, OpenVINO supports the "throughput" mode for the CPU, which allows the Inference Engine to efficiently run multiple inference requests on the CPU simultaneously, greatly improving the overall throughput.
 
 Internally, the execution resources are split/pinned into execution "streams".
 This feature usually provides much better performance for the networks than batching. This is especially true for the many-core server machines:
 ![](../img/cpu_streams_explained_1.png)
+
 Compared with the batching, the parallelism is somewhat transposed (i.e. performed over inputs, and much less within CNN ops):
 ![](../img/cpu_streams_explained.png)
 
@@ -298,8 +299,7 @@ You can use the GraphViz\* utility or `.dot` converters (for example, to `.png` 
 
 ![](../img/output_trimmed.png)
 
-You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for general counter information.
-
+You can also use performance data (in the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), it is an option `-pc`) to get performance data on each subgraph. Again, refer to the [HETERO plugin documentation](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_HETERO.html#analyzing_heterogeneous_execution) and to <a href="#performance-counters">Internal Inference Performance Counters</a> for information on general counters.
 
 ## Optimizing Custom Kernels <a name="optimizing-custom-kernels"></a>
 
@@ -323,8 +323,8 @@ Other than that, when implementing the kernels, you can try the methods from the
 
 ### A Few Device-Specific Tips <a name="device-specific-tips"></a>
 
--	As already outlined in the <a href="#cpu-checklist">CPU Checklist</a>, align the threading model that you use in your CPU kernels with the model that the rest of the Inference Engine compiled with.
--	For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel. For example of the blocked layout support, please, refer to the extensions in the `<OPENVINO_INSTALL_DIR>/deployment_tools/samples/extension/` directory.
+- As already outlined in the <a href="#cpu-checklist">CPU Checklist</a>, align the threading model that you use in your CPU kernels with the model that the rest of the Inference Engine compiled with.
+- For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel. For example of the blocked layout support, please, refer to the extensions in `<OPENVINO_INSTALL_DIR>/deployment_tools/samples/extension/`.
 
 ## Plugging Inference Engine to Applications <a name="plugging-ie-to-applications"></a>
 
@@ -400,10 +400,10 @@ More importantly, an infer request encapsulates the reference to the “executab
 
 ### Performance Aspects of Running Multiple Requests Simultaneously <a name="running-multiple-requests-simultaneously"></a>
 
-If your application simultaneously executes multiple infer requests:
+If your application simultaneously executes multiple inference requests:
 
-- 	For the CPU, the best solution, you can use the <a href="#cpu-streams">CPU "throughput" mode</a>.
-	-	If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md) that limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:<br>
+- 	For the CPU, the best solution is to use the <a href="#cpu-streams">CPU "throughput" mode</a>.
+	-	If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md), which limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:<br>
 
 @snippet snippets/dldt_optimization_guide7.cpp part7
 
@@ -411,11 +411,11 @@ If your application simultaneously executes multiple infer requests:
 
 -	The heterogeneous device uses the `EXCLUSIVE_ASYNC_REQUESTS` by default.
 
--	The `KEY_EXCLUSIVE_ASYNC_REQUESTS` option affects only device queues of the individual application.
+-	`KEY_EXCLUSIVE_ASYNC_REQUESTS` option affects only device queues of the individual application.
 
--	For FPGA and GPU, the actual work is serialized by a plugin and/or a driver anyway.
+-	For GPU, the actual work is serialized by a plugin and/or a driver anyway.
 
-- 	Finally, for <a href="#myriad">any VPU flavor</a>, using multiple requests is a must for achieving good throughput.
+- 	Finally, for <a href="#myriad">any VPU model</a>, using multiple requests is a must for achieving good throughput. 
 
 In the Inference Engine, there is no notion of requests priorities. It is left to the user side (for example, not queuing the low priority infer request, until another higher priority is waiting). Notice that it would require additional logic to synchronize between executable networks (queues) in your application code.
 
@@ -443,7 +443,7 @@ The technique can be generalized to any available parallel slack. For example, y
 
 There are important performance caveats though: for example, the tasks that run in parallel should try to avoid oversubscribing the shared compute resources. If the inference is performed on the FPGA and the CPU is essentially idle, it makes sense to do things on the CPU in parallel. However, multiple infer requests can oversubscribe that. Notice that heterogeneous execution can implicitly use the CPU, refer to <a href="#heterogeneity">Heterogeneity</a>.
 
-Also, if the inference is performed on the graphics processing unit (GPU), there is very little to gain by doing the encoding, for instance, of the resulting video on the same GPU in parallel, because the device is already busy.
+Also, if the inference is performed on the graphics processing unit (GPU), there is little gain in doing the encoding of the resulting video on the same GPU in parallel, for instance, because the device is already busy.
 
 Refer to the [Object Detection SSD Demo](@ref omz_demos_object_detection_demo_cpp) (latency-oriented Async API showcase) and [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md) (which has both latency and throughput-oriented modes) for complete examples of the Async API in action.
 

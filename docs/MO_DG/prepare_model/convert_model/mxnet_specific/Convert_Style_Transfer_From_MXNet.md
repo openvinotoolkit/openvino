@@ -90,6 +90,8 @@ Where the `models/13` string is composed of the following substrings:
 * `models/`: path to the folder that contains .nd files with pre-trained styles weights 
 * `13`: prefix pointing to 13_decoder, which is the default decoder for the repository
 
+>**NOTE**: If you get an error saying "No module named 'cPickle'", try running the script from this step in Python 2. Then return to Python 3 for the remaining steps.
+
 You can choose any style from [collection of pre-trained weights](https://pan.baidu.com/s/1skMHqYp). (On the Chinese-language page, click the down arrow next to a size in megabytes. Then wait for an overlay box to appear, and click the blue button in it to download.) The `generate()` function generates `nst_vgg19-symbol.json` and `vgg19-symbol.json` files for the specified shape. In the code, it is [1024 x 768] for a 4:3 ratio, and you can specify another, for example, [224,224] for a square ratio.
 
 #### 6. Run the Model Optimizer to generate an Intermediate Representation (IR):
