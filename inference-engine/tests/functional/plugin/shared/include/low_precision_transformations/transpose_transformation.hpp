@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class TransposeTransformationTestValues {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::vector<int> transposeConstValues;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::element::Type precisionBeforeFq;

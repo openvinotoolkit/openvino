@@ -36,7 +36,10 @@ namespace ngraph
         public:
             static constexpr NodeTypeInfo type_info{"NullNode", 0};
             const NodeTypeInfo& get_type_info() const override { return type_info; }
-            NullNode() = default;
+            NullNode()
+                : Node(1)
+            {
+            }
 
             virtual std::shared_ptr<Node>
                 clone_with_new_inputs(const OutputVector& new_args) const override;
