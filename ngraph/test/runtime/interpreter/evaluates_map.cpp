@@ -2868,11 +2868,12 @@ namespace
         }
         for (size_t i = 1; i < node->outputs().size(); i++)
         {
-            if ((is_type<op::v5::NonMaxSuppression>(node) || is_type<op::v8::MulticlassNms>(node) ||
+            if ((is_type<op::v5::NonMaxSuppression>(node) ||
+                 is_type<op::v8::MulticlassNms>(node) ||
                  is_type<op::v8::MatrixNms>(node) ||
                  is_type<op::v6::ExperimentalDetectronDetectionOutput>(node) ||
                  is_type<op::v8::AdaptiveMaxPool>(node)) &&
-                i == 1)
+                 i == 1)
             {
                 continue;
             }

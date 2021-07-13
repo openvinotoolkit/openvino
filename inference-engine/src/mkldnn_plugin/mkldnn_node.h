@@ -194,8 +194,8 @@ static std::string NameFromType(Type type) {
             return "NonMaxSuppression";
         case MatrixNms:
             return "MatrixNms";
-        case MulticlassNonMaxSuppression:
-            return "MulticlassNonMaxSuppression";
+        case MulticlassNms:
+            return "MulticlassNms";
         default:
             return "Unknown";
     }

@@ -14,9 +14,9 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-class MKLDNNMultiClassNonMaxSuppressionNode : public MKLDNNNode {
+class MKLDNNMultiClassNmsNode : public MKLDNNNode {
 public:
-  MKLDNNMultiClassNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node> &op,
+  MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node> &op,
                                         const mkldnn::engine &eng,
                                         MKLDNNWeightsSharing::Ptr &cache);
 

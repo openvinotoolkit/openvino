@@ -5,7 +5,7 @@
 #include "base.hpp"
 
 #include "ie_parallel.hpp"
-#include "mkldnn_multiclass_non_max_suppression.hpp"
+#include "mkldnn_multiclass_nms.hpp"
 #include "utils/general_utils.h"
 #include <algorithm>
 #include <cassert>
@@ -22,7 +22,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNMultiClassNonMaxSuppressionNode::isSupportedOperation(
+bool MKLDNNMultiClassNmsNode::isSupportedOperation(
     const std::shared_ptr<ngraph::Node> &op,
     std::string &errorMessage) noexcept {
   try {
@@ -40,7 +40,7 @@ bool MKLDNNMultiClassNonMaxSuppressionNode::isSupportedOperation(
   return true;
 }
 
-MKLDNNMultiClassNonMaxSuppressionNode::MKLDNNMultiClassNonMaxSuppressionNode(
+MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(
     const std::shared_ptr<ngraph::Node> &op, const mkldnn::engine &eng,
     MKLDNNWeightsSharing::Ptr &cache)
     : MKLDNNNode(op, eng, cache) {
@@ -117,12 +117,12 @@ MKLDNNMultiClassNonMaxSuppressionNode::MKLDNNMultiClassNonMaxSuppressionNode(
                << valid_outputs_dims[0];
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::
+void MKLDNNMultiClassNmsNode::
     initSupportedPrimitiveDescriptors() {
   if (!supportedPrimitiveDescriptors.empty())
     return;
   const std::vector<Precision> supportedFloatPrecision = {
-      Precision::FP32, Precision::BF16}; // support BF16?
+      Precision::FP32, Precision::BF16};
   const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32,
                                                               Precision::I64};
 
@@ -161,7 +161,7 @@ void MKLDNNMultiClassNonMaxSuppressionNode::
   addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
+void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
   const float *boxes = reinterpret_cast<const float *>(
       getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
   const float *scores = reinterpret_cast<const float *>(
@@ -362,11 +362,11 @@ void MKLDNNMultiClassNonMaxSuppressionNode::execute(mkldnn::stream strm) {
   return;
 }
 
-bool MKLDNNMultiClassNonMaxSuppressionNode::created() const {
-  return getType() == MulticlassNonMaxSuppression;
+bool MKLDNNMultiClassNmsNode::created() const {
+  return getType() == MulticlassNms;
 }
 
-float MKLDNNMultiClassNonMaxSuppressionNode::intersectionOverUnion(
+float MKLDNNMultiClassNmsNode::intersectionOverUnion(
     const float *boxesI, const float *boxesJ, const bool normalized) {
   float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
   const float norm = static_cast<float>(normalized == false);
@@ -394,7 +394,7 @@ float MKLDNNMultiClassNonMaxSuppressionNode::intersectionOverUnion(
   return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::nmsWithEta(
+void MKLDNNMultiClassNmsNode::nmsWithEta(
     const float *boxes, const float *scores, const SizeVector &boxesStrides,
     const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes) {
   auto less = [](const boxInfo &l, const boxInfo &r) {
@@ -470,7 +470,7 @@ void MKLDNNMultiClassNonMaxSuppressionNode::nmsWithEta(
   });
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::nmsWithoutEta(
+void MKLDNNMultiClassNmsNode::nmsWithoutEta(
     const float *boxes, const float *scores, const SizeVector &boxesStrides,
     const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes) {
   parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
@@ -528,7 +528,7 @@ void MKLDNNMultiClassNonMaxSuppressionNode::nmsWithoutEta(
   });
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::checkPrecision(
+void MKLDNNMultiClassNmsNode::checkPrecision(
     const Precision prec, const std::vector<Precision> precList,
     const std::string name, const std::string type) {
   if (std::find(precList.begin(), precList.end(), prec) == precList.end())
@@ -536,12 +536,12 @@ void MKLDNNMultiClassNonMaxSuppressionNode::checkPrecision(
                << " precision: " << prec;
 }
 
-void MKLDNNMultiClassNonMaxSuppressionNode::checkOutput(
+void MKLDNNMultiClassNmsNode::checkOutput(
     const SizeVector &dims, const std::vector<Precision> precList,
     const std::string name, const size_t port) {
   checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name,
                  outType);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNonMaxSuppressionNode,
-                    MulticlassNonMaxSuppression)
+REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNmsNode,
+                    MulticlassNms)
