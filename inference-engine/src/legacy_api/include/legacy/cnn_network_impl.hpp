@@ -25,7 +25,7 @@ namespace details {
 
 IE_SUPPRESS_DEPRECATED_START
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) final : public ICNNNetwork {
+class CNNNetworkImpl final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);

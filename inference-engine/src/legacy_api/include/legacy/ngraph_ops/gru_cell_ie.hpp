@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(GRUCellIE) : public Op {
+class GRUCellIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"GRUCellIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

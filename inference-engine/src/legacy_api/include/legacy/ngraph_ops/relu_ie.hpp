@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(ReLUIE) : public Op {
+class ReLUIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"ReLUIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

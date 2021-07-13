@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertOpSet1ToLegacy);
+class ConvertOpSet1ToLegacy;
 
 }  // namespace pass
 }  // namespace ngraph

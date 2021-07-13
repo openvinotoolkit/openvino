@@ -47,7 +47,7 @@ add_subdirectory(snippets)
 # add a custom target to build all Inference Engine Core libraries
 
 add_custom_target(ie_libraries ALL
-                  DEPENDS inference_engine_transformations inference_engine_legacy
+                  DEPENDS inference_engine_transformations
                           inference_engine inference_engine_preproc
                           inference_engine_ir_v7_reader inference_engine_ir_reader
                           inference_engine_lp_transformations inference_engine_snippets)

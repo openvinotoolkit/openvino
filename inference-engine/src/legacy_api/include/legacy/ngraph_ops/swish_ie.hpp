@@ -12,7 +12,7 @@
 
 namespace ngraph {
 namespace op {
-class INFERENCE_ENGINE_API_CLASS(SwishIE) : public Op {
+class SwishIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"SwishIE", 1};
     const NodeTypeInfo &get_type_info() const override { return type_info; }

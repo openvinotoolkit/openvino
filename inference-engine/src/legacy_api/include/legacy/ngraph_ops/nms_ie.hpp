@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
+class NonMaxSuppressionIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -39,7 +39,7 @@ public:
     element::Type m_output_type;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2) : public NonMaxSuppressionIE {
+class NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
 public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 2};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -58,7 +58,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
+class NonMaxSuppressionIE3 : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 

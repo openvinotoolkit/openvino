@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(PowerIE) : public Op {
+class PowerIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"PowerIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

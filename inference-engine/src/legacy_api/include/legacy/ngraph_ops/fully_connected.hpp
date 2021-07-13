@@ -16,7 +16,7 @@ namespace ngraph {
 namespace op {
 
 /// \brief Operator performing Matrix Multiplication.
-class INFERENCE_ENGINE_API_CLASS(FullyConnected) : public Op {
+class FullyConnected : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"FullyConnected", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
