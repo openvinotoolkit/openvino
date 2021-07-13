@@ -44,6 +44,7 @@
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+#include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -342,6 +343,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     ngraph::pass::Manager postLPTPassManager;
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    postLPTPassManager.register_pass<ngraph::pass::UnrollIf>();
 
     postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;

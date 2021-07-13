@@ -75,6 +75,7 @@
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
 #include "ngraph/op/idft.hpp"
+#include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"

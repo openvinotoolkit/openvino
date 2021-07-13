@@ -175,3 +175,5 @@ NGRAPH_OP(Einsum, ngraph::op::v7)
 NGRAPH_OP(Gelu, ngraph::op::v7)
 NGRAPH_OP(IDFT, ngraph::op::v7)
 NGRAPH_OP(Roll, ngraph::op::v7)
+// Will be migrated on opset8
+NGRAPH_OP(If, ngraph::op::v7)
