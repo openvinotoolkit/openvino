@@ -75,7 +75,6 @@ limitations under the License.
                         <tab type="user" title="Extending Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives"/>
                         <tab type="user" title="Extending Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers"/>
                         <tab type="user" title="Extending Model Optimizer for Custom MXNet* Operations" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
-                        <tab type="user" title="Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                         <tab type="user" title="[DEPRECATED] Offloading Sub-Graph Inference" url="https://docs.openvinotoolkit.org/2020.1/_docs_MO_DG_prepare_model_customize_model_optimizer_Offloading_Sub_Graph_Inference.html"/>
                     </tab>
                 </tab>

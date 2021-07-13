@@ -816,7 +816,6 @@ mo/front/caffe/collect_attributes.py
 mo/front/caffe/custom_layers_mapping.py
 mo/front/caffe/extractor.py
 mo/front/caffe/extractors/__init__.py
-mo/front/caffe/extractors/native_caffe.py
 mo/front/caffe/extractors/tile.py
 mo/front/caffe/extractors/utils.py
 mo/front/caffe/loader.py
@@ -834,7 +833,6 @@ mo/front/common/find_unsupported_ops.py
 mo/front/common/layout.py
 mo/front/common/partial_infer/__init__.py
 mo/front/common/partial_infer/batch_norm.py
-mo/front/common/partial_infer/caffe_fallback.py
 mo/front/common/partial_infer/concat.py
 mo/front/common/partial_infer/crop.py
 mo/front/common/partial_infer/elemental.py
