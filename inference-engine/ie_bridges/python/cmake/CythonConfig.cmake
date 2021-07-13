@@ -33,9 +33,10 @@
 find_package(PythonInterp 3 QUIET)
 if( PYTHONINTERP_FOUND )
   get_filename_component( _python_path ${PYTHON_EXECUTABLE} PATH )
+  file(TO_CMAKE_PATH "$ENV{HOME}" ENV_HOME)
   find_host_program( CYTHON_EXECUTABLE
     NAMES cython cython.bat cython3
-    HINTS ${_python_path} $ENV{HOME}/.local/bin
+    HINTS ${_python_path} ${ENV_HOME}/.local/bin
     )
 else()
   find_host_program( CYTHON_EXECUTABLE
