@@ -61,11 +61,11 @@ public:
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
-    const std::vector<MKLDNNNodePtr>& GetNodes() const {
+    const std::deque<MKLDNNNodePtr>& GetNodes() const {
         return graphNodes;
     }
 
-    std::vector<MKLDNNNodePtr>& GetNodes() {
+    std::deque<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
     }
 
@@ -73,7 +73,7 @@ public:
         return _name;
     }
 
-    std::vector<MKLDNNEdgePtr>& GetEdges() {
+    std::deque<MKLDNNEdgePtr>& GetEdges() {
         return graphEdges;
     }
 
@@ -197,8 +197,8 @@ protected:
 
     std::map<std::string, MKLDNNNodePtr> inputNodesMap;
     std::map<std::string, MKLDNNNodePtr> outputNodesMap;
-    std::vector<MKLDNNNodePtr> graphNodes;
-    std::vector<MKLDNNEdgePtr> graphEdges;
+    std::deque<MKLDNNNodePtr> graphNodes;
+    std::deque<MKLDNNEdgePtr> graphEdges;
 
     std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;

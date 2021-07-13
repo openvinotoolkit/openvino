@@ -514,7 +514,7 @@ static inline bool isConstOutput(MKLDNNEdgePtr edge) {
     return edge->getParent()->isConstant() && !edge->getChild()->isConstant();
 }
 
-static edge_clusters_t findEdgeClusters(const std::vector<MKLDNNEdgePtr> & graphEdges) {
+static edge_clusters_t findEdgeClusters(const std::deque<MKLDNNEdgePtr> & graphEdges) {
     typedef std::unordered_map<MKLDNNEdgePtr, size_t> edge_cluster_idx_map_t;
 
     edge_clusters_t edge_clusters;

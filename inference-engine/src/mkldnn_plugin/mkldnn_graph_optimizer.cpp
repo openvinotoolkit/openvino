@@ -17,6 +17,7 @@
 #include <nodes/mkldnn_transpose_node.h>
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
+#include "nodes/mkldnn_rnn.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "mkldnn/ie_mkldnn.h"
@@ -129,6 +130,10 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "reshapeRnnSeq");
+    reshapeRnnSeq(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
@@ -956,7 +961,7 @@ static bool is_data_dependency(const std::shared_ptr<MKLDNNNode> &parent,
  */
 
 void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph) {
-    std::vector<MKLDNNNodePtr> &graphNodes = graph.GetNodes();
+    auto &graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](MKLDNNNodePtr conv, MKLDNNNodePtr child) {
         return child->getType() == Eltwise &&
@@ -1447,7 +1452,7 @@ void MKLDNNGraphOptimizer::removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
 }
 
 void MKLDNNGraphOptimizer::FuseBroadcastAndEltwise(MKLDNNGraph &graph) {
-    std::vector<MKLDNNNodePtr>& graphNodes = graph.GetNodes();
+    auto& graphNodes = graph.GetNodes();
 
     for (auto &graphNode : graphNodes) {
         if (graphNode->getType() != Generic
@@ -1811,6 +1816,46 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
 
         if (checkAscendingSummaryOrder(parentNode, childNode)) {
             mergeTransposeAndReorder(parentNode, childNode);
+        }
+    }
+}
+
+void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        if (node->type != RNNSeq)
+            return false;
+        auto rnnNode = std::dynamic_pointer_cast<MKLDNNRNN>(node);
+        return rnnNode && !rnnNode->hasNativeOrder() && node->outDims[0].ndims() == 4 && node->outDims[0][1] == 1;
+    };
+
+    for (int i = 0; i < graphNodes.size(); i++) {
+        auto& parentNode = graphNodes[i];
+        if (!isSutableParentNode(parentNode)) {
+            continue;
+        }
+
+        auto childrenEdges = parentNode->getChildEdgesAtPort(0);
+        auto newRnnOutDims = parentNode->outDims[0].ToSizeVector();
+        newRnnOutDims.erase(newRnnOutDims.begin() + 1);
+        parentNode->outDims[0] = MKLDNNDims{newRnnOutDims};
+
+        for (size_t i = 0; i < childrenEdges.size(); i++) {
+            auto edge = childrenEdges[i];
+            auto childNode = edge->getChild();
+
+            const MKLDNNNodePtr newReshape = std::make_shared<MKLDNNReshapeNode>(
+                    parentNode->getName() + "_abc_a1bc_" + std::to_string(i),
+                    parentNode->getOutDims()[0],
+                    childNode->inDims[edge->getOutputNum()],
+                    parentNode->getOriginalOutputPrecisionAtPort(0),
+                    graph.getEngine(), graph.weightsCache);
+
+            graph.InsertNode(parentNode, childNode, newReshape, edge->getInputNum(), edge->getOutputNum(), false);
+
+            edge->drop();
+            removeEdge(graph, edge);
         }
     }
 }

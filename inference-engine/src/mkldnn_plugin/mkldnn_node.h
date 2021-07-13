@@ -632,6 +632,10 @@ public:
         isInQuantizedGraph = flag;
     }
 
+    inline const std::vector<MKLDNNDims>& getOutDims() {
+        return outDims;
+    }
+
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
 
 protected:
