@@ -19,6 +19,8 @@ std::tuple<element::Type, PartialShape>
     {
         for (size_t i = 1; i < node->get_input_size(); ++i)
         {
+            if (element_type != node->get_input_element_type(i))
+                std::cout << "here\n";
             NODE_VALIDATION_CHECK(
                 node,
                 element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
