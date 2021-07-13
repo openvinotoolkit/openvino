@@ -52,7 +52,8 @@ namespace ngraph
             ///
             /// \param input An EditorInput helper structure created based on a input name
             ///              or a input index.
-            ONNX_IMPORTER_API InputEdge find_input_edge(const EditorNode& node, const EditorInput& input) const;
+            ONNX_IMPORTER_API InputEdge find_input_edge(const EditorNode& node,
+                                                        const EditorInput& input) const;
 
             /// \brief Returns an OutputEdge based on a node (node name or output name)
             ///        and an output (output name or output index).
@@ -69,7 +70,8 @@ namespace ngraph
             ///
             /// \param output An EditorOutput helper structure created based on a output name
             ///               or a output index.
-            ONNX_IMPORTER_API OutputEdge find_output_edge(const EditorNode& node, const EditorOutput& output) const;
+            ONNX_IMPORTER_API OutputEdge find_output_edge(const EditorNode& node,
+                                                          const EditorOutput& output) const;
 
             /// \brief Returns an OutputEdge based on a output name.
             ///
@@ -86,7 +88,8 @@ namespace ngraph
             ///
             /// \param output_name A node output name.
             ///
-            ONNX_IMPORTER_API std::vector<InputEdge> find_output_consumers(const std::string& output_name) const;
+            ONNX_IMPORTER_API std::vector<InputEdge>
+                find_output_consumers(const std::string& output_name) const;
 
             /// \brief Returns true if a provided node is correct (exists in a graph)
             ///        and is not ambiguous (identification of an ONNX node can be ambiguous
