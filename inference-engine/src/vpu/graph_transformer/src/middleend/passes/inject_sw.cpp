@@ -14,6 +14,7 @@
 #include <set>
 #include <list>
 
+#include <vpu/configuration/options/hw_inject_stages.hpp>
 #include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/compile_env.hpp>
 
@@ -68,7 +69,7 @@ void PassImpl::run(const Model& model) {
     // Collect HW and SW candidates
     //
 
-    if (!env.config.compileConfig().injectSwOps.hasValue() &&
+    if (!env.config.get<HwInjectStagesOption>().hasValue() &&
         model->numStages() > nMaxStagesForInjectSw) {
         env.log->warning(
             "Pass [injectSw] SKIPPED : number of stages (%d) is larger than threshold %d",

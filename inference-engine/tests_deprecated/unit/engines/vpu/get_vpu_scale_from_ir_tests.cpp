@@ -25,7 +25,7 @@ TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
 
     auto& env = CompileEnv::get();
     auto config = createConfiguration();
-    config.compileConfig().irWithVpuScalesDir = "/";
+    config.set(InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, "/");
     env.updateConfig(config);
 
     std::shared_ptr<ngraph::Function> function;
@@ -70,7 +70,7 @@ TEST_F(VPU_AddVpuScaleTest, VpuScaleFromIrChangesWeights) {
     InitCompileEnv();
     const auto& env = CompileEnv::get();
     auto config = createConfiguration();
-    config.compileConfig().irWithVpuScalesDir = "/";
+    config.set(InferenceEngine::MYRIAD_IR_WITH_SCALES_DIRECTORY, "/");
     env.updateConfig(config);
 
     std::shared_ptr<ngraph::Function> function;

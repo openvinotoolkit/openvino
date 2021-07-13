@@ -57,7 +57,6 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
             inference_engine_plugin_api
         PRIVATE
             openvino::itt
-            mvnc # TODO: remove once all options are migrated
     )
 
     if(WIN32)

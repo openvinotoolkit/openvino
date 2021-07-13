@@ -95,7 +95,9 @@ InferenceEngine::Parameter PluginConfiguration::asParameter(const std::string& k
 void PluginConfiguration::validate(const std::string& key) const {
     VPU_THROW_UNSUPPORTED_OPTION_UNLESS(supports(key), "Encountered an unsupported key {}, supported keys are {}", key, getPublicKeys());
     if (concepts.at(key).isDeprecated()) {
-        logger->warning("Encountered deprecated option {} usage, consider replacing it with {} option", key, concepts.at(key).key());
+        if (concepts.at(key).key() != key) {
+            logger->warning("Encountered deprecated option {} usage, consider replacing it with {} option", key, concepts.at(key).key());
+        }
     }
 }
 

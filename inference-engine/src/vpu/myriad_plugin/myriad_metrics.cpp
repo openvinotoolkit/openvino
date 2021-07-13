@@ -3,6 +3,7 @@
 //
 
 #include "myriad_metrics.h"
+#include "vpu/private_plugin_config.hpp"
 
 #include <algorithm>
 
@@ -33,23 +34,15 @@ MyriadMetrics::MyriadMetrics() {
 IE_SUPPRESS_DEPRECATED_START
     // TODO: remove once all options are migrated
     _supportedConfigKeys = {
-        MYRIAD_ENABLE_HW_ACCELERATION,
-        MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,
         MYRIAD_CUSTOM_LAYERS,
         MYRIAD_ENABLE_FORCE_RESET,
-        MYRIAD_THROUGHPUT_STREAMS,
 
         // deprecated
-        KEY_VPU_HW_STAGES_OPTIMIZATION,
-        KEY_VPU_PRINT_RECEIVE_TENSOR_TIME,
         KEY_VPU_CUSTOM_LAYERS,
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
 
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-        CONFIG_KEY(PERF_COUNT),
         CONFIG_KEY(CONFIG_FILE),
-        CONFIG_KEY(DEVICE_ID)
     };
 IE_SUPPRESS_DEPRECATED_END
 
@@ -127,7 +120,7 @@ std::string MyriadMetrics::DeviceArchitecture(const std::map<std::string, Infere
 RangeType MyriadMetrics::RangeForAsyncInferRequests(
     const std::map<std::string, std::string>& config) const {
 
-    auto throughput_streams_str = config.find(ie::MYRIAD_THROUGHPUT_STREAMS);
+    auto throughput_streams_str = config.find(InferenceEngine::MYRIAD_THROUGHPUT_STREAMS);
     if (throughput_streams_str != config.end()) {
         try {
             int throughput_streams = std::stoi(throughput_streams_str->second);

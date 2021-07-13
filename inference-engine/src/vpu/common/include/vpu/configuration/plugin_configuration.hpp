@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
-#include <vpu/parsed_config.hpp>
 
 #include "ie_parameter.hpp"
 
@@ -78,9 +77,7 @@ private:
 
 }  // namespace details
 
-// TODO: remove virtual inheritance once all options are migrated
-// it's needed to pass updated compilation config to graph transformer
-class PluginConfiguration : public virtual ParsedConfig {
+class PluginConfiguration {
 public:
     PluginConfiguration();
 

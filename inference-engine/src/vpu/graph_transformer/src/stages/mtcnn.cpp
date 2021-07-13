@@ -9,6 +9,8 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/model/data_contents/mtcnn_blob_content.hpp>
 
+#include <vpu/configuration/options/hw_acceleration.hpp>
+
 #include <vector>
 #include <fstream>
 #include <string>
@@ -162,7 +164,7 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    if (!env.config.compileConfig().hwOptimization) {
+    if (!env.config.get<HwAccelerationOption>()) {
         VPU_THROW_EXCEPTION << "MTCNN layer supports Myriad X with NCE only";
     }
 
