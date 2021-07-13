@@ -485,7 +485,6 @@ KERNEL (detection_output_ref_stage_1_mxnet)(
 }
 #endif /* DO_STAGE_1_MXNET */
 
-
 #ifdef DO_STAGE_2_CAFFE
 KERNEL (detection_output_ref_stage_2_caffe)(
     __global UNIT_TYPE* input_location,
@@ -543,7 +542,8 @@ KERNEL (detection_output_ref_stage_2_caffe)(
     buffer2[scoresInfoIdx] = selectedBoxNum;
     atomic_add(&buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES], selectedBoxNum);
 }
-#endif
+#endif /* DO_STAGE_2_CAFFE */
+
 #ifdef DO_STAGE_2_CAFFE_OPT
 KERNEL (detection_output_ref_stage_2_caffe)(
     __global UNIT_TYPE* input_location,

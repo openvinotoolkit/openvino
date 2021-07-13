@@ -25,7 +25,7 @@ static primitive_impl* create_detection_output(const detection_output_node& arg)
     const int top_k = primitive->top_k;
     const float confidence_threshold = primitive->confidence_threshold;
 
-    if ((batch_num >= 4 && confidence_threshold >= 0.1 && top_k <= 400) || feature_num < 10000) {
+    if ((batch_num >= 4 && confidence_threshold >= 0.1 && top_k <= 400) && feature_num > 10000) {
         return create_detection_output_gpu(arg);
     } else {
         return create_detection_output_cpu(arg);

@@ -384,8 +384,9 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
                 }
             }
         }
+        const int final_cnt = count;
         for (int i = count; i < num_of_images * args.keep_top_k; i++) {
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == count ? (dtype)-1.f : (dtype)0.f);
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == final_cnt ? (dtype)-1.f : (dtype)0.f);
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.f;
             out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.f;
