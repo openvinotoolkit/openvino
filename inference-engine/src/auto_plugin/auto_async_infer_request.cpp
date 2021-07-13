@@ -20,13 +20,13 @@ AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&       
                                , _inferRequest(inferRequest) {
     // this executor starts the inference while  the task (checking the result) is passed to the next stage
     struct ThisRequestExecutor : public ITaskExecutor {
-        explicit ThisRequestExecutor(AutoAsyncInferRequest* _this_) : _this{_this_} {}
+        explicit ThisRequestExecutor(AutoAsyncInferRequest* asyncInferRequest) : _asyncInferRequest{asyncInferRequest} {}
         void run(Task task) override {
-            auto workerInferRequest = _this->_workerInferRequest;
+            auto workerInferRequest = _asyncInferRequest->_workerInferRequest;
             workerInferRequest->_task = std::move(task);
             workerInferRequest->_inferRequest->StartAsync();
         };
-        AutoAsyncInferRequest* _this = nullptr;
+        AutoAsyncInferRequest* _asyncInferRequest = nullptr;
     };
 
     // todo: redefine _pipeline
