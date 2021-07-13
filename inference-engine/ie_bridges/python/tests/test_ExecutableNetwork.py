@@ -82,24 +82,6 @@ def test_input_info(device):
     del ie_core
 
 
-def test_inputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, device, num_requests=5)
-    with warnings.catch_warnings(record=True) as w:
-        assert len(exec_net.inputs) == 1
-        assert "data" in exec_net.inputs
-        assert isinstance(exec_net.inputs['data'], ie.DataPtr)
-    assert len(w) == 3
-    for i in range (len(w)):
-        assert "'inputs' property of ExecutableNetwork class is deprecated. " \
-            "To access DataPtrs user need to use 'input_data' property " \
-            "of InputInfoCPtr objects which " \
-            "can be accessed by 'input_info' property." in str(w[i].message)
-    del exec_net
-    del ie_core
-
-
 def test_outputs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
