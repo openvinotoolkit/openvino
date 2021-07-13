@@ -19,7 +19,6 @@
 using namespace testing;
 
 TEST(TransformationTests, ConstFoldingPriorBox) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -64,7 +63,6 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
 }
 
 TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -111,7 +109,6 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
 }
 
 TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -166,7 +163,6 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
 }
 
 TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto in = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2, 3, 2, 2});
