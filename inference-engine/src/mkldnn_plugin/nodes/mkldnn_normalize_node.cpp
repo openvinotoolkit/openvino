@@ -690,7 +690,9 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::N
             }
             return false;
         };
-        const auto axes = axesNode->cast_vector<size_t>();
+        auto tempAxes = axesNode->cast_vector<size_t>();
+        std::sort(tempAxes.begin(), tempAxes.end());
+        const auto axes = tempAxes;
         if (!isSupportedAxes(axes, dataDims) && ngraph::shape_size(axesNode->get_shape()) != 0) {
             errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
