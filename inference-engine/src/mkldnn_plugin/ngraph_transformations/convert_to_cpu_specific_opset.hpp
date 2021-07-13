@@ -15,12 +15,14 @@
 #include "convert_to_swish_cpu.hpp"
 #include "reshape_prelu.hpp"
 #include "rnn_sequences_optimization.hpp"
+#include "split_conv_concat.hpp"
 
 namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<SplitConvConcatPattern>();
     manager.register_pass<Reshape1DConvolution>();
     manager.register_pass<Reshape1DGroupConvolution>();
     manager.register_pass<Reshape1DAvgPool>();
