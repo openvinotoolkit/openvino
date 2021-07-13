@@ -48,5 +48,5 @@ ngraph::pass::ConvertMod::ConvertMod() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mod, matcher_name);
-    this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

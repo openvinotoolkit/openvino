@@ -162,6 +162,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
                                 std::shared_ptr<Node> node) -> bool {
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
+        NGRAPH_SUPPRESS_DEPRECATED_START
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic())
         {
             NGRAPH_DEBUG << "matcher callback requires static shape but the "
@@ -170,6 +171,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
                             "materialized";
             return false;
         }
+        NGRAPH_SUPPRESS_DEPRECATED_END
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
@@ -373,6 +375,7 @@ bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f)
         {
             for (auto& m_pass : m_matchers)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 if (is_dyn_func && m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE))
                 {
                     NGRAPH_DEBUG << "matcher callback requires static shape but the "
@@ -391,6 +394,7 @@ bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f)
                     }
                     return true;
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
         return false;
@@ -408,8 +412,16 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
                                                  const ngraph::graph_rewrite_callback& callback,
                                                  const PassPropertyMask& property)
 {
-    set_name(m->get_name());
+    NGRAPH_SUPPRESS_DEPRECATED_START
     set_property(property, true);
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
+}
+
+void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::pattern::Matcher>& m,
+                                                 const ngraph::graph_rewrite_callback& callback)
+{
+    set_name(m->get_name());
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0)))

@@ -54,17 +54,29 @@ namespace ngraph
             MatcherPass(const MatcherPass&) = delete;
             MatcherPass& operator=(const MatcherPass&) = delete;
 
-            explicit MatcherPass(
-                const std::string& name,
-                const std::shared_ptr<pattern::Matcher>& m,
-                const handler_callback& handler,
-                const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE)
+            explicit MatcherPass(const std::string& name,
+                                 const std::shared_ptr<pattern::Matcher>& m,
+                                 const handler_callback& handler)
                 : PassBase()
                 , m_handler(handler)
                 , m_matcher(m)
             {
                 set_name(name);
+            }
+
+            NGRAPH_DEPRECATED("PassPropertyMask is deprecated. Use c-tor without PassProperty")
+            explicit MatcherPass(const std::string& name,
+                                 const std::shared_ptr<pattern::Matcher>& m,
+                                 const handler_callback& handler,
+                                 const PassPropertyMask& property)
+                : PassBase()
+                , m_handler(handler)
+                , m_matcher(m)
+            {
+                set_name(name);
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 set_property(property, true);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             bool apply(std::shared_ptr<ngraph::Node> node);
@@ -85,10 +97,14 @@ namespace ngraph
             std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
 
         protected:
-            void register_matcher(
-                const std::shared_ptr<pattern::Matcher>& m,
-                const ngraph::graph_rewrite_callback& callback,
-                const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+            void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                                  const ngraph::graph_rewrite_callback& callback);
+
+            NGRAPH_DEPRECATED(
+                "PassPropertyMask is deprecated. Use another register_matcher without PassProperty")
+            void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                                  const ngraph::graph_rewrite_callback& callback,
+                                  const PassPropertyMask& property);
 
         private:
             handler_callback m_handler;
@@ -242,7 +258,8 @@ namespace ngraph
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
         };
 
-        class NGRAPH_API RecurrentGraphRewrite : public ngraph::pass::FunctionPass
+        class NGRAPH_DEPRECATED("RecurrentGraphRewrite is deprecated")
+            NGRAPH_API RecurrentGraphRewrite : public ngraph::pass::FunctionPass
         {
         public:
             RecurrentGraphRewrite(size_t num_iters = 10)
