@@ -46,7 +46,6 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
-#define ENABLE_V7_SERIALIZE
 #define pass_trace() gnalog() << "[" << getName() << "] "
 
 std::shared_ptr<IPassManager> BasePass::getPassManager() {
