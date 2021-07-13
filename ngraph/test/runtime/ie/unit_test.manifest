@@ -452,7 +452,6 @@ sum_trivial_in_double
 sum_stable_acc_double
 sum_stable_simple_double
 softmax_axis_3d_double
-select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double

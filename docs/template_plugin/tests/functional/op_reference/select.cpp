@@ -1,0 +1,93 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include <ie_core.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <ngraph/ngraph.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
+#include <tuple>
+
+#include "base_reference_test.hpp"
+
+using namespace ngraph;
+using namespace InferenceEngine;
+
+struct SelectParams {
+    template <class IT, class OT>
+    SelectParams(const ngraph::element::Type& data_type, const ngraph::PartialShape& select_input_pshape, const std::vector<char>& select_input,
+                 const ngraph::PartialShape& if_input_pshape, const std::vector<IT>& if_input, const ngraph::PartialShape& else_input_pshape,
+                 const std::vector<IT>& else_input, const std::vector<OT>& expected_output, size_t select_input_size = 0, size_t if_input_size = 0,
+                 size_t else_input_size = 0, size_t expected_output_size = 0)
+        : data_type(data_type),
+          select_input_pshape(select_input_pshape),
+          select_input(CreateBlob(ngraph::element::boolean, select_input, select_input_size)),
+          if_input_pshape(if_input_pshape),
+          if_input(CreateBlob(data_type, if_input, if_input_size)),
+          else_input_pshape(else_input_pshape),
+          else_input(CreateBlob(data_type, else_input, else_input_size)),
+          expected_output(CreateBlob(data_type, expected_output, expected_output_size)) {}
+
+    ngraph::element::Type data_type;
+    ngraph::PartialShape select_input_pshape;
+    InferenceEngine::Blob::Ptr select_input;
+    ngraph::PartialShape if_input_pshape;
+    InferenceEngine::Blob::Ptr if_input;
+    ngraph::PartialShape else_input_pshape;
+    InferenceEngine::Blob::Ptr else_input;
+    InferenceEngine::Blob::Ptr expected_output;
+};
+
+class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params.data_type, params.select_input_pshape, params.if_input_pshape, params.else_input_pshape);
+        inputData = {params.select_input, params.if_input, params.else_input};
+        refOutData = {params.expected_output};
+    }
+    static std::string getTestCaseName(const testing::TestParamInfo<SelectParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "data_type=" << param.data_type << "_";
+        result << "select_shape=" << param.select_input_pshape << "_";
+        result << "if_shape=" << param.if_input_pshape << "_";
+        result << "else_shape=" << param.else_input_pshape;
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const ngraph::element::Type& data_type, const PartialShape& select_pshape, const PartialShape& if_pshape,
+                                                    const PartialShape& else_pshape) {
+        auto A = std::make_shared<op::Parameter>(element::boolean, select_pshape);
+        auto B = std::make_shared<op::Parameter>(data_type, if_pshape);
+        auto C = std::make_shared<op::Parameter>(data_type, else_pshape);
+        return std::make_shared<Function>(std::make_shared<op::v1::Select>(A, B, C), ParameterVector {A, B, C});
+    }
+};
+
+TEST_P(ReferenceSelectLayerTest, CompareWithHardcodedRefs) {
+    Exec();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Select_With_Hardcoded_Refs, ReferenceSelectLayerTest,
+                         ::testing::Values(SelectParams(element::f32,                                         // if/else/output data type
+                                                        ngraph::PartialShape {2, 2, 2},                       // select shape
+                                                        std::vector<char> {0, 1, 1, 0, 0, 1, 0, 1},           // select data
+                                                        ngraph::PartialShape {2, 2, 2},                       // if shape
+                                                        std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},          // if data
+                                                        ngraph::PartialShape {2, 2, 2},                       // else shape
+                                                        std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
+                                                        std::vector<float> {11, 2, 3, 14, 15, 6, 17, 8}),     // expected output data
+
+                                           SelectParams(element::f32,                                         // if/else/output data type
+                                                        ngraph::PartialShape {4},                             // select shape
+                                                        std::vector<char> {0, 1, 1, 0},                       // select data
+                                                        ngraph::PartialShape {4},                             // if shape
+                                                        std::vector<float> {1, 2, 3, 4},                      // if data
+                                                        ngraph::PartialShape {2, 4},                          // else shape
+                                                        std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
+                                                        std::vector<float> {11, 2, 3, 14, 15, 2, 3, 18})),    // expected output data
+                         ReferenceSelectLayerTest::getTestCaseName);
