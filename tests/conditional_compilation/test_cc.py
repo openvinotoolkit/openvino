@@ -119,12 +119,12 @@ def test_verify(model, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disa
                 inference_results[file].size
                 ), "Reference and inference has different number of model"
         for model_number in range(reference_results[file].size):
-            assert sorted(reference_results[file][model_number].keys()) == sorted(
-                inference_results[file][model_number].keys()
+            assert sorted(reference_results[file][model_number][0].keys()) == sorted(
+                inference_results[file][model_number][0].keys()
             ), "Results have different number of layers"
-            for layer in inference_results[file][model_number]:
+            for layer in inference_results[file][model_number][0]:
                 assert np.allclose(
-                    inference_results[file][model_number][layer], inference_results[file][model_number][layer],
+                    inference_results[file][model_number][0][layer], inference_results[file][model_number][0][layer],
                     tolerance
                 ), "Reference and inference results differ"
 

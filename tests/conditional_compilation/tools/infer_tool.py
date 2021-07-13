@@ -30,7 +30,7 @@ def input_preparation(net):
     return feed_dict
 
 
-def infer(irs_path, device):
+def infer(ir_path, device):
     """
     Function to perform IE inference using python API "in place"
     :param ir_path: Path to XML file of IR
@@ -40,11 +40,10 @@ def infer(irs_path, device):
     res = []
     ie = IECore()
 
-    for ir in irs_path:
-        bin_path = ir.replace(".xml", ".bin")
-        net = ie.read_network(model=ir, weights=bin_path)
-        exec_net = ie.load_network(net, device)
-        res.append(exec_net.infer(inputs=input_preparation(net)))
+    bin_path = ir_path.replace(".xml", ".bin")
+    net = ie.read_network(model=ir_path, weights=bin_path)
+    exec_net = ie.load_network(net, device)
+    res.append(exec_net.infer(inputs=input_preparation(net)))
 
     del net
     # It's important to delete executable network first to avoid double free in plugin offloading.
@@ -83,10 +82,13 @@ def parse_ir_list(ir_list):
 if __name__ == "__main__":
     ir_path, device, out_path = cli_parser()
     ir_path = parse_ir_list(ir_path)
-    results = infer(irs_path=ir_path, device=device)
 
-    np.savez(out_path, results)
+    collection_result = []
+    for model in ir_path:
+        collection_result.append(infer(ir_path=model, device=device))
+
+    np.savez(out_path, collection_result)
     log.info("Path for inference results: {}".format(out_path))
     log.info("Inference results:")
-    log.info(results)
+    log.info(collection_result)
     log.info("SUCCESS!")
