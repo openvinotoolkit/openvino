@@ -13,9 +13,9 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNAdaPoolingNode : public MKLDNNNode {
+class MKLDNNAdaptivePoolingNode : public MKLDNNNode {
 public:
-    MKLDNNAdaPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+  MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
     void getSupportedDescriptors() override;
@@ -30,10 +30,10 @@ private:
     int spatialDimsCount;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-    template <typename inputType, typename outputType>
+    template <typename dataType>
     void executeSpecified();
     template<typename T>
-    struct AdaPoolingExecute;
+    struct AdaptivePoolingExecute;
     inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
     template <typename T>
     T avgDiv(const T sum, size_t binSize);
