@@ -10,18 +10,15 @@ $ python setup.py sdist bdist_wheel
 """
 from setuptools import setup, find_packages
 
-with open('README.md', 'r', encoding='utf-8') as f:
+with open('openvino/tools/benchmark/README.md', 'r', encoding='utf-8') as f:
     long_description = f.read()
 
-with open('benchmark/requirements.txt') as f:
+with open('openvino/tools/benchmark/requirements.txt') as f:
     required = f.read().splitlines()
 required.extend(['openvino'])
 
-pkgs = find_packages()
-NAMESPACE = 'openvino.tools'
-
 setup(
-    name='openvino-tools',
+    name='benchmark_tool',
     version='0.0.0',
     author='Intel® Corporation',
     license='OSI Approved :: Apache Software License',
@@ -39,9 +36,7 @@ setup(
         'OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
     ],
-    package_dir={''.join((NAMESPACE, '.', pkg)) : pkg.replace('.', '/')
-                 for pkg in pkgs},
-    packages=[''.join((NAMESPACE, '.', pkg)) for pkg in pkgs],
+    packages=find_packages(),
     install_requires=required,
     python_requires='>=3.6',
 )

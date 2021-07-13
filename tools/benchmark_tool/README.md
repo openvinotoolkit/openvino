@@ -51,7 +51,7 @@ deactivate
 
 #### 2. Install packages
 
-You can install tools by specifying path to tool with `setup.py` in `pip install` command:
+You can install OpenVINO tool by passing local project path to `pip install` command:
 
 ```bash
 python3 -m pip install <tools_folder>/
