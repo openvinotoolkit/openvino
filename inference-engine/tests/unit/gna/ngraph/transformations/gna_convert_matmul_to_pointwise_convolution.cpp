@@ -99,8 +99,8 @@ std::shared_ptr<ngraph::opset7::FakeQuantize> createFakeQuantizeNode(std::shared
     auto output_low = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0});
     auto output_high = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10});
     return std::make_shared<ngraph::opset7::FakeQuantize>(parent_node, input_low,
-                                                                  input_high, output_low,
-                                                                  output_high, 11);
+                                                          input_high, output_low,
+                                                          output_high, 11);
 }
 
 void CreateFakeQuantize::updateGraph(Graph& graph) {
@@ -159,17 +159,17 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
     Graph graph;
 
     graph.input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64,
-                                                                    ngraph::Shape{16, 8});
+                                                                     ngraph::Shape{16, 8});
     auto constant_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{8, 8}, {1});
 
     auto const_reshape_before = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-                                                                        ngraph::Shape{4},
-                                                                        ngraph::Shape{1, 1, 16, 8});
+                                                                           ngraph::Shape{4},
+                                                                           ngraph::Shape{1, 1, 16, 8});
     auto reshape_before =  std::make_shared<ngraph::opset7::Reshape>(graph.input_params, const_reshape_before, false);
 
     auto const_transpose_before = ngraph::opset7::Constant::create(ngraph::element::i64,
-                                                                    ngraph::Shape{4},
-                                                                    ngraph::Shape{0, 3, 1, 2});
+                                                                   ngraph::Shape{4},
+                                                                   ngraph::Shape{0, 3, 1, 2});
     auto transpose_before = std::make_shared<ngraph::opset7::Transpose>(reshape_before, const_transpose_before);
 
     std::shared_ptr<ngraph::op::Op> parent_node = constant_node;
@@ -200,13 +200,13 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
         parent_node = createFakeQuantizeNode(parent_node);
 
     auto const_transpose_after = ngraph::opset7::Constant::create(ngraph::element::i64,
-                                                                    ngraph::Shape{4},
-                                                                    ngraph::Shape{0, 2, 3, 1});
+                                                                  ngraph::Shape{4},
+                                                                  ngraph::Shape{0, 2, 3, 1});
     auto transpose_after = std::make_shared<ngraph::opset7::Transpose>(parent_node, const_transpose_after);
 
     auto const_reshape_after = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-                                                                            ngraph::Shape{2},
-                                                                            ngraph::Shape{16, 8});
+                                                                          ngraph::Shape{2},
+                                                                          ngraph::Shape{16, 8});
     graph.output = std::make_shared<ngraph::opset7::Reshape>(transpose_after, const_reshape_after, false);
 
     return graph;
