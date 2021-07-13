@@ -20,8 +20,8 @@ namespace ngraph
             class NGRAPH_API TensorIterator : public op::util::SubGraphOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"TensorIterator", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 TensorIterator() = default;

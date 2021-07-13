@@ -40,7 +40,8 @@ void op::v5::Loop::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v5_Loop_validate_and_infer_types);
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
-        const auto& cur_iter_rank = m_bodies[0]->get_parameters()
+        const auto& cur_iter_rank = m_bodies[0]
+                                        ->get_parameters()
                                         .at(m_special_body_ports.current_iteration_input_idx)
                                         ->get_partial_shape()
                                         .rank();
@@ -79,8 +80,10 @@ void op::v5::Loop::validate_and_infer_types()
         // special body ports were not set yet, so we can't calculate output shape
         return;
 
-    const auto& body_execution_condition =
-        m_bodies[0]->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
+    const auto& body_execution_condition = m_bodies[0]
+                                               ->get_results()
+                                               .at(m_special_body_ports.body_condition_output_idx)
+                                               ->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
     if (body_condition_rank.is_static())
     {
@@ -214,8 +217,8 @@ void op::v5::Loop::validate_and_infer_types()
         else if (auto invariant_input_description =
                      as_type_ptr<TensorIterator::InvariantInputDescription>(input_description))
         {
-            auto body_parameter =
-                m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            auto body_parameter = m_bodies[0]->get_parameters().at(
+                invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
