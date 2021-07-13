@@ -152,6 +152,11 @@ bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params
             return false;
     }
 
+    // Prevent fusing with reorder
+    if (conv_params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 &&
+        conv_params.output.GetLayout() == DataLayout::bfyx)
+        return false;
+
     return true;
 }
 
