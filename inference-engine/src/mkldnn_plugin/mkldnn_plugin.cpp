@@ -600,11 +600,28 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             //    config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
             // } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 // const float memThresholdAssumeLimitedMuch   = NetworkPerfStats::memThresholdAssumeLimited/8;
-                const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/(hasAVX512()?2:1);
-                // const float memLimitedRatioThresholdForISA  = hasAVX512() ? 0.10f : NetworkPerfStats::NONE;
-
-                float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
-                float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
+                auto isa = dnnl::get_effective_cpu_isa();
+                float isaThreshold = 1.0;
+                switch (isa) {
+                    case dnnl::cpu_isa::sse41 :
+                        isaThreshold = 0.5f;
+                        break;
+                    case dnnl::cpu_isa::avx2:
+                    case dnnl::cpu_isa::avx512_core:
+                        isaThreshold = 1.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_vnni:
+                    case dnnl::cpu_isa::avx2_vnni:
+                        isaThreshold = 2.0f;
+                        break;
+                    case dnnl::cpu_isa::avx512_core_amx:
+                        isaThreshold = 4.0f;
+                        break;
+                }
+                const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/isaThreshold;
+                std::cout << "isa:" << static_cast<int>(isa) << ", isaThreshold: " << isaThreshold << std::endl;
+                const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
+                const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
                 std::cout<< "L3_cache_size " << L3_cache_size << std::endl;
 
                 Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork,
