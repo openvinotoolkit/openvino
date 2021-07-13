@@ -79,3 +79,41 @@ TEST(TransformationTests, ShapeSubGraphTest) {
     auto res = compare_functions(f, f_ref, true);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, ShapeNopSubGraphTest) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+
+    PartialShape data_shape{-1, -1};
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+
+        auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
+        auto gather_1 = gather(shape_op_1, {0}, true);
+        auto unsqueeze_1 = std::make_shared<opset7::Unsqueeze>(
+                gather_1, opset7::Constant::create(element::i64, {1}, {0}));
+
+        auto shape_op_2 = std::make_shared<opset7::ShapeOf>(data);
+        auto gather_2 = gather(shape_op_2, {1}, true);
+        auto unsqueeze_2 = std::make_shared<opset7::Unsqueeze>(
+                gather_2, opset7::Constant::create(element::i64, {1}, {0}));
+
+        auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
+
+        auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
+        f = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::SimplifyShapeOfSubGraph>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
+        auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
+        auto reshape = std::make_shared<opset7::Reshape>(data, shape_op_1, false);
+        f_ref = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
