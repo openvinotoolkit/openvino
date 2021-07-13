@@ -12,6 +12,10 @@ TEST_P(MvnLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(Mvn1LayerTest, CompareWithRefs) {
+    Run();
+};
+
 TEST_P(Mvn6LayerTest, CompareWithRefs) {
     Run();
 };
