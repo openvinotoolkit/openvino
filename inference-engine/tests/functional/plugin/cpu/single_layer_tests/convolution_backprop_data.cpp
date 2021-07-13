@@ -81,6 +81,7 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, { inputShape });
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));

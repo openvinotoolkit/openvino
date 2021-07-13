@@ -41,6 +41,7 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = basicParamsSet;
         inPrc = outPrc = netPrecision;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         if (strcmp(netPrecision.name(), "U8") == 0)
             selectedType = std::string("ref_any_") + "I8";

@@ -55,6 +55,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         LayerTestsDefinitions::InterpolateSpecificParams interpolateParams;
         std::vector<size_t> inputShape;

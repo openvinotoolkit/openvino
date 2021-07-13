@@ -58,6 +58,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
         std::pair<ActivationTypes, std::vector<float>> activationDecl;

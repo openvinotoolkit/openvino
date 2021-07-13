@@ -52,6 +52,7 @@ protected:
 
         std::tie(nonConstShape, constShape, prc, nodeType, port, constNodeNum) = this->GetParam();
         IE_ASSERT(shape_size(constShape) == 1);
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
         const auto param = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(nonConstShape));

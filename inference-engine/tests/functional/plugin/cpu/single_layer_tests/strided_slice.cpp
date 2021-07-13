@@ -57,6 +57,7 @@ protected:
         inPrc = outPrc = netPrecision;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {ssParams.inputShape});

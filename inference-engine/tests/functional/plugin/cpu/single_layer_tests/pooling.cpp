@@ -42,6 +42,7 @@ protected:
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         poolSpecificParams poolParams;
         std::vector<size_t> inputShape;

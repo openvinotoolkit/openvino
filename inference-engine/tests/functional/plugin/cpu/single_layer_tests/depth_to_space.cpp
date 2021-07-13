@@ -39,6 +39,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::vector<size_t> inputShape;
         DepthToSpace::DepthToSpaceMode mode;

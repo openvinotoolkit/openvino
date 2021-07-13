@@ -96,6 +96,7 @@ protected:
         std::tie(fqParams, inDataShape, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::vector<SizeVector> inRangesShapes;
         size_t levels;

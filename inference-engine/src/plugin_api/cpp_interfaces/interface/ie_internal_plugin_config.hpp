@@ -45,6 +45,12 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
  */
 DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
 
+/**
+ * @brief This key determines if constant nodes should be dumped
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(DUMP_CONSTANT_NODES);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

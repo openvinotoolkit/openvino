@@ -40,6 +40,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
         std::vector<size_t> inputShape;

@@ -60,6 +60,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + inPrc.name();
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

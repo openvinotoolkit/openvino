@@ -39,6 +39,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         InferenceEngine::SizeVector inputShape;
         std::vector<int64_t> padsBegin, padsEnd;

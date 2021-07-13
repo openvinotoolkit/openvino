@@ -45,6 +45,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(axis, inputShape, netPrecision, targetDevice, cpuParams) = this->GetParam();
         inPrc = outPrc = netPrecision;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + inPrc.name();

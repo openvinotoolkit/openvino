@@ -59,6 +59,7 @@ protected:
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, netPrecision, targetDevice) = basicParamsSet;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::vector<std::vector<size_t>> inputShapes = {{batch, input_size}, {batch, hidden_size},
                                                         {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};

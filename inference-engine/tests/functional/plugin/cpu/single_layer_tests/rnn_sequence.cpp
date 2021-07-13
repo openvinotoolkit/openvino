@@ -60,6 +60,7 @@ protected:
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(m_mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, netPrecision, targetDevice) = basicParamsSet;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {

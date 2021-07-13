@@ -49,6 +49,7 @@ protected:
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, targetDevice) = basicParamsSet;
         selectedType = std::string("ref_any_") + dPrecision.name();

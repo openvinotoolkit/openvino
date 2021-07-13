@@ -66,6 +66,7 @@ protected:
         std::tie(inputShape, attributes, mask, inPrc, outPrc, additionalConfig, targetDevice) = this->GetParam();
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
+        configuration.insert({"DUMP_CONSTANT_NODES", CONFIG_VALUE(YES)});
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 

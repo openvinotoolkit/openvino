@@ -109,6 +109,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
+        } else if (key == PluginConfigInternalParams::KEY_DUMP_CONSTANT_NODES) {
+            if (val.compare(PluginConfigParams::YES) == 0)
+                dumpConstNode = true;
+            else
+                dumpConstNode = false;
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
