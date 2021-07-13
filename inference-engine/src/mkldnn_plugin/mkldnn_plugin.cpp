@@ -65,6 +65,7 @@
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
+#include <snippets/pass/filter_fused.hpp>
 #include <snippets/op/subgraph.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
@@ -428,6 +429,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         std::cout << std::endl << std::endl;
 #endif
         ngraph::pass::Manager tokenization_manager;
+        tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>(tokenizeSubgraphs == Config::TokenizationMode::Node);
         tokenization_manager.run_passes(nGraphFunc);
 #if defined (DUMP_TOKENIZATION)
