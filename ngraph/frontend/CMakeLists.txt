@@ -42,12 +42,7 @@ set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 add_subdirectory(frontend_manager)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    add_subdirectory(onnx_common)
-    add_subdirectory(onnx_import)
-endif()
-
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    add_subdirectory(onnx_editor)
+    add_subdirectory(onnx)
 endif()
 
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
