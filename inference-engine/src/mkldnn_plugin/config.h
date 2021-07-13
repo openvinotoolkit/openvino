@@ -20,6 +20,19 @@ struct Config {
         On,
     };
 
+    enum TokenizationMode {
+        Disabled,
+        Node,
+        Subgraph
+    };
+
+    enum FusionsMode {
+        TargetIndependant = 0x1,
+        TargetDependant = 0x2,
+        All = TargetIndependant | TargetDependant,
+        None = 0x0
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
@@ -40,6 +53,8 @@ struct Config {
 #ifdef CPU_DEBUG_CAPS
     DebugCaps::Config debugCaps;
 #endif
+    TokenizationMode tokenizationMode = TokenizationMode::Subgraph;
+    FusionsMode fusionsMode = FusionsMode::All;
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

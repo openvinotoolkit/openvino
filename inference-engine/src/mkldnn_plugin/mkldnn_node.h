@@ -192,6 +192,8 @@ static std::string NameFromType(Type type) {
             return "ExtractImagePatches";
         case NonMaxSuppression:
             return "NonMaxSuppression";
+        case Subgraph:
+            return "Subgraph";
         default:
             return "Unknown";
     }

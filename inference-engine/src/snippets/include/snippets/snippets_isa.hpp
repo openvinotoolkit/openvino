@@ -11,6 +11,7 @@
 #include "op/blockedparameter.hpp"
 #include "op/broadcastload.hpp"
 #include "op/broadcastmove.hpp"
+#include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
@@ -18,6 +19,7 @@
 #include "op/scalarstore.hpp"
 #include "op/staticpower.hpp"
 #include "op/store.hpp"
+#include "op/tile.hpp"
 #include "op/vectorload.hpp"
 #include "op/vectorstore.hpp"
 

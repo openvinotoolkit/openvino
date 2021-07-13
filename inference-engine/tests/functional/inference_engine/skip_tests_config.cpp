@@ -14,5 +14,7 @@ std::vector<std::string> disabledTestPatterns() {
         ".*TransformationTests\\.ConstFoldingPriorBoxClustered.*",
         // TODO: task 32568, enable after supporting constants outputs in plugins
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
+        // TODO: Snpippets rewrite this test
+        ".*TransformationTests\\.DontStartSubgraphSingleOutput.*"
     };
 }

@@ -55,6 +55,7 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "snippets/op/subgraph.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -223,7 +224,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
         { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
         { "ExtractImagePatches", ExtractImagePatches},
-        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
+        { "NonMaxSuppressionIEInternal", NonMaxSuppression},
+        { "Subgraph", Subgraph}
 };
 
 Type TypeFromName(const std::string type) {
