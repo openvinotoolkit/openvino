@@ -23,7 +23,6 @@ shape_accepting_ops = {
     'Tile': [1],  # repeats input
     'TopK': [1],  # K input
     'Pad': [1, 2],  # pads_begin, pads_end
-    'Range': [0, 1, 2],  # start, stop, step inputs
     'OneHot': [1],  # depth input
 }
 

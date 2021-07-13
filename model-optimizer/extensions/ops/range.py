@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging as log
-
 import numpy as np
 
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
 from mo.utils.error import Error
