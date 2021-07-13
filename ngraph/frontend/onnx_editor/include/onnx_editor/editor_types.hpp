@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include "onnx_import/utils/onnx_importer_visibility.hpp"
+
 namespace ngraph
 {
     enum class EdgeType
@@ -85,7 +87,7 @@ namespace ngraph
         ///
         ///        The optional argument "new_input_name" can be used to set a custom input name
         ///        which can be created during cutting a graph.
-        struct EditorInput
+        struct ONNX_IMPORTER_API EditorInput
         {
             EditorInput() = delete;
             EditorInput(std::string input_name, std::string new_input_name = "")
@@ -110,7 +112,7 @@ namespace ngraph
         ///            ----(in_A)---->  | test_node |
         ///                             +-----------+  ---(out2)--->
         ///        You can indicate out2 as EditorOutput("out2") or EditorOutput(1)
-        struct EditorOutput
+        struct ONNX_IMPORTER_API EditorOutput
         {
             EditorOutput() = delete;
             EditorOutput(std::string output_name)
@@ -135,7 +137,7 @@ namespace ngraph
         ///        You can indicate test_node by name as EditorNode("test_node")
         ///        or by assigned output as EditorNode(EditorOutput("out1"))
         ///        or EditorNode(EditorOutput("out2"))
-        struct EditorNode
+        struct ONNX_IMPORTER_API EditorNode
         {
             EditorNode(std::string node_name)
                 : m_node_name{std::move(node_name)}

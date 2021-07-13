@@ -15,13 +15,6 @@
 #include "onnx_editor/editor.hpp"
 #include "onnx_editor/editor_types.hpp"
 
-namespace ONNX_NAMESPACE
-{
-    // forward declaration to avoid the necessity of include paths setting in components
-    // that don't directly depend on the ONNX library
-    class ModelProto;
-} // namespace ONNX_NAMESPACE
-
 namespace ngraph
 {
     namespace onnx_editor
@@ -31,7 +24,7 @@ namespace ngraph
         /// \note This class can be used to modify an ONNX model before it gets translated to
         ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
         ///       model's input types and shapes, extract a subgraph and more.
-        class ONNXModelEditor final
+        class ONNX_IMPORTER_API ONNXModelEditor final
         {
         public:
             ONNXModelEditor() = delete;

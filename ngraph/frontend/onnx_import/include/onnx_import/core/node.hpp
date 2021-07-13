@@ -48,6 +48,7 @@ namespace ngraph
         {
         public:
             Node() = delete;
+            // TODO
             Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
 
             Node(Node&&) noexcept;

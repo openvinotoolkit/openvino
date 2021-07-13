@@ -24,6 +24,6 @@ static LoadFromFEParam getTestData()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndLoadFromTest,
-                        ::testing::Values(getTestData()),
-                        FrontEndLoadFromTest::getTestCaseName);
+                         FrontEndLoadFromTest,
+                         ::testing::Values(getTestData()),
+                         FrontEndLoadFromTest::getTestCaseName);
