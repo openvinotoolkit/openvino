@@ -102,13 +102,15 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
                     << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
                     << "Failed to query the metric for the " << device << " with error:" << iie.what();
             }
-            _workerRequests.resize(optimalNum);
-            _idleWorkerRequests.set_capacity(optimalNum);
-            auto* idleWorkerRequestsPtr = &(_idleWorkerRequests);
-            for (auto&& workerRequest : _workerRequests) {
+            auto& workerRequests = _workerRequests[device];
+            workerRequests.resize(optimalNum);
+            auto& idleWorkerRequests = _idleWorkerRequests[device];
+            idleWorkerRequests.set_capacity(optimalNum);
+            auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+            for (auto&& workerRequest : workerRequests) {
                 workerRequest._inferRequest = { executableNetwork, executableNetwork->CreateInferRequest() };
                 auto* workerRequestPtr = &workerRequest;
-                IE_ASSERT(_idleWorkerRequests.try_push(workerRequestPtr));
+                IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr));
                 workerRequest._inferRequest->SetCallback(
                     [this, workerRequestPtr, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
                         IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
@@ -138,6 +140,8 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
+        // init worker queue
+        _idleWorkerRequests[*CPUIter];
         _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
     }
 
@@ -146,6 +150,8 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     const auto accelerator = _autoPlugin->SelectDevice(metaDevices, networkPrecision);
     bool isAccelerator = accelerator.find("CPU") == std::string::npos;
     if (isAccelerator) {
+        // init worker queue
+        _idleWorkerRequests[accelerator];
         _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
     }
 
@@ -173,7 +179,12 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     }
 }
 
-AutoExecutableNetwork::~AutoExecutableNetwork() = default;
+AutoExecutableNetwork::~AutoExecutableNetwork() {
+    // this is necessary to guarantee member destroyed after getting future
+    if (!_alreadyActualNetwork) {
+        _acceleratorFuture.get();
+    }
+}
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                                           OutputsDataMap networkOutputs) {
@@ -282,20 +293,22 @@ void AutoExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask,
 //    printf("%s:%d\n", __FUNCTION__, __LINE__);
     // fixme: this is a sync with default task
     WorkerInferRequest* workerRequestPtr = nullptr;
-    NotBusyWorkerRequests& idleWorkerRequests = _idleWorkerRequests;
-    if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-        IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-        _thisWorkerInferRequest = workerRequestPtr;
-        {
-            auto capturedTask = std::move(inferPipelineTask);
-            capturedTask();
+    for (auto&& idleWorkerRequests : _idleWorkerRequests) {
+        if (idleWorkerRequests.second.try_pop(workerRequestPtr)) {
+            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests.second};
+            _thisWorkerInferRequest = workerRequestPtr;
+            {
+                auto capturedTask = std::move(inferPipelineTask);
+                capturedTask();
+            }
+            idleGuard.Release();
+            return;
         }
-        idleGuard.Release();
-        return;
     }
 
     // no vacant requests this time, storing the task to the respective queue
     _inferPipelineTasks.push(std::move(inferPipelineTask));
+//    printf("!!! DEBUG: _inferPipelineTasks size = %zu\n", _inferPipelineTasks.unsafe_size());
 }
 
 }  // namespace AutoPlugin
