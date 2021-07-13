@@ -69,7 +69,8 @@ void PassImpl::run(const Model& model) {
             eltwiseStage->type() != StageType::Logical_AND    &&
             eltwiseStage->type() != StageType::Logical_OR     &&
             eltwiseStage->type() != StageType::Logical_XOR    &&
-            eltwiseStage->type() != StageType::Logical_NOT) {
+            eltwiseStage->type() != StageType::Logical_NOT    &&
+            eltwiseStage->type() != StageType::Abs) {
             continue;
         }
 
