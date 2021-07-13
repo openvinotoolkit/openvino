@@ -179,7 +179,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(buffer_size);
     kd.internalBufferSizes.push_back(num_scores_size);
-    kd.internalBufferDataType = Datatype::F32;
+    kd.internalBufferDataType = GetUnitType(detectOutParams);
 
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(detectOutParams, i);
@@ -213,7 +213,17 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
                                        MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
              }
-        } else {
+         } else if (i == 2) {
+            if (detectOutParams.detectOutParams.decrease_label_id) {
+                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
+            } else {
+                if (detectOutParams.detectOutParams.top_k > 0) {
+                    cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true"));
+                } else {
+                    cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
+                }
+            }
+         } else {
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {

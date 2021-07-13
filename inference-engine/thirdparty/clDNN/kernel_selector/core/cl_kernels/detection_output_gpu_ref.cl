@@ -485,6 +485,7 @@ KERNEL (detection_output_ref_stage_1_mxnet)(
 }
 #endif /* DO_STAGE_1_MXNET */
 
+
 #ifdef DO_STAGE_2_CAFFE
 KERNEL (detection_output_ref_stage_2_caffe)(
     __global UNIT_TYPE* input_location,
@@ -540,10 +541,77 @@ KERNEL (detection_output_ref_stage_2_caffe)(
         }
     }
     buffer2[scoresInfoIdx] = selectedBoxNum;
+    atomic_add(&buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES], selectedBoxNum);
+}
+#endif
+#ifdef DO_STAGE_2_CAFFE_OPT
+KERNEL (detection_output_ref_stage_2_caffe)(
+    __global UNIT_TYPE* input_location,
+    __global UNIT_TYPE* input_prior_box,
+    __global uchar *buffer0,
+    __global uchar *buffer1,
+    volatile __global int *buffer2)
+{
+    const int batchId = get_global_id(0);
+    const int classId = get_global_id(1);
+    const int loc_label = ((SHARE_LOCATION)? 0 : classId);
+    const int scoresInfoIdx = batchId * NUM_CLASSES_ACC + classId;
+    UNIT_TYPE decoded_bboxes[TOP_K * 4];
+
+    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+    __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
+
+    const int scoresInfoNum = buffer2[scoresInfoIdx];
+
+    if (classId == 0)
+    {
+        buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = 0;
+    }
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    int selectedBoxNum = 0;
+    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++)
+    {
+        bool keep = true;
+        int idx = scoresList[idx_score].boxId;
+        UNIT_TYPE decoded_bbox_cur[4];
+        FUNC_CALL(get_decoded_bbox)(decoded_bbox_cur, input_location, input_prior_box, idx, loc_label, batchId);
+
+        for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
+        {
+            UNIT_TYPE decoded_bbox_kept[4] = { decoded_bboxes[4 * idx_indice],
+                                           decoded_bboxes[4 * idx_indice + 1],
+                                           decoded_bboxes[4 * idx_indice + 2],
+                                           decoded_bboxes[4 * idx_indice + 3] };
+
+            UNIT_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox_cur, decoded_bbox_kept);
+            if (overlap > NMS_THRESHOLD)
+            {
+                keep = false;
+                break;
+            }
+        }
+        if (keep)
+        {
+            SCORES_INFO score_info;
+            score_info.batchId = scoresList[idx_score].batchId;
+            score_info.classId = scoresList[idx_score].classId;
+            score_info.boxId = scoresList[idx_score].boxId;
+            score_info.score = scoresList[idx_score].score;
+            selectedScoresList[selectedBoxNum] = score_info;
+            decoded_bboxes[4 * selectedBoxNum]     = decoded_bbox_cur[0];
+            decoded_bboxes[4 * selectedBoxNum + 1] = decoded_bbox_cur[1];
+            decoded_bboxes[4 * selectedBoxNum + 2] = decoded_bbox_cur[2];
+            decoded_bboxes[4 * selectedBoxNum + 3] = decoded_bbox_cur[3];
+            ++selectedBoxNum;
+        }
+    }
+
+    buffer2[scoresInfoIdx] = selectedBoxNum;
 
     atomic_add(&buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES], selectedBoxNum);
 }
-#endif /* DO_STAGE_2_CAFFE */
+#endif /* DO_STAGE_2_CAFFE_OPT */
 
 #ifdef DO_STAGE_2_MXNET
 KERNEL (detection_output_ref_stage_2_mxnet)(
