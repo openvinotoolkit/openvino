@@ -3,10 +3,11 @@
 
 import hashlib
 
-from defusedxml import defuse_stdlib
 import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 from defusedxml.minidom import parseString
 
+from mo.front.common.partial_infer.utils import unmask_shape, is_fully_defined
 from mo.graph.graph import *
 from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
@@ -59,6 +60,9 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
                 any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             # avoid array copying while taking hash
             blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
+            assert is_fully_defined(blob), 'The constant value cannot contain dynamic values'
+            if isinstance(blob, np.ma.masked_array):
+                blob = np.ma.getdata(blob)
             blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
 
             if blob_hash in bin_hashes and np.array_equal(blob, bin_hashes[blob_hash]['blob']):
@@ -112,11 +116,10 @@ def serialize_mean_image(bin_file_name: str, mean_data=[]):
 
 
 def xml_shape(shape: np.ndarray, element: Element):
-    for d in shape:
+    for d in unmask_shape(shape):
+        if d < -1:
+            raise Error('The value "{}" for shape is not valid value.'.format(d))
         dim = SubElement(element, 'dim')
-        if d < 0:
-            raise Error('The value "{}" for shape is less 0. May be the input shape of the topology is '
-                        'wrong.'.format(d))
         if int(d) != d:
             raise Error('The value "{}" for shape is not integer.'.format(d))
         if not isinstance(d, np.int64):

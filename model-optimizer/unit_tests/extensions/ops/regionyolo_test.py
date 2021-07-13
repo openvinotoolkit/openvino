@@ -24,7 +24,7 @@ class TestRegionYOLOCaffe(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'region': {'axis': 1, 'end_axis': -1, 'do_softmax': 1, **layout_attrs()}
                              })
@@ -42,7 +42,7 @@ class TestRegionYOLOCaffe(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'region': {'end_axis': 1, 'axis': 0, 'do_softmax': 1, **layout_attrs()}
                              })
@@ -60,7 +60,7 @@ class TestRegionYOLOCaffe(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'region': {'end_axis': 2, 'axis': 0, 'do_softmax': 1, **layout_attrs()}
                              })
@@ -78,7 +78,7 @@ class TestRegionYOLOCaffe(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'region': {'do_softmax': 0, 'end_axis': -1, 'axis': 1, 'classes': 80, 'coords': 4,
                                         'mask': np.array([6, 7, 8]), **layout_attrs()}
@@ -100,7 +100,7 @@ class TestRegionYOLOTF(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 227, 227, 3])},
                              'region': {'axis': 1, 'end_axis': -1, 'do_softmax': 1, **layout_attrs()}
                              })
@@ -118,7 +118,7 @@ class TestRegionYOLOTF(unittest.TestCase):
                              ('region', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 227, 227, 3])},
                              'region': {'do_softmax': 0, 'end_axis': -1, 'axis': 1, 'classes': 80, 'coords': 4,
                                         'mask': np.array([6, 7, 8]), **layout_attrs()}

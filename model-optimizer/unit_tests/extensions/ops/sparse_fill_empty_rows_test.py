@@ -18,6 +18,9 @@ nodes_attributes = {'input_indices': {'shape': None, 'value': None, 'kind': 'dat
                     'output_indices': {'shape': None, 'value': None, 'kind': 'data'},
                     'output_values': {'shape': None, 'value': None, 'kind': 'data'},
                     'empty_row_indicator': {'shape': None, 'value': None, 'kind': 'data'},
+                    'result_indices': {'kind': 'op', 'op': 'Result'},
+                    'result_values': {'kind': 'op', 'op': 'Result'},
+                    'result_empty_row_indicator': {'kind': 'op', 'op': 'Result'},
                     }
 
 # graph 1
@@ -27,12 +30,17 @@ edges1 = [('input_indices', 'sparse_fill_empty_rows_node', {'in': 0}),
           ('default_value', 'sparse_fill_empty_rows_node', {'in': 3}),
           ('sparse_fill_empty_rows_node', 'output_indices', {'out': 0}),
           ('sparse_fill_empty_rows_node', 'output_values', {'out': 1}),
-          ('sparse_fill_empty_rows_node', 'empty_row_indicator', {'out': 2})]
+          ('sparse_fill_empty_rows_node', 'empty_row_indicator', {'out': 2}),
+          ('output_indices', 'result_indices', {'out': 0}),
+          ('output_values', 'result_values', {'out': 0}),
+          ('empty_row_indicator', 'result_empty_row_indicator', {'out': 0}),
+          ]
 
 inputs1 = {'input_indices': {'shape': int64_array([20, 2]), 'value': None},
            'input_values': {'shape': int64_array([20]), 'value': None},
            'dense_shape': {'shape': int64_array([2]), 'value': np.array([4, 5])},
            'default_value': {'shape': int64_array([]), 'value': None}}
+
 
 class TestSparseFillEmptyRows(unittest.TestCase):
     def test_partial_infer(self):
@@ -66,7 +74,10 @@ class TestSparseFillEmptyRows(unittest.TestCase):
                  ('dense_shape', 'sparse_fill_empty_rows_node', {'in': 2}),
                  ('default_value', 'sparse_fill_empty_rows_node', {'in': 3}),
                  ('sparse_fill_empty_rows_node', 'output_indices', {'out': 0}),
-                 ('sparse_fill_empty_rows_node', 'empty_row_indicator', {'out': 2})]
+                 ('sparse_fill_empty_rows_node', 'empty_row_indicator', {'out': 2}),
+                 ('output_indices', 'result_indices', {'out': 0}),
+                 ('empty_row_indicator', 'result_empty_row_indicator', {'out': 0}),
+                 ]
         graph = build_graph(nodes_attributes, edges, inputs1)
 
         sparse_fill_empty_rows_node = Node(graph, 'sparse_fill_empty_rows_node')

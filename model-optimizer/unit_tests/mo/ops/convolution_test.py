@@ -74,9 +74,8 @@ class TestConvolutionPartialInfer(unittest.TestCase):
                              })
 
         conv_node = Node(graph, 'conv_node')
-        Convolution.infer(conv_node)
-        res_shape = graph.node['conv_output']['shape']
-        self.assertIsNone(res_shape)
+        with self.assertRaisesRegex(Error, "Input data shape is None for node.*"):
+            Convolution.infer(conv_node)
 
     def test_deconv_infer_ideal(self):
         graph = build_graph(nodes_attributes,
@@ -117,7 +116,6 @@ class TestConvolutionPartialInfer(unittest.TestCase):
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
 
-
     def test_deconv_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
                             [('conv_input', 'conv_node'),
@@ -141,9 +139,8 @@ class TestConvolutionPartialInfer(unittest.TestCase):
                              })
 
         deconv_node = Node(graph, 'conv_node')
-        Convolution.infer(deconv_node)
-        res_shape = deconv_node['output_shape']
-        self.assertIsNone(res_shape)
+        with self.assertRaisesRegex(Error, "Input data shape is None for node.*"):
+            Convolution.infer(deconv_node)
 
     def test_conv_infer_set_default_attrs_nchw(self):
         graph = build_graph(nodes_attributes,

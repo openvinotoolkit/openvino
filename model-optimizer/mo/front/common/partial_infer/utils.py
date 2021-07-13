@@ -6,6 +6,56 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
+dynamic_dimension = np.ma.masked
+dynamic_dimension_value = -1000000007
+
+
+def shape_array(value, dtype=np.int64, dyn_value=dynamic_dimension_value):
+    # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
+    # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
+    new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+    return np.ma.masked_equal(new_value, dynamic_dimension_value).astype(dtype=dtype)
+
+
+def compare_dimensions(dim1, dim2):
+    """
+    Compare if dim1 is equal to dim2 or any of them is dynamic
+    :param dim1: dimension to compare
+    :param dim2: dimension to compare
+    :return: boolean result of the comparison
+    """
+    return dim1 is dynamic_dimension or dim2 is dynamic_dimension or dim1 == dim2
+
+
+def compare_shapes(shape1, shape2):
+    if shape1.ndim != shape2.ndim:
+        return False
+    for d1, d2 in zip(shape1, shape2):
+        if not compare_dimensions(d1, d2):
+            return False
+    return True
+
+
+def unmask_shape(value):
+    if not isinstance(value, np.ma.masked_array):
+        return value
+    else:
+        return value.tolist(-1)
+
+
+def is_fully_defined(value):
+    if isinstance(value, np.ma.masked_array):
+        return not np.ma.is_masked(value)
+    elif isinstance(value, np.ndarray):
+        if value.ndim == 0:
+            return value is not dynamic_dimension
+        return np.all([item is not dynamic_dimension for item in value])
+    elif isinstance(value, list):
+        return np.ma.masked not in value
+    elif value is dynamic_dimension:
+        return False
+    return True
+
 
 def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.int64)
@@ -60,24 +110,24 @@ def convert_deconv_tf_padding_to_str(padding):
 # TODO eliminate this dependency and pass necessary function as an argument
 def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
     if input is None or window is None or stride is None or auto_pad is None:
-        return (None, None)
+        return None, None
 
     normalized_stride = stride
     if is_deconv:
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        output = np.int64(np.ceil(input / normalized_stride))
+        output = shape_array(np.ma.ceil(input / normalized_stride))
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
         full_pad[mask] -= stride[mask]
         mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
         full_pad[mask] -= input[mask] % stride[mask]
-        full_pad = np.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
+        full_pad = np.ma.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
         low_pad = np.int64(full_pad / 2)
         high_pad = full_pad - low_pad
-        pad = np.array([low_pad, high_pad]).transpose()
+        pad = shape_array([low_pad, high_pad]).transpose()
     elif auto_pad == 'valid':
         output = np.int64(np.ceil((input - window + 1) / normalized_stride))
         pad = np.zeros((len(output), 2), dtype=np.int64)
@@ -85,22 +135,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         log.error("Unsupported padding scheme: {}".format(auto_pad))
         pad = None
         output = None
-    return (pad, output)
-
-
-def broadcast_shape(first_shape, second_shape):
-    """
-    Perform broadcasting of one shape to another for different shapes
-    """
-    shape = first_shape if len(first_shape) > len(second_shape) else second_shape
-    new_shape = int64_array(shape)
-    for i in range(len(shape)):
-        a_val = first_shape[-i - 1] if i < len(first_shape) else 1
-        b_val = second_shape[-i - 1] if i < len(second_shape) else 1
-        assert a_val == 1 or b_val == 1 or a_val == b_val, "Input shape do not broadcast"
-        new_val = b_val if a_val == 1 else a_val
-        new_shape[-i - 1] = new_val
-    return int64_array(new_shape)
+    return pad, output
 
 
 def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
@@ -114,8 +149,15 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if isinstance(s, slice):
-            output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+        # TODO this looks like a hack that we check dynamic_dimension_value
+        if s is dynamic_dimension or s == dynamic_dimension_value:
+            output_shape.append(dynamic_dimension_value)
+            in_idx += 1
+        elif isinstance(s, slice):
+            if input_shape[in_idx] is not dynamic_dimension:
+                output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            else:
+                output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
@@ -126,8 +168,7 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
                 output_shape.append(input_shape[in_idx])
                 in_idx += 1
         else:
-            raise Exception('Element type of a slice List is unacceptable. '
-                            'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
+            raise Exception('Element type of a slice list is unacceptable: "{}"'.format(type(s)))
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
-    return int64_array(output_shape)
+    return shape_array(output_shape)

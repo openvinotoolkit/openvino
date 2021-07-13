@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from mo.ops.op import Op
 
 
@@ -11,10 +9,10 @@ class ExperimentalDetectronTopKROIs(Op):
 
     def __init__(self, graph, attrs):
         mandatory_props = dict(
-            type=__class__.op,
-            op=__class__.op,
+            type=self.op,
+            op=self.op,
             version='experimental',
-            infer=__class__.infer
+            infer=self.infer
         )
         super().__init__(graph, mandatory_props, attrs)
 
@@ -23,4 +21,4 @@ class ExperimentalDetectronTopKROIs(Op):
 
     @staticmethod
     def infer(node):
-        node.out_node(0).shape = np.array([node.max_rois, 4], dtype=np.int64)
+        node.out_port(0).data.set_shape([node.max_rois, 4])

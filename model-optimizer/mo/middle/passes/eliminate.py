@@ -8,6 +8,7 @@ from collections import deque
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import is_fully_defined
 from mo.utils.error import Error
 from mo.utils.utils import deprecated_api
 
@@ -107,7 +108,7 @@ def mark_const_producer_nodes(graph):
                 graph.node[input]['is_const_producer'] = False
                 graph.node[output]['is_const_producer'] = False
 
-        if not node.has('value') or node.value is None:
+        if not node.has('value') or node.value is None or not is_fully_defined(node.value):
             for input, _ in graph.in_edges(node.id):
                 graph.node[input]['is_const_producer'] = False
 
@@ -132,7 +133,7 @@ def eliminate_dead_nodes(graph):
                 (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or
                                                       node_attrs.get('force_dead_node', False))):
             nodes_to_remove.add(node_name)
-    log.debug('Removing the following dead nodes: {}'.format('\n'.join(sorted(map(str, nodes_to_remove)))))
+    # log.debug('Removing the following dead nodes: {}'.format('\n'.join(sorted(map(str, nodes_to_remove)))))
     graph.remove_nodes_from(nodes_to_remove)
 
 

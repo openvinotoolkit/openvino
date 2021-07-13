@@ -7,13 +7,14 @@ import numpy as np
 
 from mo.front.common.partial_infer.concat import concat_infer
 from mo.graph.graph import Node
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     'node_2': {'kind': 'data', 'value': None},
                     'concat': {'type': 'Concat', 'kind': 'op'},
                     'node_3': {'kind': 'data'},
-                    'op_output': { 'kind': 'op', 'op': 'Result'},
+                    'op_output': {'kind': 'op', 'op': 'Result'},
                     }
 
 
@@ -25,7 +26,7 @@ class TestConcatPartialInfer(unittest.TestCase):
                              ('concat', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'concat': {'axis': 2}
@@ -45,7 +46,7 @@ class TestConcatPartialInfer(unittest.TestCase):
                              ('concat', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 3, 227, 227])},
                              'concat': {'axis': -1}
@@ -65,16 +66,15 @@ class TestConcatPartialInfer(unittest.TestCase):
                              ('concat', 'node_3'),
                              ('node_3', 'op_output')
                              ],
-                            {'node_3': {'shape': None},
+                            {'node_3': {'shape': None, 'value': None},
                              'node_1': {'shape': np.array([1, 3, 227, 227])},
                              'node_2': {'shape': np.array([1, 2, 227, 227])},
                              'concat': {'axis': 2}
                              })
 
         concat_node = Node(graph, 'concat')
-        concat_infer(concat_node)
-        res_shape = graph.node['node_3']['shape']
-        self.assertIsNone(res_shape)
+        with self.assertRaisesRegex(Error, "Concat input shapes do not match for node*"):
+            concat_infer(concat_node)
 
     def test_tf_concat_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
@@ -90,6 +90,5 @@ class TestConcatPartialInfer(unittest.TestCase):
                              })
 
         concat_node = Node(graph, 'concat')
-        concat_infer(concat_node)
-        res_shape = graph.node['node_3']['shape']
-        self.assertIsNone(res_shape)
+        with self.assertRaisesRegex(Error, "One of the input shapes is not defined for node *"):
+            concat_infer(concat_node)

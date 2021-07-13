@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 from mo.ops.pooling import Pooling
@@ -18,7 +18,7 @@ class AdaptiveAvgPooling(Op):
         super().__init__(graph, {
             'type': None,
             'op': self.op,
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -37,8 +37,8 @@ class AdaptiveAvgPooling(Op):
         kernel_w = input_w - (output_w - 1) * stride_w
 
         data = {
-            'window': int64_array([1, 1, kernel_h, kernel_w]),
-            'stride': int64_array([1, 1, stride_h, stride_w]),
+            'window': shape_array([1, 1, kernel_h, kernel_w]),
+            'stride': shape_array([1, 1, stride_h, stride_w]),
             'pad': int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
             'pad_spatial_shape': int64_array([[0, 0], [0, 0]]),
             'pool_method': 'avg',

@@ -6,7 +6,7 @@ import numpy as np
 from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.ReverseInputChannels import ApplyReverseChannels
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
@@ -24,24 +24,24 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
     assert len(weights_shape) in [3, 4, 5]
     assert weights_shape[0] % group == 0
 
-    assert int64_array(node.output).ndim == 0
     if ir_version == 'V7':
         if weights_shape[0] == node.output:
             # weights are already is in [G*O I X Y] format
             return
-        new_shape = int64_array([node.output, -1, *weights_shape[2:]])
+        new_shape = shape_array([node.output, -1, *weights_shape[2:]])
 
     elif ir_version == 'V10':
         I = input_shape[1]
-        new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
-        assert np.prod(weights_shape) == np.prod(new_shape), \
-            'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
+        new_shape = shape_array([group, node.output / group, I / group, *weights_shape[2:]])
+        assert not is_fully_defined(weights_shape) or not is_fully_defined(new_shape) or \
+               np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
+                                                             ''.format(weights_shape, new_shape)
         del node['group']
         node['type'] = 'GroupConvolution'
     else:
         raise Error("Unknown IR version: {}".format(ir_version))
 
-    reshape = create_op_node_with_second_input(node.graph, Reshape, int64_array(new_shape),
+    reshape = create_op_node_with_second_input(node.graph, Reshape, shape_array(new_shape),
                                                {'override_output_shape': True})
 
     node.in_port(1).get_connection().insert_node(reshape)
@@ -171,7 +171,7 @@ class PullReshapeThroughFQ(BackReplacementPattern):
             # force rank of limit inputs to match 0-input rank
             # reshaping to lower range needs it the most due to FQ inner broadcast semantics
             for i in range(1, 5):
-                reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1] * new_rank),
+                reshape = create_op_node_with_second_input(graph, Reshape, shape_array([1] * new_rank),
                                                            {'override_output_shape': True})
                 FQ.in_port(i).get_connection().insert_node(reshape)
 
@@ -225,7 +225,7 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
         elif node.has_valid('original_output_spatial_shape'):
             # node had fixed output spatial shape set in original framework, so we restore it here
-            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape),
+            const = Const(graph, {'value': shape_array(node.original_output_spatial_shape),
                                   'name': node_name + '/original_spatial_shape'}).create_node()
             node.add_input_port(2, skip_if_exist=True)
             const.out_port(0).connect(node.in_port(2))
@@ -244,12 +244,12 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             assert I % group == 0
             assert node.output % group == 0
 
-            new_shape = int64_array([group, I / group, node.output / group, *weights_shape[2:]])
+            new_shape = shape_array([group, I / group, node.output / group, *weights_shape[2:]])
 
-            assert np.prod(weights_shape) == np.prod(new_shape), \
-                'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
-            reshape = create_op_node_with_second_input(graph, Reshape, int64_array(new_shape),
-                                                       {'override_output_shape': True},
+            assert not is_fully_defined(new_shape) or not is_fully_defined(weights_shape) or \
+                   np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
+                                                                 ''.format(weights_shape, new_shape)
+            reshape = create_op_node_with_second_input(graph, Reshape, new_shape, {'override_output_shape': True},
                                                        node.in_port(1).get_source().node)
 
             node.in_port(1).get_connection().set_source(reshape.out_port(0))

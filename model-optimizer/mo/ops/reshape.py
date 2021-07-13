@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, is_fully_defined
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
@@ -53,12 +54,17 @@ class Reshape(Op):
         num_of_input_elements = np.prod(input_shape)
         num_of_output_elements = 1
         for index, x in enumerate(new_shape):
-            if x == 0 and node.has_and_set('special_zero'):
+            if x is dynamic_dimension:
+                num_of_output_elements = dynamic_dimension_value
+            elif x == 0 and node.has_and_set('special_zero'):
                 num_of_output_elements *= input_shape[index]
             elif x != -1:
                 num_of_output_elements *= x
 
-        undefined_dim = num_of_input_elements // num_of_output_elements
+        undefined_dim = dynamic_dimension
+        if num_of_output_elements is not dynamic_dimension:
+            undefined_dim = num_of_input_elements // num_of_output_elements if is_fully_defined(input_shape) else \
+                dynamic_dimension_value
         output_shape = []
         for index, x in enumerate(new_shape):
             if x == 0 and node.has_and_set('special_zero'):
@@ -68,13 +74,14 @@ class Reshape(Op):
             else:
                 output_shape.append(x)
 
-        assert np.prod(input_shape) == np.prod(output_shape), \
-            "Number of elements in input {} and output {} of reshape node {} mismatch" \
-            "".format(input_shape, output_shape, name)
+        assert not is_fully_defined(input_shape) or not is_fully_defined(output_shape) or \
+               np.prod(input_shape) == np.prod(output_shape), \
+               "Number of elements in input {} and output {} of reshape node {} mismatch" \
+               "".format(input_shape, output_shape, name)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
-        if node.in_port(0).data.get_value() is not None:
+        if node.in_port(0).data.get_value() is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
         else:
             node.out_port(0).data.set_shape(output_shape)

@@ -4,9 +4,8 @@
 import logging as log
 
 import networkx as nx
-import numpy as np
 
-# TODO remove it
+from mo.front.common.partial_infer.utils import dynamic_dimension
 from mo.graph.graph import Node, Graph
 from mo.graph.graph import dict_includes
 from mo.utils.error import Error
@@ -17,12 +16,6 @@ def log_debug_dict(nodes_per_port: dict, direction_name: str):
     for port, node in nodes_per_port.items():
         value = shrink_str_value(node.soft_get('value'))
         log.debug('{}[{}]: shape = {}, value = {}'.format(direction_name, port, node.soft_get('shape'), value))
-
-
-def is_fully_defined_shape(shape: np.ndarray):
-    if -1 in shape:
-        return False
-    return True
 
 
 def control_flow_infer(graph: Graph, node_name: str):
@@ -139,16 +132,6 @@ def partial_infer(graph: Graph, start_node: str = None):
                         if not out_node.has_valid('shape'):
                             log.error('Shape is not defined for output {} of "{}".'.format(out_port, node_name))
                             not_all_output_shapes = True
-                        elif not is_fully_defined_shape(out_node.shape):
-                            log.error(
-                                ('Shape {} is not fully defined for output {} of "{}". ' +
-                                 'Use --input_shape with positive integers to override model input shapes.').format(
-                                    out_node.shape,
-                                    out_port,
-                                    node_name
-                                )
-                            )
-                            not_all_output_shapes = True
 
                     if not_all_output_shapes:
                         raise Error('Not all output shapes were inferred or fully defined for node "{}". ' +
@@ -218,7 +201,7 @@ def validate_batch_in_shape(shape, layer_name: str):
     shape: current shape of layer under validation
     layer_name: name of layer under validation
     """
-    if len(shape) == 0 or shape[0] not in (-1, 0, 1):
+    if len(shape) == 0 or (shape[0] is not dynamic_dimension and shape[0] not in (-1, 0, 1)):
         raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
                      'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
                      'element of the shape if it is equal to -1, 0 or 1. Otherwise, this is the ambiguous ' +

@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension_value
 from mo.utils.error import Error
 
 nchw_to_nhwc_permute = np.array([0, 2, 3, 1], dtype=np.int64)
@@ -90,7 +91,7 @@ def shape_for_layout(layout: str, **kwargs):
     :param layout: layout string.
     :param kwargs: dictionary that contains the dimension sizes using the following keys: 'batch', 'features', 'depth',
     'height', 'width'.
-    :return: np.array of type np.int64 with 4 or 5 elements.
+    :return: shape_array of type np.int64 with 4 or 5 elements.
     """
     assert layout in supported_layouts
     for required_key in ('batch', 'features', 'height', 'width'):
@@ -102,7 +103,7 @@ def shape_for_layout(layout: str, **kwargs):
 
     depth = kwargs.get('depth', None)
     shape_len = 4 + (depth is not None)
-    output_shape = np.ones(shape=[shape_len], dtype=np.int64)
+    output_shape = np.ma.ones(shape=[shape_len], dtype=np.int64, fill_value=dynamic_dimension_value)
     output_shape[get_batch_dim(layout, shape_len)] = kwargs['batch']
     output_shape[get_height_dim(layout, shape_len)] = kwargs['height']
     output_shape[get_width_dim(layout, shape_len)] = kwargs['width']

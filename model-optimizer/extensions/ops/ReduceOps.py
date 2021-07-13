@@ -10,16 +10,16 @@ from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 reduce_map = {
-    'ReduceSum': np.sum,
-    'ReduceProd': np.prod,
-    'ReduceL1': lambda x, axis, keepdims: np.sum(a=np.absolute(x), axis=axis, keepdims=keepdims),
-    'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
-    'ReduceMax': np.max,
-    'ReduceMin': np.min,
-    'ReduceMean': np.mean,
-    'ReduceAnd': np.all,
-    'ReduceLogicalAnd': np.all,
-    'ReduceLogicalOr': np.any,
+    'ReduceSum': np.ma.sum,
+    'ReduceProd': np.ma.prod,
+    'ReduceL1': lambda x, axis, keepdims: np.ma.sum(a=np.ma.absolute(x), axis=axis, keepdims=keepdims),
+    'ReduceL2': lambda x, axis, keepdims: np.ma.sqrt(np.ma.sum(a=np.ma.multiply(x, x), axis=axis, keepdims=keepdims)),
+    'ReduceMax': np.ma.max,
+    'ReduceMin': np.ma.min,
+    'ReduceMean': np.ma.mean,
+    'ReduceAnd': np.ma.all,
+    'ReduceLogicalAnd': np.ma.all,
+    'ReduceLogicalOr': np.ma.any,
 }
 
 

@@ -39,7 +39,7 @@ def check_and_update_ports(node, edges_data: list, in_port: bool = True):
 
 def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_nodes_with_attrs: list = [],
                            new_edges_with_attrs: list = [], update_edge_attrs: dict = None,
-                           update_nodes_attributes: dict = None, nodes_with_edges_only: bool = False,
+                           update_nodes_attributes: list = None, nodes_with_edges_only: bool = False,
                            add_nodes_from_edges: bool = False):
     """
     Build the Graph with specific nodes and edges. Also update of edge and node parameters is supported.
@@ -48,8 +48,9 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     :param new_nodes_with_attrs: analogically nodes_with_attrs
     :param new_edges_with_attrs: analogically new_edges
     :param update_edge_attrs: optional dictionary like {('from_node', 'to_node', key): {edge_attrs}}.
-    :param update_nodes_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
-    key is a node name to update attribute and the value is a dictionary with attribute name and its value.
+    :param update_nodes_attributes: optional list of tuples which specifies nodes names and their attributes to be
+    updated. The first element is a node name to update attribute and the second element is a dictionary with attribute
+    name and its value.
     :param nodes_with_edges_only: add nodes which has at least one incoming or outcoming edge.
     :param add_nodes_from_edges: whether nodes that is not listed in all_nodes but are in all_edges is allowed.
     :return: generated graph.

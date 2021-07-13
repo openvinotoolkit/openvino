@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import match_shapes
@@ -14,7 +15,7 @@ class TensorArrayScatter(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'infer': TensorArrayScatter.array_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -22,7 +23,6 @@ class TensorArrayScatter(Op):
     @staticmethod
     def array_infer(node: Node):
         handle = node.in_node(0)
-        indices = node.in_node(1)
         value = node.in_node(2)
         flow_in = node.in_node(3)
 
@@ -40,5 +40,5 @@ class TensorArrayScatter(Op):
         output_value = flow_in.value
         #flow_out
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
+            node.graph.node[out_node]['shape'] = shape_array(output_shape)
             node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)

@@ -10,6 +10,8 @@ from typing import Callable
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension
+
 
 def refer_to_faq_msg(question_num: int):
     return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
@@ -24,13 +26,12 @@ class NamedAttrsClass:
 
 
 def match_shapes(pattern: np.array, shape: np.array):
-    """ Check if shape matches shape pattern handling -1 and 0 in the pattern. """
-    # Elements with values -1 and 0 in pattern are just ignored.
-    # Other elements should match.
+    """ Check if shape matches shape pattern handling undefined dimension and 0 in the pattern. """
+    # Elements with value 0 and undefined values in pattern are just ignored. Other elements should match.
     if pattern.size != shape.size:
         return False
-    indices = [i for i, n in enumerate(pattern) if n not in [0, -1]]
-    return np.array_equal(pattern[indices], shape[indices])
+    indices = [i for i, n in enumerate(pattern) if n != 0 and n is not dynamic_dimension]
+    return np.ma.allequal(pattern[indices], shape[indices])
 
 
 def symm_match_shapes(shape1: np.array, shape2: np.array):

@@ -5,7 +5,8 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array
+from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compare_dimensions, compare_shapes, \
+    shape_array, is_fully_defined
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -62,14 +63,15 @@ class MatMul(Op):
             if rank != 1 and ((i == 0 and transpose_a) or (i == 1 and transpose_b)):
                 input_shape[-2], input_shape[-1] = input_shape[-1], input_shape[-2]
             if rank == 1:
-                input_shape = np.insert(input_shape, int(i == 1), 1)
+                pos = int(i == 1)
+                input_shape = np.ma.concatenate([input_shape[:pos], [1], input_shape[pos:]])
 
             max_shape_length = max(input_shapes[0].size, input_shapes[1].size)
-            input_shape = np.insert(input_shape, 0, [1] * (max_shape_length - input_shape.size))
+            input_shape = np.ma.concatenate([[1] * (max_shape_length - input_shape.size), input_shape])
             transformed_shapes.append(input_shape)
 
-        A_shape = transformed_shapes[0]
-        B_shape = transformed_shapes[1]
+        A_shape = shape_array(transformed_shapes[0])
+        B_shape = shape_array(transformed_shapes[1])
 
         assert A_shape.size == B_shape.size, \
             "Shapes were not aligned by length for MatMul `{}`. Shapes: `{}`".format(node_name, transformed_shapes)
@@ -83,7 +85,7 @@ class MatMul(Op):
                 if B_shape[i] == 1:
                     B_shape[i] = A_shape[i]
 
-        assert np.array_equal(A_shape[:-2], B_shape[:-2]), \
+        assert compare_shapes(A_shape[:-2], B_shape[:-2]), \
             "MatMul input shapes are incorrect. BATCH_DIMs are not equal. Node: {}. Aligned shapes: {}" \
             "".format(node_name, transformed_shapes)
 
@@ -98,11 +100,16 @@ class MatMul(Op):
         """
         a_value = node.in_port(0).get_source().data.get_value()
         b_value = node.in_port(1).get_source().data.get_value()
-        if a_value is not None and b_value is not None:
+        if a_value is not None and b_value is not None and is_fully_defined(a_value) and is_fully_defined(b_value):
             if node.transpose_a:
                 a_value = transpose(a_value)
             if node.transpose_b:
                 b_value = transpose(b_value)
+            # np.matmul does not work correctly with masked arrays, so need explicitly convert inputs to regular arrays
+            if isinstance(a_value, np.ma.masked_array):
+                a_value = a_value.filled()
+            if isinstance(b_value, np.ma.masked_array):
+                b_value = b_value.filled()
             node.out_port(0).data.set_value(np.matmul(a_value, b_value))
 
     @staticmethod
@@ -121,17 +128,17 @@ class MatMul(Op):
         A_shape, B_shape = MatMul.shape_alignment(node)
         log.debug('MatMul `{}` aligned input shapes: {}'.format(name, [A_shape, B_shape]))
 
-        assert A_shape[-1] == B_shape[-2], \
+        assert compare_dimensions(A_shape[-1], B_shape[-2]), \
             "MatMul input shapes are incorrect. COL_INDEX_DIMs are not equal. Node: {}. Shapes: {}" \
             "".format(name, [A_shape, B_shape])
 
-        output_shape = np.concatenate((A_shape[:-1], B_shape[-1:]))
+        output_shape = np.ma.concatenate((A_shape[:-1], B_shape[-1:]))
 
         if node.in_port(0).data.get_shape().size == 1:
-            assert output_shape[-2] == 1
+            assert compare_dimensions(output_shape[-2], 1)
             output_shape = np.delete(output_shape, -2, 0)
         if node.in_port(1).data.get_shape().size == 1:
-            assert output_shape[-1] == 1
+            assert compare_dimensions(output_shape[-1], 1)
             output_shape = np.delete(output_shape, -1, 0)
 
         node.out_port(0).data.set_shape(output_shape)
@@ -149,8 +156,8 @@ def transpose(value):
     else:
         return np.transpose(value, [*range(0, num_of_dims - 2), num_of_dims - 1, num_of_dims - 2])
 
-# MatMul-like operation from frameworks
 
+# MatMul-like operation from frameworks
 class GemmONNX(Op):
     """
     Represents Gemm operation from ONNX
@@ -163,7 +170,7 @@ class GemmONNX(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
+            'op': self.op,
             'transpose_a': False,
             'transpose_b': False,
             'alpha': 1,
@@ -182,9 +189,9 @@ class FullyConnected(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
-            'infer': __class__.infer,
+            'op': self.op,
+            'type': self.op,
+            'infer': self.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
@@ -210,22 +217,21 @@ class FullyConnected(Op):
             'Incorrect FullyConnected input shapes. Node: {}. Shapes: {}'.format(name, [input_shape, weights_shape])
         assert weights_shape.size == 2
         out_size = node.soft_get('out-size')
-        assert weights_shape[0] == out_size, 'weights_shape={}, out-size={}'.format(weights_shape, out_size)
+        assert compare_dimensions(weights_shape[0], out_size), \
+            'weights_shape={}, out-size={}'.format(weights_shape, out_size)
 
         if 2 in connected_in_ports:
             bias_value = node.in_port(2).data.get_value()
             bias_shape = node.in_port(2).data.get_shape()
             assert bias_shape is not None, 'Shape was not inferred for biases of FullyConnected {}'.format(name)
             assert bias_value is not None, 'Value was not inferred for biases of FullyConnected {}'.format(name)
-            assert np.array_equal(bias_shape, [out_size]) or np.array_equal(bias_shape, [1, out_size]), \
+            assert compare_shapes(bias_shape, [out_size]) or compare_shapes(bias_shape, [1, out_size]), \
                 'Incorrect FullyConnected bias shape `{}` for node {}. `out-size`={}'.format(bias_shape, node, out_size)
 
-        out_shape = int64_array([*input_shape[:-1], out_size])
-        node.out_port(0).data.set_shape(out_shape)
+        node.out_port(0).data.set_shape([*input_shape[:-1], out_size])
 
 
 # MatMul-like operations for IR V6
-
 class Gemm(MatMul):
     """
     Represents GEMM operation that is acceptable to appear in v6 IRs

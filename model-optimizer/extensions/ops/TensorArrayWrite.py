@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import match_shapes
@@ -14,7 +15,7 @@ class TensorArrayWriter(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'infer': TensorArrayWriter.array_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -41,5 +42,5 @@ class TensorArrayWriter(Op):
 
         # flow_out
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['shape'] = shape_array(output_shape)
+            node.graph.node[out_node]['value'] = None if output_value is None else output_value.copy()

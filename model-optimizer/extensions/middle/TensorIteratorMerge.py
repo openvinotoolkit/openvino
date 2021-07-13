@@ -304,7 +304,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
             if ext_out['axis'] is not None:
                 # Insert unsqueezing resize at output port that has partitioning
-                assert not ext_out['internal_data_id'].has_valid('value')
+                # assert not ext_out['internal_data_id'].has_valid('value')
                 reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
                                                 'value': ext_out['axis']}).create_node_with_data()
