@@ -44,8 +44,8 @@ public:
     explicit CLDNNRemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
                                  cldnn::stream& stream,
                                  const cldnn::layout& layout,
-                                 cldnn::shared_handle mem,
-                                 cldnn::shared_surface surf,
+                                 cldnn::shared_handle mem = nullptr,
+                                 cldnn::shared_surface surf = 0,
                                  uint32_t plane = 0,
                                  BlobType mem_type = BT_BUF_INTERNAL);
 
@@ -64,7 +64,6 @@ public:
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
-    void allocate_if_needed();
     cldnn::memory::ptr getMemory() { return m_memObject; }
 
 protected:
@@ -99,10 +98,10 @@ public:
                                   cldnn::stream& stream,
                                   const InferenceEngine::TensorDesc& desc,
                                   const cldnn::layout& layout,
-                                  cldnn::shared_handle mem,
-                                  cldnn::shared_surface surf,
-                                  uint32_t plane,
-                                  CLDNNRemoteBlobImpl::BlobType mem_type)
+                                  cldnn::shared_handle mem = nullptr,
+                                  cldnn::shared_surface surf = 0,
+                                  uint32_t plane = 0,
+                                  CLDNNRemoteBlobImpl::BlobType mem_type = CLDNNRemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
         : _impl(context, stream, layout, mem, surf, plane, mem_type)
         , TpublicAPI(desc) {}
 
@@ -184,7 +183,7 @@ public:
     * @brief Maps handle to heap memory accessible by any memory manipulation routines.
     * @return Generic pointer to memory
     */
-    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE)  noexcept override { return nullptr; };
+    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE)  noexcept override { return handle; };
     /**
     * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
     * The multiple sequential mappings of the same handle are suppose to get the same

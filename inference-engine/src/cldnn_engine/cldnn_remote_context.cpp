@@ -81,22 +81,13 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
     return lockedHolder != nullptr;
 }
 
-void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
-    auto _impl = getContextImpl(m_context.lock());
-    _impl->acquire_lock();
-
-    if (m_memObject == nullptr) {
-        allocate();
-    }
-
-    _impl->release_lock();
-}
-
 void CLDNNRemoteBlobImpl::allocate() noexcept {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
-    std::shared_ptr<cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
+    auto _impl = getContextImpl(m_context.lock());
+    _impl->acquire_lock();
+    std::shared_ptr<cldnn::engine> eng = _impl->GetEngine();
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
@@ -129,6 +120,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     default:
         m_memObject.reset();
     }
+    _impl->release_lock();
 }
 
 const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noexcept {
@@ -154,7 +146,7 @@ void CLDNNRemoteBlobImpl::lock() const {
 }
 
 void CLDNNRemoteBlobImpl::unlock() const {
-    lockedHolder.release();
+    lockedHolder.reset();
 }
 
 LockedMemory<void> CLDNNRemoteBlobImpl::buffer() noexcept {

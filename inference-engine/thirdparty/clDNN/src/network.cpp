@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stack>
 #include <memory>
 #include <set>
 #include <utility>
@@ -56,8 +57,9 @@ void network::set_input_data(const primitive_id& id, memory::ptr mem) const {
     _impl->set_input_data(id, mem);
 }
 
-void network::set_output_memory(const primitive_id& id, memory::ptr mem) const {
-    _impl->set_output_memory(id, mem);
+void network::set_output_memory(const primitive_id& id, memory::ptr mem,
+    bool check, bool propagate_to_optimized, bool propagate_to_real_deps) const {
+    _impl->set_output_memory(id, mem, check, propagate_to_optimized, propagate_to_real_deps);
 }
 
 stream& network::get_stream() const {
@@ -102,6 +104,13 @@ std::vector<primitive_id> network::get_input_ids() const {
 
 std::vector<primitive_id> network::get_output_ids() const {
     return _impl->get_output_ids();
+}
+
+std::vector<primitive_id> network::get_output_optimized_chain_ids(const primitive_id& output_id) {
+    return _impl->get_output_optimized_chain_ids(output_id);
+}
+std::vector<primitive_id> network::get_output_memory_primitive_ids(const primitive_id& output_id) {
+    return _impl->get_output_memory_primitive_ids(output_id);
 }
 
 memory::ptr network::get_output_memory(const primitive_id& output_id) const {
@@ -388,23 +397,67 @@ void network_impl::set_input_data(const primitive_id& id, memory::ptr data) {
     input->set_data(data);
 }
 
-void network_impl::set_output_memory(const primitive_id& id, memory::ptr mem) {
-    std::shared_ptr<primitive_inst> primitive_inst;
+void network_impl::set_output_memory(const primitive_id& id, memory::ptr mem_new,
+    bool check, bool propagate_to_optimized, bool propagate_to_real_deps) {
+    std::shared_ptr<primitive_inst> p_inst;
 
-    primitive_inst = find_primitive(id);
+    p_inst = find_primitive(id);
 
-    if (primitive_inst == nullptr)
+    if (p_inst == nullptr)
         throw std::runtime_error("topology doesn't contain primitive: " + id);
 
-    auto iter = std::find(_outputs.begin(), _outputs.end(), primitive_inst);
+    auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
         throw std::runtime_error("primitive: " + id + " is not a network output");
 
-    auto output = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-
     // Wait for previous execution completion
     reset_execution(true);
-    output->set_output_memory(mem);
+
+    std::vector<std::shared_ptr<primitive_inst>> real_deps;
+    std::vector<std::shared_ptr<primitive_inst>> optimized;
+    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+
+    auto& eng = get_engine();
+    const auto& mem_orig = p_inst->output_memory();
+    if (p_inst->can_be_optimized()) {
+        candidates.push(p_inst);
+    } else {
+        p_inst->set_output_memory(mem_new, check);
+    }
+
+    // find all dependencies that are 'optimized'
+    while (!candidates.empty()) {
+        auto& cand = candidates.top();
+        candidates.pop();
+        const auto& mem_cand = cand->output_memory();
+        if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
+            optimized.push_back(std::const_pointer_cast<primitive_inst>(cand));
+        }
+
+        for (auto& dep : cand->dependencies()) {
+            if (dep->can_be_optimized()) {
+                candidates.push(dep);
+            } else {
+                const auto& mem_dep = dep->output_memory();
+                if (eng.is_the_same_buffer(mem_orig, mem_dep)) {
+                    real_deps.push_back(std::const_pointer_cast<primitive_inst>(dep));
+                }
+            }
+        }
+    }
+
+    // replace primitive buffers while keeping their original layout
+    if (propagate_to_optimized) {
+        for (auto& prim : optimized) {
+            prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+        }
+    }
+
+    if (propagate_to_real_deps) {
+        for (auto& prim : real_deps) {
+            prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+        }
+    }
 }
 
 void cldnn::network_impl::check_names() {
@@ -717,5 +770,74 @@ void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> ins
         mem_pool.release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
+}
+
+std::vector<primitive_id> network_impl::get_output_optimized_chain_ids(const primitive_id& output_id) {
+    std::shared_ptr<const primitive_inst> p_inst;
+
+    p_inst = find_primitive(output_id);
+
+    if (p_inst == nullptr)
+        throw std::runtime_error("topology doesn't contain primitive: " + output_id);
+
+    auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
+    if (iter == _outputs.end())
+        throw std::runtime_error("primitive: " + output_id + " is not a network output");
+
+    std::vector<primitive_id> dep_ids;
+    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+
+    if (p_inst->can_be_optimized()) {
+        candidates.push(p_inst);
+    }
+
+    while (!candidates.empty()) {
+        auto& cand = candidates.top();
+        candidates.pop();
+        dep_ids.push_back(cand->id());
+
+        for (auto& dep : cand->dependencies()) {
+            if (dep->can_be_optimized()) {
+                candidates.push(dep);
+            }
+        }
+    }
+
+    return dep_ids;
+}
+
+std::vector<primitive_id> network_impl::get_output_memory_primitive_ids(const primitive_id& output_id) {
+    std::shared_ptr<const primitive_inst> p_inst;
+
+    p_inst = find_primitive(output_id);
+
+    if (p_inst == nullptr)
+        throw std::runtime_error("topology doesn't contain primitive: " + output_id);
+
+    auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
+    if (iter == _outputs.end())
+        throw std::runtime_error("primitive: " + output_id + " is not a network output");
+
+    std::vector<primitive_id> dep_ids;
+    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+
+    if (p_inst->can_be_optimized()) {
+        candidates.push(p_inst);
+    }
+
+    while (!candidates.empty()) {
+        auto& cand = candidates.top();
+        candidates.pop();
+
+        for (auto& dep : cand->dependencies()) {
+            if (dep->can_be_optimized()) {
+                candidates.push(dep);
+            } else {
+                dep_ids.push_back(dep->id());
+            }
+        }
+    }
+
+    return dep_ids;
 }
 }  // namespace cldnn

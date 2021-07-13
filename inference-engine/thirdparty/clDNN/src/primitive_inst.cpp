@@ -17,6 +17,7 @@
 #include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include <stack>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -51,6 +52,8 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
             if (layout.format.is_image_2d())
                 CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output buffer instead of an image");
             break;
+        case shared_mem_type::shared_mem_usm:
+            break;
         default:
             CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output memory of unknown/invalid type");
             break;
@@ -58,12 +61,71 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem) {
+void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
+    auto& eng = _network.get_engine();
+    // skip all the buzz if no action actually required
+    if (eng.is_the_same_buffer(*mem_new, *_output)) {
+        return;
+    }
+
     auto ol = _node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    if (check)  check_memory_to_set(*mem_new, ol);
 
-    _output = mem;
+    const auto& mem_orig = *_output;
+    std::vector<std::shared_ptr<primitive_inst>> sharing;
+
+    if (_node.is_constant()) {
+        mem_new->copy_from(_network.get_stream(), *_output);
+    } else if (_node.is_type<mutable_data>()) {
+        auto& mem_node = const_cast<program_node&>(_node).as<mutable_data>();
+        auto& mem_attached = mem_node.get_attached_memory();
+
+        if (!eng.is_the_same_buffer(*mem_new, mem_attached)) {
+            // special handling for mutable data, which can share
+            // its attached memory with both inputs and outputs
+            if (_node.is_input()) {
+                mem_new->copy_from(_network.get_stream(), *_output);
+            }
+
+            for (auto& dep : dependencies()) {
+                // then assign to dependencies
+                if (eng.is_the_same_buffer(mem_orig, dep->output_memory())) {
+                    sharing.push_back(std::const_pointer_cast<primitive_inst>(dep));
+                }
+                // then to second order dependencies
+                for (auto& second_dep : dep->dependencies()) {
+                    if (eng.is_the_same_buffer(mem_orig, second_dep->output_memory())) {
+                        sharing.push_back(std::const_pointer_cast<primitive_inst>(second_dep));
+                    }
+                }
+            }
+
+            //then to users
+            const auto& users = get_users();
+            for (const auto& usr : users) {
+                auto usr_prim = _network.get_primitive(usr->id());
+                if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
+                    sharing.push_back(usr_prim);
+                }
+            }
+
+            // re-attach mutable_data internal memory if necessary
+            if (eng.is_the_same_buffer(mem_orig, mem_attached)) {
+                mem_node.attach_memory(eng.reinterpret_buffer(*mem_new, mem_attached.get_layout()));
+            }
+        }
+    }
+
+    // then assign primitive output itself
+    if (!_node.is_constant()) {
+        _output = mem_new;
+    }
+
+    // perform actual memory buffer handle replacemnet
+    for (auto& prim : sharing) {
+        prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+    }
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {

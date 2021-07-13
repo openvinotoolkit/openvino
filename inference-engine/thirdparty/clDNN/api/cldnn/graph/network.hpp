@@ -103,7 +103,11 @@ struct network {
     void set_input_data(const primitive_id& id, memory::ptr mem) const;
 
     /// @brief Provides user-supplied @ref memory for output primitives defined by user in source @ref topology.
-    void set_output_memory(const primitive_id& id, memory::ptr mem) const;
+    void set_output_memory(const primitive_id& id,
+                           memory::ptr mem,
+                           bool check = true,
+                           bool propagate_to_optimized = false,
+                           bool propagate_to_real_deps = false) const;
 
     /// @brief Return stream id.
     uint16_t get_stream_id();
@@ -137,6 +141,12 @@ struct network {
 
     /// @brief Returns the list of available network outputs.
     std::vector<primitive_id> get_output_ids() const;
+
+    /// @brief Returns the list of preceeding optimized primitives that share memory with the given output.
+    std::vector<primitive_id> get_output_optimized_chain_ids(const primitive_id& output_id);
+
+    /// @brief Returns the list of real output primitives if the given output is optimized out.
+    std::vector<primitive_id> get_output_memory_primitive_ids(const primitive_id& output_id);
 
     /// @brief Returns @ref memory object for particular @p output. Can be called before network execution
     memory::ptr get_output_memory(const primitive_id& output_id) const;
