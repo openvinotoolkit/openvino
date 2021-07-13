@@ -143,14 +143,14 @@ namespace ngraph
             /// \brief For operation node returns reference to an input port; applicable if
             /// operation node has only one input port
             ///
-            /// \return Input port place
+            /// \return Input port place or nullptr if not exists
             virtual Ptr get_input_port() const;
 
             /// \brief For operation node returns reference to an input port with specified index
             ///
             /// \param inputPortIndex Input port index
             ///
-            /// \return Appropriate input port place
+            /// \return Appropriate input port place or nullptr if not exists
             virtual Ptr get_input_port(int inputPortIndex) const;
 
             /// \brief For operation node returns reference to an input port with specified name;
@@ -158,7 +158,7 @@ namespace ngraph
             ///
             /// \param inputName Name of port group
             ///
-            /// \return Appropriate input port place
+            /// \return Appropriate input port place or nullptr if not exists
             virtual Ptr get_input_port(const std::string& inputName) const;
 
             /// \brief For operation node returns reference to an input port with specified name and
@@ -168,20 +168,20 @@ namespace ngraph
             ///
             /// \param inputPortIndex Input port index in a group
             ///
-            /// \return Appropriate input port place
+            /// \return Appropriate input port place or nullptr if not exists
             virtual Ptr get_input_port(const std::string& inputName, int inputPortIndex) const;
 
             /// \brief For operation node returns reference to an output port; applicable for
             /// operations with only one output port
             ///
-            /// \return Appropriate output port place
+            /// \return Appropriate output port place or nullptr if not exists
             virtual Ptr get_output_port() const;
 
             /// \brief For operation node returns reference to an output port with specified index
             ///
             /// \param outputPortIndex Output port index
             ///
-            /// \return Appropriate output port place
+            /// \return Appropriate output port place or nullptr if not exists
             virtual Ptr get_output_port(int outputPortIndex) const;
 
             /// \brief For operation node returns reference to an output port with specified name;
@@ -189,7 +189,7 @@ namespace ngraph
             ///
             /// \param outputName Name of output port group
             ///
-            /// \return Appropriate output port place
+            /// \return Appropriate output port place or nullptr if not exists
             virtual Ptr get_output_port(const std::string& outputName) const;
 
             /// \brief For operation node returns reference to an output port with specified name
@@ -199,7 +199,7 @@ namespace ngraph
             ///
             /// \param outputPortIndex Output port index
             ///
-            /// \return Appropriate output port place
+            /// \return Appropriate output port place or nullptr if not exists
             virtual Ptr get_output_port(const std::string& outputName, int outputPortIndex) const;
 
             /// \brief Returns all input ports that consume data flows through this place
