@@ -40,6 +40,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -66,7 +68,8 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
     for (const auto& lt : params.inputs) {
         auto cur_layout = lt.GetLayout();
         if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
-            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16)) {
+            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
+            || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
         } else if (cur_layout != same_layout) {
             return false;

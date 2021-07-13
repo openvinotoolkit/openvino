@@ -116,7 +116,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
             return false;
 
-        if (l.format == format::bs_fs_yx_bsv16_fsv16)
+        if (l.format == format::bs_fs_yx_bsv16_fsv16 )
             return false;
 
         if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != concatenation::along_f))

@@ -106,16 +106,15 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()))
-        return _format_forcing.at(node.id()) == fmt;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()))
+        return _forcing_map.at(node.id()).first == fmt;
 
-    auto& engine = node.get_program().get_engine();
     auto prev_layout = node.get_output_layout();
     auto new_layout = prev_layout;
     new_layout.format = fmt;
     node.set_output_layout(new_layout, false);
 
-    auto supported = node.type()->does_possible_implementation_exist(engine, node);
+    auto supported = node.type()->does_possible_implementation_exist(node);
 
     node.set_output_layout(prev_layout, false);
 
@@ -824,12 +823,21 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
+impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
+    impl_types preferred_impl = impl_types::any;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        preferred_impl = _forcing_map.at(node.id()).second;
+    }
+
+    return preferred_impl;
+}
+
 format layout_optimizer::get_preferred_format(program_node& node) {
     format expected = format::any;
     auto output_layout = node.get_output_layout();
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()) != 0) {
-        expected = _format_forcing.at(node.id());
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto weights_layout = conv_node.weights(0).get_output_layout();
@@ -977,7 +985,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
 
 void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
     for (const auto& kv : map) {
-        _format_forcing.emplace(kv.first, kv.second.output_format);
+        _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }
 }
 
