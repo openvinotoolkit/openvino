@@ -105,6 +105,21 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
+class InferRequestTests : public BehaviorTestsBasic {
+public:
+    void SetUp()  override {
+        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        cnnNet = InferenceEngine::CNNNetwork(function);
+        // Load CNNNetwork to target plugins
+        execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    }
+
+protected:
+    InferenceEngine::CNNNetwork cnnNet;
+    InferenceEngine::ExecutableNetwork execNet;
+};
+
 using BehaviorParamsSingleOption = std::tuple<
     InferenceEngine::Precision,         // Network precision
     std::string,                        // Device name
