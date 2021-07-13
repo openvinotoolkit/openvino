@@ -43,44 +43,43 @@ The following components are installed with the OpenVINO developer package:
 
 ## Install Packages
 
-### Set up the Repository
+### Set up the OpenVINO™ Toolkit APT Repository
 
-#### Install the GPG key for the repository
+#### Install the GPG key for the Repository
 
 1. Download the public key from [https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021](https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021) and save it to a file. 
 2. Add this key to the system keyring:
 ```sh
 sudo apt-key add <PATH_TO_DOWNLOADED_GPG_KEY>
 ```
-> **NOTE**: You might need to install GnuPG support: `sudo apt-get install gnupg`
+> **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
 
 3. Check the list of APT keys running the following command:
 ```sh
 sudo apt-key list
 ```
 
-#### Add the APT Repository
+#### Add the Repository
 
 Run the following command:
 ```sh
 echo "deb https://apt.repos.intel.com/openvino/2021 all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2021.list
 ```
 
-#### Update the list of packages
+#### Update the List of Packages
 
 Run the `update` command:
 ```sh
 sudo apt update
 ```
 
-#### Verify that the new repo is properly setup
+#### Verify that the Repo is Properly Set Up
 
 Run the `apt-cache` command to see a list of all available OpenVINO packages and components:
 ```sh
 apt-cache search openvino
 ```
-
-#### Examples
+See the example commands below:
 
 * **Runtime Packages**
   
@@ -103,29 +102,23 @@ apt-cache search openvino
   sudo apt-cache search intel-openvino-dev-ubuntu20
   ```
 
-### Install the runtime or developer packages using the APT Package Manager
-Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
+### Install Runtime or Developer Packages using the APT Package Manager
+Intel® OpenVINO™ Toolkit will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
----
-#### To Install a specific version
+#### To Install a Specific Version
 
-To get a list of OpenVINO packages available for installation:
-
+1. Get a list of OpenVINO packages available for installation:
 ```sh
 sudo apt-cache search intel-openvino-runtime-ubuntu18
 ```
-
-To install a specific version of an OpenVINO package:
+2. Install a specific version of an OpenVINO package:
 ```sh
 sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
 ```
-
-#### Examples
-
-* **Runtime Package**
-
+See the example commands below:
+* **Runtime Package**<br>
   On Ubuntu 18.04:
   ```sh
   sudo apt install intel-openvino-runtime-ubuntu18-2021.1.105
@@ -144,20 +137,17 @@ sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPD
   sudo apt install intel-openvino-dev-ubuntu20-2021.1.105
   ```
 
----
+#### To check for Installed Packages and Versions
 
-#### To check for installed packages and version
-
-To check a specific version of an OpenVINO package:
+To get a list of installed OpenVINO packages:
 
 ```sh
 apt list --installed | grep openvino
 ```
 
----
-#### To Uninstall a specific version
+#### To Uninstall a Specific Version
 
-To uninstall a specific full runtime package:
+To uninstall a specific package:
 ```sh
 sudo apt autoremove intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
 ```
