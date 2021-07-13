@@ -4,10 +4,10 @@
 
 #include <cnpy.h>
 
+#include "op_fuzzy.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "op_fuzzy.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
@@ -15,7 +15,6 @@ using namespace InferenceEngine;
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-using TestEngine = test::IE_CPU_Engine;
 
 std::string
     FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj)
@@ -48,20 +47,19 @@ void FrontEndFuzzyOpTest::doLoadFromFile()
     ASSERT_NE(m_inputModel, nullptr);
 }
 
-template <typename T>
-inline void addInputOutput(cnpy::NpyArray& npy_array,
-                           test::TestCase<TestEngine>& test_case,
-                           bool is_input = true)
+template <typename T1, typename T2>
+inline void
+    addInputOutput(cnpy::NpyArray& npy_array, test::TestCase<T2>& test_case, bool is_input = true)
 {
-    T* npy_begin = npy_array.data<T>();
-    std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
+    T1* npy_begin = npy_array.data<T1>();
+    std::vector<T1> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
         test_case.add_input(data);
     else
         test_case.add_expected_output(data);
 }
 
-static bool ends_with(std::string const& value, std::string const& ending)
+static bool endsWith(std::string const& value, std::string const& ending)
 {
     if (ending.size() > value.size())
         return false;
@@ -70,19 +68,20 @@ static bool ends_with(std::string const& value, std::string const& ending)
 
 static std::string getModelFolder(const std::string& modelFile)
 {
-    if (!ends_with(modelFile, ".pdmodel"))
+    if (!endsWith(modelFile, ".pdmodel"))
         return modelFile;
     size_t found = modelFile.find_last_of("/\\");
     return modelFile.substr(0, found);
 };
 
+template <typename T>
 void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Function> function,
                                             const std::string& modelFile)
 {
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = test::TestCase<TestEngine>(function);
+    auto testCase = test::TestCase<T>(function);
 
     const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++)
@@ -159,5 +158,5 @@ TEST_P(FrontEndFuzzyOpTest, testOpFuzzy)
     ASSERT_NE(function, nullptr);
 
     // run
-    runConvertedModel(function, m_modelFile);
+    runConvertedModel<test::INTERPRETER_Engine>(function, m_modelFile);
 }
