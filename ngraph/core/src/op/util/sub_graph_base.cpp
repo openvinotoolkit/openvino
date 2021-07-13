@@ -177,4 +177,3 @@ Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
     set_argument(input_index, value);
     return Input<Node>(this, input_index);
 }
-
