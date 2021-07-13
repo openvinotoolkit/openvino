@@ -44,7 +44,7 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<ngrap
 }
 
 MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), permuteKernel_(nullptr) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -112,6 +112,17 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     _reordered_conf.resize(std::accumulate(confSize.begin(), confSize.end(), 1, std::multiplies<size_t>()));
 }
 
+void MKLDNNDetectionOutputNode::createPrimitive() {
+    PermuteParams params;
+    params.src_block_dims = {_num, _num_priors, _num_classes};
+    params.dst_block_dims = {_num, _num_classes, _num_priors};
+    params.order = {0, 2, 1};
+    params.src_block_order = {0, 1, 2};
+    params.dst_block_order = {0, 1, 2};
+    params.data_size = sizeof(float);
+    permuteKernel_ = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+}
+
 void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -137,6 +148,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     const float *arm_loc_data = inDims.size() > 4 ?
             reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_location)->getMemoryPtr()->GetPtr()) : nullptr;
 
+    // two pass
     const int N = getParentEdgeAt(idx_confidence)->getDims()[0];
 
     float *decoded_bboxes_data = _decoded_bboxes.data();
@@ -201,10 +213,16 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
             }
         }
     } else {
-        for (int n = 0; n < N; ++n) {
-            for (int c = 0; c < _num_classes; ++c) {
-                for (int p = 0; p < _num_priors; ++p) {
-                    reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
+        if (permuteKernel_) {
+            auto srcData = reinterpret_cast<const uint8_t*>(conf_data);
+            auto dstData = reinterpret_cast<uint8_t*>(reordered_conf_data);
+            permuteKernel_->execute(srcData, dstData);
+        } else {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < _num_classes; ++c) {
+                    for (int p = 0; p < _num_priors; ++p) {
+                        reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
+                    }
                 }
             }
         }
