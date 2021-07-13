@@ -70,6 +70,7 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
             }
             paddingL = convBackprop->get_pads_begin();
             paddingR = convBackprop->get_pads_end();
+            paddingType = convBackprop->get_auto_pad();
         } else if (groupConvBackprop) {
             algorithm = DeconvolutionGrouped;
 
@@ -227,15 +228,17 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has incorrect number of output edges";
 
-    for (int i = 0; i < paddingR.size(); i++) {
-        int with_group = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
-        int krn = weightDims[with_group + 2 + i];
-        int src = getChildEdgeAt(0)->getDims()[2 + i];
-        int dst = getParentEdgeAt(0)->getDims()[2 + i];
+    if (paddingType != ngraph::op::PadType::SAME_LOWER) {
+        for (int i = 0; i < paddingR.size(); i++) {
+            int with_group = getAlgorithm() == DeconvolutionGrouped ? 1 : 0;
+            int krn = weightDims[with_group + 2 + i];
+            int src = getChildEdgeAt(0)->getDims()[2 + i];
+            int dst = getParentEdgeAt(0)->getDims()[2 + i];
 
-        krn = (krn - 1)*(dilation[i] + 1) + 1;
-        int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
-        paddingR[i] = (dst - calc_dst) * stride[i];
+            krn = (krn - 1) * (dilation[i] + 1) + 1;
+            int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
+            paddingR[i] = (dst - calc_dst) * stride[i];
+        }
     }
 
     if (isInt8) {

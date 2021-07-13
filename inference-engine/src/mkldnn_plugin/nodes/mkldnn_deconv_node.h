@@ -52,6 +52,7 @@ private:
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
+    ngraph::op::PadType paddingType;
     InferenceEngine::SizeVector weightDims;
     std::vector<std::shared_ptr<mkldnn::convolution_forward::desc>> descs_fwd;
     std::vector<std::shared_ptr<mkldnn::convolution_backward_data::desc>> descs_bwd;
