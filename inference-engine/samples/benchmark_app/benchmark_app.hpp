@@ -143,6 +143,8 @@ static constexpr char iop_message[] = "Optional. Specifies precision for input a
                                       "                                             Overwrites precision from ip and op options for "
                                       "specified layers.";
 
+static constexpr char input_image_scale_message[] = "Optional. Use input image scale. Input is divided by scale.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -252,6 +254,9 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
+/// @brief Define flag for using input image scale. Input is divided by scale. <br>
+DEFINE_double(iscale, 1, input_image_scale_message);
+
 /**
  * @brief This function show a help message
  */
@@ -296,4 +301,5 @@ static void showUsage() {
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
+    std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
 }
