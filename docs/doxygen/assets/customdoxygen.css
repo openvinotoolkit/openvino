@@ -572,6 +572,11 @@ a.homelink-id > p {
   font-size: 1rem;
 }
 
+a.disabled {
+  pointer-events: none;
+  cursor: default;
+}
+
 #projectnumber {
   display: none;
   font: inherit;
@@ -580,7 +585,6 @@ a.homelink-id > p {
 
 #versionsSelector {
   font-size: 0.875rem;
-  margin-right: 2.25rem;
   min-width:90px;
   position: relative;
 }
@@ -589,10 +593,11 @@ div.ovino-btn {
   font-size: 1rem;
   line-height: 1.25;
   border-radius: 0.25rem;
-  padding: 0.625rem 1.5rem;
   background: #003C71;
   color: #ffffff;
   white-space: nowrap;
+  cursor: pointer;
+  display:inline-block;
 }
 
 div.ovino-btn:hover {
@@ -602,6 +607,19 @@ div.ovino-btn:hover {
 div.ovino-btn > a {
   color:white;
   width:100%;
+  padding: 0.625rem 1.5rem;
+  display:block;
+}
+
+div.inactive {
+  background: #d7d7d7;
+  color: #555555;
+  cursor:default;
+  pointer-events:none;
+}
+
+div.inactive > a {
+  color:#555555;
 }
 
 
@@ -789,14 +807,6 @@ a.see-all {
   #projectalign, #MSearchBox, #MSearchBox .left {
     width: 16rem;
   }
-
-  #download-link {
-    margin-right: 2.25rem;
-  }
-
-  #install-link {
-    margin-right: 3.28rem;
-  }
 }
 
 #main-nav ul#main-menu > li > a.active {
@@ -817,20 +827,16 @@ div.old-version > p {
   display: flex;
   justify-content: flex-end;
   padding:8px;
+  padding-right:3.75rem;
 }
 
-#download-link {
-  margin-right: 2.25rem;
-}
-
-#install-link {
-    margin-right: 3.75rem;
+#secondnav > div {
+  margin: 0 15px;
 }
 
 .nav-placeholder {
   background:#ececec;
-  width:10%;
-  height:30px;
+  width:150px;
 }
 
 /* =========================================================== */
