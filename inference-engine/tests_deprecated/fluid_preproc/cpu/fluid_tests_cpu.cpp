@@ -280,7 +280,23 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                                        cv::Size( 320,  200),
                                        cv::Size( 300,  300),
                                        cv::Size( 150,  150)),
-                                Values(0)));
+                                Values(0),
+                                Values(1, 2, 4, 8)));
+
+INSTANTIATE_TEST_CASE_P(ColorConvertYUV420BatchedFluid, ColorConvertYUV420BatchedTestIE,
+                        Combine(Values(InferenceEngine::NV12, InferenceEngine::I420),
+                                Values(InferenceEngine::NHWC, InferenceEngine::NCHW),
+                                Values(cv::Size(3840, 2160),
+                                       cv::Size(1920, 1080),
+                                       cv::Size(1280,  720),
+                                       cv::Size(1280,  960),
+                                       cv::Size( 960,  720),
+                                       cv::Size( 640,  480),
+                                       cv::Size( 320,  200),
+                                       cv::Size( 300,  300),
+                                       cv::Size( 150,  150)),
+                                Values(0),
+                                Values(1, 2, 4, 8)));
 
 INSTANTIATE_TEST_SUITE_P(Reorder_HWC2CHW, ColorConvertTestIE,
                         Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),

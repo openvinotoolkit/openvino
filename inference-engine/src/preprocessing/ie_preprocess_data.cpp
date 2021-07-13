@@ -64,7 +64,9 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
         IE_THROW() << "Input pre-processing is called with null " << (_userBlob == nullptr ? "_userBlob" : "preprocessedBlob");
     }
 
-    batchSize = PreprocEngine::getCorrectBatchSize(batchSize, _userBlob);
+    if (batchSize == 0) {
+        IE_THROW() << "Input pre-processing is called with invalid batch size " << batchSize;
+    }
 
     if (!_preproc) {
         _preproc.reset(new PreprocEngine);

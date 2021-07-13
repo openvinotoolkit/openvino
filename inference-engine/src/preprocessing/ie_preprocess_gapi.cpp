@@ -146,8 +146,8 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const NV12Blob::Ptr& i
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
     for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
+        input.emplace_back(std::move(batched_y_plane_mats[i][0]));  //[0] cause only one channel for y
+        input.emplace_back(std::move(batched_uv_plane_mats[i][0])); //[0] cause only one channel for uv
     }
 
     return batched_input_plane_mats;
@@ -169,9 +169,36 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
     for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
-        input.emplace_back(std::move(batched_y_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_u_plane_mats[i][0]));
-        input.emplace_back(std::move(batched_v_plane_mats[i][0]));
+        input.emplace_back(std::move(batched_y_plane_mats[i][0])); //[0] cause only one channel for y
+        input.emplace_back(std::move(batched_u_plane_mats[i][0])); //[0] cause only one channel for u
+        input.emplace_back(std::move(batched_v_plane_mats[i][0])); //[0] cause only one channel for v
+    }
+
+    return batched_input_plane_mats;
+}
+
+std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const BatchedBlob::Ptr& blob,
+                                                          int batch_size) {
+    int underlied_blob_size = 1;
+    std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(blob->size() * underlied_blob_size);
+    for (size_t i = 0; i < blob->size(); ++i) {
+        auto inBlob = blob->getBlob(i);
+
+        //TODO reuse `underlied_blob_plane` memory
+        std::vector<std::vector<cv::gapi::own::Mat>> underlied_blob_plane;
+
+        if (inBlob->is<NV12Blob>()) {
+            underlied_blob_plane = bind_to_blob(as<NV12Blob>(inBlob), underlied_blob_size);
+        } else if (inBlob->is<I420Blob>()) {
+            underlied_blob_plane = bind_to_blob(as<I420Blob>(inBlob), underlied_blob_size);
+        } /* no alternative here - it had just validated right before */
+
+        // iterate over underlying lob batch_size her
+        for (size_t j = 0; j < underlied_blob_plane.size(); j++) {
+            // got  underlying blob components: (y & uv) or (y & u & v)
+            auto &full_component_plane = underlied_blob_plane[j];
+            batched_input_plane_mats.at(i * underlied_blob_size).swap(full_component_plane);
+        }
     }
 
     return batched_input_plane_mats;
@@ -332,6 +359,8 @@ void validateTensorDesc(const TensorDesc& desc) {
     }
 }
 
+void validateBlob(const BatchedBlob::Ptr &) {}
+
 void validateBlob(const MemoryBlob::Ptr &) {}
 
 void validateBlob(const NV12Blob::Ptr &inBlob) {
@@ -355,6 +384,11 @@ void validateBlob(const I420Blob::Ptr &inBlob) {
 
     validateTensorDesc(u_blob->getTensorDesc());
     validateTensorDesc(v_blob->getTensorDesc());
+}
+
+const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const BatchedBlob::Ptr &blob) {
+    const auto& desc =  blob->getTensorDesc();
+    return {desc, /*desc.getLayout()*/ Layout::NCHW};
 }
 
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const MemoryBlob::Ptr &blob) {
@@ -392,6 +426,22 @@ G::Desc getGDesc(G::Desc in_desc_y, const I420Blob::Ptr &) {
 }
 
 G::Desc getGDesc(G::Desc in_desc_y, const MemoryBlob::Ptr &) {
+    return in_desc_y;
+}
+
+G::Desc getGDesc(G::Desc in_desc_y, const BatchedBlob::Ptr &batch) {
+    if (!batch->size()) {
+        IE_THROW() << "Cannot call getGDesc() from empty batch blob";
+    }
+    auto blob = batch->getBlob(0);
+    if (blob->is<I420Blob>()) {
+        return getGDesc(in_desc_y, as<I420Blob>(blob));
+    } else if (blob->is<NV12Blob>()) {
+        return getGDesc(in_desc_y, as<NV12Blob>(blob));
+    } else {
+        IE_THROW() << "Cannot call getGDesc() BatchedBlob underlying type is not supported";
+    }
+
     return in_desc_y;
 }
 
@@ -759,7 +809,7 @@ PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) con
     return Update::NOTHING;
 }
 
-void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
+void PreprocEngine::checkSingleBlobApplicabilityGAPI(const Blob::Ptr &src, const SizeVector &network_input_valid_dims) {
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
     // src is either a memory blob, an NV12, or an I420 blob
@@ -768,33 +818,63 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
         IE_THROW()  << "Unsupported input blob type: expected MemoryBlob, NV12Blob or I420Blob";
     }
 
-    // dst is always a memory blob
-    if (!dst->is<MemoryBlob>()) {
-        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
-    }
-
     const auto &src_dims = src->getTensorDesc().getDims();
-    const auto &dst_dims = dst->getTensorDesc().getDims();
 
     // dimensions sizes must be equal if both blobs are memory blobs
-    if (!yuv420_blob && src_dims.size() != dst_dims.size()) {
+    if (!yuv420_blob && src_dims.size() != network_input_valid_dims.size()) {
         IE_THROW() << "Preprocessing is not applicable. Source and destination blobs "
                               "have different number of dimensions.";
-    }
-    if (dst_dims.size() != 4) {
-        IE_THROW() << "Preprocessing is not applicable. Only 4D tensors are supported.";
     }
 
     // dimensions must not have values that are equal to 0
     if (has_zeros(src_dims)) {
         IE_THROW() << "Invalid input data dimensions: " << details::dumpVec(src_dims);
     }
+}
+
+void PreprocEngine::checkBatchedBlobApplicabilityGAPI(const BatchedBlob::Ptr &src, const SizeVector &network_input_valid_dims) {
+    size_t inner_blob_count = src->size();
+    size_t index = 0;
+    try {
+        for ( ; index < inner_blob_count; index++) {
+            checkSingleBlobApplicabilityGAPI(src->getBlob(index), network_input_valid_dims);
+        }
+    }
+    catch (const std::exception& e) {
+        IE_THROW() << "Fail in BatchedBlob validation: " << e.what() << " - by index: " << index
+                   << ", total count: "  << inner_blob_count;
+    }
+}
+
+void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
+    // dst is always a memory blob
+    if (!dst->is<MemoryBlob>()) {
+        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
+    }
+
+    const auto &dst_dims = dst->getTensorDesc().getDims();
+
+    if (dst_dims.size() != 4) {
+        IE_THROW() << "Preprocessing is not applicable. Only 4D tensors are supported.";
+    }
 
     if (has_zeros(dst_dims)) {
         IE_THROW() << "Invalid network's input dimensions: " << details::dumpVec(dst_dims);
     }
-}
 
+    try {
+        //TODO implement CheckApplicabilityPolicy for blob?
+        if (src->is<BatchedBlob>()) {
+            checkBatchedBlobApplicabilityGAPI(as<BatchedBlob>(src), dst_dims);
+        } else {
+            checkSingleBlobApplicabilityGAPI(src, dst_dims);
+        }
+    }
+    catch (const std::exception& e) {
+        IE_THROW() << "Preprocessing failed. " << e.what();
+    }
+}
+//[deprecated]
 int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
     if (batch == 0) {
         IE_THROW() << "Input pre-processing is called with invalid batch size " << batch;
@@ -897,7 +977,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
 }
 
 template<typename BlobTypePtr>
-void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+void PreprocEngine::preprocessTypedBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
     ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
     int batch_size) {
 
@@ -977,16 +1057,15 @@ void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
         omp_serial, update);
 }
 
-void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-        const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
-    const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
+void PreprocEngine::preprocessBatchedBlob(const BatchedBlob::Ptr &inBlob, MemoryBlob::Ptr &outMemoryBlob,
+        ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
+        int batch_size) {
+    batch_size = inBlob->size();
+    preprocessTypedBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial, batch_size);
+}
 
-    // output is always a memory blob
-    auto outMemoryBlob = as<MemoryBlob>(outBlob);
-    if (!outMemoryBlob) {
-        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
-    }
-
+void PreprocEngine::preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &outMemoryBlob, const ResizeAlgorithm &algorithm,
+        ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial, int batch_size) {
     // FIXME: refactor the code below. there must be a better way to handle the difference
 
     // if input color format is not NV12, a MemoryBlob is expected. otherwise, NV12Blob is expected
@@ -997,7 +1076,13 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected NV12Blob";
         }
-        return preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+
+        if (batch_size > 1) {
+            IE_THROW()  << "Provided input blob batch size " << batch_size
+                                << " is not supported in compound blob pre-processing";
+        }
+        batch_size = 1;
+        return preprocessTypedBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
     case ColorFormat::I420: {
@@ -1006,7 +1091,13 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected I420Blob";
         }
-        return preprocessBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+
+        if (batch_size > 1) {
+            IE_THROW()  << "Provided input blob batch size " << batch_size
+                                << " is not supported in compound blob pre-processing";
+        }
+        batch_size = 1;
+        return preprocessTypedBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
 
@@ -1016,8 +1107,33 @@ void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBl
             IE_THROW()  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected MemoryBlob";
         }
-        return preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+
+        if (batch_size < 0) {
+            // if batch size is unspecified, process the whole input blob
+            batch_size = static_cast<int>(inMemoryBlob->getTensorDesc().getDims()[0]);
+        }
+        return preprocessTypedBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
+}
+
+void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+        const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
+    const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
+
+    // output is always a memory blob
+    auto outMemoryBlob = as<MemoryBlob>(outBlob);
+    if (!outMemoryBlob) {
+        IE_THROW()  << "Unsupported network's input blob type: expected MemoryBlob";
+    }
+
+    if (inBlob->is<BatchedBlob>()) {
+        return preprocessBatchedBlob(as<BatchedBlob>(inBlob),
+                              outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+                              batch_size);
+    }
+
+    return preprocessBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
+            batch_size);
 }
 }  // namespace InferenceEngine
