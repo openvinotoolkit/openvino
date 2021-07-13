@@ -244,6 +244,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
+    GetCore()->GetAvailableDevices();
 
     if (network.getFunction() == nullptr) {
         IE_THROW() << "MULTI device supports just ngraph network representation";
