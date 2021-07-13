@@ -51,6 +51,12 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
+#include <vpu/configuration/options/disable_convert_stages.hpp>
+#include <vpu/configuration/options/ignore_unknown_layers.hpp>
+#include <vpu/configuration/options/custom_layers.hpp>
+#include <vpu/configuration/options/config_file.hpp>
+#include <vpu/utils/skip_layers.hpp>
+
 namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
     : _stageBuilder(std::move(stageBuilder)),
@@ -436,7 +442,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.compileConfig().ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.get<IgnoreUnknownLayersOption>(), "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
@@ -466,15 +472,17 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     // Parse custom layers
     //
 
-    if (!env.config.compileConfig().customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", env.config.compileConfig().customLayers);
+    auto customLayers = env.config.get<CustomLayersOption>().empty()
+        ? env.config.get<ConfigFileOption>() : env.config.get<CustomLayersOption>();
+    if (!customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", customLayers);
         VPU_LOGGER_SECTION(env.log);
 
         if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
             VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
         }
 
-        _customLayers = CustomLayer::loadFromFile(env.config.compileConfig().customLayers);
+        _customLayers = CustomLayer::loadFromFile(customLayers);
     }
 
     //
@@ -493,10 +501,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
-
-        if (network.getFunction() && env.config.compileConfig().forceDeprecatedCnnConversion) {
-            network = convertNetwork(network);
-        }
 
         detectNetworkBatch(network, model);
 
@@ -545,7 +549,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         processTrivialCases(model);
 
-        if (!CompileEnv::get().config.compileConfig().disableConvertStages) {
+        if (!CompileEnv::get().config.get<DisableConvertStagesOption>()) {
             addDataTypeConvertStages(model);
         }
 
@@ -567,7 +571,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (env.config.compileConfig().skipAllLayers() || env.config.compileConfig().skipLayerType(layer->type)) {
+        if (skipAllLayers(env.config) || skipLayerType(env.config, layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;
