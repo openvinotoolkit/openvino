@@ -28,8 +28,8 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    float alpha = 1.0f;
-    float beta = 1.0f;
+    float alpha = 1.f;
+    float beta = 0.f;
     bool transposeA = false;
     bool transposeB = false;
 
@@ -43,6 +43,25 @@ private:
     template<typename T0, typename T1> void process_data();
 
     std::string errorPrefix;
+
+    struct {
+        char transa = 'N';
+        char transb = 'N';
+
+        int MB1 = 1;
+        int MB2 = 1;
+
+        int M = 0;
+        int N = 0;
+        int K = 0;
+
+        int lda = 0;
+        int ldb = 0;
+        int ldc = 0;
+
+        int shift1 = 0;
+        int shift2 = 0;
+    } params;
 };
 
 }  // namespace MKLDNNPlugin
