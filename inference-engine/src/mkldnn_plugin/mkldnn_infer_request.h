@@ -54,6 +54,9 @@ private:
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
+    void tuneInputDesc(const std::string name, InferenceEngine::TensorDesc &desc);
+    void tuneOutputDesc(InferenceEngine::TensorDesc &desc);
+
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
     MKLDNNGraph*                        graph = nullptr;

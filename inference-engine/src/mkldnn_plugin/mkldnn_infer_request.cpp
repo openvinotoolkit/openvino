@@ -224,14 +224,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
         if (_inputs.find(name) == _inputs.end()) {
             InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
-
-            if (_networkInputs.find(name) != _networkInputs.end()) {
-                InferenceEngine::Layout l = _networkInputs[name]->getLayout();
-                InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
-                InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
-
-                desc = InferenceEngine::TensorDesc(p, dims, l);
-            }
+            tuneInputDesc(name, desc);
 
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
@@ -263,14 +256,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_outputs.find(name) == _outputs.end()) {
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-                desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
-
-                // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
-                // in situation if we push output blobs as inputs for next network (in Hetero plugin)
-                // it may be that output tensor desc will be different from real input tensor desc for next network
-                // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
-                auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
-                desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+                tuneOutputDesc(desc);
 
                 data = make_blob_with_precision(desc);
                 data->allocate();
@@ -424,6 +410,31 @@ static inline void changeEdgePtr(const MKLDNNPlugin::MKLDNNEdgePtr &edge, void *
 }
 
 void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
+    // renew external pointers before infer
+    InferenceEngine::BlobMap blobs;
+    graph->getInputBlobs(blobs);
+    for (auto it : blobs) {
+        auto name = it.first;
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        tuneInputDesc(name, desc);
+        if (externalPtr.count(name) &&
+            blobs[name]->getTensorDesc() == desc &&
+            graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() &&
+            !graph->getProperty().batchLimit) {
+            externalPtr[name] = _inputs[name]->buffer();
+        }
+    }
+    blobs.clear();
+    graph->getOutputBlobs(blobs);
+    for (auto it : blobs) {
+        auto name = it.first;
+        InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        tuneOutputDesc(desc);
+        if (externalPtr.count(name) && blobs[name]->getTensorDesc() == desc && !graph->getProperty().batchLimit) {
+            externalPtr[name] = _outputs[name]->buffer();
+        }
+    }
+
     for (auto& it : externalPtr) {
         auto input = graph->inputNodesMap.find(it.first);
         if (input != graph->inputNodesMap.end()) {
@@ -520,4 +531,24 @@ void MKLDNNPlugin::MKLDNNInferRequest::ThrowIfCanceled() const {
     if (_asyncRequest != nullptr) {
         _asyncRequest->ThrowIfCanceled();
     }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::tuneInputDesc(const std::string name, InferenceEngine::TensorDesc &desc) {
+    if (_networkInputs.find(name) != _networkInputs.end()) {
+        InferenceEngine::Layout l = _networkInputs[name]->getLayout();
+        InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
+        InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
+
+        desc = InferenceEngine::TensorDesc(p, dims, l);
+    }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::tuneOutputDesc(InferenceEngine::TensorDesc &desc) {
+    desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
+    // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+    // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+    // it may be that output tensor desc will be different from real input tensor desc for next network
+    // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+    auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+    desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
 }
