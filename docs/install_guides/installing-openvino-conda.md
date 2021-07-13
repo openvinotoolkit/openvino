@@ -5,17 +5,19 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 ## System Requirements
 
+**Software**
+
  - [Anaconda* distribution](https://www.anaconda.com/products/individual/)
 
 **Operating Systems**
 
-- Ubuntu* 18.04 long-term support (LTS), 64-bit
-- CentOS* 7.6, 64-bit
-- macOS* 10.14.x versions. 
-- Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
-- Windows Server* 2016 or higher
-
-
+| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
+| :------------------------------------------------------------| :---------------------------------------------------|
+|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
+|   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
+|   macOS* 10.15.x versions                                    | 3.6, 3.7                                            |
+|   Windows 10*, 64-bit                                        | 3.6, 3.7                                            |
 
 ## Install the runtime package using the Anaconda* Package Manager
 
@@ -30,7 +32,15 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda update --all
    ```
-3. Install the Intel® Distribution of OpenVINO™ Toolkit:
+3. Install prerequisites:
+    ```sh
+   conda install numpy
+   ```
+4. Install the Intel® Distribution of OpenVINO™ Toolkit:
+ - Ubuntu* 20.04 
+   ```sh
+   conda install openvino-ie4py-ubuntu20 -c intel
+   ```
  - Ubuntu* 18.04 
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
@@ -43,19 +53,12 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda install openvino-ie4py -c intel
    ```
-4. Verify the package installed:
+5. Verify the package installed:
    ```sh
-   python -c "import openvino"
+   python -c "from openvino.inference_engine import IECore"
    ```
    
 Now you can start to develop and run your application.
-
-
-## Known Issues and Limitations
-
-- You cannot use Python bindings included in  Intel® Distribution of OpenVINO™ toolkit  with  [Anaconda* distribution](https://www.anaconda.com/products/individual/)
-- You cannot use Python OpenVINO™ bindings included in Anaconda* package with official  [Python distribution](https://www.python.org/).
-
 
 ## Additional Resources
 

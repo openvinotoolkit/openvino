@@ -4,7 +4,16 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
 
-> **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ APT distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime). 
+> **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ APT distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
+
+## System Requirements
+
+The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+
+**Operating Systems**
+
+- Ubuntu 18.04.x long-term support (LTS), 64-bit
+- Ubuntu 20.04.0 long-term support (LTS), 64-bit
 
 ## Included with Runtime Package
 
@@ -31,43 +40,40 @@ The following components are installed with the OpenVINO developer package:
 | [Documentation for Pre-Trained Models ](@ref omz_models_group_intel)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/openvinotoolkit/open_model_zoo).  |
 | Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer\*, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
 
-## Set up the Repository
-### Install the GPG key for the repository
+
+## Install Packages
+
+### Set up the Repository
+
+#### Install the GPG key for the repository
 
 1. Download the public key from [https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021](https://apt.repos.intel.com/openvino/2021/GPG-PUB-KEY-INTEL-OPENVINO-2021) and save it to a file. 
 2. Add this key to the system keyring:
 ```sh
 sudo apt-key add <PATH_TO_DOWNLOADED_GPG_KEY>
 ```
+> **NOTE**: You might need to install GnuPG support: `sudo apt-get install gnupg`
+
 3. Check the list of APT keys running the following command:
 ```sh
 sudo apt-key list
 ```
 
-### Add the APT Repository
+#### Add the APT Repository
 
 Run the following command:
 ```sh
 echo "deb https://apt.repos.intel.com/openvino/2021 all main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2021.list
 ```
 
-### Update the list of packages
+#### Update the list of packages
 
 Run the `update` command:
 ```sh
 sudo apt update
 ```
-There are full release Runtime and Developer packages, and also some available components.
 
-**Runtime Packages**
-- Ubuntu 18.04:  `intel-openvino-runtime-ubuntu18`
-- Ubuntu 20.04:  `intel-openvino-runtime-ubuntu20`
-
-**Developer Packages**
-- Ubuntu 18.04:  `intel-openvino-dev-ubuntu18`
-- Ubuntu 20.04:  `intel-openvino-dev-ubuntu20`
-
-### Get the list of available packages
+#### Verify that the new repo is properly setup
 
 Run the `apt-cache` command to see a list of all available OpenVINO packages and components:
 ```sh
@@ -97,14 +103,13 @@ apt-cache search openvino
   sudo apt-cache search intel-openvino-dev-ubuntu20
   ```
 
-
-## Install the runtime or developer packages using the APT Package Manager
+### Install the runtime or developer packages using the APT Package Manager
 Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
 
 A symlink will be created: `/opt/intel/openvino_<VERSION>`
 
 ---
-### To Install a specific version
+#### To Install a specific version
 
 To get a list of OpenVINO packages available for installation:
 
@@ -118,6 +123,7 @@ sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPD
 ```
 
 #### Examples
+
 * **Runtime Package**
 
   On Ubuntu 18.04:
@@ -139,7 +145,17 @@ sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPD
   ```
 
 ---
-### To Uninstall a specific version
+
+#### To check for installed packages and version
+
+To check a specific version of an OpenVINO package:
+
+```sh
+apt list --installed | grep openvino
+```
+
+---
+#### To Uninstall a specific version
 
 To uninstall a specific full runtime package:
 ```sh
