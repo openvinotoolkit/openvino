@@ -437,6 +437,7 @@ extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
+extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/KerasRNNTransformation.py
@@ -591,6 +592,7 @@ extensions/middle/fusings.py
 extensions/middle/GatherNdNormalizer.py
 extensions/middle/GroupNorm.py
 extensions/middle/GRURNNSequenceToTensorIterator.py
+extensions/middle/IfConstCondition.py
 extensions/middle/InputCut.py
 extensions/middle/InsertLayoutPropagationTransposes.py
 extensions/middle/InsertSelect.py
@@ -701,6 +703,7 @@ extensions/ops/GRU.py
 extensions/ops/GRUCell.py
 extensions/ops/hard_sigmoid.py
 extensions/ops/identity.py
+extensions/ops/If.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py

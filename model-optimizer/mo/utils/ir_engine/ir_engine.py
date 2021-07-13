@@ -55,7 +55,8 @@ class IREngine(object):
         self.graph = Graph()
         self.graph.graph['hashes'] = {}
 
-        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
+        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get(
+            'version') is not None else None
         self.graph.graph['layout'] = 'NCHW'
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
@@ -210,8 +211,11 @@ class IREngine(object):
                 new_attrs = self.__normalize_attrs(attr.attrib)
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
-                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
-                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
+                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(),
+                                                                                         ['offset', 'size'])
+                    new_attrs.update(
+                        self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'],
+                                                 layer[1][0].attrib['precision']))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -286,6 +290,10 @@ class IREngine(object):
 
                 layer_attrs.update({'back_edges': back_edges})
 
+            elif attr.tag == 'then_body' or attr.tag == 'else_body':
+                if layer.attrib['type'] == 'If':
+                    layer_attrs = self.__read_if(layer, layer_attrs)
+                    continue
         return layer_id, layer_attrs
 
     @staticmethod
@@ -404,3 +412,70 @@ class IREngine(object):
         if not isinstance(other, IREngine):
             raise AttributeError("IREngine can be compared only with IREngine object type")
         return self.compare(other)[0]
+
+    def __read_if(self, layer, layer_attrs):
+        xml_then_body_child = list(layer.iterfind('then_body'))
+        xml_else_body_child = list(layer.iterfind('else_body'))
+        assert len(xml_then_body_child) == 1 or len(xml_else_body_child) == 1
+
+        then_body_ir = IREngine(path_to_xml=None,
+                                path_to_bin=self.path_to_bin,
+                                xml_tree=ET.ElementTree(xml_then_body_child[0]))
+        else_body_ir = IREngine(path_to_xml=None,
+                                path_to_bin=self.path_to_bin,
+                                xml_tree=ET.ElementTree(xml_else_body_child[0]))
+
+        self.graph.graph['hashes'].update(then_body_ir.graph.graph['hashes'])
+        self.graph.graph['hashes'].update(else_body_ir.graph.graph['hashes'])
+
+        # Find port_map section and take an input_port_map & output_port_map
+        xml_then_port_map = list(layer.iterfind('then_port_map'))
+        if not len(xml_then_port_map) == 1:
+            log.warning("If then_body won\'t be compared due to missing then_port_map section!")
+            return layer_attrs
+        xml_then_port_map = xml_then_port_map[0]
+
+        xml_else_port_map = list(layer.iterfind('else_port_map'))
+        if not len(xml_else_port_map) == 1:
+            log.warning("If else_body won\'t be compared due to missing else_port_map section!")
+            return layer_attrs
+        xml_else_port_map = xml_else_port_map[0]
+
+        then_input_port_map = []
+        then_output_port_map = []
+
+        for port in xml_then_port_map:
+            if port.tag == 'input':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in input section")
+                else:
+                    then_input_port_map.append(self.__normalize_attrs(port.attrib))
+            elif port.tag == 'output':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in output section")
+                else:
+                    then_output_port_map.append(self.__normalize_attrs(port.attrib))
+
+        layer_attrs.update({'then_graph': then_body_ir})
+        layer_attrs.update({'then_input_port_map': then_input_port_map})
+        layer_attrs.update({'then_output_port_map': then_output_port_map})
+
+        else_input_port_map = []
+        else_output_port_map = []
+
+        for port in xml_else_port_map:
+            if port.tag == 'input':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in input section")
+                else:
+                    else_input_port_map.append(self.__normalize_attrs(port.attrib))
+            elif port.tag == 'output':
+                if 'internal_layer_id' not in port.attrib:
+                    log.warning("internal_layer_id attrib not found in output section")
+                else:
+                    else_output_port_map.append(self.__normalize_attrs(port.attrib))
+
+        layer_attrs.update({'else_graph': else_body_ir})
+        layer_attrs.update({'else_input_port_map': else_input_port_map})
+        layer_attrs.update({'else_output_port_map': else_output_port_map})
+        return layer_attrs
