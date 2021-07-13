@@ -817,9 +817,6 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
         PERF(graphNodes[i]);
 
-        if (batch > 0)
-            graphNodes[i]->setDynamicBatchLim(batch);
-
         ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
 
         if (!graphNodes[i]->isConstant()) {
