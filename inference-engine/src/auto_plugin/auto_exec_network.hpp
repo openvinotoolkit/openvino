@@ -146,8 +146,8 @@ private:
     mutable std::atomic<bool> _alreadyActualNetwork = {false};
     std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
     AutoInferencePlugin* _autoPlugin;
-    std::vector<WorkerInferRequest> _workerRequests;
-    NotBusyWorkerRequests           _idleWorkerRequests;
+    DeviceMap<std::vector<WorkerInferRequest>> _workerRequests;
+    DeviceMap<NotBusyWorkerRequests>           _idleWorkerRequests;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
 };
 
