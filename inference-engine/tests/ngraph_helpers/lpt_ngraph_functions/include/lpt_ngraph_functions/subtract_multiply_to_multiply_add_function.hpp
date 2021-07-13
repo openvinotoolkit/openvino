@@ -26,7 +26,7 @@ public:
         const ngraph::element::Type precisionAfterDequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type precision,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData);
 
