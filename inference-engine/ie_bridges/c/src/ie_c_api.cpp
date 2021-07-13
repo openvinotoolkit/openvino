@@ -714,6 +714,25 @@ IEStatusCode ie_network_set_input_precision(ie_network_t *network, const char *i
     return status;
 }
 
+IEStatusCode ie_network_set_batch_size(ie_network_t *network, size_t batch_size) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        network->object.setBatchSize(batch_size);
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return status;
+}
+
 IEStatusCode ie_network_get_input_layout(const ie_network_t *network, const char *input_name, layout_e *layout_result) {
     IEStatusCode status = IEStatusCode::OK;
 

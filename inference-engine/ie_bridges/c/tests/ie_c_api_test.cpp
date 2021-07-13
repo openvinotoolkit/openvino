@@ -519,6 +519,57 @@ TEST(ie_network_set_input_precision, setPrecision) {
     ie_core_free(&core);
 }
 
+TEST(ie_network_set_batch_size, ie_network_setBatch) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    const char *device_name = "CPU";
+
+    ie_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    EXPECT_NE(nullptr, network);
+
+    IE_EXPECT_OK(ie_network_set_batch_size(network, 1));
+
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+TEST(ie_network_set_batch_size, ie_network_setZeroBatch) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    const char *device_name = "CPU";
+
+    ie_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    EXPECT_NE(nullptr, network);
+
+    EXPECT_EQ(IEStatusCode::GENERAL_ERROR, ie_network_set_batch_size(network, 0));
+
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+TEST(ie_network_set_batch_size, ie_network_setNegativeBatch) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    const char *device_name = "CPU";
+
+    ie_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    EXPECT_NE(nullptr, network);
+
+    EXPECT_EQ(IEStatusCode::GENERAL_ERROR, ie_network_set_batch_size(network, -1));
+
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
 TEST(ie_network_get_input_layout, getLayout) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));

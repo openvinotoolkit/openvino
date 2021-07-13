@@ -727,6 +727,16 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_precision
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_precision(ie_network_t *network, const char *input_name, const precision_e p);
 
 /**
+ * @brief Sets new batch size limit for the network.
+ * This function should be called before loading the network to the device.
+ * @ingroup Network
+ * @param network A pointer to ie_network_t instance.
+ * @param batch_size New batch size to be used.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_batch_size(ie_network_t *network, size_t batch_size);
+
+/**
  * @brief Gets a layout of the input data.
  * @ingroup Network
  * @param network A pointer to ie_network_t instance.
