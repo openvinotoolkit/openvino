@@ -34,7 +34,7 @@ jobs:
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
     PYTHONPATH: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
-    LAYER_TESTS_DIR: $(REPO_DIR)/tests/layer_tests
+    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     MO_ROOT: $(REPO_DIR)/model-optimizer
 
   steps:
