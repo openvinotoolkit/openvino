@@ -63,7 +63,7 @@ public:
 protected:
     void updateGraph(Graph& graph) override {
         ngraph::OutputVector new_graph_output;
-        for (auto& node : graph.output_nodes) {
+        for (auto&& node : graph.output_nodes) {
             new_graph_output.emplace_back(createOutputNode(node));
         }
 
