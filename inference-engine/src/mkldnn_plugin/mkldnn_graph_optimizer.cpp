@@ -577,11 +577,30 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
     }
 }
 
-static bool BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-    return childNode->getType() == FakeQuantize &&
+static void BF16QuantizeNodeFusing(MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+    // TODO: We have to extend gemm_bf16_convolution_fwd_t, jit_avx512_core_bf16_1x1_conv_kernel,
+    // _jit_avx512_core_bf16_fwd_kernel and jit_avx512_dw_conv_fwd_kernel_bf16 from oneDNN
+    // to support Quantization in post ops
+    auto bf16ToFP32 = [](MKLDNNNodePtr node) {
+        for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+            if (node->getOriginalInputPrecisionAtPort(i) == Precision::BF16) {
+                node->setOriginalInputPrecisionAtPort(i, Precision::FP32);
+            }
+        }
+
+        for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+            if (node->getOriginalOutputPrecisionAtPort(i) == Precision::BF16) {
+                node->setOriginalOutputPrecisionAtPort(i, Precision::FP32);
+            }
+        }
+    };
+    if (childNode->getType() == FakeQuantize &&
         one_of(Precision::BF16,
             parentNode->getOriginalOutputPrecisionAtPort(0),
-            childNode->getOriginalOutputPrecisionAtPort(0));
+            childNode->getOriginalOutputPrecisionAtPort(0))) {
+        bf16ToFP32(parentNode);
+        bf16ToFP32(childNode);
+    }
 }
 
 void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph) {
@@ -606,10 +625,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
         }
 
         //  BF16 Quantize Layer Fusing Disabling
-        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
-            parent++;
-            continue;
-        }
+        BF16QuantizeNodeFusing(parentNode, childNode);
 
         childNode->fuseInto(parentNode);
 
@@ -829,10 +845,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
         }
 
         //  BF16 Quantize Layer Fusing Disabling
-        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
-            parent++;
-            continue;
-        }
+        BF16QuantizeNodeFusing(parentNode, childNode);
 
         childNode->fuseInto(parentNode);
 
@@ -873,6 +886,9 @@ void MKLDNNGraphOptimizer::FusePoolingAndFakeQuantize(MKLDNNGraph &graph) {
 
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSutableChildNode(child)) continue;
+
+        //  BF16 Quantize Layer Fusing Disabling
+        BF16QuantizeNodeFusing(parent, child);
 
         child->fuseInto(parent);
 
