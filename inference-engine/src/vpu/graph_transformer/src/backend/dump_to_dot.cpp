@@ -30,7 +30,6 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>

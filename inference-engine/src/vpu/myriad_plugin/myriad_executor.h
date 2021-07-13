@@ -13,11 +13,12 @@
 
 #include <mvnc.h>
 #include "myriad_mvnc_wrapper.h"
-#include "configuration/myriad_configuration.hpp"
+#include "vpu/configuration/plugin_configuration.hpp"
+#include "vpu/configuration/options/protocol.hpp"
+#include "vpu/configuration/options/device_id.hpp"
+#include "vpu/utils/error.hpp"
 
 #include <ie_parameter.hpp>
-
-#include <myriad_config.h>
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -53,15 +54,14 @@ struct DeviceDesc {
         return _graphNum < _maxGraphNum;
     }
 
-    bool isSuitableForConfig(const MyriadConfig& config) const {
+    bool isSuitableForConfig(const PluginConfiguration& config) const {
         bool isSuitableByName = true;
-        if (!config.deviceName().empty()) {
-            isSuitableByName = config.deviceName() == _name;
+        if (!config.get<DeviceIDOption>().empty()) {
+            isSuitableByName = config.get<DeviceIDOption>() == _name;
         }
 
         return isSuitableByName &&
-                ((config.platform() == NC_ANY_PLATFORM) || (_platform == config.platform())) &&
-                ((config.protocol() == NC_ANY_PROTOCOL) || (_protocol == config.protocol()));
+                ((config.get<ProtocolOption>() == NC_ANY_PROTOCOL) || (_protocol == config.get<ProtocolOption>()));
     }
 
     ncDevicePlatform_t revision() const {
@@ -87,7 +87,7 @@ public:
      * @brief Get myriad device
      * @return Already booted and empty device or new booted device
      */
-    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config);
+    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config);
 
     static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
 
@@ -135,7 +135,7 @@ private:
      * @param configPlatform Boot the selected platform
      * @param configProtocol Boot device with selected protocol
      */
-    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config);
+    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config);
 };
 
 typedef std::shared_ptr<MyriadExecutor> MyriadExecutorPtr;

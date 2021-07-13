@@ -41,19 +41,6 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithAvailableD
     ASSERT_NO_THROW(request = executable.CreateInferRequest());
 }
 
-TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailableDevice) {
-    const auto &config = GetParam();
-    DISABLE_IF(hasAppropriateStick(config));
-
-    InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::ExecutableNetwork executable;
-    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
-
-    InferenceEngine::InferRequest request;
-    ASSERT_THROW(request = executable.CreateInferRequest(),
-        InferenceEngine::Exception);
-}
-
 //------------------------------------------------------------------------------
 //  myriadIncorrectModelsConfigsTests_nightly
 //------------------------------------------------------------------------------
