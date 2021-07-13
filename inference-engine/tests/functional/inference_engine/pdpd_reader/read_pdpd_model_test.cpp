@@ -11,6 +11,8 @@
 #include <ie_core.hpp>
 #include <file_utils.h>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset8.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
 
 TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     auto model = std::string(PDPD_TEST_MODELS) + "relu.pdmodel";
@@ -18,24 +20,21 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     auto cnnNetwork = ie.ReadNetwork(model);
     auto function = cnnNetwork.getFunction();
 
-    int count_relus = 0;
-    int count_constants = 0;
-    int count_parameters = 0;
+    const auto inputType = ngraph::element::f32;
+    const auto inputShape = ngraph::Shape{ 3 };
 
-    for (auto op : function->get_ops()) {
-        const auto op_type = std::string(op->get_type_name());
-        count_relus += (op_type == "Relu" ? 1 : 0);
-        count_constants += (op_type == "Constant" ? 1 : 0);
-        count_parameters += (op_type == "Parameter" ? 1 : 0);
-    }
-
-    ASSERT_EQ(function->get_output_size(), 1);
-    ASSERT_EQ(std::string(function->get_output_op(0)->get_type_name()), "Result");
-    ASSERT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    ASSERT_EQ(function->get_output_shape(0), ngraph::Shape({ 3 }));
-    ASSERT_EQ(count_relus, 1);
-    ASSERT_EQ(count_constants, 6);
-    ASSERT_EQ(count_parameters, 1);
+    const auto data = std::make_shared<ngraph::opset8::Parameter>(inputType, inputShape);
+    const auto relu = std::make_shared<ngraph::opset8::Relu>(data);
+    const auto scale = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{1});
+    const auto bias = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{0});
+    const auto node_multiply = std::make_shared<ngraph::opset8::Multiply>(relu, scale);
+    const auto node_add = std::make_shared<ngraph::opset8::Add>(node_multiply, bias);
+    const auto result = std::make_shared<ngraph::opset8::Result>(node_add);
+    const auto reference = std::make_shared<const ngraph::Function>(
+        ngraph::NodeVector{ result },
+        ngraph::ParameterVector{ data },
+        "RefPDPDFunction");
+    ngraph::helpers::CompareFunctions(*reference, *function);
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -48,23 +47,20 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     auto cnnNetwork = ie.ReadNetwork(model);
     auto function = cnnNetwork.getFunction();
 
-    int count_relus = 0;
-    int count_constants = 0;
-    int count_parameters = 0;
+    const auto inputType = ngraph::element::f32;
+    const auto inputShape = ngraph::Shape{ 3 };
 
-    for (auto op : function->get_ops()) {
-        const auto op_type = std::string(op->get_type_name());
-        count_relus += (op_type == "Relu" ? 1 : 0);
-        count_constants += (op_type == "Constant" ? 1 : 0);
-        count_parameters += (op_type == "Parameter" ? 1 : 0);
-    }
-
-    ASSERT_EQ(function->get_output_size(), 1);
-    ASSERT_EQ(std::string(function->get_output_op(0)->get_type_name()), "Result");
-    ASSERT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    ASSERT_EQ(function->get_output_shape(0), ngraph::Shape({ 3 }));
-    ASSERT_EQ(count_relus, 1);
-    ASSERT_EQ(count_constants, 6);
-    ASSERT_EQ(count_parameters, 1);
+    const auto data = std::make_shared<ngraph::opset8::Parameter>(inputType, inputShape);
+    const auto relu = std::make_shared<ngraph::opset8::Relu>(data);
+    const auto scale = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{1});
+    const auto bias = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{0});
+    const auto node_multiply = std::make_shared<ngraph::opset8::Multiply>(relu, scale);
+    const auto node_add = std::make_shared<ngraph::opset8::Add>(node_multiply, bias);
+    const auto result = std::make_shared<ngraph::opset8::Result>(node_add);
+    const auto reference = std::make_shared<const ngraph::Function>(
+        ngraph::NodeVector{ result },
+        ngraph::ParameterVector{ data },
+        "RefPDPDFunction");
+    ngraph::helpers::CompareFunctions(*reference, *function);
 }
 #endif
