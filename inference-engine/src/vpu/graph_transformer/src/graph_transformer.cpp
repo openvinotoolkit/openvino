@@ -56,7 +56,7 @@ thread_local CompileEnv* g_compileEnv = nullptr;
 
 }  // namespace
 
-CompileEnv::CompileEnv(ncDevicePlatform_t platform) : platform(platform) {}
+CompileEnv::CompileEnv() {}
 
 const CompileEnv& CompileEnv::get() {
     IE_ASSERT(g_compileEnv != nullptr);
@@ -71,8 +71,8 @@ const CompileEnv* CompileEnv::getOrNull() {
     return g_compileEnv;
 }
 
-void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log) {
-    g_compileEnv = new CompileEnv(platform);
+void CompileEnv::init(const PluginConfiguration& config, const Logger::Ptr& log) {
+    g_compileEnv = new CompileEnv();
     g_compileEnv->config = config;
     g_compileEnv->log = log;
 
@@ -80,25 +80,21 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
     g_compileEnv->profile.setLogger(log);
 #endif
 
-    if (platform == ncDevicePlatform_t::NC_MYRIAD_2) {
-        g_compileEnv->config.compileConfig().hwOptimization = false;
-    }
-
     VPU_THROW_UNLESS(g_compileEnv->config.compileConfig().numSHAVEs <= g_compileEnv->config.compileConfig().numCMXSlices,
         R"(Value of configuration option ("{}") must be not greater than value of configuration option ("{}"), but {} > {} are provided)",
         ie::MYRIAD_NUMBER_OF_SHAVES, ie::MYRIAD_NUMBER_OF_CMX_SLICES, config.compileConfig().numSHAVEs, config.compileConfig().numCMXSlices);
 
-    const auto numExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(platform, config);
+    const auto numExecutors = config.compileConfig().numExecutors != -1 ? config.compileConfig().numExecutors : DefaultAllocation::numStreams(config);
     VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
         ie::MYRIAD_THROUGHPUT_STREAMS, 1, DeviceResources::numStreams(), numExecutors);
 
     const auto numSlices  = config.compileConfig().numCMXSlices != -1
         ? config.compileConfig().numCMXSlices
-        : DefaultAllocation::numSlices(platform, numExecutors);
-    VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
+        : DefaultAllocation::numSlices(numExecutors);
+    VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(platform), numSlices);
+        ie::MYRIAD_NUMBER_OF_CMX_SLICES, 1, DeviceResources::numSlices(), numSlices);
 
     int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
     const auto tilingCMXLimit  = config.compileConfig().tilingCMXLimitKB != -1
@@ -110,18 +106,18 @@ void CompileEnv::init(ncDevicePlatform_t platform, const PluginConfiguration& co
 
     const auto numShaves = config.compileConfig().numSHAVEs != -1
         ? config.compileConfig().numSHAVEs
-        : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
-    VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
+        : DefaultAllocation::numShaves(numExecutors, numSlices);
+    VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
-        ie::MYRIAD_NUMBER_OF_SHAVES, 1, DeviceResources::numShaves(platform), numShaves);
+        ie::MYRIAD_NUMBER_OF_SHAVES, 1, DeviceResources::numShaves(), numShaves);
 
     const auto numAllocatedShaves = numShaves * numExecutors;
-    VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(platform),
-        R"(Cannot allocate "{}" shaves: only {} is available)", numAllocatedShaves, DeviceResources::numShaves(platform));
+    VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(),
+        R"(Cannot allocate "{}" shaves: only {} is available)", numAllocatedShaves, DeviceResources::numShaves());
 
     const auto numAllocatedSlices = numSlices * numExecutors;
-    VPU_THROW_UNLESS(numAllocatedSlices >= 1 && numAllocatedSlices <= DeviceResources::numSlices(platform),
-        R"(Cannot allocate "{}" slices: only {} is available)", numAllocatedSlices, DeviceResources::numSlices(platform));
+    VPU_THROW_UNLESS(numAllocatedSlices >= 1 && numAllocatedSlices <= DeviceResources::numSlices(),
+        R"(Cannot allocate "{}" slices: only {} is available)", numAllocatedSlices, DeviceResources::numSlices());
 
     g_compileEnv->resources.numSHAVEs = numShaves;
     g_compileEnv->resources.numCMXSlices = numSlices;
@@ -198,9 +194,9 @@ CompiledGraph::Ptr compileImpl(const Model& model) {
 
 }  // namespace
 
-CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatform_t platform, const PluginConfiguration& config, const Logger::Ptr& log,
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, const PluginConfiguration& config, const Logger::Ptr& log,
                                   const std::shared_ptr<ie::ICore> core) {
-    CompileEnv::init(platform, config, log);
+    CompileEnv::init(config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -212,10 +208,9 @@ CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, ncDevicePlatfor
 
 CompiledGraph::Ptr compileModel(
         const Model& model,
-        ncDevicePlatform_t platform,
         const PluginConfiguration& config,
         const Logger::Ptr& log) {
-    CompileEnv::init(platform, config, log);
+    CompileEnv::init(config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -246,11 +241,10 @@ CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const Plugin
 
 std::set<std::string> getSupportedLayers(
     const ie::CNNNetwork& network,
-    ncDevicePlatform_t platform,
     const PluginConfiguration& config,
     const Logger::Ptr& log,
     const std::shared_ptr<ie::ICore> core) {
-    CompileEnv::init(platform, config, log);
+    CompileEnv::init(config, log);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -262,29 +256,29 @@ std::set<std::string> getSupportedLayers(
     return frontEnd->checkSupportedLayers(network);
 }
 
-int DeviceResources::numShaves(const ncDevicePlatform_t& platform) {
-    return platform == ncDevicePlatform_t::NC_MYRIAD_2 ? 12 : 16;
+int DeviceResources::numShaves() {
+    return 16;
 }
 
-int DeviceResources::numSlices(const ncDevicePlatform_t& platform) {
-    return platform == ncDevicePlatform_t::NC_MYRIAD_2 ? 12 : 19;
+int DeviceResources::numSlices() {
+    return 19;
 }
 
 int DeviceResources::numStreams() {
     return 3;
 }
 
-int DefaultAllocation::numStreams(const ncDevicePlatform_t& platform, const PluginConfiguration& configuration) {
-    return platform == ncDevicePlatform_t::NC_MYRIAD_X && configuration.compileConfig().hwOptimization ? 2 : 1;
+int DefaultAllocation::numStreams(const PluginConfiguration& configuration) {
+    return configuration.compileConfig().hwOptimization ? 2 : 1;
 }
 
-int DefaultAllocation::numSlices(const ncDevicePlatform_t& platform, int numStreams) {
-    const auto capabilities = DeviceResources::numSlices(platform);
+int DefaultAllocation::numSlices(int numStreams) {
+    const auto capabilities = DeviceResources::numSlices();
     return capabilities / numStreams;
 }
 
-int DefaultAllocation::numShaves(const ncDevicePlatform_t& platform, int numStreams, int numSlices) {
-    const auto numAvailableShaves = DeviceResources::numShaves(platform);
+int DefaultAllocation::numShaves(int numStreams, int numSlices) {
+    const auto numAvailableShaves = DeviceResources::numShaves();
     if (numStreams == 1) {
         return numAvailableShaves;
     }

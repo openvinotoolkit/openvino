@@ -211,7 +211,7 @@ void GraphTransformerTest::InitCompileEnv() {
         config.compileConfig().dumpAllPasses = std::stoi(envVar) != 0;
     }
 
-    CompileEnv::init(platform, config, _log);
+    CompileEnv::init(config, _log);
     compileEnvInitialized = true;
 }
 

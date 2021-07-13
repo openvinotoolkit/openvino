@@ -42,23 +42,6 @@ INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_FORCE_RESET inst
 DECLARE_VPU_MYRIAD_CONFIG_KEY(FORCE_RESET);
 
 /**
- * @deprecated
- * @brief This option allows to specify device.
- * If specified device is not available then creating infer request will throw an exception.
- */
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_MYRIAD_CONFIG_KEY(PLATFORM);
-
-/**
- * @deprecated
- * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(PLATFORM) option.
- */
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_MYRIAD_CONFIG_VALUE(2450);
-INFERENCE_ENGINE_DEPRECATED("")
-DECLARE_VPU_MYRIAD_CONFIG_VALUE(2480);
-
-/**
  * @deprecated Use InferenceEngine::MYRIAD_DDR_TYPE instead
  * @brief This option allows to specify device memory type.
  */
