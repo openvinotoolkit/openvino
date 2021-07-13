@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Tan::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Tan, "Tan", 0, util::UnaryElementwiseArithmetic);
 
 op::Tan::Tan(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
