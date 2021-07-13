@@ -193,3 +193,39 @@ TEST(type_prop, strided_slice_reverse_out_of_bounds)
     Shape expected{3, 4, 5};
     EXPECT_EQ(ss->get_output_shape(0), expected);
 }
+
+TEST(type_prop, strided_slice_dynamic_shape)
+{
+    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::PartialShape{{0, 1}, 64, -1, -1});
+    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0});
+    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1});
+    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1});
+
+    std::vector<int64_t> begin_mask = {0, 0, 0, 0};
+    std::vector<int64_t> end_mask = {0, 0, 0, 0};
+
+    auto ss =
+        std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+    PartialShape expected{{0, 1}, 1, -1, -1};
+    EXPECT_EQ(ss->get_output_partial_shape(0), expected);
+}
+
+TEST(type_prop, strided_slice_dynamic_shape_shrink_and_new_axis)
+{
+    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::PartialShape{{0, 1}, 64, -1, -1});
+    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0});
+    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1});
+    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1});
+
+    std::vector<int64_t> begin_mask = {0, 0, 0, 0};
+    std::vector<int64_t> end_mask = {0, 0, 0, 0};
+    std::vector<int64_t> new_axis_mask = {0, 0, 0, 1};
+    std::vector<int64_t> shrink_axis_mask = {0, 1, 0, 0};
+
+    auto ss =
+        std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+
+    PartialShape expected{{0, 1}, -1, 1, -1};
+    EXPECT_EQ(ss->get_output_partial_shape(0), expected);
+}
