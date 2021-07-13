@@ -16,10 +16,10 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
 |   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7                                            |
+|   macOS* 10.15.x                                             | 3.6, 3.7                                            |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7                                            |
 
-## Install the runtime package using the Anaconda* Package Manager
+## Install the Runtime Package using the Anaconda* Package Manager
 
 1. Set up the Anaconda* environment: 
    ```sh
@@ -28,11 +28,11 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda activate py37
    ```
-2. Updated conda to the latest version:
+2. Update Anaconda environment to the latest version:
    ```sh
    conda update --all
    ```
-3. Install prerequisites:
+3. Install pre-requisites:
     ```sh
    conda install numpy
    ```
@@ -53,12 +53,13 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda install openvino-ie4py -c intel
    ```
-5. Verify the package installed:
+5. Verify the package is installed:
    ```sh
    python -c "from openvino.inference_engine import IECore"
    ```
-   
-Now you can start to develop and run your application.
+   If installation was successful, you will not see any error messages (no console output).
+
+Now you can start developing your application.
 
 ## Additional Resources
 
