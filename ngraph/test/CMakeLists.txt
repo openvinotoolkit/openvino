@@ -387,7 +387,6 @@ set(MULTI_TEST_SRC
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
@@ -579,6 +578,7 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -647,6 +647,7 @@ install(TARGETS unit-test
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
+target_link_libraries(unit-test PRIVATE cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
