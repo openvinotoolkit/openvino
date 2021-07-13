@@ -50,4 +50,3 @@ InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type,
 
     return blob;
 }
-
