@@ -27,6 +27,7 @@ enum rRegion {
 };
 
 struct MemRequest {
+    std::string _name;
     rRegion  _region;
     uint8_t   _type;
     void *_ptr_out;
@@ -40,14 +41,16 @@ struct MemRequest {
     size_t _offset = 0;
     // expansion in bytes due to large depended layers
     size_t _padding = 0;
-    MemRequest(rRegion region,
+    MemRequest(std::string name,
+                rRegion region,
                 rType req,
                 void *ptr_out,
                 const void *ptr_in,
                 uint8_t element_size = 0,
                 size_t num_elements = 0,
                 size_t alignment = 1,
-                size_t offset = 0) : _region(region),
+                size_t offset = 0) : _name(name),
+                                     _region(region),
                                      _type(req),
                                      _ptr_out(ptr_out),
                                      _ptr_in(ptr_in),
@@ -66,11 +69,13 @@ struct MemRequest {
      * @param alignment
      */
     template<class T>
-    MemRequest(rRegion region,
+    MemRequest(std::string name,
+                rRegion region,
                 void *ptr_out,
                 T element,
                 size_t num_elements,
-                size_t alignment = 1) : _region(region),
+                size_t alignment = 1) : _name(name),
+                                        _region(region),
                                         _type(REQUEST_STORE),
                                         _ptr_out(ptr_out),
                                         _element_size(sizeof(T)),
@@ -87,12 +92,14 @@ struct MemRequest {
      * @param num_elements
      * @param alignment
      */
-    MemRequest(rRegion region,
+    MemRequest(std::string name,
+               rRegion region,
                void   *ptr_out,
                size_t  regionSize,
                std::function<void(void * data, size_t size)> initializer,
                rType req = REQUEST_INITIALIZER,
-               size_t  alignment = 1) : _region(region),
+               size_t  alignment = 1) : _name(name),
+                                        _region(region),
                                         _type(REQUEST_INITIALIZER | req),
                                         _ptr_in(ptr_out),
                                         _ptr_out(ptr_out),

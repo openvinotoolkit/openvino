@@ -4,6 +4,7 @@
 
 #include "gna_device.hpp"
 
+#include <iostream>
 #include <map>
 #include <string>
 #include <cstring>
@@ -139,7 +140,7 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 #else
         "./";
 #endif
-    DumpGna2Model(gnaModel, path, false);
+    DumpGna2Model(gnaModel, path, true, dumpXNNROPtr);
 #endif
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
 

@@ -11,6 +11,8 @@
 namespace GNAPluginNS {
 namespace GNALimitations {
 
+constexpr auto bufferAddressAlignment = 64;
+
 constexpr uint32_t bufferMaxSize = 65528;
 
 constexpr uint32_t convMinFiltersNum = 4;

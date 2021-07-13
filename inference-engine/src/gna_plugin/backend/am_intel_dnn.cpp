@@ -208,7 +208,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     }
     auto max_number_of_out_elements = outputFromConv(num_columns_in, num_filter_coefficients, convStride);
     if (num_columns_out / max_number_of_out_elements != num_filters) {
-        THROW_GNA_EXCEPTION << "Number of outputs or feature map config is incorrect in Convolutional1DComponent";
+        THROW_GNA_EXCEPTION << "Number of outputs is incorrect in Convolutional1DComponent";
     }
 }
 

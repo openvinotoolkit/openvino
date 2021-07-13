@@ -192,9 +192,9 @@ TEST_F(GNAMemoryTest, canBindTransitevlyWithOffsetsAndResolve) {
     float *pFuture4 = nullptr;
     size_t len = sizeof(input);
 
-    mem.bind_ptr(&pFuture4, &pFuture3, 4);
-    mem.bind_ptr(&pFuture3, &pFuture, 4);
-    mem.push_ptr(&pFuture, input, len);
+    mem.bind_ptr("", &pFuture4, &pFuture3, 4);
+    mem.bind_ptr("", &pFuture3, &pFuture, 4);
+    mem.push_ptr("", &pFuture, input, len);
 
     mem.commit();
 
@@ -217,9 +217,9 @@ TEST_F(GNAMemoryTest, canBindWithOffsetAndResolve) {
     float *pFuture3 = nullptr;
     size_t len = sizeof(input);
 
-    mem.bind_ptr(&pFuture3, &pFuture, 4);
-    mem.push_ptr(&pFuture, input, len);
-    mem.bind_ptr(&pFuture2, &pFuture);
+    mem.bind_ptr("", &pFuture3, &pFuture, 4);
+    mem.push_ptr("", &pFuture, input, len);
+    mem.bind_ptr("", &pFuture2, &pFuture);
 
     mem.commit();
 
@@ -242,7 +242,7 @@ TEST_F(GNAMemoryTest, canPushLocal) {
 
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f, 4.0f};
-        mem.push_local_ptr(pFuture, &*input.begin(), 4 * 4, 1);
+        mem.push_local_ptr("", pFuture, &*input.begin(), 4 * 4, 1);
     }
 
     //poison stack
@@ -260,8 +260,8 @@ TEST_F(GNAMemoryTest, canPushValue) {
     float* pFuture2 = (float*)&pFuture2;
 
     {
-        mem.push_value(pFuture, 3.f,  2);
-        mem.push_value(pFuture2, 13.f, 2);
+        mem.push_value(std::string{}, pFuture, 3.f, 2);
+        mem.push_value(std::string{}, pFuture2, 13.f, 2);
     }
 
     mem.commit();
@@ -278,8 +278,8 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
     float* pFuture2 = (float*)&pFuture2;
 
     {
-        mem.push_value(pFuture, 3.f,  2);
-        mem.readonly().push_value(pFuture2, 13.f, 2);
+        mem.push_value(std::string{}, pFuture, 3.f,  2);
+        mem.readonly().push_value(std::string{}, pFuture2, 13.f, 2);
     }
 
     mem.commit();
@@ -292,8 +292,8 @@ TEST_F(GNAMemoryTest, canPushReadOnlyValue) {
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 
-    mem.push_value(nullptr, 3.f,  2);
-    mem.readonly().push_value(nullptr, 13.f, 2);
+    mem.push_value(std::string{}, nullptr, 3.f,  2);
+    mem.readonly().push_value(std::string{}, nullptr, 13.f, 2);
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
@@ -304,8 +304,8 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
 
     GNAMemory<std::allocator<uint8_t>> memAligned(64);
 
-    memAligned.push_value(nullptr, 3.f,  2);
-    memAligned.readonly().push_value(nullptr, 13.f, 2);
+    memAligned.push_value(std::string{}, nullptr, 3.f,  2);
+    memAligned.readonly().push_value(std::string{}, nullptr, 13.f, 2);
     memAligned.commit();
 
     ASSERT_EQ(memAligned.getTotalBytes(), 128);
@@ -319,9 +319,9 @@ TEST_F(GNAMemoryTest, canSetUpReadWriteSectionPtr) {
     float* pFuture3 = (float*)&pFuture3;
 
 
-    mem.readonly().push_value(pFuture1, 3.f,  2);
-    mem.push_value(pFuture2, 13.f, 3);
-    mem.readonly().push_value(pFuture3, 32.f,  4);
+    mem.readonly().push_value(std::string{}, pFuture1, 3.f,  2);
+    mem.push_value(std::string{}, pFuture2, 13.f, 3);
+    mem.readonly().push_value(std::string{}, pFuture3, 32.f,  4);
     mem.commit();
 
     ASSERT_EQ(mem.getTotalBytes(), (2+3+4) * sizeof(float));
@@ -353,9 +353,9 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequest) {
 
     size_t len = sizeof(input);
 
-    mem.push_ptr(&pFuture, input, len);
-    mem.bind_ptr(&pFuture2, &pFuture, len, len);
-    mem.bind_ptr(&pFuture3, &pFuture2, 2 * len, len);
+    mem.push_ptr("", &pFuture, input, len);
+    mem.bind_ptr("", &pFuture2, &pFuture, len, len);
+    mem.bind_ptr("", &pFuture3, &pFuture2, 2 * len, len);
 
     mem.commit();
 
@@ -385,9 +385,9 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenPush) {
 
     size_t len = sizeof(input);
 
-    mem.push_ptr(&pFuture, input, len);
-    mem.bind_ptr(&pFuture2, &pFuture, len, len);
-    mem.push_ptr(&pFutureInput2, input2, len);
+    mem.push_ptr("", &pFuture, input, len);
+    mem.bind_ptr("", &pFuture2, &pFuture, len, len);
+    mem.push_ptr("", &pFutureInput2, input2, len);
 
     mem.commit();
 
@@ -416,9 +416,9 @@ TEST_F(GNAMemoryTest, canUpdateSizeOfPushRequestWithBindRequestWhenAlloc) {
 
     size_t len = sizeof(input);
 
-    mem.reserve_ptr(&pFuture, len);
-    mem.bind_ptr(&pFuture2, &pFuture, len, len);
-    mem.push_ptr(&pFutureInput, input, len);
+    mem.reserve_ptr("", &pFuture, len);
+    mem.bind_ptr("", &pFuture2, &pFuture, len, len);
+    mem.push_ptr("", &pFutureInput, input, len);
 
     mem.commit();
 
