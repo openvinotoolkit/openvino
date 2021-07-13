@@ -260,12 +260,6 @@ fake_quantize_with_clip
 fake_quantize_with_clip_across_channels
 fake_quantize_pdpd
 
-# output type mismatch boolean vs u8
-equal_f32_no_broadcast
-equal_f32_broadcast
-equal_f32_negative
-equal_i32
-
 # <op name> has zero dimension that is not allowable
 zero_sized_abs
 zero_sized_ceiling
