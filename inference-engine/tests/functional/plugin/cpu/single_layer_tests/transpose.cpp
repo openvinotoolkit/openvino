@@ -52,7 +52,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -80,17 +80,24 @@ TEST_P(TransposeLayerCPUTest, CompareWithRefs) {
 namespace {
 std::map<std::string, std::string> additional_config;
 
-const auto cpuParams_nChw16c = CPUSpecificParams {{nChw16c}, {}, {}, {}};
-const auto cpuParams_nCdhw16c = CPUSpecificParams {{nCdhw16c}, {}, {}, {}};
+const auto cpuParams_nChw16c = CPUSpecificParams {{nChw16c}, {}, {"jit_avx512"}, {"jit_avx512"}};
+const auto cpuParams_nCdhw16c = CPUSpecificParams {{nCdhw16c}, {}, {"jit_avx512"}, {"jit_avx512"}};
 
-const auto cpuParams_nChw8c = CPUSpecificParams {{nChw8c}, {}, {}, {}};
-const auto cpuParams_nCdhw8c = CPUSpecificParams {{nCdhw8c}, {}, {}, {}};
+const auto cpuParams_nChw8c = CPUSpecificParams {{nChw8c}, {}, {"jit_avx2"}, {"jit_avx2"}};
+const auto cpuParams_nCdhw8c = CPUSpecificParams {{nCdhw8c}, {}, {"jit_avx2"}, {"jit_avx2"}};
 
-const auto cpuParams_nhwc = CPUSpecificParams {{nhwc}, {}, {}, {}};
-const auto cpuParams_ndhwc = CPUSpecificParams {{ndhwc}, {}, {}, {}};
+const auto cpuParams_nhwc_avx2 = CPUSpecificParams {{nhwc}, {}, {"jit_avx512"}, {"jit_avx512"}};
+const auto cpuParams_ndhwc_avx2 = CPUSpecificParams {{ndhwc}, {}, {"jit_avx2"}, {"jit_avx2"}};
 
-const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {}, {}, {}};
-const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {}, {}, {}};
+const auto cpuParams_nhwc_ref = CPUSpecificParams {{nhwc}, {}, {"ref_any"}, {"ref_any"}};
+const auto cpuParams_ndhwc_ref = CPUSpecificParams {{ndhwc}, {}, {"ref_any"}, {"ref_any"}};
+
+const auto cpuParams_nchw_avx2 = CPUSpecificParams {{nchw}, {}, {"jit_avx2"}, {"jit_avx2"}};
+const auto cpuParams_ncdhw_avx2 = CPUSpecificParams {{ncdhw}, {}, {"jit_avx2"}, {"jit_avx2"}};
+
+const auto cpuParams_nchw_ref = CPUSpecificParams {{nchw}, {}, {"ref_any"}, {"ref_any"}};
+const auto cpuParams_ncdhw_ref = CPUSpecificParams {{ncdhw}, {}, {"ref_any"}, {"ref_any"}};
+
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::I8,
@@ -104,28 +111,39 @@ const std::vector<InferenceEngine::Precision> netPrecisionsPerChannels = {
 };
 
 const std::vector<std::vector<size_t>> inputShapes4D = {
-    {2, 32, 10, 20}
+    {2, 32, 10, 20},
+    {3, 16, 3, 64}
 };
 
 const std::vector<std::vector<size_t>> inputOrder4D = {
         std::vector<size_t>{0, 1, 2, 3},
+        std::vector<size_t>{0, 1, 3, 2},
         std::vector<size_t>{0, 2, 3, 1},
         std::vector<size_t>{0, 2, 1, 3},
+        std::vector<size_t>{0, 3, 1, 2},
         std::vector<size_t>{1, 0, 2, 3},
         std::vector<size_t>{},
 };
 
 const std::vector<std::vector<size_t>> inputOrderPerChannels4D = {
         std::vector<size_t>{0, 1, 2, 3},
+        std::vector<size_t>{0, 1, 3, 2},
         std::vector<size_t>{0, 2, 1, 3},
         std::vector<size_t>{1, 0, 2, 3},
+        std::vector<size_t>{0, 3, 1, 2},
         std::vector<size_t>{},
 };
 
 const std::vector<CPUSpecificParams> CPUParams4D = {
         cpuParams_nChw16c,
         cpuParams_nChw8c,
-        cpuParams_nchw,
+        cpuParams_nchw_avx2,
+        cpuParams_nchw_ref,
+};
+
+const std::vector<CPUSpecificParams> CPUParams4D_perChannels = {
+        cpuParams_nhwc_avx2,
+        cpuParams_nhwc_ref,
 };
 
 const auto params4D = ::testing::Combine(
@@ -134,7 +152,7 @@ const auto params4D = ::testing::Combine(
         ::testing::ValuesIn(inputShapes4D),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config),
-        ::testing::ValuesIn(CPUParams4D));
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams4D)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Transpose4D_CPU, TransposeLayerCPUTest, params4D, TransposeLayerCPUTest::getTestCaseName);
 
@@ -144,18 +162,21 @@ const auto paramsPerChannels4D = ::testing::Combine(
         ::testing::ValuesIn(inputShapes4D),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config),
-        ::testing::Values(cpuParams_nhwc));
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams4D_perChannels)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PermutePerChannels4D_CPU, TransposeLayerCPUTest, paramsPerChannels4D, TransposeLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> inputShapes5D = {
-        {2, 32, 5, 10, 20}
+        {2, 32, 5, 10, 20},
+        {2, 16, 2, 3, 128}
 };
 
 const std::vector<std::vector<size_t>> inputOrder5D = {
         std::vector<size_t>{0, 1, 2, 3, 4},
+        std::vector<size_t>{0, 1, 4, 2, 3},
         std::vector<size_t>{0, 4, 2, 3, 1},
         std::vector<size_t>{0, 4, 2, 1, 3},
+        std::vector<size_t>{0, 4, 1, 2, 3},
         std::vector<size_t>{0, 2, 3, 4, 1},
         std::vector<size_t>{0, 2, 4, 3, 1},
         std::vector<size_t>{0, 3, 2, 4, 1},
@@ -166,8 +187,10 @@ const std::vector<std::vector<size_t>> inputOrder5D = {
 
 const std::vector<std::vector<size_t>> inputOrderPerChannels5D = {
         std::vector<size_t>{0, 1, 2, 3, 4},
+        std::vector<size_t>{0, 1, 4, 2, 3},
         std::vector<size_t>{0, 4, 2, 3, 1},
         std::vector<size_t>{0, 4, 2, 1, 3},
+        std::vector<size_t>{0, 4, 1, 2, 3},
         std::vector<size_t>{0, 2, 4, 3, 1},
         std::vector<size_t>{0, 3, 2, 4, 1},
         std::vector<size_t>{0, 3, 1, 4, 2},
@@ -178,7 +201,13 @@ const std::vector<std::vector<size_t>> inputOrderPerChannels5D = {
 const std::vector<CPUSpecificParams> CPUParams5D = {
         cpuParams_nCdhw16c,
         cpuParams_nCdhw8c,
-        cpuParams_ncdhw,
+        cpuParams_ncdhw_avx2,
+        cpuParams_ncdhw_ref,
+};
+
+const std::vector<CPUSpecificParams> CPUParams5D_perChannels = {
+        cpuParams_ndhwc_avx2,
+        cpuParams_ndhwc_ref,
 };
 
 const auto params5D = ::testing::Combine(
@@ -187,7 +216,7 @@ const auto params5D = ::testing::Combine(
         ::testing::ValuesIn(inputShapes5D),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config),
-        ::testing::ValuesIn(CPUParams5D));
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams5D)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Transpose5D_CPU, TransposeLayerCPUTest, params5D, TransposeLayerCPUTest::getTestCaseName);
 
@@ -197,7 +226,7 @@ const auto paramsPerChannels5D = ::testing::Combine(
         ::testing::ValuesIn(inputShapes5D),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config),
-        ::testing::Values(cpuParams_ndhwc));
+        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams5D_perChannels)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_PermutePerChannels5D_CPU, TransposeLayerCPUTest, paramsPerChannels5D, TransposeLayerCPUTest::getTestCaseName);
 

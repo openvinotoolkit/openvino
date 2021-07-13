@@ -150,66 +150,82 @@ void PermuteKernel::prepareParams() {
     for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
 
-    SizeVector new_dst_block_strides = dst_block_strides;
-    SizeVector new_dst_block_order = params.dst_block_order;
-    SizeVector new_dst_block_dims = params.dst_block_dims;
-    SizeVector new_src_block_strides(dst_block_strides.size());
-    SizeVector mask(dst_block_strides.size());
-
     SizeVector tmp_order;
-    for (size_t i = 0; i < params.dst_block_order.size(); i++) {
+    for (size_t i = 0; i < params.dst_block_order.size(); i++)
         tmp_order.push_back(params.order[params.dst_block_order[i]]);
+
+    const bool byDst = isPermutationsByDstStrides(tmp_order);
+    SizeVector first_block_dims     = byDst ? params.dst_block_dims  : params.src_block_dims;
+    SizeVector second_block_dims    = byDst ? params.src_block_dims  : params.dst_block_dims;
+    SizeVector first_block_order    = byDst ? params.dst_block_order : params.src_block_order;
+    SizeVector second_block_order   = byDst ? params.src_block_order : params.dst_block_order;
+    SizeVector first_block_strides  = byDst ? dst_block_strides      : src_block_strides;
+    SizeVector second_block_strides = byDst ? src_block_strides      : dst_block_strides;
+
+    SizeVector new_first_block_dims = first_block_dims;
+    SizeVector new_second_block_dims(second_block_dims.size(), 1);
+    SizeVector new_first_block_strides = first_block_strides;
+    SizeVector new_second_block_strides(first_block_strides.size(), 1);
+    SizeVector new_first_block_order = first_block_order;
+
+    const size_t n_dims = first_block_strides.size();
+    if (!byDst) {
+        tmp_order.clear();
+        for (size_t i = 0; i < first_block_order.size(); i++) {
+            const size_t new_value = std::distance(params.order.begin(), std::find(
+                                             params.order.begin(), params.order.end(), first_block_order[i]));
+            tmp_order.push_back(new_value);
+        }
     }
 
+    SizeVector mask(n_dims, 0);
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
         int pos = std::distance(std::find(
-                params.src_block_order.rbegin(), params.src_block_order.rend(), tmp_order[i]), params.src_block_order.rend() - 1);
+                second_block_order.rbegin(), second_block_order.rend(), tmp_order[i]), second_block_order.rend() - 1);
         if (pos != -1) {
-            new_src_block_strides[i] = src_block_strides[pos];
-            params.src_block_order.erase(params.src_block_order.begin() + pos);
-            src_block_strides.erase(src_block_strides.begin() + pos);
-            mask[i] = 0;
+            new_second_block_strides[i] = second_block_strides[pos];
+            second_block_order.erase(second_block_order.begin() + pos);
+            second_block_strides.erase(second_block_strides.begin() + pos);
         } else {
-            new_src_block_strides[i] = new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
+            new_second_block_strides[i] = new_second_block_strides[tmp_order.size() - 1] * first_block_dims[tmp_order.size() - 1];
             mask[i] = 1;
             mask[tmp_order.size() - 1] = 1;
         }
     }
-    if (!params.src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), params.src_block_order[0]));
-        new_src_block_strides.insert(new_src_block_strides.begin() + pos,
-                                     src_block_strides[0]);
-        new_dst_block_strides.insert(new_dst_block_strides.begin() + pos,
-                                  new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_order.insert(new_dst_block_order.begin() + pos,
-                                   new_dst_block_order[pos]);
-        new_dst_block_dims.insert(new_dst_block_dims.begin() + pos + 1,
-                                  params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_dims[pos] = div_up(new_dst_block_dims[pos], new_dst_block_dims[pos + 1]);
+    if (!second_block_order.empty()) {
+        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), second_block_order.front()));
+
+        new_second_block_strides.insert(new_second_block_strides.begin() + pos, second_block_strides.front());
+        new_first_block_strides.insert(new_first_block_strides.begin() + pos, new_first_block_strides[pos] * second_block_dims.back());
+        new_first_block_order.insert(new_first_block_order.begin() + pos, new_first_block_order[pos]);
+        new_first_block_dims.insert(new_first_block_dims.begin() + pos + 1, second_block_dims.back());
+        new_first_block_dims[pos] = div_up(new_first_block_dims[pos], new_first_block_dims[pos + 1]);
+
         mask.insert(mask.begin() + pos + 1, 1);
         mask[pos] = 1;
     }
 
-    SizeVector sorted_src_strides;
-    SizeVector sorted_dst_strides;
+    SizeVector sorted_first_strides;
+    SizeVector sorted_second_strides;
     SizeVector sorted_order;
-    SizeVector sorted_dst_dims;
+    SizeVector sorted_main_dims;
 
     //  support dynamic batch
-    int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
+    const SizeVector order_for_batch = byDst ? params.order : new_first_block_order;
+    int batch_ord = std::distance(order_for_batch.begin(), std::find(order_for_batch.begin(), order_for_batch.end(), 0));
     int batch_count = 0;
     int batch_pos = 0;
-    for (size_t i = 0; i < new_dst_block_order.size(); i++) {
-        if (new_dst_block_order[i] == batch_ord) {
+    for (size_t i = 0; i < new_first_block_order.size(); i++) {
+        if (new_first_block_order[i] == batch_ord) {
             batch_count++;
             batch_pos = i;
         }
     }
     if (batch_count == 1) {
-        sorted_src_strides.push_back(new_src_block_strides[batch_pos]);
-        sorted_dst_strides.push_back(new_dst_block_strides[batch_pos]);
-        sorted_order.push_back(new_dst_block_order[batch_pos]);
-        sorted_dst_dims.push_back(new_dst_block_dims[batch_pos]);
+        sorted_first_strides.push_back(new_first_block_strides[batch_pos]);
+        sorted_second_strides.push_back(new_second_block_strides[batch_pos]);
+        sorted_order.push_back(new_first_block_order[batch_pos]);
+        sorted_main_dims.push_back(new_first_block_dims[batch_pos]);
         jcp.supported_dynamic_batch = true;
     }
 
@@ -217,39 +233,39 @@ void PermuteKernel::prepareParams() {
     for (size_t i = 0; i < mask.size(); i++) {
         if (mask[i] == 0) {
             n2++;
-            if (batch_count == 1 && new_dst_block_order[i] == batch_ord) {
+            if (batch_count == 1 && new_first_block_order[i] == batch_ord) {
                 continue;
             }
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
+            sorted_first_strides.push_back(new_first_block_strides[i]);
+            sorted_second_strides.push_back(new_second_block_strides[i]);
+            sorted_order.push_back(new_first_block_order[i]);
+            sorted_main_dims.push_back(new_first_block_dims[i]);
         }
     }
     for (size_t i = 0; i < mask.size(); i++) {
         if (mask[i] == 1) {
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
+            sorted_first_strides.push_back(new_first_block_strides[i]);
+            sorted_second_strides.push_back(new_second_block_strides[i]);
+            sorted_order.push_back(new_first_block_order[i]);
+            sorted_main_dims.push_back(new_first_block_dims[i]);
         }
     }
 
     int max_threads = parallel_get_max_threads();
     const int n_max = 3;    //  max count dims for parallel
     int n = 0;
-    int work_amount = sorted_dst_dims[0];
-    for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
+    int work_amount = sorted_main_dims[0];
+    for (size_t i = 1; i < sorted_main_dims.size() && n < n_max; i++) {
         n++;
         if (work_amount >= 4 * max_threads) {   //  4 * max_threads is a specially selected value for best performance
             break;
         }
-        work_amount *= sorted_dst_dims[i];
+        work_amount *= sorted_main_dims[i];
     }
 
-    jcp.src_strides = sorted_src_strides;
-    jcp.dst_strides = sorted_dst_strides;
-    jcp.dst_block_dims = sorted_dst_dims;
+    jcp.src_strides = byDst ? sorted_second_strides : sorted_first_strides;
+    jcp.dst_strides = byDst ? sorted_first_strides : sorted_second_strides;
+    jcp.dst_block_dims = sorted_main_dims;
     jcp.n = std::min(n, n2);
     jcp.ndims = sorted_order.size();
     jcp.data_size = params.data_size;
@@ -266,6 +282,38 @@ void PermuteKernel::prepareParams() {
         permute_kernel->create_ker();
 }
 
+bool PermuteKernel::isPermutationsByDstStrides(const SizeVector& order) const {
+    const size_t n_dims = order.size();
+    if (n_dims < 4 || std::count(order.begin(), order.end(), 1) != 1)
+        return true;
+
+    SizeVector default_order(n_dims);
+    std::iota(default_order.begin(), default_order.end(), 0);
+
+    // check order such as 0312, 04123, etc
+    SizeVector order_last_to_channel(default_order);
+    order_last_to_channel.insert(order_last_to_channel.begin() + 1, order_last_to_channel.back());
+    order_last_to_channel.pop_back();
+    const size_t dims_before_last = std::accumulate(params.src_block_dims.begin() + 1, params.src_block_dims.end() - 1, 1, std::multiplies<size_t>());
+    if (order_last_to_channel == order)
+        return dims_before_last <= params.src_block_dims.back();
+
+    // check order such as 0231, 02341, etc
+    SizeVector order_channel_to_last(default_order);
+    order_channel_to_last.push_back(1);
+    order_channel_to_last.erase(order_channel_to_last.begin() + 1);
+    const size_t dims_after_first = std::accumulate(params.src_block_dims.begin() + 2, params.src_block_dims.end(), 1, std::multiplies<size_t>());
+    if (order_channel_to_last == order)
+        return dims_after_first > params.dst_block_dims.back();
+
+    // check order such as 0132
+    SizeVector order_spatial_reverse = {0, 1, 3, 2};
+    if (order_spatial_reverse == order)
+        return params.src_block_dims[n_dims - 2] <= params.src_block_dims[n_dims - 1];
+
+    return true;
+}
+
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
     if (permute_kernel) {
         optimizedExecute(src_data, dst_data, mb);
@@ -276,13 +324,13 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
 }
 
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
-    SizeVector dst_dims = jcp.dst_block_dims;
+    const int mb = jcp.dst_block_dims[0];
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        optimizedExecute(src_data, dst_data, mb);
         return;
     }
 
-    referenceExecute(src_data, dst_data, dst_dims[0]);
+    referenceExecute(src_data, dst_data, mb);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -298,8 +346,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
             parallel_for(dst_dims[0], [&](int i0) {
                 auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0];
-                size_t src_off = i0 * src_strides[0];
+                const size_t dst_off = i0 * dst_strides[0];
+                const size_t src_off = i0 * src_strides[0];
                 arg.src = &src_data[src_off * jcp.data_size];
                 arg.dst = &dst_data[dst_off * jcp.data_size];
 
@@ -310,8 +358,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
             parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
                 auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
+                const size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
+                const size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
                 arg.src = &src_data[src_off * jcp.data_size];
                 arg.dst = &dst_data[dst_off * jcp.data_size];
 
@@ -322,8 +370,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
             parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
                 auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
+                const size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
+                const size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
                 arg.src = &src_data[src_off * jcp.data_size];
                 arg.dst = &dst_data[dst_off * jcp.data_size];
 
