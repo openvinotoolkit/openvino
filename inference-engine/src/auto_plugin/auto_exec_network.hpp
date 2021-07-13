@@ -54,7 +54,7 @@ public:
             return false;
         }
     }
-protected:
+private:
     std::queue<T>   _queue;
     std::mutex      _mutex;
 };
@@ -71,32 +71,9 @@ public:
         return false;
     }
 
-    void push(T value) {
-        {
-            std::unique_lock<std::mutex> lock(_mutex);
-            while (_capacity <= _queue.size()) {
-                _notFull.wait(lock);
-            }
-            _queue.push(std::move(value));
-        }
-        _notEmpty.notify_one();
-    }
-
-    void pop(T& value) {
-        {
-            std::unique_lock<std::mutex> lock(_mutex);
-            while (!_capacity || _queue.empty()) {
-                _notEmpty.wait(lock);
-            }
-            value = std::move(_queue.front());
-            _queue.pop();
-        }
-        _notFull.notify_one();
-    }
-
     bool try_pop(T& value) {
         std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity && !_queue.empty()) {
+        if (!_queue.empty()) {
             value = std::move(_queue.front());
             _queue.pop();
             return true;
@@ -114,7 +91,7 @@ public:
         return _queue.size();
     }
 
-protected:
+private:
     std::queue<T>   _queue;
     mutable std::mutex      _mutex;
     std::condition_variable _notFull;
