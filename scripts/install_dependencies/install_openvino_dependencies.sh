@@ -277,6 +277,7 @@ elif [ "$os" == "centos7" ] ; then
         wavpack
         xz-libs
         zlib
+        systemd-devel
         python36-gi
         python36-gobject
         python36-gobject-devel
