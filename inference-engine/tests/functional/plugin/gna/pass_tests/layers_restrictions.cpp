@@ -34,7 +34,7 @@ struct FullyConnectedBatchSizeMoreThan8 {
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fullyConnected) };
         return std::make_shared<ngraph::Function>(results, params, getName());
     }
-    static const char* getMatch() { return "and batch size(9) not supported"; }
+    static const char* getMatch() { return "compiles to GNA layer with unsupported batch size 9"; }
 };
 
 struct FullyConnectedBatchSizeLessThanOrEqual8 {
