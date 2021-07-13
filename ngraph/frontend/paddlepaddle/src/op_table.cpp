@@ -8,7 +8,10 @@
 #include "op/clip.hpp"
 #include "op/concat.hpp"
 #include "op/conv2d.hpp"
+#include "op/deformable_conv.hpp"
 #include "op/elementwise_ops.hpp"
+#include "op/matrix_nms.hpp"
+#include "op/multiclass_nms.hpp"
 #include "op/relu.hpp"
 #include "op/scale.hpp"
 #include "op/split.hpp"
@@ -30,6 +33,8 @@ namespace ngraph
                         {"clip", op::clip},
                         {"concat", op::concat},
                         {"conv2d", op::conv2d},
+                        {"deformable_conv", op::deformable_conv},
+                        {"deformable_conv_v1", op::deformable_conv},
                         {"elementwise_add", op::elementwise_add},
                         {"elementwise_div", op::elementwise_div},
                         {"elementwise_max", op::elementwise_max},
@@ -37,6 +42,8 @@ namespace ngraph
                         {"elementwise_mul", op::elementwise_mul},
                         {"elementwise_pow", op::elementwise_pow},
                         {"elementwise_sub", op::elementwise_sub},
+                        {"matrix_nms", op::matrix_nms},
+                        {"multiclass_nms3", op::multiclass_nms},
                         {"relu", op::relu},
                         {"scale", op::scale},
                         {"split", op::split}};
