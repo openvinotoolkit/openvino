@@ -12,6 +12,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
+#include "utils/ngraph_utils.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <algorithm>
@@ -1366,7 +1367,7 @@ bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>&
             errorMessage = "Reduce node with name " + op->get_friendly_name() + " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
             return false;
         }
-        if (initializers.find(op->get_type_info()) == initializers.end()) {
+        if (find_castable_type_info(initializers, op->get_type_info()) == initializers.end()) {
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
@@ -1385,7 +1386,8 @@ MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, cons
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
-        initializers[op->get_type_info()](op, *this);
+        auto it = find_castable_type_info(initializers, op->get_type_info());
+        it->second(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
         } else if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(op)) {

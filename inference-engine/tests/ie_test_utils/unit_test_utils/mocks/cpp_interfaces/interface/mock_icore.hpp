@@ -29,6 +29,7 @@ public:
     MOCK_CONST_METHOD3(QueryNetwork, InferenceEngine::QueryNetworkResult(
         const InferenceEngine::CNNNetwork&, const std::string&, const std::map<std::string, std::string>&));
 
+    MOCK_METHOD1(AddExtension, void(const InferenceEngine::IExtensionPtr&));
     MOCK_CONST_METHOD2(GetMetric, InferenceEngine::Parameter(const std::string&, const std::string&));
     MOCK_CONST_METHOD0(GetAvailableDevices, std::vector<std::string>());
     MOCK_CONST_METHOD1(DeviceSupportsImportExport, bool(const std::string&)); // NOLINT not a cast to bool

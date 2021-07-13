@@ -208,6 +208,19 @@ namespace ngraph
         element::Type& m_ref;
     };
 
+    template <>
+    class NGRAPH_API AttributeAdapter<element::TypeVector>
+        : public DirectValueAccessor<element::TypeVector>
+    {
+    public:
+        AttributeAdapter(element::TypeVector& value)
+            : DirectValueAccessor<element::TypeVector>(value)
+        {
+        }
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<vector<element::Type>>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
     /// \brief Return the number of bytes in the compile-time representation of the element type.
     size_t compiler_byte_size(element::Type_t et);
 } // namespace ngraph

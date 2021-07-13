@@ -25,7 +25,7 @@ MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
 
 bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!MKLDNNPlugin::one_of_castable(op->get_type_info(),
                 ngraph::op::v3::Assign::type_info,
                 ngraph::op::v6::Assign::type_info)) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
@@ -79,7 +79,7 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
 
 bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!MKLDNNPlugin::one_of(op->get_type_info(),
+        if (!MKLDNNPlugin::one_of_castable(op->get_type_info(),
                 ngraph::op::v3::ReadValue::type_info,
                 ngraph::op::v6::ReadValue::type_info)) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";

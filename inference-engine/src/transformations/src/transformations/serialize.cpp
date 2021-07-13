@@ -21,6 +21,7 @@
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::StreamSerialize, "StreamSerialize", 0);
 
 namespace {  // helpers
 template <typename Container>
@@ -84,11 +85,13 @@ public:
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data)
-        , m_enable_compression(enable_compression) {
+        , m_enable_compression(enable_compression)
+        , m_blob_offset(bin_data.tellp()) {
     }
 
     FilePosition write(const char* ptr, size_t size) {
-        const auto offset = m_binary_output.tellp();
+        const FilePosition write_pos = m_binary_output.tellp();
+        const auto offset = write_pos - m_blob_offset;
         if (!m_enable_compression) {
             m_binary_output.write(ptr, size);
             return offset;
@@ -114,6 +117,7 @@ private:
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
     bool m_enable_compression;
+    FilePosition m_blob_offset;     // blob offset inside output stream
 };
 
 void ngfunction_2_irv10(pugi::xml_node& node,
@@ -346,6 +350,9 @@ public:
             for (const auto & attr : attrs) {
                 m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+            const auto & attrs = a->get();
+            m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
         } else {
             throw ngraph_error("Unsupported attribute type for serialization: " + name);
         }
@@ -918,5 +925,53 @@ pass::Serialize::Serialize(const std::string& xmlPath,
     , m_version{version}
     , m_custom_opsets{custom_opsets}
 {
+}
+
+ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
+                                               std::map<std::string, ngraph::OpSet> && custom_opsets,
+                                               Serialize::Version version)
+    : m_stream(stream)
+    , m_custom_opsets(std::move(custom_opsets)) {
+    if (version != Serialize::Version::IR_V10) {
+        throw ngraph_error("Unsupported version");
+    }
+}
+
+bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    DataHeader hdr = {};
+
+    auto writeHeader = [this](const DataHeader & hdr) {
+        m_stream.write((const char*)&hdr, sizeof hdr);
+    };
+
+    const size_t header_offset = m_stream.tellp();
+
+    writeHeader(hdr);
+
+    std::string name = "net";
+    pugi::xml_document xml_doc;
+    pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+    ConstantWriter constant_write_handler(m_stream);
+    XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler);
+    visitor.on_attribute(name, f);
+
+    hdr.consts_offset = header_offset + sizeof hdr;
+    hdr.model_offset = m_stream.tellp();
+
+    xml_doc.save(m_stream);
+    m_stream.flush();
+
+    const size_t file_size = m_stream.tellp();
+
+    hdr.consts_size = hdr.model_offset - hdr.consts_offset;
+    hdr.model_size = file_size - hdr.model_offset;
+
+    m_stream.seekp(header_offset);
+    writeHeader(hdr);
+
+    m_stream.seekp(file_size);
+
+    // Return false because we didn't change nGraph Function
+    return false;
 }
 // ! [function_pass:serialize_cpp]

@@ -29,6 +29,14 @@ constexpr bool one_of(T val, P item, Args... item_others) {
 }
 
 template <typename T, typename P>
+constexpr bool one_of_castable(T val, P item) { return val.is_castable(item); }
+
+template <typename T, typename P, typename... Args>
+constexpr bool one_of_castable(T val, P item, Args... item_others) {
+    return one_of_castable(val, item) || one_of_castable(val, item_others...);
+}
+
+template <typename T, typename P>
 constexpr bool everyone_is(T val, P item) { return val == item; }
 
 template <typename T, typename P, typename... Args>

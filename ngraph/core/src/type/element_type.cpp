@@ -15,6 +15,7 @@ using namespace ngraph;
 using namespace std;
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
+constexpr DiscreteTypeInfo AttributeAdapter<element::TypeVector>::type_info;
 
 class TypeInfo
 {
