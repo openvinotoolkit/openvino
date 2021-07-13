@@ -141,7 +141,10 @@ namespace ngraph
                 };
 
                 virtual std::shared_ptr<Function> get_function() { return m_bodies[0]; };
-                virtual std::shared_ptr<const Function> get_function() const { return m_bodies[0]; };
+                virtual std::shared_ptr<const Function> get_function() const
+                {
+                    return m_bodies[0];
+                };
                 virtual void set_function(const std::shared_ptr<Function>& func)
                 {
                     m_bodies[0] = func;
@@ -249,13 +252,10 @@ namespace ngraph
                 SubGraphOp(const SubGraphOp&) = delete;
                 SubGraphOp(SubGraphOp&&) = default;
 
-                
-
                 SubGraphOp& operator=(const SubGraphOp&) = delete;
                 SubGraphOp& operator=(SubGraphOp&&) = default;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-
 
             protected:
                 int64_t m_num_iterations =
@@ -266,7 +266,6 @@ namespace ngraph
 
                 SubGraphOp();
                 explicit SubGraphOp(const OutputVector& args);
-
             };
             using InputDescriptionPtr = std::shared_ptr<util::SubGraphOp::InputDescription>;
             using OutputDescriptionPtr = std::shared_ptr<util::SubGraphOp::OutputDescription>;

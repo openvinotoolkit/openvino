@@ -55,7 +55,6 @@ std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
         m_input_index, m_body_parameter_index, m_body_value_index);
 }
 
-
 op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
                                                                        uint64_t output_index,
                                                                        int64_t start,

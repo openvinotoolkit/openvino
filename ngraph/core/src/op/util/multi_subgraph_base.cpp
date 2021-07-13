@@ -65,7 +65,6 @@ op::util::MultiSubGraphOp::MultiSubGraphOp(size_t bodies_index)
     m_output_descriptions.resize(bodies_index);
 }
 
-
 op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t bodies_index)
     : MultiSubGraphOp(args)
 {

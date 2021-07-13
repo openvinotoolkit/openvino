@@ -216,9 +216,11 @@ namespace ngraph
                 MultiSubGraphOp(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp(MultiSubGraphOp&&) = default;
 
+                MultiSubGraphOp(size_t bodies_index);
+
                 MultiSubGraphOp& operator=(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp& operator=(MultiSubGraphOp&&) = default;
-                MultiSubGraphOp::MultiSubGraphOp(size_t bodies_index);
+
             protected:
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);

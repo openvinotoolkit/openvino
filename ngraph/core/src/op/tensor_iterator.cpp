@@ -126,8 +126,10 @@ void op::v0::TensorIterator::validate_and_infer_types()
         else if (auto merged_input_description =
                      as_type_ptr<MergedInputDescription>(input_description))
         {
-            auto body_value =
-                m_bodies[0]->get_results().at(merged_input_description->m_body_value_index)->input(0);
+            auto body_value = m_bodies[0]
+                                  ->get_results()
+                                  .at(merged_input_description->m_body_value_index)
+                                  ->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
             auto body_parameter =
@@ -140,8 +142,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
         else if (auto invariant_input_description =
                      as_type_ptr<InvariantInputDescription>(input_description))
         {
-            auto body_parameter =
-                m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            auto body_parameter = m_bodies[0]->get_parameters().at(
+                invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
