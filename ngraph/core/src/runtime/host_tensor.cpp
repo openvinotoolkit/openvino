@@ -16,9 +16,8 @@ static const size_t alignment = 64;
 
 runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
                                 const Shape& shape,
-                                void* memory_pointer,
-                                const string& name)
-    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, shape, name))
+                                void* memory_pointer)
+    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, shape, ""))
     , m_memory_pointer(memory_pointer)
 {
     if (get_partial_shape().is_static() && get_element_type().is_static())
@@ -31,31 +30,27 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
     }
 }
 
-runtime::HostTensor::HostTensor(const element::Type& element_type,
-                                const Shape& shape,
-                                const std::string& name)
-    : HostTensor(element_type, shape, nullptr, name)
+runtime::HostTensor::HostTensor(const element::Type& element_type, const Shape& shape)
+    : HostTensor(element_type, shape, nullptr)
 {
 }
 
 runtime::HostTensor::HostTensor(const element::Type& element_type,
-                                const PartialShape& partial_shape,
-                                const std::string& name)
-    : runtime::Tensor(
-          std::make_shared<ngraph::descriptor::Tensor>(element_type, partial_shape, name))
+                                const PartialShape& partial_shape)
+    : runtime::Tensor(std::make_shared<ngraph::descriptor::Tensor>(element_type, partial_shape, ""))
     , m_buffer_size(0)
 {
     // Defer allocation until ptr is requested
 }
 
-runtime::HostTensor::HostTensor(const std::string& name)
+runtime::HostTensor::HostTensor()
     : HostTensor(element::dynamic, PartialShape::dynamic())
 {
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const Output<Node>& value)
-    : HostTensor(value.get_element_type(), value.get_partial_shape(), value.get_tensor().get_name())
+    : HostTensor(value.get_element_type(), value.get_partial_shape())
 {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
@@ -93,7 +88,7 @@ void runtime::HostTensor::allocate_buffer()
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const std::shared_ptr<op::v0::Constant>& constant)
-    : HostTensor(constant->output(0).get_tensor().get_name())
+    : HostTensor()
 {
     initialize(constant);
 }

@@ -41,13 +41,3 @@ const std::string& runtime::Tensor::get_name() const
     return m_descriptor->get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
-
-bool runtime::Tensor::get_stale() const
-{
-    return m_stale;
-}
-
-void runtime::Tensor::set_stale(bool val)
-{
-    m_stale = val;
-}
