@@ -47,7 +47,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 $benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md).
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](https://github.com/openvinotoolkit/openvino/blob/master/docs/IE_DG/Intro_to_Performance.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
