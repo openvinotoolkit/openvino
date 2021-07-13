@@ -8,14 +8,12 @@
 
 **Detailed description**
 
-*PriorBoxClustered* computes coordinates of prior boxes by following:
-1.  Calculates the *center_x* and *center_y* of prior box:
-    \f[
-    W \equiv Width \quad Of \quad Image
-    \f]
-    \f[
-    H \equiv Height \quad Of \quad Image
-    \f]
+Let
+\f[
+W \equiv image\_width, \quad H \equiv image\_height.
+\f]
+
+Then calculations of *PriorBoxClustered* can be written as
     \f[
     center_x=(w+offset)*step
     \f]
@@ -28,7 +26,7 @@
     \f[
     h \subset \left( 0, H \right )
     \f]
-2.  For each \f$s \subset \left( 0, W \right )\f$ calculates the prior boxes coordinates:
+For each \f$s = \overline{0, W - 1}\f$ calculates the prior boxes coordinates:
     \f[
     xmin = \frac{center_x - \frac{width_s}{2}}{W}
     \f]
