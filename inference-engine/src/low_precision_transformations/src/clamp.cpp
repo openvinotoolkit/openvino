@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -21,6 +23,8 @@ void ClampTransformation::registerMatcherIn(GraphRewrite& pass, TransformationCo
 }
 
 bool ClampTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "ClampTransformation");
+
     auto subWithTheSameValues = [](std::shared_ptr<ngraph::opset1::Subtract> sub) {
         if (sub == nullptr) {
             return false;

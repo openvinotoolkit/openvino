@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -51,6 +52,8 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 }
 
 bool FuseConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "FuseConvertTransformation");
+
     const auto op = m.get_match_root();
     if (!canBeTransformed(context, op)) {
         return false;

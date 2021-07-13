@@ -5,6 +5,8 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -17,6 +19,8 @@ void FuseMultiplyToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &p
 }
 
 bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "FuseMultiplyToFakeQuantizeTransformation");
+
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;

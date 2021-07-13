@@ -5,6 +5,8 @@
 #include "low_precision/fold_convert.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -17,6 +19,8 @@ void FoldConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
 }
 
 bool FoldConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "FoldConvertTransformation");
+
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
         return false;

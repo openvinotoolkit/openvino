@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -155,6 +156,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 }
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "ReshapeTransformation");
+
     std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;

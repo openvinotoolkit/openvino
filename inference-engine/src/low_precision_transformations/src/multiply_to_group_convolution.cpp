@@ -5,6 +5,8 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -16,6 +18,8 @@ void MultiplyToGroupConvolutionTransformation::registerMatcherIn(GraphRewrite &p
 }
 
 bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "MultiplyToGroupConvolutionTransformation");
+
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;

@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -23,6 +24,8 @@ void PReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCo
 }
 
 bool PReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PReluTransformation");
+
     std::shared_ptr<Node> prelu = m.get_match_root();
     if (!canBeTransformed(context, prelu)) {
         return false;

@@ -8,6 +8,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -25,6 +26,8 @@ void UnsqueezeTransformation::registerMatcherIn(GraphRewrite &pass, Transformati
 }
 
 bool UnsqueezeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "UnsqueezeTransformation");
+
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }

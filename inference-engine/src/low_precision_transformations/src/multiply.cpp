@@ -12,6 +12,7 @@
 #include <vector>
 #include <cassert>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
@@ -25,6 +26,8 @@ void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
 }
 
 bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "MultiplyTransformation");
+
     auto multiply = m.get_match_root();
     if (!LayerTransformation::canBeTransformed(context, multiply)) {
         return false;

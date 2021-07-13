@@ -11,6 +11,8 @@
 
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -90,6 +92,7 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
 }
 
 bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "NormalizeL2Transformation");
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return false;

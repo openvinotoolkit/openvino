@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -26,8 +27,9 @@ bool GroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) co
 }
 
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    auto convolution = m.get_match_root();
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "GroupConvolutionTransformation");
 
+    auto convolution = m.get_match_root();
     if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
         return false;
     }

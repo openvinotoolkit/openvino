@@ -14,12 +14,12 @@ ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependenc
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
-ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
+ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." ON)
 
 ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
 Supported values:\
  ALL - enable all ITT counters (default value)\
- FIRST_INFERENCE - enable only first inference time counters" ALL
+ FIRST_INFERENCE - enable only first inference time counters" FIRST_INFERENCE
                ALLOWED_VALUES ALL FIRST_INFERENCE)
 
 ie_option (ENABLE_PROFILING_FIRST_INFERENCE "Build with ITT tracing of first inference time." ON)

@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -53,6 +54,8 @@ bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> la
 }
 
 bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "AvgPoolTransformation");
+
     auto convolutionBackpropData = m.get_match_root();
 
     if (!canBeTransformed(context, convolutionBackpropData)) {

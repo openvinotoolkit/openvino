@@ -12,10 +12,11 @@
 
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "ngraph/opsets/opset6.hpp"
+
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
-
-#include "ngraph/opsets/opset6.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -99,6 +100,8 @@ void MVNTransformation::registerMatcherIn(GraphRewrite& pass, TransformationCont
 }
 
 bool MVNTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "MVNTransformation");
+
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return false;

@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -19,6 +20,8 @@ void FakeQuantizeDecompositionTransformation::registerMatcherIn(GraphRewrite& pa
 }
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "FakeQuantizeDecompositionTransformation");
+
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
     if (!NetworkHelper::isQuantizeSupported(layer)) {
         return false;

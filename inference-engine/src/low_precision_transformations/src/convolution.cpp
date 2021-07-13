@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -39,6 +40,8 @@ bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const n
 
 
 bool ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "ConvolutionTransformation");
+
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(context, convolution)) {

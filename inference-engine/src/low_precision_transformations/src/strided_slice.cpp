@@ -7,6 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -84,6 +85,8 @@ void StridedSliceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 }
 
 bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "StridedSliceTransformation");
+
     if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
         return false;
     }

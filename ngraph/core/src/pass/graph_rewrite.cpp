@@ -428,7 +428,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph,
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::nGraph,
                        pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
