@@ -8,6 +8,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_node
+from mo.ops.const import Const
 from mo.ops.pad import Pad
 from mo.ops.squeeze import Squeeze
 
@@ -35,11 +36,15 @@ class PadTFToPad(FrontReplacementPattern):
                 if not tfpad.in_port(2).disconnected():
                     tfpad.in_port(2).get_connection().set_destination(new_pad.in_port(3))
                 else:
-                    # create Constant node of proper data type (equal to the data type of the Pad first input)
-                    convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: 0.0},
-                                                                    {'name': original_name + '/pad_value_convert'})
-                    convert_pad_value.in_port(1).connect(new_pad.in_port(0).get_source())
-                    new_pad.in_port(3).connect(convert_pad_value.out_port(0))
+                    if (isinstance(0.0, int)):
+                        # create Constant node of proper data type (equal to the data type of the Pad first input)
+                        convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: 0.0},
+                                                                        {'name': original_name + '/pad_value_convert'})
+                        convert_pad_value.in_port(1).connect(new_pad.in_port(0).get_source())
+                        new_pad.in_port(3).connect(convert_pad_value.out_port(0))
+                    else:
+                        new_pad.in_port(3).connect(Const(graph, {'value': 0.0, 'name': new_pad.name + '/value'}
+                                                  ).create_node().out_port(0))
 
             # convert TF representation of the pads as [N, 2] to MO representation: [N] and [N]
             transposed_pads = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])})

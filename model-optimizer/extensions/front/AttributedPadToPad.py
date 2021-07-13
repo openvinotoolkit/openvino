@@ -28,11 +28,14 @@ class AttributedPadToPad(FrontReplacementPattern):
             new_pad.in_port(1).connect(Const(graph, {'value': attr_pad.pads[:, 0]}).create_node().out_port(0))
             new_pad.in_port(2).connect(Const(graph, {'value': attr_pad.pads[:, 1]}).create_node().out_port(0))
             if attr_pad.soft_get('mode') == 'constant':
-                # create Constant node of proper data type (equal to the data type of the Pad first input)
-                convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: attr_pad.fill_value},
-                                                                {'name': original_name + '/pad_value_convert'})
-                convert_pad_value.in_port(1).connect(new_pad.in_port(0).get_source())
-                new_pad.in_port(3).connect(convert_pad_value.out_port(0))
+                if (isinstance(attr_pad.fill_value, int)):
+                    # create Constant node of proper data type (equal to the data type of the Pad first input)
+                    convert_pad_value = create_op_with_const_inputs(graph, ConvertLike, {0: attr_pad.fill_value},
+                                                                    {'name': original_name + '/pad_value_convert'})
+                    convert_pad_value.in_port(1).connect(new_pad.in_port(0).get_source())
+                    new_pad.in_port(3).connect(convert_pad_value.out_port(0))
+                else:
+                    new_pad.in_port(3).connect(Const(graph, {'value': attr_pad.fill_value}).create_node().out_port(0))
 
             attr_pad.out_port(0).get_connection().set_source(new_pad.out_port(0))
             graph.remove_node(attr_pad.id)
