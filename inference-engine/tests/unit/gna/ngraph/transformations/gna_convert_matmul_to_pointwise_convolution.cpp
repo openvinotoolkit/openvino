@@ -132,18 +132,16 @@ void CreateAdd::updateGraph(Graph& graph) {
     graph.output = add_node;
 }
 
-template<typename DecorT, typename... DecorTs>
-auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
-                                -> typename std::enable_if<(sizeof...(DecorTs) == 0), CreateGraphDecoratorPtr>::type {
+template<typename DecorT, typename... DecorTs, typename std::enable_if<(sizeof...(DecorTs) == 0), bool>::type = true>
+CreateGraphDecoratorPtr createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) {
     CreateGraphDecoratorPtr build_decorator = createUnique<CreateBaseDecorator>(input_data_shape, input_const_shape);
     return createUnique<DecorT>(std::move(build_decorator));
 }
 
-template<typename DecorT, typename... DecorTs>
-auto createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
-                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8})
-                                -> typename std::enable_if<(sizeof...(DecorTs) > 0), CreateGraphDecoratorPtr>::type {
+template<typename DecorT, typename... DecorTs, typename std::enable_if<(sizeof...(DecorTs) > 0), bool>::type = true>
+CreateGraphDecoratorPtr createBuildDecorator(const ngraph::Shape& input_data_shape = ngraph::Shape{16, 8},
+                          const ngraph::Shape& input_const_shape = ngraph::Shape{8, 8}) {
     CreateGraphDecoratorPtr build_decorator = createBuildDecorator<DecorTs...>(input_data_shape, input_const_shape);
     return createUnique<DecorT>(std::move(build_decorator));
 }
