@@ -14,9 +14,15 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 template <typename T>
-static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                 const std::pair<float, T>& pair2) {
-    return pair1.first > pair2.first;
+bool SortScorePairDescend(const std::pair<float, T>& pair1,
+                          const std::pair<float, T>& pair2) {
+    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second < pair2.second);
+}
+
+template <>
+bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<int, int>>& pair1,
+                                               const std::pair<float, std::pair<int, int>>& pair2) {
+    return (pair1.first > pair2.first) || (pair1.first == pair2.first && pair1.second.second < pair2.second.second);
 }
 
 bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {

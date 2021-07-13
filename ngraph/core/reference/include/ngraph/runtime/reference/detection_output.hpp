@@ -381,7 +381,8 @@ namespace ngraph
                 static bool SortScorePairDescend(const std::pair<dataType, T>& pair1,
                                                  const std::pair<dataType, T>& pair2)
                 {
-                    return pair1.first > pair2.first;
+                    return (pair1.first > pair2.first) ||
+                           (pair1.first == pair2.first && pair1.second < pair2.second);
                 }
 
                 void GetMaxScoreIndex(const std::vector<dataType>& scores,
@@ -505,7 +506,12 @@ namespace ngraph
                     }
                     std::sort(scoreIndexPairs.begin(),
                               scoreIndexPairs.end(),
-                              SortScorePairDescend<std::pair<int, int>>);
+                              [](const std::pair<dataType, std::pair<int, int>>& p1,
+                                 const std::pair<dataType, std::pair<int, int>>& p2) {
+                                  return (p1.first > p2.first) ||
+                                         (p1.first == p2.first &&
+                                          p1.second.second < p2.second.second);
+                              });
 
                     if (attrs.top_k != -1)
                         if (scoreIndexPairs.size() > static_cast<size_t>(attrs.top_k))
@@ -651,7 +657,12 @@ namespace ngraph
                             }
                             std::sort(scoreIndexPairs.begin(),
                                       scoreIndexPairs.end(),
-                                      SortScorePairDescend<std::pair<int, int>>);
+                                      [](const std::pair<dataType, std::pair<int, int>>& p1,
+                                         const std::pair<dataType, std::pair<int, int>>& p2) {
+                                          return (p1.first > p2.first) ||
+                                                 (p1.first == p2.first &&
+                                                  p1.second.second < p2.second.second);
+                                      });
                             scoreIndexPairs.resize(attrs.keep_top_k[0]);
                             std::map<int, std::vector<int>> newIndices;
                             for (size_t j = 0; j < scoreIndexPairs.size(); ++j)
