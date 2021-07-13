@@ -14,7 +14,6 @@
 #include "ngraph/check.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
-#include "utils/fe_round.hpp"
 
 namespace ngraph
 {
@@ -213,8 +212,6 @@ namespace ngraph
                                    const op::AutoBroadcastSpec& broadcast)
                 {
                     using namespace fake_quantize_details;
-
-                    const FeRound round_mode(FE_TONEAREST);
 
                     if (shape_size(in_low_shape) == 1 && shape_size(in_high_shape) == 1 &&
                         shape_size(out_low_shape) == 1 && shape_size(out_high_shape) == 1)
