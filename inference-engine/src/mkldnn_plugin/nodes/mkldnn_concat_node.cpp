@@ -86,16 +86,25 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     auto& originInputPrecisions = getOriginalInputPrecisions();
     inputPrecision = originInputPrecisions[0];
     bool isMixedPrecision = false;
+    bool isMixedBF16Precision = false;
     for (int i = 1; i < getOriginalInputsNumber(); i++) {
         if (originInputPrecisions[0] != originInputPrecisions[i]) {
             isMixedPrecision = true;
+            if (originInputPrecisions[0] == Precision::BF16 ||
+                originInputPrecisions[i] == Precision::BF16) {
+                isMixedBF16Precision = true;
+            }
             break;
         }
     }
 
-    // Concat doesn't support different precision on inputs so fallback on FP32 in such case
-    if (isMixedPrecision)
-        inputPrecision = Precision::FP32;
+    // Concat doesn't support different precision on inputs so fallback on FP32 or BF16 in such case
+    if (isMixedPrecision) {
+        if (isMixedBF16Precision)
+            inputPrecision = Precision::BF16;
+        else
+            inputPrecision = Precision::FP32;
+    }
 
     // Concat supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
