@@ -94,6 +94,11 @@ ngraph::pass::TransposeReduction::TransposeReduction() {
                 transpose_order, reduction_axes, ngraph::opset6::Constant::create(ngraph::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
         auto new_reduce = reduction->copy_with_new_inputs({transpose->input_value(0), new_axes});
+
+        if (transformation_callback(new_reduce)) {
+            return false;
+        }
+
         new_ops.push_back(new_reduce);
 
         auto updated_order = transpose_order;
