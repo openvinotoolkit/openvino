@@ -1182,18 +1182,9 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                 auto prevLayer = getCreatorLayer(concatInput).lock();
                 // input layer parameters are copied not using GNA-primitives - so nothing to allign here.
                 if (!useAlignFilterIf(input_idx)) continue;
-
-                gnalog() << "Inserted Concat Aligning Layer between: " << prevLayer->name << " and " << l->name << std::endl;
-                // throw 1;
-                // insert the filter
-                auto filterName = std::string("ConcatAlignConvolutionFilter_") + std::to_string(numOfFilterLayers++);
-                auto concatAligningConvFilter =
-                    std::make_shared<ConvolutionLayer>(LayerParams({ filterName, "ConcatAlignConvolutionFilter", Precision::FP32 }));
-
                 if (dims.size() != 2) {
                     THROW_GNA_EXCEPTION << "unsupported concat input of dims.size()=" << dims.size() << ", layer=" << prevLayer->name;
                 }
-
                 auto num_rows_in = dims[1];
                 size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(offset) - 64));
                 size_t num_rows_padded = (offset - aligned64_offset) / bytesPerConcatElement;
@@ -1201,16 +1192,16 @@ void InsertConcatAligningConvolutionFilterPass::run() {
 
                 // encodes offset to beginning of split layer input
                 size_t bytesOffset = (aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4);
-                concatAligningConvFilter->params["output_offset"] =
-                    std::to_string(bytesOffset);
-
-                // for padded rows we cannot use copy layer - TBD how to implement
-                concatAligningConvFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
-
-                // encodes original output size
-                concatAligningConvFilter->params["original_num_rows"] = std::to_string(num_rows_in);
 
                 if (0 == num_rows_padded && ALIGN(num_rows_in, 32) > 32) {
+
+                    gnalog() << "Inserted Concat Aligning Layer between: " << prevLayer->name << " and " << l->name << std::endl;
+
+                    // insert the filter
+                    auto filterName = std::string("ConcatAlignFilter_") + std::to_string(numOfFilterLayers++);
+                    auto concatAligningConvFilter =
+                        std::make_shared<WeightableLayer>(LayerParams({ filterName, "ConcatAlignFilter", Precision::FP32 }));
+
                     std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
 
                     auto identityIdx = num_rows_padded * num_rows_in;
@@ -1238,6 +1229,14 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                             "' in layer '" << concatLayer->name << "'";
                     }
 
+                    concatAligningConvFilter->params["output_offset"] =
+                        std::to_string(bytesOffset);
+
+                    // for padded rows we cannot use copy layer - TBD how to implement
+                    concatAligningConvFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
+
+                    // encodes original output size
+                    concatAligningConvFilter->params["original_num_rows"] = std::to_string(num_rows_in);
                     auto outData = std::make_shared<Data>(filterName,
                         TensorDesc(concatInput->getPrecision(),
                             dims,
@@ -1250,10 +1249,13 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                     filterWithQuant->outData.push_back(outData);
 
                     CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
+                } else {
+                    gnalog() << "Inserted Concat Aligning Convolution Layer between: " << prevLayer->name << " and " << l->name << std::endl;
 
-                }
-                else {
-
+                    // insert the filter
+                    auto filterName = std::string("ConcatAlignConvolutionFilter_") + std::to_string(numOfFilterLayers++);
+                    auto concatAligningConvFilter =
+                        std::make_shared<ConvolutionLayer>(LayerParams({ filterName, "ConcatAlignConvolutionFilter", Precision::FP32 }));
                     // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
                     // offsetOfUnalignment - the leading zeros in the filter
                     //       |
@@ -1265,15 +1267,16 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                     //  0 0 ... 0 0 0 1 0 0 ... 0
                     //  0 0 ... 0 0 0 0 1 0 ... 0
                     const auto numberOfFilters = 4u;
-                    const auto minFilterSize = num_rows_padded + numberOfFilters;
-                    const auto offsetOfUnalignment = ALIGN(minFilterSize, 8) - minFilterSize;
-                    const auto filterSize = minFilterSize + offsetOfUnalignment;
+                    const size_t num_rows_padded_inv = 64 / bytesPerConcatElement - num_rows_padded;
+                    const auto minFilterSize = num_rows_padded_inv + numberOfFilters;
+                    const auto filterPaddingNeeded = ALIGN(minFilterSize, 8) - minFilterSize;
+                    const auto filterSize = minFilterSize + filterPaddingNeeded;
                     auto minInputs = ALIGN(((ALIGN(num_rows_out, numberOfFilters) / numberOfFilters) - 1) * numberOfFilters + filterSize, 8);
                     auto exactOutputs = ((minInputs - filterSize) / numberOfFilters + 1)* numberOfFilters;
                     concatAligningConvFilter->params["exactOutputs"] = std::to_string(exactOutputs);
                     std::vector<float> filterWeights(filterSize * 4, 0.f);
                     for (auto f = 0u; f < numberOfFilters; f++) {
-                        filterWeights[f * filterSize + f + offsetOfUnalignment] = 1;
+                        filterWeights[f * filterSize + f + num_rows_padded_inv] = 1;
                     }
 
                     concatAligningConvFilter->_weights = make_shared_blob<float>(
@@ -1294,6 +1297,15 @@ void InsertConcatAligningConvolutionFilterPass::run() {
                             (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
                             "' in layer '" << concatLayer->name << "'";
                     }
+
+                    concatAligningConvFilter->params["output_offset"] =
+                        std::to_string(bytesOffset);
+
+                    // for padded rows we cannot use copy layer - TBD how to implement
+                    concatAligningConvFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
+
+                    // encodes original output size
+                    concatAligningConvFilter->params["original_num_rows"] = std::to_string(num_rows_in);
 
                     auto outData = std::make_shared<Data>(filterName,
                         TensorDesc(concatInput->getPrecision(),
@@ -1440,7 +1452,7 @@ void ReorderConcatInputsConvolutionPass::run() {
             auto currConcatLayer = getCreatorLayer(concatInput).lock();
 
             LayerInfo infoConcatInput(currConcatLayer);
-            if (!infoConcatInput.isConcatAlignConvolutionFilter()) {
+            if (!infoConcatInput.isConcatAlignFilter() && !infoConcatInput.isConcatAlignConvolutionFilter()) {
                 continue;
             }
 

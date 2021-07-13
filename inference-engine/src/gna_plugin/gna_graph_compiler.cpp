@@ -1747,7 +1747,6 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
 
     const auto copyShiftLength = num_rows_out - numRowsPadded;
     if (0 == numRowsPadded && ALIGN(copyShiftLength, 32) > 32) {
-
         uint32_t num_rows_copied = 0;
         // can we use copy at all
         num_rows_copied = ALIGN(copyShiftLength, 32) - 32;
@@ -1770,7 +1769,6 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
             ptr_inputs,
             ptr_outputs);
 
-
         size_t num_data_bytes_in = num_rows_copied * num_rows_copied * num_columns_in
             * inputs->getPrecision().size();
         // need to reserve full tensor so using original size with assumption of identity activation attached to filter lateron
@@ -1785,11 +1783,6 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
 
         const auto remaining_num_rows_in = copyShiftLength - num_rows_copied;
         num_rows_out -= num_rows_copied;
-
-
-
-
-
 
         filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
 
@@ -1834,7 +1827,8 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
             size_t weights_stride = (remaining_num_rows_in + num_rows_copied) * weightsElementSize;
             size_t weights_offset = weights_stride * num_rows_copied + num_rows_copied * weightsElementSize;
 
-            gnamem->readonly().push_initializer(layer->name + "affine_ptr_weights_push_initializer", ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+            gnamem->readonly().push_initializer(layer->name + "affine_ptr_weights_push_initializer",
+                ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
                 size_t roffset = weights_offset;
                 size_t woffset = 0;
                 for (int i = 0; i < num_rows_out && size >= woffset; i++) {
@@ -1850,24 +1844,13 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
 
         if (filterLayer->_biases) {
             gnamem->readonly().push_ptr(layer->name + "affine_ptr_biases_push_ptr", ptr_biases,
-                filterLayer->_biases->cbuffer().as<const void*>(), 
+                filterLayer->_biases->cbuffer().as<const void*>(),
                 filterLayer->_biases->byteSize(),
                 64);
-        }
-        else {
+        } else {
             gnamem->readonly().push_value(layer->name + "affine_ptr_biases_push_value", ptr_biases, 0.0f, num_rows_out, 64);
         }
-
-
         return;
-
-
-
-
-
-
-
-
     }
     filterLayer->params["rows_copied_offset"] = std::to_string(0);
 
@@ -1875,8 +1858,8 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
     auto biasPrecisionSize = filterLayer->_biases ?
         filterLayer->_biases->getTensorDesc().getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4);
     auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
-    const auto numberOfFilters = 4u;
-    const auto filterWidth = 16u;
+    const auto numberOfFilters = GNALimitations::convMinFiltersNum;
+    const auto filterWidth = filterLayer->_weights->size() / numberOfFilters;
     auto new_inLen = ALIGN((num_rows_out / numberOfFilters - 1) * numberOfFilters + filterWidth, noOfInputsDivisor);
     auto new_out = GNAPluginNS::GNAConvolutionLayer::outputFromConv(new_inLen, filterWidth, numberOfFilters) * numberOfFilters;
     dnn->InitConvolutional1DComponent(currentComponent,
@@ -1887,7 +1870,7 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
         filterLayer->_weights->getTensorDesc().getPrecision().size(),
         biasPrecisionSize,
         numberOfFilters,
-        16,
+        filterWidth,
         numberOfFilters,
         quantized == nullptr ? 1 : quantized->_weights_quant.GetScale(),
         quantized == nullptr ? 1 : quantized->_dst_quant.GetScale(),
@@ -1899,7 +1882,7 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
     size_t num_data_bytes_out = new_out * outputs->getPrecision().size();
     size_t num_data_bytes_in = new_inLen * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    connectInput(layer, ptr_inputs, num_data_bytes_in, -GNALimitations::bufferAddressAlignment, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     {
