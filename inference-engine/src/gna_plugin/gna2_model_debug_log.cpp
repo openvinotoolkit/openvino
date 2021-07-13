@@ -361,7 +361,7 @@ static void DumpCharArray(std::ostream& dumpFile, const char *carray,  size_t co
     dumpFile << "\n";
 }
 
-void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData) {
+void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGNA, bool dumpData, const void* gnaMemBegin) {
     std::stringstream dumpFileName;
     uint32_t opsNo = gnaModel.NumberOfOperations;
     std::time_t currTime = std::time(nullptr);
@@ -371,6 +371,7 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
     std::ofstream dumpFile(dumpFileName.str() + ".txt", std::ios::out);
 
     dumpFile << "Layers (operations) count: " << opsNo << "\n";
+    dumpFile << "GNA memory begin: " << gnaMemBegin << "\n";
 
     for (size_t i = 0; i < opsNo; i++) {
         const auto& operation = gnaModel.Operations[i];
@@ -387,9 +388,11 @@ void DumpGna2Model(const Gna2Model& gnaModel, const std::string dumpFolderNameGN
                 continue;
             }
             const auto& operand = *operation.Operands[j];
+            const auto offsetToTensor = static_cast<const char*>(operand.Data) - static_cast<const char*>(gnaMemBegin);
             dumpFile << "\tOperand " << j << " (" << GetOperandName(operation.Type, j) << ")"
                 << " type: " << GetOperandType(operand.Type) <<
                 " shape: " << GetSimpleString(operand.Shape) <<
+                " data_from_begin: 0x" << std::hex << offsetToTensor << std::dec <<
                 " data: " << operand.Data <<
                 " layout: ";
 
