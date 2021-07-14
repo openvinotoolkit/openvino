@@ -15,9 +15,11 @@ using namespace InferenceEngine;
 
 AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&                 inferRequest,
                                              const AutoExecutableNetwork::Ptr&            autoExecutableNetwork,
-                                             const InferenceEngine::ITaskExecutor::Ptr&   callbackExecutor)
+                                             const InferenceEngine::ITaskExecutor::Ptr&   callbackExecutor,
+                                             bool                                         enablePerfCount)
                                              : AsyncInferRequestThreadSafeDefault(inferRequest, nullptr, callbackExecutor)
-                                             , _inferRequest(inferRequest) {
+                                             , _inferRequest(inferRequest)
+                                             , _enablePerfCount(enablePerfCount) {
     // this executor starts the inference while  the task (checking the result) is passed to the next stage
     struct ThisRequestExecutor : public ITaskExecutor {
         explicit ThisRequestExecutor(AutoAsyncInferRequest* asyncInferRequest) : _asyncInferRequest{asyncInferRequest} {}
@@ -41,15 +43,19 @@ AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&       
             if (nullptr != _workerInferRequest->_exceptionPtr) {
                 std::rethrow_exception(_workerInferRequest->_exceptionPtr);
             }
-            // fixme: this causes a exception for both master branch and current. both MULTI:GPU and AUTO:GPU
-//            if (true)
-//                _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+            if (_enablePerfCount) {
+                // fixme: this causes a exception for both master branch and current. both MULTI:GPU and AUTO:GPU
+                // Ticket: 59892
+                // _perfMap = _workerInferRequest->_inferRequest->GetPerformanceCounts();
+            }
         }}
     };
 }
+
 void AutoAsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
+
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> AutoAsyncInferRequest::GetPerformanceCounts() const {
     CheckState();
     return _perfMap;
