@@ -547,7 +547,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t W = parentDims[rank - 1];
 
     auto& srcMem = parentEdge->getMemory();
-    auto srcData = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
+    auto srcData = reinterpret_cast<const uint8_t*>(srcMem.GetData());
     const auto dataSize = srcMem.GetDesc().getPrecision().size();
 
     const size_t DHW = D*H*W;

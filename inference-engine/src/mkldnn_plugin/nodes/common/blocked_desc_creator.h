@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <functional>
 #include "cpu_shape.h"
 #include "cpu_blocked_memory_desc.h"
