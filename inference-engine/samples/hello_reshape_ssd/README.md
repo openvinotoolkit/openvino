@@ -51,14 +51,26 @@ To run the sample, you need specify a model and image:
 
 You can use the following command to do inference on CPU of an image using a trained SSD network:
 
-```sh
-hello_reshape_ssd <path_to_model> <path_to_image> <device> <batch>
+```
+<path_to_sample>/hello_reshape_ssd <path_to_model> <path_to_image> <device> <batch>
 ```
 
-with one image and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
+```
 
-```sh
-hello_reshape_ssd <path_to_model>/person-detection-retail-0013.xml <path_to_image>/inputImage.bmp CPU 1
+2. `person-detection-retail-0013` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name <model_name>
+```
+
+3. Perform inference of `person_detection.png` using `person-detection-retail-0013` model on a `GPU`, for example:
+
+```
+<path_to_sample>/hello_reshape_ssd <path_to_model>/person-detection-retail-0013.xml <path_to_image>/person_detection.png GPU 1
 ```
 
 ## Sample Output
@@ -67,13 +79,11 @@ The application renders an image with detected objects enclosed in rectangles. I
 of the detected objects along with the respective confidence values and the coordinates of the
 rectangles to the standard output stream.
 
-```sh
-hello_reshape_ssd person-detection-retail-0013/FP16/person-detection-retail-0013.xml person_detection.png CPU 1
-
+```
 Resizing network to the image size = [960x1699] with batch = 1
 Resulting input shape = [1,3,960,1699]
 Resulting output shape = [1,1,200,7]
-[0,1] element, prob = 0.721457, bbox = (852.37,187.54)-(983.326,520.672), batch id = 0
+[0,1] element, prob = 0.722292, bbox = (852.382,187.756)-(983.352,520.733), batch id = 0
 The resulting image was saved in the file: hello_reshape_ssd_output.jpg
 
 This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool

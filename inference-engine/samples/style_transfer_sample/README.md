@@ -40,10 +40,9 @@ To run the sample, you need specify a model and image:
 - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
-Running the application with the <code>-h</code> option yields the following usage message:
+Running the application with the `-h` option yields the following usage message:
 
-```sh
-./style_transfer_sample -h
+```
 [ INFO ] InferenceEngine:
         API version ............<version>
         Build ..................<build>
@@ -65,7 +64,6 @@ Options:
     -mean_val_b             Mean values. Required if the model needs mean values for preprocessing and postprocessing.
 
 Available target devices: <devices>
-
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
@@ -78,37 +76,47 @@ Running the application with the empty list of options yields the usage message 
 >
 > - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
-To perform inference of an image using a trained model of fast-neural-style-mosaic-onnx network on Intel® CPUs, use the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name fast-neural-style-mosaic-onnx
+```
 
-```sh
-./style_transfer_sample -i <path_to_image>/cat.bmp -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx
+2. `fast-neural-style-mosaic-onnx` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name <model_name>
+```
+
+3. Perform inference of `car.bmp` and `cat.jpg` using `fast-neural-style-mosaic-onnx` model on a `GPU`, for example:
+
+```
+<path_to_sample>/style_transfer_sample -m <path_to_model>/fast-neural-style-mosaic-onnx.onnx -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an image (`out1.bmp`) or a sequence of images (`out1.bmp`, ..., `out<N>.bmp`) which are redrawn in style of the style transfer model used for the sample.
 
-```sh
-style_transfer_sample -m fast-neural-style-mosaic-onnx.onnx -i car.png car_1.bmp
+```
 [ INFO ] InferenceEngine:
-        API version ............ <version>
-        Build .................. <build>
-        Description ....... API
+        IE version ......... 2021.4.0
+        Build ........... 2021.4.0-3839-cd81789d294-releases/2021/4
 [ INFO ] Parsing input parameters
 [ INFO ] Files were added: 2
-[ INFO ]     car.png
-[ INFO ]     car_1.bmp
-[ INFO
+[ INFO ]     C:\images\car.bmp
+[ INFO ]     C:\images\cat.jpg
+[ INFO ] Loading Inference Engine
 [ INFO ] Device info:
-        CPU
-        MKLDNNPlugin version ......... <version>
-        Build ........... <build>
+        GPU
+        clDNNPlugin version ......... 2021.4.0
+        Build ........... 2021.4.0-3839-cd81789d294-releases/2021/4
 
-[ INFO ] Loading network files
-[ INFO ] fast-neural-style-mosaic-onnx.onnx
+[ INFO ] Loading network files:
+[ INFO ] C:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\fast-neural-style-mosaic-onnx\fast-neural-style-mosaic-onnx.onnx
 [ INFO ] Preparing input blobs
-[ WARNING ] Image is resized from (787, 259) to (224, 224)
 [ WARNING ] Image is resized from (749, 637) to (224, 224)
+[ WARNING ] Image is resized from (300, 300) to (224, 224)
 [ INFO ] Batch size is 2
 [ INFO ] Preparing output blobs
 [ INFO ] Loading model to the device

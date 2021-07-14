@@ -29,15 +29,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python hello_reshape_ssd.py -h
+```
+python <path_to_sample>/hello_reshape_ssd.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: hello_reshape_ssd.py [-h] -m MODEL -i INPUT [-l EXTENSION] [-c CONFIG]
                             [-d DEVICE] [--labels LABELS]
 
@@ -76,26 +76,38 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
+```
 
-```sh
-python hello_reshape_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name mobilenet-ssd
+```
+
+3. Perform inference of `car.bmp` using `mobilenet-ssd` model on a `GPU`, for example:
+
+```
+python <path_to_sample>/hello_reshape_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an output image, drawing bounding boxes for inference results with an over 50% confidence.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: models\mobilenet-ssd.xml
+[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\mobilenet-ssd\FP32\mobilenet-ssd.xml        
 [ INFO ] Configuring input and output blobs
 [ INFO ] Reshaping the network to the height and width of the input image
 [ INFO ] Input shape before reshape: [1, 3, 300, 300]
-[ INFO ] Input shape after reshape: [1, 3, 300, 300]
+[ INFO ] Input shape after reshape: [1, 3, 637, 749]
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
+[ INFO ] Found: label = 7, confidence = 0.99, coords = (283, 166), (541, 472)
 [ INFO ] Image out.bmp was created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

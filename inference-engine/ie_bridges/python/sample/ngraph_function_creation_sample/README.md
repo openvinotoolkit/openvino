@@ -30,15 +30,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python ngraph_function_creation_sample.py -h
+```
+python <path_to_sample>/ngraph_function_creation_sample.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: ngraph_function_creation_sample.py [-h] -m MODEL -i INPUT [INPUT ...]
                                           [-d DEVICE] [--labels LABELS]
                                           [-nt NUMBER_TOP]
@@ -73,25 +73,25 @@ To run the sample, you need specify a model weights and image:
 >
 > - The white over black images will be automatically inverted in color for a better predictions.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+For example, you can do inference of `3.png` using the pre-trained model on a `GPU`:
 
-```sh
-python ngraph_function_creation_sample.py -m <path_to_model>/lenet.bin -i <path_to_image>/3.png -d GPU
+```
+python <path_to_sample>/ngraph_function_creation_sample.py -m <path_to_sample>/lenet.bin -i <path_to_image>/3.png -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Loading the network using ngraph function with weights from <path_to_model>/lenet.bin
+[ INFO ] Loading the network using ngraph function with weights from c:\openvino\deployment_tools\inference_engine\samples\python\ngraph_function_creation_sample\lenet.bin
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] <path_to_image>/3.png is inverted to white over black
-[ WARNING ] <path_to_image>/3.png is is resized from (351, 353) to (28, 28)
+[ WARNING ] Image c:\images\3.png is inverted to white over black
+[ WARNING ] Image c:\images\3.png is resized from (351, 353) to (28, 28)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Image path: <path_to_image>/3.png
+[ INFO ] Image path: c:\images\3.png
 [ INFO ] Top 10 results:
 [ INFO ] classid probability
 [ INFO ] -------------------
