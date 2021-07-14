@@ -54,7 +54,7 @@ namespace ngraph
             template <typename... Types>
             FrontEnd::Ptr load_by_model(const Types&... vars)
             {
-                return load_by_variants({make_variant(vars)...});
+                return load_by_model_impl({make_variant(vars)...});
             }
 
             /// \brief Gets list of registered frontends
@@ -71,7 +71,7 @@ namespace ngraph
         private:
             class Impl;
 
-            FrontEnd::Ptr load_by_variants(const std::vector<std::shared_ptr<Variant>>& variants);
+            FrontEnd::Ptr load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants);
 
             std::unique_ptr<Impl> m_impl;
         };

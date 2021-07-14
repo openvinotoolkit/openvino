@@ -75,6 +75,35 @@ namespace ngraph
                 }
             }
 
+            std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant,
+                                                std::ifstream& ext_stream)
+            {
+                if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variant))
+                {
+                    auto m_stream =
+                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)
+                            ->get();
+                    return m_stream.get();
+                }
+                else if (is_type<VariantWrapper<std::string>>(variant))
+                {
+                    const auto& model_path =
+                        as_type_ptr<VariantWrapper<std::string>>(variant)->get();
+                    ext_stream.open(model_path, std::ios::in | std::ifstream::binary);                    
+                }
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                else if (is_type<VariantWrapper<std::wstring>>(variant))
+                {
+                    const auto& model_path =
+                        as_type_ptr<VariantWrapper<std::wstring>>(variant)->get();
+                    ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+                }
+#endif
+                FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(),
+                                               "Cannot open model file.");
+                return &ext_stream;
+            }
+
         } // namespace pdpd
 
         std::shared_ptr<Function>
@@ -159,7 +188,7 @@ namespace ngraph
             return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
         }
 
-        bool FrontEndPDPD::supported_by_variants(
+        bool FrontEndPDPD::supported_impl(
             const std::vector<std::shared_ptr<Variant>>& variants) const
         {
             // FrontEndPDPD can only load model specified by one path, one file or two files.
@@ -213,10 +242,9 @@ namespace ngraph
         {
             if (variants.size() == 1)
             {
+                // The case when folder with __model__ and weight files is provided or .pdmodel file
                 if (is_type<VariantWrapper<std::string>>(variants[0]))
-                {
-                    // The case when folder with __model__ and weight files is provided or .pdmodel
-                    // file
+                {                    
                     std::string m_path =
                         as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(m_path);
@@ -224,17 +252,15 @@ namespace ngraph
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 else if (is_type<VariantWrapper<std::wstring>>(variants[0]))
                 {
-                    // The case when folder with __model__ and weight files is provided or .pdmodel
-                    // file
                     std::wstring m_path =
                         as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(m_path);
                 }
 #endif
+                // The case with only model stream provided and no weights. This means model has
+                // no learnable weights
                 else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
-                {
-                    // The case with only model stream provided and no weights. This means model has
-                    // no learnable weights
+                {                    
                     std::shared_ptr<std::istream> p_model_stream =
                         as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
                             ->get();
@@ -247,62 +273,10 @@ namespace ngraph
                 // The case when .pdmodel and .pdparams files are provided
                 std::ifstream model_stream;
                 std::ifstream weights_stream;
-                std::istream* p_model_stream = nullptr;
-                std::istream* p_weights_stream = nullptr;
-                if (is_type<VariantWrapper<std::string>>(variants[0]))
-                {
-                    const auto& model_path =
-                        as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
-                    model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-                    FRONT_END_INITIALIZATION_CHECK(model_stream && model_stream.is_open(),
-                                                   "Cannot open model file.");
-                    p_model_stream = &model_stream;
-                }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                else if (is_type<VariantWrapper<std::wstring>>(variants[0]))
-                {
-                    const auto& model_path =
-                        as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
-                    model_stream.open(model_path, std::ios::in | std::ifstream::binary);
-                    FRONT_END_INITIALIZATION_CHECK(model_stream && model_stream.is_open(),
-                                                   "Cannot open model file.");
-                    p_model_stream = &model_stream;
-                }
-#endif
-                else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
-                {
-                    auto m_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
-                            ->get();
-                    p_model_stream = m_stream.get();
-                }
-                if (is_type<VariantWrapper<std::string>>(variants[1]))
-                {
-                    const auto& weights_path =
-                        as_type_ptr<VariantWrapper<std::string>>(variants[1])->get();
-                    weights_stream.open(weights_path, std::ios::in | std::ifstream::binary);
-                    PDPD_ASSERT(weights_stream && weights_stream.is_open(),
-                                "Cannot open weights file.");
-                    p_weights_stream = &weights_stream;
-                }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                else if (is_type<VariantWrapper<std::wstring>>(variants[1]))
-                {
-                    const auto& weights_path =
-                        as_type_ptr<VariantWrapper<std::wstring>>(variants[1])->get();
-                    weights_stream.open(weights_path, std::ios::in | std::ifstream::binary);
-                    PDPD_ASSERT(weights_stream && weights_stream.is_open(),
-                                "Cannot open weights file.");
-                    p_weights_stream = &weights_stream;
-                }
-#endif
-                else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
-                {
-                    auto w_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[1])
-                            ->get();
-                    p_weights_stream = w_stream.get();
-                }
+                std::istream* p_model_stream =
+                    pdpd::variant_to_stream_ptr(variants[0], model_stream);
+                std::istream* p_weights_stream =
+                    pdpd::variant_to_stream_ptr(variants[1], weights_stream);
                 if (p_model_stream && p_weights_stream)
                 {
                     return std::make_shared<InputModelPDPD>(

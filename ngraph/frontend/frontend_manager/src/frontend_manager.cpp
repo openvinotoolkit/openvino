@@ -43,12 +43,12 @@ public:
         return keys;
     }
 
-    FrontEnd::Ptr loadByVariants(const std::vector<std::shared_ptr<Variant>>& variants)
+    FrontEnd::Ptr loadByModel(const std::vector<std::shared_ptr<Variant>>& variants)
     {
         for (const auto& factory : m_factories)
         {
             auto FE = factory.second();
-            if (FE->supported_by_variants(variants))
+            if (FE->supported(variants))
             {
                 return FE;
             }
@@ -111,9 +111,9 @@ FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework)
 }
 
 FrontEnd::Ptr
-    FrontEndManager::load_by_variants(const std::vector<std::shared_ptr<Variant>>& variants)
+    FrontEndManager::load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants)
 {
-    return m_impl->loadByVariants(variants);
+    return m_impl->loadByModel(variants);
 }
 
 std::vector<std::string> FrontEndManager::get_available_front_ends() const
@@ -132,7 +132,7 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-bool FrontEnd::supported_by_variants(const std::vector<std::shared_ptr<Variant>>& variants) const
+bool FrontEnd::supported_by_arguments(const std::vector<std::shared_ptr<Variant>>& variants) const
 {
     return false;
 }

@@ -35,13 +35,10 @@ namespace ngraph
             /// refer to specific FrontEnd documentation.
             /// \return true if model recognized, false - otherwise.
             template <typename... Types>
-            bool supported(const Types&... vars) const
+            inline bool supported(const Types&... vars) const
             {
-                return supported_by_variants({make_variant(vars)...});
+                return supported_impl({make_variant(vars)...});
             }
-
-            virtual bool
-                supported_by_variants(const std::vector<std::shared_ptr<Variant>>& variants) const;
 
             /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
             /// defines what arguments it can accept.
@@ -51,7 +48,7 @@ namespace ngraph
             /// refer to specific FrontEnd documentation.
             /// \return Loaded input model.
             template <typename... Types>
-            InputModel::Ptr load(const Types&... vars) const
+            inline InputModel::Ptr load(const Types&... vars) const
             {
                 return load_impl({make_variant(vars)...});
             }
@@ -89,9 +86,17 @@ namespace ngraph
             virtual void normalize(std::shared_ptr<ngraph::Function> function) const;
 
         protected:
+            virtual bool
+                supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
             virtual InputModel::Ptr
                 load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
         };
+
+        template <>
+        inline bool FrontEnd::supported(const std::vector<std::shared_ptr<Variant>>& variants) const
+        {
+            return supported_impl(variants);
+        }
 
     } // namespace frontend
 
