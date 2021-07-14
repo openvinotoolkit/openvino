@@ -19,7 +19,6 @@
   * **Description**: *bias* is added to the variance.
   * **Range of values**: a non-negative floating point value
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**

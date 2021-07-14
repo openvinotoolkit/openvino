@@ -24,7 +24,6 @@ Where D is the rank of input tensor `data`. The axis being split must be evenly 
   * **Description**: number of outputs into which the input tensor `data` will be split along `axis` dimension. The dimension of `data` shape along `axis` must be evenly divisible by *num_splits*
   * **Range of values**: an integer within the range `[1, data.shape[axis]]`
   * **Type**: `int`
-  * **Default value**: none
   * **Required**: *yes*
 
 **Inputs**

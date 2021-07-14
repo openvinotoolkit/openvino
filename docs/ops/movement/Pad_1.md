@@ -69,7 +69,6 @@ OUTPUT =
     * `reflect` - padded values are a reflection of the input `data` tensor; values on the edges are not duplicated. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D] – 1` for any valid `D`.
     * `symmetric` - padded values are symmetrically added from the input `data` tensor. This method is similar to the `reflect`, but values on edges are duplicated. Refer to the examples above for more details. `pads_begin[D]` and `pads_end[D]` must be not greater than `data.shape[D]` for any valid `D`.
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**

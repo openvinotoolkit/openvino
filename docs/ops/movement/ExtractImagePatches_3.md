@@ -22,7 +22,6 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
   * **Description**: *sizes* is a size `[size_rows, size_cols]` of the extracted patches.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *strides*
@@ -30,15 +29,13 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
   * **Description**: *strides* is a distance `[stride_rows, stride_cols]` between centers of two consecutive patches in an input tensor.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *rates*
 
-  * **Description**: *rates* is the input stride `[rate_rows, rate_cols]`, specifying how far two consecutive patch samples are in the input. Equivalent to extracting patches with `patch_sizes_eff = patch_sizes + (patch_sizes - 1) * (rates - 1)`, followed by subsampling them spatially by a factor of rates. This is equivalent to rate in dilated (a.k.a. Atrous) convolutions. 
+  * **Description**: *rates* is the input stride `[rate_rows, rate_cols]`, specifying how far two consecutive patch samples are in the input. Equivalent to extracting patches with `patch_sizes_eff = patch_sizes + (patch_sizes - 1) * (rates - 1)`, followed by subsampling them spatially by a factor of rates. This is equivalent to rate in dilated (a.k.a. Atrous) convolutions.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -47,7 +44,6 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
     * *same_upper (same_lower)* the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
@@ -77,7 +73,7 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
         </port>
     </input>
     <output>
-        <port id="1" precision="f32">      
+        <port id="1" precision="f32">
             <dim>64</dim>
             <dim>27</dim>
             <dim>2</dim>
@@ -105,7 +101,7 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
     \end{bmatrix}
 \f]
 
-  output:  
+  output:
 ```
     [[[[ 1  6]
        [51 56]]
@@ -132,10 +128,10 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
        [72 77]]
 
       [[23 28]
-       [73 78]]]] 
+       [73 78]]]]
 ```
   output shape: `[1, 9, 2, 2]`
-  
+
 2. `sizes="4,4", strides="8,8", rates="1,1", auto_pad="valid"`
 \f[
     \begin{bmatrix}
@@ -151,9 +147,9 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
         91 & 92 & 93 & 94 & 95 & 96 & 79 & 98 & 99 & 100
     \end{bmatrix}
 \f]
-  
-  output:  
-``` 
+
+  output:
+```
      [[[[ 1]]
 
       [[ 2]]
@@ -206,7 +202,7 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
         x & x & x & x & 0 & 0 & 0 & 0 & 0 & x & x & x & x
     \end{bmatrix}
 \f]
-  output:  
+  output:
 ```
     [[[[  0   0]
        [  0  89]]
@@ -254,11 +250,11 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
        [  0   0]]
 
       [[ 23   0]
-       [  0   0]]]] 
+       [  0   0]]]]
 ```
   output shape: `[1, 16, 2, 2]`
 
-4. `sizes="3,3", strides="5,5", rates="2,2", auto_pad="valid"`  
+4. `sizes="3,3", strides="5,5", rates="2,2", auto_pad="valid"`
 This time we use the symbols `x`, `y`, `z` and `k` to distinguish the patches:
 \f[
     \begin{bmatrix}
@@ -302,12 +298,12 @@ This time we use the symbols `x`, `y`, `z` and `k` to distinguish the patches:
        [ 93  98]]
 
       [[ 45  50]
-       [ 95 100]]]] 
+       [ 95 100]]]]
 ```
   output_shape: `[1, 9, 2, 2]`
 
-5. `sizes="2,2", strides="3,3", rates="1,1", auto_pad="valid"`  
-Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature map with coordinate 0 contains numbers in a range `[1, 25]` and feature map with coordinate 1 contains numbers in a range `[26, 50]`  
+5. `sizes="2,2", strides="3,3", rates="1,1", auto_pad="valid"`
+Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature map with coordinate 0 contains numbers in a range `[1, 25]` and feature map with coordinate 1 contains numbers in a range `[26, 50]`
 
 \f[
     \begin{bmatrix}
@@ -349,6 +345,6 @@ Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature ma
        [22 25]]
 
       [[32 35]
-       [47 50]]]] 
-``` 
+       [47 50]]]]
+```
   output shape: `[1, 8, 2, 2]`

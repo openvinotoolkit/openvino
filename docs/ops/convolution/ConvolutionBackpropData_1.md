@@ -43,7 +43,6 @@ else:
   * **Description**: *strides* has the same definition as *strides* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -51,7 +50,6 @@ else:
   * **Description**: *pads_begin* has the same definition as *pads_begin* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted specified, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -60,21 +58,19 @@ else:
   * **Description**: *pads_end* has the same definition as *pads_end* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
-  
+
 * *dilations*
 
   * **Description**: *dilations* has the same definition as *dilations* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
 
-  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor. 
+  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor.
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
