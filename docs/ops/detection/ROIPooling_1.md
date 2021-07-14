@@ -26,7 +26,6 @@ The box height and width have different representation based on **method** attri
   * **Description**: *pooled_h* is the height of the ROI output feature map. For example, *pooled_h* equal to 6 means that the height of the output of *ROIPooling* is 6.
   * **Range of values**: a non-negative integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pooled_w*
@@ -34,7 +33,6 @@ The box height and width have different representation based on **method** attri
   * **Description**: *pooled_w* is the width of the ROI output feature map. For example, *pooled_w* equal to 6 means that the width of the output of *ROIPooling* is 6.
   * **Range of values**: a non-negative integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *spatial_scale*
@@ -42,7 +40,6 @@ The box height and width have different representation based on **method** attri
   * **Description**: *spatial_scale* is the ratio of the input feature map over the input image size.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *method*

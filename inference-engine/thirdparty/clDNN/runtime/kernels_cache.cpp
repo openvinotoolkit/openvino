@@ -242,7 +242,7 @@ kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-
+    std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);

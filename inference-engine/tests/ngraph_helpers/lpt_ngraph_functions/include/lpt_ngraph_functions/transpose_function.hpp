@@ -23,7 +23,7 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const std::vector<int>& transposeConstValues,
         const ngraph::element::Type precisionBeforeFq,
         const FakeQuantizeOnData& fqOnData);
