@@ -73,7 +73,7 @@ Run the `update` command:
 sudo apt update
 ```
 
-#### Verify that the Repo is Properly Set Up
+#### Verify that the APT Repository is Properly Set Up
 
 Run the `apt-cache` command to see a list of all available OpenVINO packages and components:
 ```sh
