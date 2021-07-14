@@ -22,7 +22,7 @@ o_{i} = a_{i} == b_{i}
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -67,7 +67,7 @@ o_{i} = a_{i} == b_{i}
 
 *Example 2: broadcast*
 ```xml
-<layer ... type="Equal">
+<layer ... type="Equal" auto_broadcast="numpy">
     <input>
         <port id="0">
             <dim>8</dim>
