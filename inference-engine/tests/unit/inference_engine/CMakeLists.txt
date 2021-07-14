@@ -28,7 +28,7 @@ addIeTargetTest(
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(cpp_interfaces/ie_memory_state_internal_test.cpp
-                                COMPILE_OPTIONS -Wno-suggest-override)
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
 link_system_libraries(${TARGET_NAME} PRIVATE unitTestUtils)

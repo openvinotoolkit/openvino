@@ -32,8 +32,7 @@ if (ENABLE_GNA)
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
                                     engines/gna/graph_tools/graph_tools_test.cpp
-                                    engines/gna/gna_model_serial_test.cpp
-                                    COMPILE_OPTIONS -Wno-suggest-override)
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
     endif()
 
     # TODO: fix GNA tests
@@ -65,7 +64,10 @@ if (ENABLE_MYRIAD)
     if(SUGGEST_OVERRIDE_SUPPORTED)
         set_source_files_properties(engines/vpu/myriad_tests/helpers/myriad_test_case.cpp
                                     engines/vpu/mvnc/watchdog_tests.cpp
-                                    COMPILE_OPTIONS -Wno-suggest-override)
+                                    engines/vpu/sw_conv_adaptation.cpp
+                                    engines/vpu/myriad_tests/myriad_engine_tests.cpp
+                                    engines/vpu/myriad_tests/myriad_metrics_tests.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
     endif()
 
     file(GLOB

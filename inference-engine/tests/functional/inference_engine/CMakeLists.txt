@@ -73,8 +73,8 @@ set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
-    set_source_files_properties(caching_test.cpp
-                                COMPILE_OPTIONS -Wno-suggest-override)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
 include(CMakeParseArguments)

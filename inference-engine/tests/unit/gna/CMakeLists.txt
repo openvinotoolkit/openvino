@@ -15,3 +15,8 @@ addIeTargetTest(
         LABELS
             GNA
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(gna_model_serial_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
