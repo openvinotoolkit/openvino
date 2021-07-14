@@ -58,10 +58,10 @@ You can use the following command to do inference on CPU of an image using a tra
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
 ```
-python <path_to_omz_tools>/downloader.py --name <model_name>
+python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
 ```
 
-2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+2. `person-detection-retail-0013` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
 
 ```
 python <path_to_omz_tools>/converter.py --name <model_name>

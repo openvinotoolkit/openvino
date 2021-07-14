@@ -79,13 +79,13 @@ To run the sample, you need specify a model and image:
 ### Example
 1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
 ```
-python <path_to_omz_tools>/downloader.py --name <model_name>
+python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
 ```
 
 2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
 
 ```
-python <path_to_omz_tools>/converter.py --name <model_name>
+python <path_to_omz_tools>/converter.py --name mobilenet-ssd
 ```
 
 3. Perform inference of `car.bmp` using `mobilenet-ssd` model on a `GPU`, for example:
