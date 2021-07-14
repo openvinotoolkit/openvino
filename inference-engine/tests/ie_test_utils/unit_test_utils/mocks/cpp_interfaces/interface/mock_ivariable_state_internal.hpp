@@ -13,8 +13,7 @@
 
 class MockIVariableStateInternal : public InferenceEngine::IVariableStateInternal {
 public:
-    MockIVariableStateInternal(const char * str = "MockIVariableStateInternal") :
-        InferenceEngine::IVariableStateInternal{str} {}
+    MockIVariableStateInternal() : InferenceEngine::IVariableStateInternal{"MockIVariableStateInternal"} {}
     MOCK_CONST_METHOD0(GetName, std::string());
     MOCK_METHOD0(Reset, void());
     MOCK_METHOD1(SetState, void(const InferenceEngine::Blob::Ptr&));

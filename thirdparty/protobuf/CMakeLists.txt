@@ -12,7 +12,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
 endif()
 
@@ -127,7 +127,7 @@ if (NOT BUILD_STANDALONE_STATIC)
             ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
             LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
-            "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
+            "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()
 
 # forward variables used in the other places

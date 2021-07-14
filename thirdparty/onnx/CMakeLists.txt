@@ -38,7 +38,7 @@ macro(onnx_set_target_properties)
             LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
 
     export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE
-            "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
+            "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endmacro()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library")
