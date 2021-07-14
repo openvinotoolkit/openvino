@@ -414,11 +414,9 @@ void execute_test(const modelType& model, std::shared_ptr<ngraph::Function> func
     case modelType::TranspConvBcastAddMaxPoolTransp:
     case modelType::TranspConvBcastAddActTransp:
     case modelType::TranspConvBcastAddMaxPoolActTransp:
-        manager.register_pass<GNAPluginNS::ConvertPadded2ValidConv>();
-        break;
     case modelType::TranspConvTranspBcastAdd:
     case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<GNAPluginNS::ConvertPaddedTransposed2ValidConv>();
+        manager.register_pass<GNAPluginNS::ConvertPadded2ValidConv>();
         break;
     }
 

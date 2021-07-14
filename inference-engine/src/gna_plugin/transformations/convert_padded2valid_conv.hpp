@@ -10,7 +10,8 @@ namespace GNAPluginNS {
 
 /**
  * @brief Convert a padded convolution with bias, max pooling and activation function
- * wrapped with transposes, to a valid convolution with padding added before the leading transpose:
+ * wrapped with transposes, to a valid convolution with padding added before the leading transpose,
+ * POT precessed models are supported (fake quantized layers omitted below for clarity):
  *
  *                                                Padding
  *                                                   |
@@ -31,29 +32,6 @@ class ConvertPadded2ValidConv : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;
   ConvertPadded2ValidConv();
-};
-
-/**
- * @brief Convert a padded convolution wrapped with transposes, with bias
- * and activation function after trailing transpose, to a valid convolution with padding added before the leading transpose:
- *
- *                                                   Padding
- *                                                      |
- *      Transpose (NHWC -> NCHW)             Transpose (NHWC -> NCHW)
- *                 |                                    |
- *      Convolution with padding             Convolution with padding
- *                 |                                    |
- *      Transpose (NCHW -> NHWC)             Transpose (NCHW -> NHWC)
- *                 |                                    |
- *           Broadcast Bias                       Broadcast Bias
- *                 |                                    |
- *   Activation Function (optional)       Activation Function (optional)
- *
- */
-class ConvertPaddedTransposed2ValidConv : public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertPaddedTransposed2ValidConv();
 };
 
 } // namespace GNAPluginNS

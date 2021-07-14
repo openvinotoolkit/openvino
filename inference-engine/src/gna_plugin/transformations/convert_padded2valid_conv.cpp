@@ -19,7 +19,6 @@
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertPadded2ValidConv, "ConvertPadded2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedTransposed2ValidConv, "ConvertPaddedTransposed2ValidConv", 0);
 
 struct ConvData {
     size_t input_height;
@@ -298,40 +297,5 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedTransposed2ValidConv::ConvertPaddedTransposed2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedTransposed2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        {leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant, ngraph::opset7::FakeQuantize>(ngraph::pattern::rank_equals(4))},
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({conv, const_input},
-        consumers_and_rank(1, 4));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({trailing_transpose, const_input},
-        ngraph::pattern::consumers_count(1));
-    auto fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({bias, const_input, const_input, const_input, const_input},
-        ngraph::pattern::consumers_count(1));
-    auto af1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
-        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias},
-            ngraph::pattern::consumers_count(1));
-    auto af2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
-        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq},
-            ngraph::pattern::consumers_count(1));
-    auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{bias, fq, af1, af2});
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr());
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
     this->register_matcher(m, callback);
 }
