@@ -784,7 +784,7 @@ bool MKLDNNMemoryDesc::isCompatible(const MKLDNNMemoryDesc &rhs) const {
 
 
 /**
- * Check compatibility with to BlockedMemoryDesc
+ * Check compatibility with BlockedMemoryDesc
  *
  * mkl:  IOhw_4i16o4i    dims {32, 64, 128, 128}
  *   strides               // the order of outer dims is encoded here
@@ -889,9 +889,7 @@ bool MKLDNNMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    size_t blk_offset0 = desc.data.offset0;
-
-    return dimsEqualWeak(blk_offset0, rhs.getOffsetPadding());
+    return dimsEqualWeak(desc.data.offset0, rhs.getOffsetPadding());
 }
 
 bool MKLDNNMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {

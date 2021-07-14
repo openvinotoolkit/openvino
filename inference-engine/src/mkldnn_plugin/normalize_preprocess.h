@@ -84,7 +84,6 @@ private:
 
     std::vector<float> stdScales;
 
-    // TOOD [DS]: should we rewrite meanBuffer to MKLDNNMemory?
     InferenceEngine::TBlob<float>::Ptr meanBuffer;
 };
 

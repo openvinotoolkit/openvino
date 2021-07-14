@@ -593,7 +593,7 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            int64_t e_size = edge->getDesc().getMemSize();  // size in bytes (from begin of data to last element)
+            int64_t e_size = edge->getDesc().getMemSize();  // size in bytes (from the beginning of data to the last element)
             if (e_size == MemoryDesc::UNDEFINED_SIZE) {
                 IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
@@ -1112,7 +1112,7 @@ MKLDNNNodePtr MKLDNNGraph::InsertReorder(MKLDNNEdgePtr edge, std::string layerNa
 
     InsertNode(edge, newReorder, true);
 
-    // Using the method MKLDNNEdge::getTensorDesc() we can check that input and output tensor descriptors are equal.
+    // Using the method MKLDNNEdge::getDesc() we can check that input and output tensor descriptors are equal.
     // Due to the specificity of MKLDNNGraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't do these checks.
     if (!isOptimized) {
         newReorder->getParentEdgeAt(0)->getDesc();

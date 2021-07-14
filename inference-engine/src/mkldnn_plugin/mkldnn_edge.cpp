@@ -28,7 +28,7 @@ const MKLDNNNodePtr MKLDNNEdge::getChild() const {
 }
 
 bool MKLDNNEdge::isUseExternalMemory() const {
-    return useEternalMemory;
+    return useExternalMemory;
 }
 
 bool MKLDNNEdge::isDropped() const {
@@ -140,17 +140,10 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
 
     auto& inputDesc = getInputDesc();
     auto& outputDesc = getOutputDesc();
-    if (!inputDesc.isDefined() || !outputDesc.isDefined() || !inputDesc.isCompatible(outputDesc))
-        IE_THROW() << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
-
-    //TODO [DS]: code cleanup
-//    if (!MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, inputDesc) ||
-//            (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 &&
-//            (inputDesc.getPrecision() != outputDesc.getPrecision() ||
-//             inputDesc.getBlockingDesc() != outputDesc.getBlockingDesc())))
-//        IE_THROW() << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
-//    if (inputDesc.getLayout() == InferenceEngine::Layout::ANY)
-//        IE_THROW() << "Cannot get input descriptor!";
+    if (!inputDesc.isDefined() || !outputDesc.isDefined())
+        IE_THROW() << "Cannot allocate memory for undefined descriptors.";
+    if (!inputDesc.isCompatible(outputDesc))
+        IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
 
     auto parentPtr = getParent();
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
@@ -182,7 +175,7 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
 
         auto ptr = weightsCache->findOrCreate(name(), alloc, false);
         memoryPtr = *ptr;
-        useEternalMemory = true;
+        useExternalMemory = true;
         status = Status::Allocated;
     } else {
         allocate();
@@ -304,7 +297,7 @@ const MemoryDesc& MKLDNNEdge::getDesc() const {
 const MKLDNNMemory &MKLDNNEdge::getMemory() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(getInputDesc(), getSharedEdge()->getMemoryPtr()->GetData());
+        memoryPtr->Create(getDesc(), getSharedEdge()->getMemoryPtr()->GetData());
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }
@@ -315,7 +308,7 @@ const MKLDNNMemory &MKLDNNEdge::getMemory() {
 MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
     if (status == Status::NotAllocated) {
         memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(getInputDesc(), getSharedEdge()->getMemoryPtr()->GetData());
+        memoryPtr->Create(getDesc(), getSharedEdge()->getMemoryPtr()->GetData());
         memoryFromEdge.reset();
         changeStatus(Status::Allocated);
     }

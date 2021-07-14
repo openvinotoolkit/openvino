@@ -11,6 +11,7 @@
 #include <mkldnn.hpp>
 #include <mkldnn_types.h>
 #include <cpu_shape.h>
+#include <cpu_blocked_memory_desc.h>
 
 #include <string>
 #include <functional>
@@ -40,16 +41,12 @@ namespace MKLDNNPlugin {
  */
 class MKLDNNMemoryDesc : public MemoryDesc {
 public:
-//    /** Empty constructor - doesn't define any tensor representation */
-//    MKLDNNMemoryDesc() : MemoryDesc(Shape(), InferenceEngine::Precision::UNSPECIFIED, Mkldnn), desc() {}
-
     /** Construct a tensor desc with plain layout format (like ND C array) */
     MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType);
 
     /** Construct a tensor desc with specified layout format tag. Any and Undef is not supported */
     MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
-//    explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc);
 
     /**
