@@ -15,16 +15,16 @@ using namespace SubgraphsDumper;
 
 void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
                                const std::string &source_model) {
-    const bool op_found = [&] {
+    const auto op_found = [&] {
         for (auto &&it : m_ops_cache) {
             if (manager.match_any(it.first, op, it.second)) {
                 it.second.found_in_models[source_model] += 1;
-                return true;
+                return it.second.source_model;
             }
         }
-        return false;
+        return std::string();
     }();
-    if (!op_found) {
+    if (op_found.empty()) {
         const auto &clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
         LayerTestsUtils::OPInfo meta(source_model);
         try {
@@ -34,6 +34,9 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
         }
+    } else {
+        std::cout << "OP " << op << " taken from model " << source_model
+                  << " already exist in the cache as part of " << op_found << std::endl;
     }
 }
 
@@ -47,7 +50,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, co
             // Will be handled as part of 48838
             ngraph::is_type<ngraph::op::AssignBase>(op) ||
             ngraph::is_type<ngraph::op::ReadValueBase>(op)
-                    ) {
+                ) {
             continue;
         }
         update_ops_cache(op, source_model);

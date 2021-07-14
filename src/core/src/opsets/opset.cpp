@@ -157,7 +157,7 @@ const ngraph::OpSet& ngraph::get_opset8() {
     return opset;
 }
 
-size_t get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
+size_t ngraph::get_initial_opset(const std::shared_ptr<ngraph::Node> &node) {
     auto type_info = node->get_type_info();
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
