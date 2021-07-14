@@ -1882,7 +1882,11 @@ void GNAGraphCompiler::ConcatAlignConvolutionFilterPrimitive(InferenceEngine::CN
     size_t num_data_bytes_out = new_out * outputs->getPrecision().size();
     size_t num_data_bytes_in = new_inLen * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in, -GNALimitations::bufferAddressAlignment, 0);
+    auto backInputOffset = - GNALimitations::bufferAddressAlignment;
+    if (gnaFlags->sw_fp32) {
+        backInputOffset *= 2;
+    }
+    connectInput(layer, ptr_inputs, num_data_bytes_in, backInputOffset, 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     {
