@@ -49,13 +49,9 @@ inline void DoTest(const engine& engine,
     auto output_ptr = output.pointer<uint16_t>();
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        // printf("%ld : %f %f\n", i, expected_results[i], float16_to_float32(output_ptr[i]) );
-        // printf("%ld : %f\n", i, float16_to_float32(output_ptr[i]) );
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
 }
-
-// ======================== Rank 4 ======================== //
 
 TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
     const auto& engine = get_test_engine();
@@ -294,8 +290,6 @@ TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
 
     DoTest(engine,input0, input1, expected_results, tensor(1, 3, 5, 9), axis);
 }
-
-// ======================== Rank 5 ======================== //
 
 TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
     const auto& engine = get_test_engine();
@@ -601,8 +595,6 @@ TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
 
     DoTest(engine,input0, input1, expected_results, tensor(1, 2, 8, 4, 3), axis);
 }
-
-// ======================== Rank 6 ======================== //
 
 TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
     const auto& engine = get_test_engine();
@@ -1158,28 +1150,3 @@ TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
 
     DoTest(engine,input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis);
 }
-
-/*
-TEST(gather_elements_gpu_fp16, d_i_a) {
-    const auto& engine = get_test_engine();
-
-    const int axis = ;
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfwzyx, {  } }); // data
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfwzyx, {  } }); // indices
-
-    set_values(input0, {
-
-    });
-
-    set_values(input1, {
-
-    });
-
-    std::vector<float> expected_results = {
-
-    };
-
-    DoTest(engine,input0, input1, expected_results, tensor(), axis);
-}
-*/
-

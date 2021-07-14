@@ -74,12 +74,15 @@ INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
 =======
 INSTANTIATE_TEST_CASE_P(yunji_set3, GatherElementsLayerTest,
 >>>>>>> Add cldnn unit test implementation
 =======
 
+=======
+>>>>>>> code clean up
 INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
 >>>>>>> Add functional test implementation
                         ::testing::Combine(
@@ -90,14 +93,4 @@ INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
                             ::testing::ValuesIn(iPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
-
-// INSTANTIATE_TEST_CASE_P(yunji_set35, GatherElementsLayerTest,
-//                         ::testing::Combine(
-//                             ::testing::Values(std::vector<size_t>({2, 3, 3, 1, 1, 3})),   // Data shape
-//                             ::testing::Values(std::vector<size_t>({2, 3, 5, 1, 1, 3})),   // Indices shape
-//                             ::testing::Values(2),                               // Axis
-//                             ::testing::ValuesIn(dPrecisions),
-//                             ::testing::ValuesIn(iPrecisions),
-//                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                         GatherElementsLayerTest::getTestCaseName);
 }  // namespace
