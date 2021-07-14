@@ -65,32 +65,6 @@ std::shared_ptr<Function> InputModelONNX::convert()
 }
 
 // Editor features
-void InputModelONNX::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional)
-{
-    // const auto consumers = m_editor.find_output_consumers()
-    // NGRAPH_CHECK(place->, "");
-    // const auto input_name = place->get_names()[0];
-    // return m_editor.cut_graph_fragment();
-}
-
-void InputModelONNX::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional)
-{
-    // TODO
-}
-
-Place::Ptr InputModelONNX::add_output(Place::Ptr place)
-{
-    m_editor.serialize("test.onnx");
-    return nullptr;
-}
-
-void InputModelONNX::remove_output(Place::Ptr place)
-{
-    NGRAPH_CHECK(place->is_output(), "Only output place can be removed");
-    const auto output_edge = m_editor.find_output_edge(place->get_names()[0]);
-    m_editor.cut_graph_fragment({}, {output_edge});
-}
-
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs)
 {
     extract_subgraph({}, outputs);
