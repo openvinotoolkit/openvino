@@ -192,9 +192,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inpPrecision, srcShape.getStaticDims(), blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*refConfig.outConfs[i].desc);
-            const auto& outBlkDims = outBlockingDesc.getBlockDims();
-            const auto& dims = outBlockingDesc.getShape().getStaticDims();
+            auto outBlockingDesc = refConfig.outConfs[i].desc->as<BlockedMemoryDesc>();
+            const auto& outBlkDims = outBlockingDesc->getBlockDims();
+            const auto& dims = outBlockingDesc->getShape().getStaticDims();
 
             config.outConfs[i].inPlace = 0;
             config.outConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outPrecision, dims, outBlkDims, order, offset, offsets, strides);
@@ -210,8 +210,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(
-                creatorsMap.at(GeneralLayout::nspc)->createDesc(inpPrecision, srcShape.getStaticDims()));
+        config.inConfs[0].desc = creatorsMap.at(GeneralLayout::nspc)->createUniqueDesc(inpPrecision, srcShape.getStaticDims());
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{1});
@@ -224,8 +223,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(creatorsMap.at(GeneralLayout::ncsp)->createDesc(inpPrecision,
-                                                                                               outputShapes[i].getStaticDims()));
+            config.outConfs[i].desc = creatorsMap.at(GeneralLayout::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i].getStaticDims());
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }

@@ -76,7 +76,7 @@ private:
     int parent_port;
     int child_port;
 
-    bool useEternalMemory = false;
+    bool useExternalMemory = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
     Shape shape;
     MKLDNNMemoryPtr memoryPtr;

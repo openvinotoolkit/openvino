@@ -79,7 +79,6 @@ bool BlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     } else if (auto mkldnnDesc = dynamic_cast<const MKLDNNMemoryDesc*>(pRhs)) {
         return mkldnnDesc->isCompatible(*this);
     } else {
-        //IE_THROW() << "Cannot check compatibility with this type of memory descriptor";
         return false;
     }
 }

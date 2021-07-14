@@ -20,16 +20,13 @@ namespace MKLDNNPlugin {
  */
 class BlobDumper {
     MKLDNNMemoryPtr memory;
-    // need to store data after read
-    std::vector<uint8_t> data;
 
 public:
     BlobDumper() = default;
     BlobDumper(const MKLDNNMemoryDesc &desc) {
-        data.resize(desc.getMemSize());
         mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
         memory = std::make_shared<MKLDNNMemory>(eng);
-        memory->Create(desc, data.data());
+        memory->Create(desc);
     }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;

@@ -4,12 +4,8 @@
 
 #pragma once
 
-#include "perf_count.h"
-#include <vector>
-#include <utility>
-#include <ie_common.h>
 #include <ie_layouts.h>
-#include "mkldnn_dims.h"
+#include <ie_blob.h>
 
 namespace MKLDNNPlugin {
 class MKLDNNMemoryDesc;
