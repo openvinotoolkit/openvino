@@ -182,8 +182,17 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
 AutoExecutableNetwork::~AutoExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
     if (!_alreadyActualNetwork) {
+        // printf("!!! DEBUG: actual network is still not ready, wait that\n");
         _acceleratorFuture.get();
     }
+    /* NOTE: The only threads that use `AutoExecutableNetwork` worker infer requests' threads.
+     *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
+     */
+    for (auto&& idleWorker : _idleWorkerRequests) {
+        // stop accepting any idle requests back (for re-scheduling)
+        idleWorker.second.set_capacity(0);
+    }
+    _workerRequests.clear();
 }
 
 InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRequestImpl(InputsDataMap networkInputs,
