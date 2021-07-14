@@ -94,7 +94,7 @@ void InputModelONNX::remove_output(Place::Ptr place)
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs)
 {
     extract_subgraph({}, outputs);
-    NGRAPH_CHECK(m_editor.model_outputs().size()  == outputs.size(),
+    NGRAPH_CHECK(m_editor.model_outputs().size() == outputs.size(),
                  "Unexpected number of outputs after override_all_outputs");
     NGRAPH_CHECK(std::all_of(std::begin(outputs),
                              std::end(outputs),
