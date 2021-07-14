@@ -108,11 +108,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == PluginConfigParams::KEY_OV_PERFORMANCE_MODE) {
+        } else if (key == PluginConfigParams::KEY_PERFORMANCE_HINT) {
             if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
                 ovPerfMode = val;
             else
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_OV_PERFORMANCE_MODE
+                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
                                    << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT;
         }  else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
@@ -164,7 +164,7 @@ void Config::updateProperties() {
         else
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
         if (!ovPerfMode.empty())
-            _config.insert({ PluginConfigParams::KEY_OV_PERFORMANCE_MODE, ovPerfMode });
+            _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, ovPerfMode });
     }
 }
 

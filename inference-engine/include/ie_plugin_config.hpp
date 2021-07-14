@@ -224,9 +224,11 @@ namespace PluginConfigParams {
 #define DECLARE_CONFIG_VALUE(name) static constexpr auto name = #name
 
 /**
- * @brief High-level OpenVINO Performance Modes/Presets
+ * @brief High-level OpenVINO Performance Hints
+ * unlike low-level config keys that are individual (per-device), the hints are smth that every device accepts
+ * and turns into device-specific settings
  */
-DECLARE_CONFIG_KEY(OV_PERFORMANCE_MODE);
+DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
 DECLARE_CONFIG_VALUE(LATENCY);
 DECLARE_CONFIG_VALUE(THROUGHPUT);
 

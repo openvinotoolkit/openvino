@@ -589,7 +589,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
-    //const auto& mode = config.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    //const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
     // if (mode != config.end() || !engConfig.ovPerfMode.empty()) {
         //const auto mode_name = (mode != config.end()) ? mode->second : engConfig.ovPerfMode;

@@ -198,13 +198,13 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
-        std::string ov_perf_mode;
-        if (FLAGS_mode == "throughput" || FLAGS_mode == "THROUGHPUT" || FLAGS_mode == "tput")
-            ov_perf_mode = CONFIG_VALUE(THROUGHPUT);
-        else if (FLAGS_mode == "latency" || FLAGS_mode == "LATENCY")
-            ov_perf_mode = CONFIG_VALUE(LATENCY);
-        else if (!FLAGS_mode.empty())
-            throw std::logic_error("Performance mode " + ov_perf_mode + " is not recognized!");
+        std::string ov_perf_hint;
+        if (FLAGS_hint == "throughput" || FLAGS_hint == "THROUGHPUT" || FLAGS_hint == "tput")
+            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+        else if (FLAGS_hint == "latency" || FLAGS_hint == "LATENCY")
+            ov_perf_hint = CONFIG_VALUE(LATENCY);
+        else if (!FLAGS_hint.empty())
+            throw std::logic_error("Performance hint " + ov_perf_hint + " is not recognized!");
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
@@ -214,8 +214,8 @@ int main(int argc, char* argv[]) {
             std::map<std::string, std::string>& device_config = config.at(device);
 
             // high-level performance modes
-            if (!ov_perf_mode.empty())
-                device_config[CONFIG_KEY(OV_PERFORMANCE_MODE)] = ov_perf_mode;
+            if (!ov_perf_hint.empty())
+                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -248,7 +248,7 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (ov_perf_mode.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -307,6 +307,20 @@ int main(int argc, char* argv[]) {
 
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
+            } else {
+                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported = [&](const std::string& key) {
+                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key) != std::end(supported_config_keys);
+                };
+                if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
+                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
+                }
+                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
+                    device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
+                }
+                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
+                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
+                }
             }
         }
 
@@ -421,13 +435,13 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
 
-            if (!ov_perf_mode.empty()) {
-                std::cout << "OV_PERFORMANCE_MODE: " << ov_perf_mode << std::endl;
+            if (!ov_perf_hint.empty()) {
+                std::cout << "PERFORMANCE_HINT: " << ov_perf_hint << std::endl;
                 // output of the actual settings that the mode produces (debugging)
-                for (auto& device : devices) {
+                for (const auto& device : devices) {
                     std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     std::cout << "Device: " << device << std::endl;
-                    for (auto cfg : supported_config_keys) {
+                    for (const auto& cfg : supported_config_keys) {
                         std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>() << " }" << std::endl;
                     }
                 }
