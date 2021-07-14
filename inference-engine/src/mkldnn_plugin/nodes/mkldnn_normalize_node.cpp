@@ -682,17 +682,17 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
             } else if (axes.size() == dataDims.size() - 1) {
-                for (size_t i = 0; i < axes.size(); i++) {
-                    if (axes[i] != i + 1)
+                auto tempAxes = axes;
+                std::sort(tempAxes.begin(), tempAxes.end());
+                for (size_t i = 0; i < tempAxes.size(); i++) {
+                    if (tempAxes[i] != i + 1)
                         return false;
                 }
                 return true;
             }
             return false;
         };
-        auto tempAxes = axesNode->cast_vector<size_t>();
-        std::sort(tempAxes.begin(), tempAxes.end());
-        const auto axes = tempAxes;
+        const auto axes = axesNode->cast_vector<size_t>();
         if (!isSupportedAxes(axes, dataDims) && ngraph::shape_size(axesNode->get_shape()) != 0) {
             errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
