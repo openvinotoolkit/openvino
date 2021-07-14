@@ -20,14 +20,21 @@ using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and sco
                                    InferenceEngine::Precision,  // max_output_boxes_per_class precision
                                    InferenceEngine::Precision>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
+using TopKParams = std::tuple<int,      // Maximum number of boxes to be selected per class
+                              int>;     // Maximum number of boxes to be selected per batch element
+
+using ThresholdParams = std::tuple<float,   // minimum score to consider box for the processing
+                                   float,   // gaussian_sigma parameter for gaussian decay_function
+                                   float>;  // filter out boxes with low confidence score after decaying
+
 using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              ngraph::op::v8::MatrixNms::SortResultType,          // Order of output elements
-                             bool,                                               // Sort selected boxes across batches or not
                              ngraph::element::Type,                              // Output type
-                             int,                                                // Maximum number of boxes to be selected per class
-                             int,                                                // Maximum number of boxes to be selected per batch element
+                             TopKParams,                                         // Maximum number of boxes topk params
+                             ThresholdParams,                                    // Thresholds: score_threshold, gaussian_sigma, post_threshold
                              int,                                                // Background class id
+                             bool,                                               // If boxes are normalized
                              ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
                              std::string>;                                       // Device name
 

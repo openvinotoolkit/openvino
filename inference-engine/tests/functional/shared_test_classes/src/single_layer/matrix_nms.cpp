@@ -14,13 +14,15 @@ std::string MatrixNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     op::v8::MatrixNms::SortResultType sortResultType;
-    bool sortResultAcrossBatch;
     element::Type outType;
-    int nmsTopK, keepTopK, backgroudClass;
+    int backgroudClass;
     op::v8::MatrixNms::DecayFunction decayFunction;
+    TopKParams topKParams;
+    ThresholdParams thresholdParams;
+    bool normalized;
     std::string targetDevice;
-    std::tie(inShapeParams, inPrecisions, sortResultType, sortResultAcrossBatch, outType, nmsTopK, keepTopK,
-        backgroudClass, decayFunction, targetDevice) = obj.param;
+    std::tie(inShapeParams, inPrecisions, sortResultType, outType, topKParams, thresholdParams,
+        backgroudClass, normalized, decayFunction, targetDevice) = obj.param;
 
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
@@ -28,13 +30,20 @@ std::string MatrixNmsLayerTest::getTestCaseName(testing::TestParamInfo<NmsParams
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
+    int nmsTopK, keepTopK;
+    std::tie(nmsTopK, keepTopK) = topKParams;
+
+    float score_threshold, gaussian_sigma, post_threshold;
+    std::tie(score_threshold, gaussian_sigma, post_threshold) = thresholdParams;
+
     std::ostringstream result;
     result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
-    result << "sortResultType=" << sortResultType << "_sortResultAcrossBatch=" << sortResultAcrossBatch << "_";
+    result << "sortResultType=" << sortResultType << "_normalized=" << normalized << "_";
     result << "outType=" << outType << "_nmsTopK=" << nmsTopK << "_keepTopK=" << keepTopK << "_";
     result << "backgroudClass=" << backgroudClass << "_decayFunction=" << decayFunction << "_";
-    result << "TargetDevice=" << targetDevice;
+    result << "score_threshold=" << score_threshold << "_gaussian_sigma=" << gaussian_sigma << "_";
+    result << "post_threshold=" << post_threshold << "_TargetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -187,11 +196,6 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                         default:
                             break;
                     }
-                    // TODO: test usage only, dynamic shape do not need check the tail value
-                    //const auto iBuffer = lockedMemory.as<const int *>();
-                    //for (int i = size; i < actual->size(); i++) {
-                    //    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-                    //}
                     break;
                 }
                 default:
@@ -205,13 +209,14 @@ void MatrixNmsLayerTest::SetUp() {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     op::v8::MatrixNms::Attributes attrs;
-    attrs.score_threshold = 0.5f;
+    TopKParams topKParams;
+    ThresholdParams thresholdParams;
 
-    std::tie(inShapeParams, inPrecisions, attrs.sort_result_type, attrs.sort_result_across_batch,
-        attrs.output_type, attrs.nms_top_k, attrs.keep_top_k,
-        attrs.background_class, attrs.decay_function, targetDevice) = this->GetParam();
+    std::tie(inShapeParams, inPrecisions, attrs.sort_result_type, attrs.output_type, topKParams, thresholdParams,
+        attrs.background_class, attrs.normalized, attrs.decay_function, targetDevice) = this->GetParam();
 
-
+    std::tie(attrs.nms_top_k, attrs.keep_top_k) = topKParams;
+    std::tie(attrs.score_threshold, attrs.gaussian_sigma, attrs.post_threshold) = thresholdParams;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
     auto realClasses = numClasses;
     if (attrs.background_class >=0 && attrs.background_class <= numClasses) {

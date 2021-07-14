@@ -510,4 +510,3 @@ void MKLDNNMatrixNmsNode::checkOutput(const SizeVector& dims, const std::vector<
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatrixNmsNode, MatrixNms);
-
