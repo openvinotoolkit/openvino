@@ -212,7 +212,8 @@ InferenceEngine::IInferRequestInternal::Ptr AutoExecutableNetwork::CreateInferRe
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return std::make_shared<AutoAsyncInferRequest>(std::static_pointer_cast<AutoInferRequest>(syncRequestImpl),
                                                    std::static_pointer_cast<AutoExecutableNetwork>(shared_from_this()),
-                                                   std::make_shared<InferenceEngine::ImmediateExecutor>());
+                                                   std::make_shared<InferenceEngine::ImmediateExecutor>(),
+                                                   _enablePerfCount);
 }
 
 void AutoExecutableNetwork::run(InferenceEngine::Task inferTask) {

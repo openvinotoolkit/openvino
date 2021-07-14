@@ -22,7 +22,8 @@ public:
 
     explicit AutoAsyncInferRequest(const AutoInferRequest::Ptr&                inferRequest,
                                    const AutoExecutableNetwork::Ptr&           autoExecutableNetwork,
-                                   const InferenceEngine::ITaskExecutor::Ptr&  callbackExecutor);
+                                   const InferenceEngine::ITaskExecutor::Ptr&  callbackExecutor,
+                                   bool                                        enablePerfCount);
     void Infer_ThreadUnsafe() override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     ~AutoAsyncInferRequest();
@@ -31,6 +32,7 @@ private:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
     AutoInferRequest::Ptr                                               _inferRequest;
     AutoExecutableNetwork::WorkerInferRequest*                          _workerInferRequest = nullptr;
+    bool                                                                _enablePerfCount;
 };
 
 }  // namespace AutoPlugin
