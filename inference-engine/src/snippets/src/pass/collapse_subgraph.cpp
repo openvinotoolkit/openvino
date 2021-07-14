@@ -249,6 +249,19 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph(bool tokenize_by_node) : Ma
         return (ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get() == 1);
     };
 
+    auto hasParentInStartedSubgraph = [](std::shared_ptr<Node> node) -> bool {
+        auto inputs = node->inputs();
+        for (auto input : inputs) {
+            auto parent = input.get_source_output().get_node_shared_ptr();
+            auto &rt = parent->get_rt_info();
+            const auto rinfo = rt.find("MayBeFusedInPlugin");
+            if (rinfo != rt.end()) {
+                if (ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get() == 2)
+                    return true;
+            }
+        }
+        return false;
+    };
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [tokenize_by_node, mayBeFusedInPlugin](std::shared_ptr<Node> n) {
@@ -257,9 +270,14 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph(bool tokenize_by_node) : Ma
                    (tokenize_by_node || !has_subgraph_as_input(n)) &&
                     (!mayBeFusedInPlugin(n));
         })),
-        [](ngraph::pattern::Matcher &m) -> bool {
+        [hasParentInStartedSubgraph](ngraph::pattern::Matcher &m) -> bool {
         auto node = m.get_match_root();
 
+        auto &rt = node->get_rt_info();
+        rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(2));
+        if (hasParentInStartedSubgraph(node)) {
+            return true;
+        }
         remark(1) << "Match root"
                   << node->get_friendly_name()
                   << " " << node
