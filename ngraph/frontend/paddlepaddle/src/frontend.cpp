@@ -44,7 +44,7 @@ namespace ngraph
                                       const std::shared_ptr<OpPlacePDPD>& op_place,
                                       const std::map<std::string, CreatorFunction>& CREATORS_MAP)
             {
-                const auto& op = op_place->getDesc();
+                const auto& op = op_place->get_desc();
                 // std::cout << "Making node: " << op->type() << std::endl;
 
                 FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
@@ -98,7 +98,7 @@ namespace ngraph
             const auto& op_places = model->getOpPlaces();
             for (const auto& op_place : op_places)
             {
-                const auto& op_type = op_place->getDesc()->type();
+                const auto& op_type = op_place->get_desc()->type();
                 if (op_type == "feed" || op_type == "fetch")
                 {
                     // inputs and outputs are stored in the model already
