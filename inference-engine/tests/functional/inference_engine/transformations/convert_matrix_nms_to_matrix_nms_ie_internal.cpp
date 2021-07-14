@@ -13,7 +13,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/nms_static_shape_ie.hpp>
@@ -25,7 +25,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIEInternal) {
+TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIE) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
@@ -37,7 +37,7 @@ TEST(TransformationTests, ConvertMatrixNmsToMatrixNmsIEInternal) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal>();
+        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
