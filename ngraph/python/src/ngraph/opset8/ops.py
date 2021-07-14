@@ -135,7 +135,7 @@ def adaptive_max_pool(
         "index_element_type": index_element_type,
     }
 
-    return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs, attributes)
+    return _get_node_factory_opset8().create("AdaptiveMaxPool", inputs, attributes)
 
 
 @nameable_op
