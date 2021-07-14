@@ -15,7 +15,7 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
 | :------------------------------------------------------------| :---------------------------------------------------|
 |   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
 |   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   CentOS* 7, 64-bit                                          | 3.6, 3.7                                            |
+|   CentOS* 7.6, 64-bit                                        | 3.6, 3.7                                            |
 |   macOS* 10.15.x                                             | 3.6, 3.7                                            |
 |   Windows 10*, 64-bit                                        | 3.6, 3.7                                            |
 
