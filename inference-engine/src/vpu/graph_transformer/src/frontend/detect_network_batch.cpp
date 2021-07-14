@@ -18,6 +18,7 @@
 #include <ngraph/opsets/opset3.hpp>
 
 #include <vpu/compile_env.hpp>
+#include <vpu/configuration/options/detect_network_batch.hpp>
 
 namespace vpu {
 
@@ -29,7 +30,7 @@ void FrontEnd::detectNetworkBatch(
     using PrecisionsMap = std::map<std::string, ie::Precision>;
     const auto& env = CompileEnv::get();
 
-    if (!env.config.compileConfig().detectBatch) {
+    if (!env.config.get<DetectNetworkBatchOption>()) {
         // skip batch extraction step and go as is
         return;
     }
