@@ -10,8 +10,6 @@ namespace BehaviorTestsDefinitions {
 using InferRequestWaitTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -28,8 +26,6 @@ TEST_P(InferRequestWaitTests, CorrectOneAsyncInferWithGetInOutWithInfWait) {
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
 TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -45,8 +41,6 @@ TEST_P(InferRequestWaitTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) 
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
 TEST_P(InferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -59,8 +53,6 @@ TEST_P(InferRequestWaitTests, FailedAsyncInferWithNegativeTimeForWait) {
 }
 
 TEST_P(InferRequestWaitTests, canWaitWithotStartAsync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY));
@@ -69,8 +61,6 @@ TEST_P(InferRequestWaitTests, canWaitWithotStartAsync) {
 }
 
 TEST_P(InferRequestWaitTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto&& config = configuration;
     auto itConfig = config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
     if (itConfig != config.end()) {
@@ -100,8 +90,6 @@ TEST_P(InferRequestWaitTests, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
 }
 
 TEST_P(InferRequestWaitTests, returnDeviceBusyOnGetBlobAfterAsyncInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto outputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);

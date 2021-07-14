@@ -12,8 +12,6 @@ namespace BehaviorTestsDefinitions {
 using InferRequestMultithreadingTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThreads) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
@@ -30,8 +28,6 @@ TEST_P(InferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThrea
 }
 
 TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
@@ -65,8 +61,6 @@ TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromThre
 }
 
 TEST_P(InferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyWithWait) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();

@@ -55,6 +55,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
             // need to implement Export / Import
-            R"(.*IEClassImportExportTestP.*)"
+            R"(.*IEClassImportExportTestP.*)",
+            R"(.*Behavior.*InferRequestSetBlobByType.*Device=HETERO.*)",
     };
 }

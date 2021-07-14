@@ -14,16 +14,12 @@ namespace BehaviorTestsDefinitions {
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestIOBBlobTest, CanCreateInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetNullptrForInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -33,8 +29,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetNullptrForInput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetNullptrForOutput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -44,8 +38,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetNullptrForOutput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetUninitializedInputBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -55,8 +47,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetUninitializedInputBlob) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetUninitializedOutputBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -66,8 +56,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetUninitializedOutputBlob) {
 }
 
 TEST_P(InferRequestIOBBlobTest, setNotAllocatedInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -77,8 +65,6 @@ TEST_P(InferRequestIOBBlobTest, setNotAllocatedInput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, setNotAllocatedOutput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -88,8 +74,6 @@ TEST_P(InferRequestIOBBlobTest, setNotAllocatedOutput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     std::shared_ptr<InferenceEngine::Blob> inputBlob = FuncTestUtils::createAndFillBlob(
@@ -106,8 +90,6 @@ TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeInput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeOutput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     std::shared_ptr<InferenceEngine::Blob> inputBlob = FuncTestUtils::createAndFillBlob(
@@ -125,8 +107,6 @@ TEST_P(InferRequestIOBBlobTest, getAfterSetInputDoNotChangeOutput) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetBlobWithIncorrectName) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     const char incorrect_input_name[] = "incorrect_input_name";
@@ -138,8 +118,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetBlobWithIncorrectName) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetInputWithIncorrectSizes) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -151,8 +129,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetInputWithIncorrectSizes) {
 }
 
 TEST_P(InferRequestIOBBlobTest, failToSetOutputWithIncorrectSizes) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -164,8 +140,6 @@ TEST_P(InferRequestIOBBlobTest, failToSetOutputWithIncorrectSizes) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithoutSetAndGetInOutSync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -173,8 +147,6 @@ TEST_P(InferRequestIOBBlobTest, canInferWithoutSetAndGetInOutSync) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithoutSetAndGetInOutAsync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -182,8 +154,6 @@ TEST_P(InferRequestIOBBlobTest, canInferWithoutSetAndGetInOutAsync) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
@@ -194,8 +164,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetBlob) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetAndSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
@@ -207,8 +175,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterGetAndSetBlob
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobSync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -221,8 +187,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobSync) 
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobAsync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -235,8 +199,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedInputBlobAfterSetBlobAsync)
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -250,8 +212,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterSetBlob) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob =
@@ -266,8 +226,6 @@ TEST_P(InferRequestIOBBlobTest, canProcessDeallocatedOutputBlobAfterGetAndSetBlo
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetInputDoNotReAllocateData) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob1, blob2;
@@ -278,8 +236,6 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputDoNotReAllocateData) {
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob1, blob2;
@@ -290,8 +246,6 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputDoNotReAllocateData) {
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob1, blob2;
@@ -304,8 +258,6 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetInputAfterInferSync) {
 }
 
 TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob1, blob2;
@@ -318,8 +270,6 @@ TEST_P(InferRequestIOBBlobTest, secondCallGetOutputAfterInferSync) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -332,8 +282,6 @@ TEST_P(InferRequestIOBBlobTest, canSetInputBlobForInferRequest) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canSetOutputBlobForInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     std::shared_ptr<InferenceEngine::Blob> outputBlob = FuncTestUtils::createAndFillBlob(
@@ -345,8 +293,6 @@ TEST_P(InferRequestIOBBlobTest, canSetOutputBlobForInferRequest) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithSetInOutBlobs) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -360,8 +306,6 @@ TEST_P(InferRequestIOBBlobTest, canInferWithSetInOutBlobs) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithGetIn) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
@@ -374,8 +318,6 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetIn) {
 }
 
 TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());

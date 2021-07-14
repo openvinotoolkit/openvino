@@ -13,8 +13,6 @@ namespace BehaviorTestsDefinitions {
 using InferRequestCallbackTests = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     bool isCalled = false;
@@ -34,8 +32,6 @@ TEST_P(InferRequestCallbackTests, canCallAsyncWithCompletionCallback) {
 }
 
 TEST_P(InferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
@@ -53,9 +49,6 @@ TEST_P(InferRequestCallbackTests, syncInferDoesNotCallCompletionCallback) {
 
 // test that can wait all callbacks on dtor
 TEST_P(InferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     const int NUM_ITER = 10;
     struct TestUserData {
         std::atomic<int> numIter = {0};
@@ -89,8 +82,6 @@ TEST_P(InferRequestCallbackTests, canStartSeveralAsyncInsideCompletionCallbackWi
 }
 
 TEST_P(InferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     req.SetCompletionCallback([] {
@@ -102,8 +93,6 @@ TEST_P(InferRequestCallbackTests, returnGeneralErrorIfCallbackThrowException) {
 }
 
 TEST_P(InferRequestCallbackTests, LegacyCastAndSetuserDataGetUserData) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Create InferRequest
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     int userData = 0;
@@ -126,8 +115,6 @@ TEST_P(InferRequestCallbackTests, LegacyCastAndSetuserDataGetUserData) {
 }
 
 TEST_P(InferRequestCallbackTests, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
     // return ngrpah::Function
     // GetNetwork(3000, 380) make inference around 20ms on GNA SW

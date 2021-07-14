@@ -12,6 +12,8 @@ namespace BehaviorTestsDefinitions {
 class InferRequestConfigTest : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp() override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         // Create CNNNetwork from ngrpah::Function
         function = ngraph::builder::subgraph::makeConvPoolRelu();
@@ -34,8 +36,6 @@ protected:
 };
 
 TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ASSERT_EQ(0ul, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
@@ -50,8 +50,6 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
 }
 
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     ASSERT_NO_THROW(createInferRequestWithConfig());
     if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {

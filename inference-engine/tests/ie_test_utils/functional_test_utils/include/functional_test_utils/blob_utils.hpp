@@ -648,45 +648,81 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 }  // namespace Bf16TestUtils
 
-enum class BlobKind {
-    Simple,
+enum class BlobType {
+    Memory,
+    Batched,
     Compound,
-    BatchOfSimple
+//    Remote,
+    I40,
+    NV12
 };
 
-inline std::ostream& operator<<(std::ostream& os, BlobKind kind) {
-    switch (kind) {
-    case BlobKind::Simple:
-        return os << "Simple";
-    case BlobKind::Compound:
+inline std::ostream& operator<<(std::ostream& os, BlobType type) {
+    switch (type) {
+    case BlobType::Memory:
+        return os << "Memory";
+    case BlobType::Batched:
+        return os << "Batched";
+    case BlobType::Compound:
         return os << "Compound";
-    case BlobKind::BatchOfSimple:
-        return os << "BatchOfSimple";
+//    case BlobType::Remote:
+//        return os << "Remote";
+    case BlobType::I40:
+        return os << "I40";
+    case BlobType::NV12:
+        return os << "NV12";
     default:
-        IE_THROW() << "Test does not support the blob kind";
-  }
+        IE_THROW() << "Not supported blob type";
+    }
 }
 
-inline InferenceEngine::Blob::Ptr makeBlobOfKind(const InferenceEngine::TensorDesc& td, BlobKind blobKind) {
-    using namespace ::InferenceEngine;
-    switch (blobKind) {
-    case BlobKind::Simple:
+inline std::vector<InferenceEngine::Blob::Ptr> makeVectorBlobs(const InferenceEngine::TensorDesc& td) {
+    const size_t subBlobsNum = td.getDims()[0];
+    InferenceEngine::TensorDesc subBlobDesc = td;
+    subBlobDesc.getDims()[0] = 1;
+    std::vector<InferenceEngine::Blob::Ptr> subBlobs;
+    for (size_t i = 0; i < subBlobsNum; i++) {
+        subBlobs.push_back(createAndFillBlob(subBlobDesc));
+    }
+    return subBlobs;
+}
+
+inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType BlobType) {
+    switch (BlobType) {
+    case BlobType::Memory:
         return createAndFillBlob(td);
-    case BlobKind::Compound:
-        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>{});
-    case BlobKind::BatchOfSimple: {
-        const auto subBlobsNum = td.getDims()[0];
-        auto subBlobDesc = td;
-        subBlobDesc.getDims()[0] = 1;
-        std::vector<Blob::Ptr> subBlobs;
-        for (size_t i = 0; i < subBlobsNum; i++) {
-            subBlobs.push_back(makeBlobOfKind(subBlobDesc, BlobKind::Simple));
-        }
-        return make_shared_blob<BatchedBlob>(subBlobs);
+    case BlobType::Batched:
+        return InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(makeVectorBlobs(td));
+    case BlobType::Compound:
+        return InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(makeVectorBlobs(td));
+//    case BlobType::Remote:
+//        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
+    case BlobType::I40: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr u_blob = createAndFillBlob(td1);
+        InferenceEngine::Blob::Ptr v_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::I420Blob>(y_blob, u_blob, v_blob);
+    }
+    case BlobType::NV12: {
+        InferenceEngine::SizeVector dims = td.getDims();
+        dims[1] = 1;
+        InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr y_blob = createAndFillBlob(td1);
+        dims[1] = 2;
+        dims[2] /= 2;
+        dims[3] /= 2;
+        td1 = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
+        InferenceEngine::Blob::Ptr uv_blob = createAndFillBlob(td1);
+        return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(y_blob, uv_blob);
     }
     default:
         IE_THROW() << "Test does not support the blob kind";
     }
 }
-
 }  // namespace FuncTestUtils

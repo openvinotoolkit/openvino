@@ -19,8 +19,6 @@ namespace BehaviorTestsDefinitions {
 using InferRequestPreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
 
@@ -40,8 +38,6 @@ TEST_P(InferRequestPreprocessTest, SetPreProcessToInputInfo) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetPreProcessToInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
 
@@ -64,8 +60,6 @@ TEST_P(InferRequestPreprocessTest, SetPreProcessToInferRequest) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessGetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -132,8 +126,6 @@ TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessGetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetMeanImagePreProcessSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -265,8 +257,6 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessGetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -329,8 +319,6 @@ TEST_P(InferRequestPreprocessTest, SetMeanValuePreProcessSetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -392,8 +380,6 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -458,8 +444,6 @@ TEST_P(InferRequestPreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetScalePreProcessGetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -520,8 +504,6 @@ TEST_P(InferRequestPreprocessTest, SetScalePreProcessGetBlob) {
 }
 
 TEST_P(InferRequestPreprocessTest, SetScalePreProcessSetBlob) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 10, 10});
@@ -646,6 +628,8 @@ public:
     }
 
     void SetUp()  override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
                  setInputBlob, setOutputBlob,
@@ -667,8 +651,6 @@ public:
 };
 
 TEST_P(InferRequestPreprocessConversionTest, Infer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     unsigned int shape_size = 9, channels = 3, batch = 1, offset = 0;
     {
@@ -836,6 +818,8 @@ public:
     }
 
     void SetUp()  override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, changeIPrecision, changeOPrecision,
                  netLayout, changeILayout, changeOLayout,
                  setInputBlob, setOutputBlob,
@@ -859,8 +843,6 @@ public:
 };
 
 TEST_P(InferRequestPreprocessDynamicallyInSetBlobTest, Infer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
     unsigned int shape_size = 9, channels = 3, batch = 1;
     {

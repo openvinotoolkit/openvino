@@ -29,6 +29,8 @@ std::string InferRequestLayoutTest::getTestCaseName(testing::TestParamInfo<Layou
 }
 
 void InferRequestLayoutTest::SetUp() {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(netPrecision, targetDevice, configuration,
         layout, inputShapes) = this->GetParam();
     function = ngraph::builder::subgraph::make2InputSubtract(
@@ -82,8 +84,6 @@ inline bool checkLayout(InferenceEngine::Layout layout, std::vector<size_t> &inp
 }
 
 TEST_P(InferRequestLayoutTest, NetWithLayout) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     if (checkLayout(layout, inputShapes)) {

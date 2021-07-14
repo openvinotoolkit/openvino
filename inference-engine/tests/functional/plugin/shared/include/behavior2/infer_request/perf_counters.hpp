@@ -10,6 +10,8 @@ namespace BehaviorTestsDefinitions {
 class InferRequestPerfCountersTest : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp() override {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
@@ -20,8 +22,6 @@ public:
 };
 
 TEST_P(InferRequestPerfCountersTest, NotEmptyAfterAsyncInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto outputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
@@ -36,8 +36,6 @@ TEST_P(InferRequestPerfCountersTest, NotEmptyAfterAsyncInfer) {
 }
 
 TEST_P(InferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::CNNNetwork cnnNet(function);
     // Create InferRequest
     InferenceEngine::InferRequest req;
