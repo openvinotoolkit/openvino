@@ -31,8 +31,8 @@
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie_internal.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
@@ -391,8 +391,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIEInternal>();
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIEInternal>();
+                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
