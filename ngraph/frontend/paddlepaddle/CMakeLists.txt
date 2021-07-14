@@ -70,7 +70,8 @@ target_include_directories(${TARGET_NAME}
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR})
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS})
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
+                                                         ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
