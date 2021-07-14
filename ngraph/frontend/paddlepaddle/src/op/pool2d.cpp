@@ -6,6 +6,7 @@
 
 #include "pool2d.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 namespace ngraph
 {
@@ -138,56 +139,39 @@ namespace ngraph
                     {
                         PDPD_ASSERT(input_shape[2].is_static() && input_shape[3].is_static(),
                                     "pool2d: spatial dim must be static when using adaptive pool");
-                        uint64_t pool_size_Height, pool_size_Width;
-                        uint64_t input_h = input_shape[input_rank - 2].get_length();
-                        uint64_t input_w = input_shape[input_rank - 1].get_length();
+                        auto pool_size = std::vector<int64_t>(2, 0);
 
                         if (kernel_shape.size() == 1)
                         {
                             // Not tested: implemented according to spec, but can't generate real
                             // model to test
-                            pool_size_Height = pool_size_Width = kernel_shape[0];
+                            pool_size[0] = pool_size[1] = kernel_shape[0];
                         }
                         else
                         {
-                            pool_size_Height = kernel_shape[0];
-                            pool_size_Width = kernel_shape[1];
+                            pool_size[0] = kernel_shape[0];
+                            pool_size[1] = kernel_shape[1];
                         }
 
-                        uint64_t stride_h = int64_t(input_h / pool_size_Height);
-                        uint64_t stride_w = int64_t(input_w / pool_size_Width);
-                        uint64_t kernel_h = input_h - (pool_size_Height - 1) * stride_h;
-                        uint64_t kernel_w = input_w - (pool_size_Width - 1) * stride_w;
-
-                        PDPD_ASSERT(stride_h >= 1 && stride_w >= 1,
-                                    "Pool2d stride must be greater than 1");
+                        const Output<ngraph::Node> output_shape = ngraph::opset6::Constant::create(
+                            ngraph::element::i64, {pool_size.size()}, pool_size);
 
                         if (pooling_type == "max")
                         {
-                            return node.default_single_output_mapping(
-                                {std::make_shared<ngraph::opset6::MaxPool>(
-                                    data,
-                                    ngraph::Strides{stride_h, stride_w},
-                                    pad_begin,
-                                    pad_end,
-                                    ngraph::Shape{kernel_h, kernel_w},
-                                    rounding_type,
-                                    auto_pad)},
-                                {"Out"});
+                            std::vector<Output<Node>> pool_outputs;
+                            pool_outputs = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(
+                                               data, output_shape, ngraph::element::i64)
+                                               ->outputs();
+                            NamedOutputs outputs;
+                            outputs["Out"] = {pool_outputs[0]};
+                            outputs["Mask"] = {pool_outputs[1]};
+                            return outputs;
                         }
                         else
                         {
-                            bool exclude_pad = node.get_attribute<bool>("exclusive", false);
                             return node.default_single_output_mapping(
-                                {std::make_shared<ngraph::opset6::AvgPool>(
-                                    data,
-                                    ngraph::Strides{stride_h, stride_w},
-                                    pad_begin,
-                                    pad_end,
-                                    ngraph::Shape{kernel_h, kernel_w},
-                                    exclude_pad,
-                                    rounding_type,
-                                    auto_pad)},
+                                {std::make_shared<ngraph::opset8::AdaptiveAvgPool>(data,
+                                                                                   output_shape)},
                                 {"Out"});
                         }
                     }
