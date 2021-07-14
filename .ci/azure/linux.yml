@@ -209,7 +209,7 @@ jobs:
 
   - script: |
       . $(SETUPVARS) -pyver 3.6
-      cd $(INSTALL_TEST_DIR)/layer_tests
+      cd $(REPO_DIR)/tests/layer_tests
       python3 -m pip install -r requirements.txt
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xml
     displayName: 'Layer Tests'
