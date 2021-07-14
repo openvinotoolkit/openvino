@@ -512,21 +512,17 @@ void MKLDNNROIPoolingNode::execute() {
             if (roi_pooling_kernel) {
                 arg.bin_area = 0;
                 arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                (*roi_pooling_kernel)(&arg);
             } else {
                 for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                     int ch_blk_cur = cbb * cb_num + cbb_cur;
                     if (ch_blk_cur >= jpp.nb_c) {
                         break;  // current block work is done
                     }
-
                     for (int c = 0; c < c_block; c++) {
                         dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
                     }
                 }
-            }
-
-            if (roi_pooling_kernel) {
-                (*roi_pooling_kernel)(&arg);
             }
         } else {
             size_t roi_off = n * src_roi_step;
@@ -593,10 +589,7 @@ void MKLDNNROIPoolingNode::execute() {
                                     for (int w = wstart; w < wend; ++w) {
                                         float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
                                                                     h * src_strides[2] + w * src_strides[3] + c];
-
-                                        if (batch_data > dst[pool_index]) {
-                                            dst[pool_index] = batch_data;
-                                        }
+                                        dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
                                     }
                                 }
                             }
@@ -612,14 +605,19 @@ void MKLDNNROIPoolingNode::execute() {
                 float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
                 float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
-                float in_y = (jpp.pooled_h > 1 ?
-                                 (oh == jpp.pooled_h - 1 ?
-                                     roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1))) :
-                                 0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1));
-                float in_x = (jpp.pooled_w > 1 ?
-                                 (ow == jpp.pooled_w - 1 ?
-                                     roi_end_w_ * (jpp.iw - 1) : (ow * width_scale  + roi_start_w_ * (jpp.iw - 1))) :
-                                 0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1));
+                float in_y, in_x;
+                // we have to take into account border case explicitly, because for floating-point operations
+                // inequality A / B * B <= A may be violated
+                if (jpp.pooled_h > 1) {
+                    in_y = (oh == jpp.pooled_h - 1 ? roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1)));
+                } else {
+                    in_y = 0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1);
+                }
+                if (jpp.pooled_w > 1) {
+                    in_x = (ow == jpp.pooled_w - 1 ? roi_end_w_ * (jpp.iw - 1) : (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)));
+                } else {
+                    in_x = 0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1);
+                }
 
                 if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                     if (roi_pooling_kernel) {

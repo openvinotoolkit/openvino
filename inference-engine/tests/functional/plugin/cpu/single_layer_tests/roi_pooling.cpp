@@ -70,13 +70,13 @@ protected:
             void (*propGenerator)(InferenceEngine::Blob::Ptr &);
             switch (propMode) {
                 case ULTIMATE_RIGHT_BORDER:
+                    // because of nonalgebraic character of floating point operation, the following values causes inequity:
+                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
+                    // and as result excess of right limit for proposal value if the border case (current_h == pooled_h - 1)
+                    // will not be handled explicitly
                     propGenerator = [](InferenceEngine::Blob::Ptr &blob) {
                         auto *data = blob->buffer().as<float *>();
                         for (size_t i = 0; i < blob->size(); i += 5) {
-                            // because of unalgebraic character of floating point operation, the following values causes inequity:
-                            // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
-                            // and as result excess of right limit for proposal value if the border case (current_h == pooled_h - 1)
-                            // will not be handled explicitly
                             data[i] = 0;
                             data[i + 1] = 0.f;
                             data[i + 2] = 0.248046786f;
