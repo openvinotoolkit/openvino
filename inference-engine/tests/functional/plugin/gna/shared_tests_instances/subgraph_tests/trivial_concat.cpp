@@ -24,7 +24,7 @@ std::vector<std::vector<size_t>> inShapes = {
     {65, 1},
     // TODO: Enable
     // {5003, 1},
-    // {30, 1},
+    {10, 1},
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
