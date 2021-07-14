@@ -138,19 +138,29 @@ namespace ngraph
                             {
                                 for (int pw = 0; pw < pooled_w; pw++)
                                 {
-                                    // we have to take into account border case explicitly, because for floating-point operations
-                                    // inequality A / B * B <= A may be violated
+                                    // we have to take into account border case explicitly, because
+                                    // for floating-point operations inequality A / B * B <= A may
+                                    // be violated
                                     T in_y, in_x;
-                                    if (pooled_h > 1) {
-                                        in_y = ((ph == pooled_h - 1) ? (height - 1) * roi_h_end
-                                                                     : (ph * roi_height_scale + roi_h_start * (height - 1)));
-                                    } else {
+                                    if (pooled_h > 1)
+                                    {
+                                        in_y =
+                                            ((ph == pooled_h - 1) ? (height - 1) * roi_h_end
+                                                                  : (ph * roi_height_scale +
+                                                                     roi_h_start * (height - 1)));
+                                    }
+                                    else
+                                    {
                                         in_y = 0.5 * (roi_h_start + roi_h_end) * (height - 1);
                                     }
-                                    if (pooled_w > 1) {
+                                    if (pooled_w > 1)
+                                    {
                                         in_x = ((pw == pooled_w - 1) ? (width - 1) * roi_w_end
-                                                                     : (pw * roi_width_scale + roi_w_start * (width - 1)));
-                                    } else {
+                                                                     : (pw * roi_width_scale +
+                                                                        roi_w_start * (width - 1)));
+                                    }
+                                    else
+                                    {
                                         in_x = 0.5 * (roi_w_end + roi_w_start) * (width - 1);
                                     }
 
