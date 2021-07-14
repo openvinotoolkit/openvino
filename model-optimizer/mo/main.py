@@ -268,8 +268,10 @@ def prepare_ir(argv: argparse.Namespace):
 
     # In future check of use_legacy_frontend option can be added here
     if argv.feManager is None or argv.framework not in new_front_ends:
+        print('[ DEBUG ] Legacy, NetworkX frontend will be called for framework ' + argv.framework)
         graph = unified_pipeline(argv)
     else:
+        print('[ DEBUG ] New, nGraph frontend will be called for framework ' + argv.framework)
         ngraph_function = moc_pipeline(argv)
     return graph, ngraph_function
 

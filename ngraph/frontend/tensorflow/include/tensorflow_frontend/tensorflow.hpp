@@ -45,6 +45,14 @@ namespace ngraph
             size_t port;
 
             PlaceTensorflow (const std::string& _name, Kind _kind = OP, size_t _port = 0) : name(_name), kind(_kind), port(_port) {}
+
+            virtual std::vector<std::string> get_names () const override { return {name}; }
+
+            virtual bool is_equal(Ptr another) const override
+            {
+                auto another_tf = std::dynamic_pointer_cast<PlaceTensorflow>(another);
+                return another_tf && name == another_tf->name && kind == another_tf->kind && port == another_tf->port;
+            }
         };
 
         class NGRAPH_API InputModelTensorflow : public InputModel
@@ -66,7 +74,8 @@ namespace ngraph
 
             std::vector<Place::Ptr> get_inputs () const override;
 
-            void set_partial_shape (Place::Ptr place, const ngraph::PartialShape& pshape) override;
+            virtual void set_partial_shape (Place::Ptr place, const ngraph::PartialShape& pshape) override;
+            virtual ngraph::PartialShape get_partial_shape (Place::Ptr place) const override;
         };
 
         class NGRAPH_API FrontEndTensorflow : public FrontEnd

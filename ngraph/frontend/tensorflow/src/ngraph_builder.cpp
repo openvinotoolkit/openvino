@@ -2775,6 +2775,7 @@ public:
 
     NodeProtoWrapper(const NodeDef* _node_def):
         node_def(_node_def) {
+        /*
         // Try to print all existing attributes
         std::cout << " ******** Attributes for " << node_def->name() << " of type " << node_def->op() << "\n";
         for(const auto& a : node_def->attr())
@@ -2782,6 +2783,7 @@ public:
             std::cout << "    " << a.first << ": " << a.second.value_case() << "\n";
         }
         std::cout << " ***** end of attributes ****" << std::endl;
+         */
     }
 
 #define GET_ATTR_VALUE(TYPE, FIELD) virtual void getAttrValue (const char* name, TYPE* x) const override \
@@ -3168,6 +3170,24 @@ void InputModelTensorflow::set_partial_shape (Place::Ptr place, const ngraph::Pa
     partialShapes[place_tf->name] = pshape;
 }
 
+ngraph::PartialShape InputModelTensorflow::get_partial_shape (Place::Ptr place) const {
+    auto place_tf = std::dynamic_pointer_cast<PlaceTensorflow>(place);
+    ngraph::PartialShape result_shape;
+    // TODO: replace by node cache without going through all nodes each time
+    for(; !graph_impl->is_end(); graph_impl->next())
+    {
+        auto node = graph_impl->get();
+        if(node->name() == place_tf->name)
+        {
+            node->getAttrValue("shape", &result_shape);
+            break;
+        }
+    }
+    // WARNING! Redesign GraphIterator -- it is not really good thing, detach an iterator from graph itself
+    graph_impl->reset();
+    return result_shape;
+}
+
 std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert (InputModel::Ptr model) const
 {
     try {
@@ -3183,7 +3203,7 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::TransposeSinking>();
-        //manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
 
         std::cout << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << " nodes." << std::endl;

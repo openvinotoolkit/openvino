@@ -36,7 +36,7 @@ extern "C" NGRAPH_HELPER_DLL_EXPORT ngraph::frontend::FrontEndVersion GetAPIVers
 extern "C" NGRAPH_HELPER_DLL_EXPORT void* GetFrontEndData()
 {
     auto res = new ngraph::frontend::FrontEndPluginInfo();
-    res->m_name = "tensorflow";
+    res->m_name = "tf";
     res->m_creator = [](ngraph::frontend::FrontEndCapFlags) { return std::make_shared<ngraph::frontend::FrontEndTensorflow>(); };
     return res;
 }
