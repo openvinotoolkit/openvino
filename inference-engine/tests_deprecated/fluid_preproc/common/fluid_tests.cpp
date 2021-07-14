@@ -762,7 +762,8 @@ TEST_P(ResizeTestIE, AccuracyTest)
     cv::Size sz_in, sz_out;
     double tolerance = 0.0;
     std::pair<cv::Size, cv::Size> sizes;
-    std::tie(type, interp, sizes, tolerance) = GetParam();
+    size_t repetitions = 0;
+    std::tie(type, interp, sizes, tolerance, repetitions) = GetParam();
     std::tie(sz_in, sz_out) = sizes;
 
     cv::Mat in_mat1(sz_in, type );
@@ -814,7 +815,9 @@ TEST_P(ResizeTestIE, AccuracyTest)
 
 #if PERF_TEST
     // iterate testing, and print performance
-    test_ms([&](){ preprocess->execute(out_blob, info, false); },
+    test_ms([&](){
+            for (size_t i = 0; i < repetitions; i++) preprocess->execute(out_blob, info, false);
+            },
             100, "Resize IE %s %s %dx%d -> %dx%d",
             interpToString(interp).c_str(), typeToString(type).c_str(),
             sz_in.width, sz_in.height, sz_out.width, sz_out.height);
@@ -827,6 +830,117 @@ TEST_P(ResizeTestIE, AccuracyTest)
     // Comparison //////////////////////////////////////////////////////////////
     {
         EXPECT_LE(cv::norm(out_mat_ocv, out_mat, cv::NORM_INF), tolerance);
+    }
+}
+template <typename T, typename A>
+T product(std::vector<T, A> const& vec) {
+    if (vec.empty()) return 0;
+    T ret = vec[0];
+    for (size_t i = 1; i < vec.size(); ++i) ret *= vec[i];
+    return ret;
+}
+
+TEST_P(ResizeBatchedTestIE, AccuracyTest)
+{
+    int type = 0, interp = 0;
+    cv::Size sz_in, sz_out;
+    double tolerance = 0.0;
+    std::pair<cv::Size, cv::Size> sizes;
+    size_t batch_size = 0;
+    std::tie(type, interp, sizes, tolerance, batch_size) = GetParam();
+    std::tie(sz_in, sz_out) = sizes;
+
+    cv::Mat in_mat1(sz_in, type );
+    cv::Scalar mean = cv::Scalar::all(127);
+    cv::Scalar stddev = cv::Scalar::all(40.f);
+
+    cv::randn(in_mat1, mean, stddev);
+
+    cv::Size sz_out_batched = sz_out;
+    sz_out_batched.width *= batch_size; // increase row length on batch_size
+    cv::Mat out_mat(sz_out_batched, type);
+    cv::Mat out_mat_ocv(sz_out, type);
+
+    // Inference Engine code ///////////////////////////////////////////////////
+
+    size_t channels = out_mat.channels();
+    CV_Assert(1 == channels || 3 == channels);
+
+    int depth = CV_MAT_DEPTH(type);
+    CV_Assert(CV_8U == depth || CV_32F == depth);
+
+    CV_Assert(cv::INTER_AREA == interp || cv::INTER_LINEAR == interp);
+
+    ASSERT_TRUE(in_mat1.isContinuous() && out_mat.isContinuous());
+
+    using namespace InferenceEngine;
+
+    size_t  in_height = in_mat1.rows,  in_width = in_mat1.cols;
+    size_t out_height = out_mat.rows, out_width = out_mat.cols / batch_size;    // length of single batch row
+    InferenceEngine::SizeVector  in_sv = { 1, channels,  in_height,  in_width };
+    InferenceEngine::SizeVector out_sv = { batch_size, channels, out_height, out_width };
+    InferenceEngine::SizeVector out_single_sv = { 1, channels, out_height, out_width };
+
+    // HWC blob: channels are interleaved
+    Precision precision = CV_8U == depth ? Precision::U8 : Precision::FP32;
+    TensorDesc  in_desc(precision,  in_sv, Layout::NHWC);
+    TensorDesc out_desc(precision, out_sv, Layout::NHWC);
+    TensorDesc out_single_desc(precision, out_single_sv, Layout::NHWC);
+
+    Blob::Ptr in_blob;
+    if (batch_size != 1)
+    {
+        std::vector<Blob::Ptr> in_blob_array;
+        in_blob_array.reserve(batch_size);
+        for (int blob_batched_index = 0; blob_batched_index < batch_size; blob_batched_index++) {
+
+            in_blob_array.push_back(make_blob_with_precision(in_desc, in_mat1.data));
+        }
+        in_blob = make_shared_blob<BatchedBlob>(std::move(in_blob_array));
+    }
+    else
+    {
+        in_blob = make_blob_with_precision(in_desc , in_mat1.data);
+    }
+
+    Blob::Ptr out_blob = make_blob_with_precision(out_desc, out_mat.data);
+
+    PreProcessDataPtr preprocess = CreatePreprocDataHelper();
+    preprocess->setRoiBlob(in_blob);
+
+    ResizeAlgorithm algorithm = cv::INTER_AREA == interp ? RESIZE_AREA : RESIZE_BILINEAR;
+    PreProcessInfo info;
+    info.setResizeAlgorithm(algorithm);
+
+    // test once to warm-up cache
+    preprocess->execute(out_blob, info, false);
+
+#if PERF_TEST
+    // iterate testing, and print performance
+    test_ms([&](){ preprocess->execute(out_blob, info, false); },
+            100, "Resize IE %s %s %dx%d -> %dx%d, batch %zu",
+            interpToString(interp).c_str(), typeToString(type).c_str(),
+            sz_in.width, sz_in.height, sz_out.width, sz_out.height, batch_size, channels);
+#endif
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::resize(in_mat1, out_mat_ocv, sz_out, 0, 0, interp);
+    }
+
+    for (size_t i = 0; i < batch_size; i++) {
+        // This network generates [1, size] tensor whether batch=1 or 2. So need to split
+        cv::Mat split_out_mat;
+
+        if (CV_MAT_DEPTH(type) == CV_32F) {
+            split_out_mat = cv::Mat(sz_out, type, out_blob->buffer().as<float_t *>() + product(out_single_desc.getDims()) * i);
+        } else if (CV_MAT_DEPTH(type) == CV_8U) {
+            split_out_mat = cv::Mat(sz_out, type, out_blob->buffer().as<uint8_t *>() + product(out_single_desc.getDims()) * i);
+        }
+        // Comparison //////////////////////////////////////////////////////////////
+        {
+            EXPECT_LE(cv::norm(out_mat_ocv, split_out_mat, cv::NORM_INF), tolerance);
+        }
     }
 }
 

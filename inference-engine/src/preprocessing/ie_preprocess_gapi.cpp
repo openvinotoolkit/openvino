@@ -180,6 +180,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
 std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const BatchedBlob::Ptr& blob,
                                                           int batch_size) {
     int underlied_blob_size = 1;
+
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(blob->size() * underlied_blob_size);
     for (size_t i = 0; i < blob->size(); ++i) {
         auto inBlob = blob->getBlob(i);
@@ -191,9 +192,22 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const BatchedBlob::Ptr
             underlied_blob_plane = bind_to_blob(as<NV12Blob>(inBlob), underlied_blob_size);
         } else if (inBlob->is<I420Blob>()) {
             underlied_blob_plane = bind_to_blob(as<I420Blob>(inBlob), underlied_blob_size);
+        } else if (inBlob->is<MemoryBlob>()) {
+            //correct batch_size for mem blob
+            std::shared_ptr<MemoryBlob> memBlob = as<MemoryBlob>(inBlob);
+            underlied_blob_size = static_cast<int>(memBlob->getTensorDesc().getDims()[0]);
+            batch_size = underlied_blob_size * blob->size();
+
+            if (batched_input_plane_mats.size() <= static_cast<size_t>(batch_size)) {
+                batched_input_plane_mats.resize(batch_size);
+            } else {
+                IE_THROW() << "fail, invalid dimenstion";
+            }
+
+            underlied_blob_plane = bind_to_blob(memBlob, underlied_blob_size);
         } /* no alternative here - it had just validated right before */
 
-        // iterate over underlying lob batch_size her
+        // iterate over underlying blob batch_size
         for (size_t j = 0; j < underlied_blob_plane.size(); j++) {
             // got  underlying blob components: (y & uv) or (y & u & v)
             auto &full_component_plane = underlied_blob_plane[j];
@@ -386,11 +400,6 @@ void validateBlob(const I420Blob::Ptr &inBlob) {
     validateTensorDesc(v_blob->getTensorDesc());
 }
 
-const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const BatchedBlob::Ptr &blob) {
-    const auto& desc =  blob->getTensorDesc();
-    return {desc, /*desc.getLayout()*/ Layout::NCHW};
-}
-
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const MemoryBlob::Ptr &blob) {
     const auto& desc =  blob->getTensorDesc();
     return {desc, desc.getLayout()};
@@ -405,6 +414,31 @@ const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const NV12Blob
 
 const std::pair<const TensorDesc&, Layout> getTensorDescAndLayout(const I420Blob::Ptr &blob) {
     return {blob->y()->getTensorDesc(), Layout::NCHW};
+}
+
+
+const std::pair<TensorDesc, Layout> getTensorDescAndLayout(const BatchedBlob::Ptr &blob) {
+    auto desc =  blob->getTensorDesc();
+    TensorDesc inner_descr;
+    Layout inner_layout;
+    if (blob->size()) {
+        auto inner_blob = blob->getBlob(0);
+        if (inner_blob->is<I420Blob>()) {
+            std::tie(inner_descr, inner_layout) = getTensorDescAndLayout(as<I420Blob>(inner_blob));
+        } else if (inner_blob->is<NV12Blob>()) {
+            std::tie(inner_descr, inner_layout) = getTensorDescAndLayout(as<NV12Blob>(inner_blob));
+        } else if (inner_blob->is<MemoryBlob>()) {
+            std::tie(inner_descr, inner_layout) = getTensorDescAndLayout(as<MemoryBlob>(inner_blob));
+        } else {
+            IE_THROW() << "Cannot call getTensorDescAndLayout() BatchedBlob underlying type is not supported";
+        }
+
+        SizeVector dims = inner_descr.getDims();
+
+        SizeVector& batched_dims = desc.getDims();
+        batched_dims[0] *= dims[0]; //N blobs * N single inner_blob
+    }
+    return {desc, inner_layout};
 }
 
 G::Desc getGDesc(G::Desc in_desc_y, const NV12Blob::Ptr &) {
@@ -438,6 +472,8 @@ G::Desc getGDesc(G::Desc in_desc_y, const BatchedBlob::Ptr &batch) {
         return getGDesc(in_desc_y, as<I420Blob>(blob));
     } else if (blob->is<NV12Blob>()) {
         return getGDesc(in_desc_y, as<NV12Blob>(blob));
+    } else if (blob->is<MemoryBlob>()) {
+        return getGDesc(in_desc_y, as<MemoryBlob>(blob));
     } else {
         IE_THROW() << "Cannot call getGDesc() BatchedBlob underlying type is not supported";
     }
@@ -874,24 +910,81 @@ void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr
         IE_THROW() << "Preprocessing failed. " << e.what();
     }
 }
-//[deprecated]
-int PreprocEngine::getCorrectBatchSize(int batch, const Blob::Ptr& blob) {
+
+template<typename BlobPtrType>
+int PreprocEngine::getCorrectBatchSize(int batch, const BlobPtrType& blob) {
     if (batch == 0) {
         IE_THROW() << "Input pre-processing is called with invalid batch size " << batch;
     }
 
-    if (blob->is<CompoundBlob>()) {
-        // batch size must always be 1 in compound blob case
-        if (batch > 1) {
-            IE_THROW()  << "Provided input blob batch size " << batch
-                                << " is not supported in compound blob pre-processing";
-        }
-        batch = 1;
-    } else if (batch < 0) {
+    if (batch < 0) {
         // if batch size is unspecified, process the whole input blob
         batch = static_cast<int>(blob->getTensorDesc().getDims()[0]);
     }
 
+    return batch;
+}
+
+template<>
+int PreprocEngine::getCorrectBatchSize(int batch, const NV12Blob::Ptr& blob) {
+    if (batch == 0) {
+        IE_THROW() << "Input pre-processing NV12Blob is called with invalid batch size " << batch;
+    }
+
+    if (batch > 1) {
+        IE_THROW()  << "Provided input NV12Blob batch size " << batch
+                    << " is not supported in compound blob pre-processing";
+    }
+    batch = 1;
+    return batch;
+}
+
+template<>
+int PreprocEngine::getCorrectBatchSize(int batch, const I420Blob::Ptr& blob) {
+    if (batch == 0) {
+        IE_THROW() << "Input pre-processing I420Blob is called with invalid batch size " << batch;
+    }
+
+    if (batch > 1) {
+        IE_THROW()  << "Provided input I420Blob batch size " << batch
+                    << " is not supported in compound blob pre-processing";
+    }
+    batch = 1;
+    return batch;
+}
+
+template<>
+int PreprocEngine::getCorrectBatchSize(int batch, const BatchedBlob::Ptr& blob) {
+    if (batch == 0) {
+        IE_THROW() << "Input pre-processing BatchedBlob is called with invalid batch size " << batch;
+    }
+
+    if (!blob) {
+        IE_THROW() << "Input pre-processing BatchedBlob is null";
+    }
+
+    if (!blob->size()) {
+        IE_THROW() << "Input pre-processing BatchedBlob is empty, batch size " << batch;
+    }
+
+    int full_batch_size = -1;
+    auto inner_blob = blob->getBlob(0);
+    if (inner_blob->is<I420Blob>()) {
+        full_batch_size = blob->size() * getCorrectBatchSize(full_batch_size, as<I420Blob>(inner_blob));
+    } else if (inner_blob->is<NV12Blob>()) {
+        full_batch_size = blob->size() * getCorrectBatchSize(full_batch_size, as<NV12Blob>(inner_blob));
+    } else if (inner_blob->is<MemoryBlob>()) {
+        full_batch_size = blob->size() * getCorrectBatchSize(full_batch_size, as<MemoryBlob>(inner_blob));
+    } else {
+        IE_THROW() << "Cannot call getCorrectBatchSize() BatchedBlob underlying type is not supported";
+    }
+
+    if (batch < 0) {
+        batch = full_batch_size;
+    } else if (batch > full_batch_size) {
+        IE_THROW() << "Input pre-processing BatchedBlob is called with invalid batch size " << batch
+                   << " max available batch size " << full_batch_size;
+    }
     return batch;
 }
 
@@ -1007,6 +1100,9 @@ void PreprocEngine::preprocessTypedBlob(const BlobTypePtr &inBlob, MemoryBlob::P
                             << in_desc.d.N << " != " << out_desc.d.N << " (expected by network)";
     }
 
+    // make batch size adjustment
+    batch_size = getCorrectBatchSize(batch_size, outBlob);
+
     // sanity check batch size
     if (batch_size > out_desc.d.N) {
         IE_THROW()  << "Provided batch size is invalid: (provided)"
@@ -1060,7 +1156,6 @@ void PreprocEngine::preprocessTypedBlob(const BlobTypePtr &inBlob, MemoryBlob::P
 void PreprocEngine::preprocessBatchedBlob(const BatchedBlob::Ptr &inBlob, MemoryBlob::Ptr &outMemoryBlob,
         ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
         int batch_size) {
-    batch_size = inBlob->size();
     preprocessTypedBlob(inBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial, batch_size);
 }
 
@@ -1077,11 +1172,6 @@ void PreprocEngine::preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &out
                                 << ": expected NV12Blob";
         }
 
-        if (batch_size > 1) {
-            IE_THROW()  << "Provided input blob batch size " << batch_size
-                                << " is not supported in compound blob pre-processing";
-        }
-        batch_size = 1;
         return preprocessTypedBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
@@ -1092,11 +1182,6 @@ void PreprocEngine::preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &out
                                 << ": expected I420Blob";
         }
 
-        if (batch_size > 1) {
-            IE_THROW()  << "Provided input blob batch size " << batch_size
-                                << " is not supported in compound blob pre-processing";
-        }
-        batch_size = 1;
         return preprocessTypedBlob(inI420Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }
@@ -1108,10 +1193,6 @@ void PreprocEngine::preprocessBlob(const Blob::Ptr &inBlob, MemoryBlob::Ptr &out
                                 << ": expected MemoryBlob";
         }
 
-        if (batch_size < 0) {
-            // if batch size is unspecified, process the whole input blob
-            batch_size = static_cast<int>(inMemoryBlob->getTensorDesc().getDims()[0]);
-        }
         return preprocessTypedBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, omp_serial,
             batch_size);
     }

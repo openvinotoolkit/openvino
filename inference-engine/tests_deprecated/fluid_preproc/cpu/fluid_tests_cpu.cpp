@@ -224,20 +224,47 @@ INSTANTIATE_TEST_SUITE_P(ResizeTestFluid_U8, ResizeTestIE,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
-                                Values(4))); // error not more than 4 unit
+                                Values(4),  // error not more than 4 unit
+                                Values(1, 4, 8)));
 #else
 INSTANTIATE_TEST_SUITE_P(ResizeTestFluid_U8, ResizeTestIE,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
-                                Values(1))); // error not more than 1 unit
+                                Values(1),  // error not more than 1 unit
+                                Values(1, 4, 8)));
 #endif
 
 INSTANTIATE_TEST_SUITE_P(ResizeTestFluid_F32, ResizeTestIE,
                         Combine(Values(CV_32FC1, CV_32FC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
-                                Values(0.05))); // error within 0.05 units
+                                Values(0.05),   // error within 0.05 units
+                                Values(1, 4, 8)));
+
+
+#if defined(__arm__) || defined(__aarch64__)
+INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
+                        Combine(Values(CV_8UC1, CV_8UC3),
+                                Values(cv::INTER_LINEAR, cv::INTER_AREA),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(4),  // error not more than 4 unit
+                                Values(1, 4, 8)));
+#else
+INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
+                        Combine(Values(CV_8UC1, CV_8UC3),
+                                Values(cv::INTER_LINEAR, cv::INTER_AREA),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(1),  // error not more than 1 unit
+                                Values(1, 4, 8)));
+#endif
+
+INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_F32, ResizeBatchedTestIE,
+                        Combine(Values(CV_32FC1, CV_32FC3),
+                                Values(cv::INTER_LINEAR, cv::INTER_AREA),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(0.05),   // error within 0.05 units
+                                Values(1, 4, 8)));
 
 INSTANTIATE_TEST_SUITE_P(SplitTestFluid, SplitTestIE,
                         Combine(Values(CV_8UC2, CV_8UC3, CV_8UC4,

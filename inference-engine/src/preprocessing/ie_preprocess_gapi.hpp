@@ -58,10 +58,12 @@ class PreprocEngine {
     static void checkSingleBlobApplicabilityGAPI(const Blob::Ptr &src, const SizeVector &network_input_valid_dims);
     static void checkBatchedBlobApplicabilityGAPI(const BatchedBlob::Ptr &src, const SizeVector &network_input_valid_dims);
 
+    template<typename BlobPtrType>
+    static int getCorrectBatchSize(int batch_size, const BlobPtrType& roiBlob);
+
 public:
     PreprocEngine();
     static void checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst);
-    static int getCorrectBatchSize(int batch_size, const Blob::Ptr& roiBlob);
     void preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob, const ResizeAlgorithm &algorithm,
         ColorFormat in_fmt, bool omp_serial, int batch_size = -1);
 };

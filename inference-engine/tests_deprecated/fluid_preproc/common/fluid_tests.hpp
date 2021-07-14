@@ -39,7 +39,8 @@ struct SubCTestGAPI : public DivCTestGAPI
 struct MeanValueGAPI: public TestParams<std::tuple<cv::Size, double>> {};
 //------------------------------------------------------------------------------
 
-struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double>> {};
+struct ResizeTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double, size_t>> {};
+struct ResizeBatchedTestIE: public testing::TestWithParam<std::tuple<int, int, std::pair<cv::Size, cv::Size>, double, size_t>> {};
 
 struct SplitTestIE: public TestParams<std::tuple<int, cv::Size, double>> {};
 struct MergeTestIE: public TestParams<std::tuple<int, cv::Size, double>> {};
