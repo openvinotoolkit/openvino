@@ -3,13 +3,12 @@
 
 import os
 import onnx
-import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 from openvino.test_utils import CompareNetworks
 import ngraph as ng
 from ngraph.frontend import FrontEndManager
 from openvino.inference_engine import IENetwork
-import pytest
+
 
 #       in1        in2        in3
 #        |          |          |
@@ -30,7 +29,8 @@ def create_test_onnx_models():
     models = {}
     # Input model
     add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
-    split = onnx.helper.make_node("Split", inputs=["add_out"], outputs=["out1", "out2"], name="split1", axis=0)
+    split = onnx.helper.make_node("Split", inputs=["add_out"],
+                                  outputs=["out1", "out2"], name="split1", axis=0)
     relu = onnx.helper.make_node("Relu", inputs=["in3"], outputs=["out3"])
     mul = onnx.helper.make_node("Mul", inputs=["add_out", "add_out"], outputs=["out4"])
 
@@ -44,7 +44,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
+    ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
     models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -55,7 +55,7 @@ def create_test_onnx_models():
     ]
     output_tensors = [
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
+    ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -68,7 +68,7 @@ def create_test_onnx_models():
     output_tensors = [
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
+    ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -79,8 +79,9 @@ def create_test_onnx_models():
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"], outputs=["out1", "out2"], name="split1", axis=0)
+    ]
+    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
+                                           outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([expected_split], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -94,9 +95,11 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"], outputs=["out1", "out2"])
-    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"], outputs=["out4"], name="split1", axis=0)
+    ]
+    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
+                                           outputs=["out1", "out2"])
+    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
+                                         outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -109,7 +112,7 @@ def create_test_onnx_models():
     output_tensors = [
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
+    ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
     models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -120,7 +123,7 @@ def create_test_onnx_models():
     ]
     output_tensors = [
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
+    ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -136,9 +139,11 @@ def create_test_onnx_models():
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
-        ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"], outputs=["out1", "out2"])
-    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"], outputs=["out4"], name="split1", axis=0)
+    ]
+    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
+                                           outputs=["out1", "out2"])
+    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
+                                         outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer")
 
@@ -147,6 +152,7 @@ def create_test_onnx_models():
 
 fem = None
 test_models_names = []
+
 
 def setup_module():
     if not os.environ.get("OV_FRONTEND_PATH"):
@@ -162,16 +168,18 @@ def setup_module():
         onnx.save_model(model, name)
         test_models_names.append(name)
 
+
 def comare_functions(result, expected):
     res_caps = ng.Function.to_capsule(result)
     expected_caps = ng.Function.to_capsule(expected)
     comp_flag, _ = CompareNetworks(IENetwork(res_caps), IENetwork(expected_caps))
-    return comp_flag 
+    return comp_flag
 
 
 def teardown_module():
     for name in test_models_names:
         os.remove(name)
+
 
 def test_extract_subgraph():
     fe = fem.load_by_framework(framework="onnx")
@@ -180,8 +188,8 @@ def test_extract_subgraph():
     model = fe.load_from_file("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensorName="add_out").get_producing_operation(0) #in1
-    place2 = model.get_place_by_tensor_name(tensorName="add_out").get_producing_operation(1) #in2
+    place1 = model.get_place_by_tensor_name(tensorName="add_out").get_producing_operation(0)  # in1
+    place2 = model.get_place_by_tensor_name(tensorName="add_out").get_producing_operation(1)  # in2
     place3 = model.get_place_by_tensor_name(tensorName="add_out")
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
     result_func = fe.convert(model)
@@ -191,6 +199,7 @@ def test_extract_subgraph():
 
     res = comare_functions(result_func, expected_func)
     assert res
+
 
 def test_extract_subgraph_2():
     fe = fem.load_by_framework(framework="onnx")
@@ -210,6 +219,7 @@ def test_extract_subgraph_2():
     res = comare_functions(result_func, expected_func)
     assert res
 
+
 def test_extract_subgraph_3():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
@@ -228,6 +238,7 @@ def test_extract_subgraph_3():
 
     res = comare_functions(result_func, expected_func)
     assert res
+
 
 def test_extract_subgraph_4():
     fe = fem.load_by_framework(framework="onnx")
@@ -251,6 +262,7 @@ def test_extract_subgraph_4():
     res = comare_functions(result_func, expected_func)
     assert res
 
+
 def test_override_all_outputs():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
@@ -269,6 +281,7 @@ def test_override_all_outputs():
     res = comare_functions(result_func, expected_func)
     assert res
 
+
 def test_override_all_outputs_2():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
@@ -286,6 +299,7 @@ def test_override_all_outputs_2():
     res = comare_functions(result_func, expected_func)
     assert res
 
+
 def test_override_all_inputs():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
@@ -293,7 +307,8 @@ def test_override_all_inputs():
     model = fe.load_from_file("input_model.onnx")
     assert model
 
-    place1 = place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
+    place1 = place1 = model.get_place_by_operation_name_and_input_port(
+        operationName="split1", inputPortIndex=0)
     place2 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation(0)
     place3 = model.get_place_by_tensor_name(tensorName="out4").get_producing_operation(1)
     place4 = model.get_place_by_tensor_name(tensorName="in3")
@@ -306,6 +321,7 @@ def test_override_all_inputs():
     res = comare_functions(result_func, expected_func)
     assert res
 
+
 def test_is_input_output():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
@@ -314,17 +330,18 @@ def test_is_input_output():
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in2")
-    assert place1.is_input() == True
-    assert place1.is_output() == False
+    assert place1.is_input()
+    assert not place1.is_output()
 
     place2 = model.get_place_by_tensor_name(tensorName="out2")
-    assert place2.is_input() == False
-    assert place2.is_output() == True
+    assert not place2.is_input()
+    assert place2.is_output()
 
     place3 = model.get_place_by_tensor_name(tensorName="add_out")
-    assert place3.is_input() == False
-    assert place3.is_output() == False
+    assert not place3.is_input()
+    assert not place3.is_output()
 
-    place4 = place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    assert place4.is_input() == False
-    assert place4.is_output() == False
+    place4 = place1 = model.get_place_by_operation_name_and_input_port(
+        operationName="split1", inputPortIndex=0)
+    assert not place4.is_input()
+    assert not place4.is_output()
