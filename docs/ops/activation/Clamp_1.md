@@ -25,7 +25,6 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
   * **Description**: *min* is the lower bound of values in the output.
   * **Range of values**: arbitrary floating point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *max*
@@ -33,7 +32,6 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
   * **Description**: *max* is the upper bound of values in the output.
   * **Range of values**: arbitrary floating point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
