@@ -284,7 +284,12 @@ Network_impl will always have net_id = 0 when it will be cldnn internal micronet
 opt pass).
 */
 network_impl::network_impl(program_impl::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
-    : _program(program), _stream(stream), _internal(is_internal), _is_primary_stream(is_primary_stream), _reset_arguments(true) {
+    : _program(program)
+    , _stream(stream)
+    , _memory_pool(new memory_pool(program->get_engine()))
+    , _internal(is_internal)
+    , _is_primary_stream(is_primary_stream)
+    , _reset_arguments(true) {
     static std::atomic<uint32_t> id_gen{0};
     if (!_internal) {
         net_id = ++id_gen;
@@ -298,7 +303,7 @@ network_impl::network_impl(program_impl::ptr program, stream::ptr stream, bool i
 }
 
 network_impl::~network_impl() {
-    get_engine().get_memory_pool().clear_pool_for_network(net_id);
+    _memory_pool->clear_pool_for_network(net_id);
 }
 
 network_impl::ptr network_impl::allocate_network(stream::ptr stream, program_impl::ptr program, bool is_internal, bool is_primary_stream) {
@@ -711,11 +716,20 @@ void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> ins
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
         // Allocate and transfer memory
-        auto& mem_pool = inst_mem.get_engine()->get_memory_pool();
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
-        mem_pool.release_memory(&inst_mem, node.id(), get_id());
+        _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
+}
+
+memory::ptr network_impl::get_memory_from_pool(const layout& layout,
+                                               primitive_id id,
+                                               std::set<primitive_id> dependencies,
+                                               allocation_type type,
+                                               bool reusable) {
+    if (get_engine().configuration().use_memory_pool)
+        return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
+    return _memory_pool->get_memory(layout, type);
 }
 }  // namespace cldnn

@@ -15,6 +15,7 @@
 #include <set>
 #include <utility>
 #include <string>
+#include <atomic>
 
 #define CLDNN_THREADING_SEQ 0
 #define CLDNN_THREADING_TBB 1
@@ -38,15 +39,6 @@ public:
     virtual engine_types type() const = 0;
     /// Returns runtime type used in the engine
     virtual runtime_types runtime_type() const = 0;
-
-    /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
-    /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
-    memory_ptr get_memory_from_pool(const layout& layout,
-                                    primitive_id id,
-                                    uint32_t network_id,
-                                    std::set<primitive_id> dependencies,
-                                    allocation_type type,
-                                    bool reusable = true);
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.
@@ -101,9 +93,6 @@ public:
     /// Returns device object associated with the engine
     const device::ptr get_device() const;
 
-    /// Returns memory pool for the engine
-    memory_pool& get_memory_pool();
-
     /// Returns user context handle which was used to create the engine
     virtual void* get_user_context() const = 0;
 
@@ -112,6 +101,12 @@ public:
 
     /// Returns the amount of GPU memory currently used by the engine
     uint64_t get_used_device_memory() const;
+
+    /// Adds @p bytes count to currently used memory size
+    void add_memory_used(uint64_t bytes);
+
+    /// Subtracts @p bytes count from currently used memory size
+    void subtract_memory_used(uint64_t bytes);
 
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
@@ -144,11 +139,11 @@ public:
 protected:
     /// Create engine for given @p device and @p configuration
     engine(const device::ptr device, const engine_configuration& configuration);
-
-    // TODO: Consider moving memory pool to cldnn::network
-    std::unique_ptr<memory_pool> _memory_pool;
     const device::ptr _device;
     engine_configuration _configuration;
+
+    std::atomic<uint64_t> memory_usage = {0};
+    std::atomic<uint64_t> peak_memory_usage = {0};
 };
 
 }  // namespace cldnn

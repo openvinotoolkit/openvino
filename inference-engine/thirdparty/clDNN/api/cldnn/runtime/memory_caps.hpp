@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <ostream>
 
 namespace cldnn {
 
@@ -18,6 +19,18 @@ enum class allocation_type {
     usm_shared,  // Accessible by host and device. Migrtable.
     usm_device,  // Accessible only by device. Not migratable.
 };
+
+inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_type) {
+    switch (alloc_type) {
+        case allocation_type::cl_mem:     out << "cl_mem";     break;
+        case allocation_type::usm_host:   out << "usm_host";   break;
+        case allocation_type::usm_shared: out << "usm_shared"; break;
+        case allocation_type::usm_device: out << "usm_device"; break;
+        default: out << "unknown"; break;
+    }
+
+    return out;
+}
 
 class memory_capabilities {
 public:

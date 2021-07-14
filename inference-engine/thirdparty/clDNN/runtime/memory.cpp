@@ -5,6 +5,7 @@
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/stream.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_memory.hpp"
 
@@ -17,12 +18,29 @@
 namespace cldnn {
 
 memory::memory(engine* engine, const layout& layout, allocation_type type, bool reused)
-    : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {}
+    : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {
+    if (!_reused && _engine) {
+        _engine->add_memory_used(_bytes_count);
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "Allocate " << _bytes_count << " bytes of " << type << " allocation type"
+                       << " (current=" << _engine->get_used_device_memory() << ";"
+                       << " max=" << _engine->get_max_used_device_memory() << ")" << std::endl;
+    }
+}
 
 memory::~memory() {
     if (!_reused && _engine) {
-        // TODO: Make memory usage tracker static in memory class
-        _engine->get_memory_pool().subtract_memory_used(_bytes_count);
+        _engine->subtract_memory_used(_bytes_count);
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 1) {
+        GPU_DEBUG_COUT << "Free " << _bytes_count << " bytes"
+                       << " (current=" << _engine->get_used_device_memory() << ";"
+                       << " max=" << _engine->get_max_used_device_memory() << ")" << std::endl;
     }
 }
 

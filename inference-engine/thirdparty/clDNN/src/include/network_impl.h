@@ -102,10 +102,19 @@ public:
     bool is_internal() const { return _internal; }
     bool is_primary_stream() { return _is_primary_stream; }
 
+    /// Create memory object with specified @p layout and allocation @p type for primitive with @p id
+    /// Underlying memory handle can be reused with other primitives from memory pool based on @p dependencies
+    memory_ptr get_memory_from_pool(const layout& layout,
+                                    primitive_id id,
+                                    std::set<primitive_id> dependencies,
+                                    allocation_type type,
+                                    bool reusable = true);
+
 private:
     uint32_t net_id = 0;
     program_impl::ptr _program;
     stream::ptr _stream;
+    std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
     bool _reset_arguments;
