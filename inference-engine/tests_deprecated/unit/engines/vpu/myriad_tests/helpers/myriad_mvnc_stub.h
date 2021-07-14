@@ -14,11 +14,6 @@ using namespace vpu::MyriadPlugin;
 // class MvncStub
 //------------------------------------------------------------------------------
 
-#if defined __GNUC__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wsuggest-override"
-#endif
-
 class MvncStub : public IMvnc {
 public:
     //Operations
@@ -29,7 +24,3 @@ public:
 
     ~MvncStub() = default;
 };
-
-#if defined __GNUC__
-# pragma GCC diagnostic pop
-#endif

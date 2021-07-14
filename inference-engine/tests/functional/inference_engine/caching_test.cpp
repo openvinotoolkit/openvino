@@ -61,11 +61,6 @@ std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, s
     return std::get<1>(std::get<0>(obj.param)) + "_" + std::get<1>(obj.param);
 }
 
-#if defined __GNUC__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wsuggest-override"
-#endif
-
 class MockRemoteContext : public RemoteContext {
     std::string m_name;
 public:
@@ -146,10 +141,6 @@ public:
         IExecutableNetworkInternal::SetPointerToPlugin(plugin);
     }
 };
-
-#if defined __GNUC__
-# pragma GCC diagnostic pop
-#endif
 
 //------------------------------------------------------
 class MkDirGuard {

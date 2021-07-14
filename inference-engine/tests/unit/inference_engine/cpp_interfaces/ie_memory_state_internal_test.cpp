@@ -199,21 +199,11 @@ TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[2], 125);
     IE_SUPPRESS_DEPRECATED_END
 }
-
-#if defined __GNUC__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wsuggest-override"
-#endif
-
 class VariableStateInternalMockImpl : public IVariableStateInternal {
  public:
     VariableStateInternalMockImpl(const char* name) : IVariableStateInternal(name) {}
     MOCK_METHOD0(Reset, void());
 };
-
-#if defined __GNUC__
-# pragma GCC diagnostic pop
-#endif
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
