@@ -49,12 +49,6 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    if(ENABLE_TESTS AND NOT ANDROID)
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
-    endif()
-
     # WA for GCC 7.0
     if(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")

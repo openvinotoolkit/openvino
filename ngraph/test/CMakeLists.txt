@@ -589,6 +589,10 @@ endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
+                                        ${CMAKE_DL_LIBS}
+                                        ie_backend
+                                        interpreter_backend
+                                        Threads::Threads
                                         openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
@@ -608,26 +612,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-if(NOT WIN32)
-    target_link_libraries(unit-test PRIVATE pthread)
-endif()
-target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
-
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
-endif()
-
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
-
-# So many type_prop tests these days that we need to set /bigobj flag for MSVC.
-# We should probably split up type_prop.cpp.
-if (MSVC)
-    target_compile_options(unit-test PRIVATE "/bigobj")
-endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
@@ -637,8 +624,6 @@ if (NGRAPH_ONNX_EDITOR_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
-target_link_libraries(unit-test PRIVATE interpreter_backend)
-
 install(TARGETS unit-test
         RUNTIME DESTINATION tests
         COMPONENT tests
@@ -646,8 +631,7 @@ install(TARGETS unit-test
 
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
-target_link_libraries(unit-test PRIVATE cnpy)
+target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###

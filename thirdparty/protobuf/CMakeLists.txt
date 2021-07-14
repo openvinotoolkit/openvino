@@ -33,8 +33,7 @@ if(CMAKE_CROSSCOMPILING)
         execute_process(
             COMMAND ${SYSTEM_PROTOC} --version
             OUTPUT_VARIABLE PROTOC_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
@@ -121,13 +120,16 @@ if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
     message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
 endif()
 
+message(WARNING "BUILD_STANDALONE_STATIC = ${BUILD_STANDALONE_STATIC}")
+message(WARNING "USE_STATIC_PROTOBUF = ${USE_STATIC_PROTOBUF}")
+
 if (NOT BUILD_STANDALONE_STATIC)
     install(TARGETS ${Protobuf_LIBRARIES}
             RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
             ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
             LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
-            "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
+           "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()
 
 # forward variables used in the other places

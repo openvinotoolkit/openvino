@@ -126,12 +126,13 @@ endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
     set(BEFORE_PROTOBUF_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS ON)
     # protobuf type for ONNX importer / editor
     set(BUILD_STANDALONE_STATIC OFF)
+    set(USE_STATIC_PROTOBUF OFF)
+    set(BUILD_SHARED_LIBS ON)
 
     if(NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        add_subdirectory(${CMAKE_SOURCE_DIR}/thirdparty/protobuf ${CMAKE_BINARY_DIR}/_deps/protobuf)
+        add_subdirectory(protobuf)
     else()
         find_package(Protobuf REQUIRED)
     endif()
