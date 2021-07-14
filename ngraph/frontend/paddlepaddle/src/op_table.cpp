@@ -9,9 +9,23 @@
 #include "op/concat.hpp"
 #include "op/conv2d.hpp"
 #include "op/elementwise_ops.hpp"
+#include "op/mul.hpp"
+#include "op/pad3d.hpp"
+#include "op/pool2d.hpp"
+#include "op/pow.hpp"
+#include "op/range.hpp"
 #include "op/relu.hpp"
+#include "op/relu6.hpp"
+#include "op/reshape2.hpp"
 #include "op/scale.hpp"
+#include "op/shape.hpp"
+#include "op/sigmoid.hpp"
+#include "op/slice.hpp"
+#include "op/softmax.hpp"
 #include "op/split.hpp"
+#include "op/squeeze.hpp"
+#include "op/unsqueeze.hpp"
+#include "op/yolo_box.hpp"
 
 #include "op_table.hpp"
 
@@ -37,9 +51,24 @@ namespace ngraph
                         {"elementwise_mul", op::elementwise_mul},
                         {"elementwise_pow", op::elementwise_pow},
                         {"elementwise_sub", op::elementwise_sub},
+                        {"max_pool2d_with_index", op::pool2d},
+                        {"mul", op::mul},
+                        {"pad3d", op::pad3d},
+                        {"pow", op::pow},
+                        {"pool2d", op::pool2d},
+                        {"range", op::range},
                         {"relu", op::relu},
+                        {"relu6", op::relu6},
+                        {"reshape2", op::reshape2},
                         {"scale", op::scale},
-                        {"split", op::split}};
+                        {"shape", op::shape},
+                        {"slice", op::slice},
+                        {"softmax", op::softmax},
+                        {"sigmoid", op::sigmoid},
+                        {"split", op::split},
+                        {"squeeze2", op::squeeze},
+                        {"unsqueeze2", op::unsqueeze},
+                        {"yolo_box", op::yolo_box}};
             };
 
         } // namespace pdpd
