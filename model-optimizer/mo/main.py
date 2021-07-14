@@ -26,7 +26,7 @@ from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
-from mo.pipeline.unified import unified_pipeline, moc_pipeline
+from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
@@ -45,8 +45,6 @@ from mo.utils.versions_checker import check_requirements  # pylint: disable=no-n
 
 # pylint: disable=no-name-in-module,import-error
 from ngraph.frontend import FrontEndManager
-
-from ngraph import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -276,11 +274,10 @@ def prepare_ir(argv: argparse.Namespace):
     return graph, ngraph_function
 
 
-def emit_ir(graph, argv: argparse.Namespace):
-    if 'network' not in graph.graph:
-        NormalizeTI().find_and_replace_pattern(graph)
-        for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
-        for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+def emit_ir(graph: Graph, argv: argparse.Namespace):
+    NormalizeTI().find_and_replace_pattern(graph)
+    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
     if 'feManager' in argv:
         del argv.feManager
