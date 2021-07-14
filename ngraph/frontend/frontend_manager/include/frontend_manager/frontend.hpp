@@ -2,20 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define USE_IE_EXTENSION 1
+
 #pragma once
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#if USE_IE_EXTENSION
 #include <ie_extension.h>
+#endif
+
 #include "frontend_manager_defs.hpp"
 #include "input_model.hpp"
 #include "ngraph/function.hpp"
+
 
 namespace ngraph
 {
     namespace frontend
     {
+
+        #if USE_IE_EXTENSION
+            typedef InferenceEngine::NewExtension Extension;
+        #else
+
+            class Extension {
+            public:
+                using Ptr = std::shared_ptr<Extension>;
+
+                virtual ~Extension() = default;
+            };
+        #endif
+
         /// \brief An interface for identifying a frontend for a particular framework.
         /// Provides an ability to load and convert of input model
         class FRONTEND_API FrontEnd
@@ -28,7 +48,7 @@ namespace ngraph
             virtual ~FrontEnd();
 
             ///\brief Add a new conversion rule or override an existing one
-            virtual void add_extension(InferenceEngine::NewExtension::Ptr extension);
+            virtual void add_extension(Extension::Ptr extension);
 
             /// \brief Loads an input model by specified model file path
             /// If model is stored in several files (e.g. model topology and model weights) -

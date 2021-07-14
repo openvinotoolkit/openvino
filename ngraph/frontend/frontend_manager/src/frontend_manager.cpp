@@ -122,7 +122,7 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-void FrontEnd::add_extension(InferenceEngine::NewExtension::Ptr extension)
+void FrontEnd::add_extension(Extension::Ptr extension)
 {
     // Ignore all extensions as we have to register only known ones and silently ignore others.
     // As this is a base class we don't know any extension type.

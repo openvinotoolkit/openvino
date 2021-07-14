@@ -28,7 +28,7 @@ namespace frontend
 /// \brief Builds ngraph fragment for a specific operation in original TF graph
 /** An extension is a pair of a string and a function; the string specifies type of the op
     as it is define in Tneand the function builds ngraph function fragment based on NodeContext. */
-class TFConversionExtension : public InferenceEngine::NewExtension
+class TFConversionExtension : public Extension
 {
 public:
 

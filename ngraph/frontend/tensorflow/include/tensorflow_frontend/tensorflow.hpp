@@ -81,7 +81,8 @@ namespace ngraph
             {
             }
 
-            virtual void add_extension (InferenceEngine::NewExtension::Ptr) override;
+            virtual void add_extension (Extension::Ptr) override;
+            //void add_extension (const std::string& op_type, );
 
             virtual InputModel::Ptr load_from_file (const std::string& path) const override
             {

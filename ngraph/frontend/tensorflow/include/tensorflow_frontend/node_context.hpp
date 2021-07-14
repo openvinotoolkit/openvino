@@ -32,7 +32,7 @@ namespace detail {
 
 /// Generic NodeContext that hides graph representation
 /// It is base class for specific implementations for protobuf and run-time graph
-    class NodeContext {
+    class NGRAPH_API NodeContext {
         OutputVector m_ng_inputs;
         std::shared_ptr<detail::TFNodeDecoder> m_decoder;
 

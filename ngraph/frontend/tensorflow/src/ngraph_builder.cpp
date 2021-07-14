@@ -3195,7 +3195,7 @@ std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndTensorflow::convert 
     }
 }
 
-void ngraph::frontend::FrontEndTensorflow::add_extension (InferenceEngine::NewExtension::Ptr _extension) {
+void ngraph::frontend::FrontEndTensorflow::add_extension (Extension::Ptr _extension) {
     if(auto extension = std::dynamic_pointer_cast<ngraph::frontend::TFConversionExtension>(_extension))
     {
         ::tensorflow::ngraph_bridge::TRANSLATE_OP_MAP.insert(std::make_pair(extension->get_op_type(), extension->get_converter()));
