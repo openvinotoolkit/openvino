@@ -200,13 +200,28 @@ TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
+
+class VariableStateInternalMockImpl : public IVariableStateInternal {
+ public:
+    VariableStateInternalMockImpl(const char* name) : IVariableStateInternal(name) {}
+    MOCK_METHOD0(Reset, void());
+};
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
+
 TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
-    IVariableStateInternal::Ptr pState(new MockIVariableStateInternal("MockIVariableStateInternal"));
-    ASSERT_STREQ(pState->GetName().c_str(), "MockIVariableStateInternal");
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
+    ASSERT_STREQ(pState->GetName().c_str(), "VariableStateInternalMockImpl");
 }
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
-    IVariableStateInternal::Ptr pState(new MockIVariableStateInternal("MockIVariableStateInternal"));
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 
@@ -221,7 +236,7 @@ TEST_F(VariableStateTests, VariableStateInternalCanSaveState) {
 
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveStateByReference) {
-    IVariableStateInternal::Ptr pState(new MockIVariableStateInternal("MockIVariableStateInternal"));
+    IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
 

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+project(XLink LANGUAGES C)
+
 set(TARGET_NAME "XLink")
 
 include(XLink.cmake)
