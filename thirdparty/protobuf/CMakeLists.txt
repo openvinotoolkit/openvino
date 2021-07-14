@@ -12,6 +12,10 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+endif()
+
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
 
 # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
@@ -83,17 +87,17 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
         list(APPEND _proto_libs libprotoc)
-            target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+        target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
     endif()
     set_target_properties(${_proto_libs} PROPERTIES
         CXX_VISIBILITY_PRESET default
         C_VISIBILITY_PRESET default
         VISIBILITY_INLINES_HIDDEN OFF)
-        foreach(target libprotobuf libprotobuf-lite)
-            target_compile_options(${target}
-                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
-                PUBLIC -Wno-undef)
-        endforeach()
+    foreach(target libprotobuf libprotobuf-lite)
+        target_compile_options(${target}
+            PRIVATE -Wno-all -Wno-unused-variable
+            PUBLIC -Wno-undef)
+    endforeach()
 endif()
 
 if(NGRAPH_USE_PROTOBUF_LITE)
