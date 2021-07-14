@@ -27,12 +27,6 @@ namespace ngraph
             std::shared_ptr<Function> convert();
 
             // Editor features
-            void cut_and_add_new_input(Place::Ptr place,
-                                       const std::string& new_name_optional = "") override;
-            void cut_and_add_new_output(Place::Ptr place,
-                                        const std::string& new_name_optional = "") override;
-            Place::Ptr add_output(Place::Ptr place) override;
-            void remove_output(Place::Ptr place) override;
             void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
             void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
             void extract_subgraph(const std::vector<Place::Ptr>& inputs,
