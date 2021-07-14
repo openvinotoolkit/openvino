@@ -101,6 +101,7 @@ public:
 
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
+    void RemoveEdge(MKLDNNEdgePtr& edge);
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 

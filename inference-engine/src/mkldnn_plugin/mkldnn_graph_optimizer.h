@@ -39,8 +39,6 @@ private:
     void FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph &graph);
     void FuseClampAndFakeQuantize(MKLDNNGraph &graph);
     void MergeTransposeAndReorder(MKLDNNGraph &graph);
-
-    void removeEdge(MKLDNNGraph &graph, MKLDNNEdgePtr& edge);
 };
 
 }  // namespace MKLDNNPlugin
