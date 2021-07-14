@@ -3,6 +3,7 @@
 #
 
 include(ProcessorCount)
+include(CheckCXXCompilerFlag)
 
 #
 # Disables deprecated warnings generation
@@ -295,8 +296,11 @@ else()
             ie_add_compiler_flags(-Wno-error=switch
                                   -Winconsistent-missing-override)
         else()
-            ie_add_compiler_flags(-Wmaybe-uninitialized
-                                  -Wsuggest-override)
+            ie_add_compiler_flags(-Wmaybe-uninitialized)
+            check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+            if(SUGGEST_OVERRIDE_SUPPORTED)
+                set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+            endif()
         endif()
     endif()
 

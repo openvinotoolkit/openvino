@@ -8,8 +8,8 @@
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-suggest-override)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")

@@ -57,7 +57,10 @@ function(ie_add_mkldnn)
     endif()
 
     if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-suggest-override -Wno-undef)
+        ie_add_compiler_flags(-Wno-undef)
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+        endif()
     endif()
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
