@@ -110,7 +110,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
     DESTINATION "deployment_tools/ngraph/cmake"
     COMPONENT ngraph_dev)
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
     if (MSVC)
         # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
         # These two options can't be mixed, because they requires link two imcompatiable runtime.
