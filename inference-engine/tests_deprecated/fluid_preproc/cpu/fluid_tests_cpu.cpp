@@ -244,14 +244,14 @@ INSTANTIATE_TEST_SUITE_P(ResizeTestFluid_F32, ResizeTestIE,
 
 
 #if defined(__arm__) || defined(__aarch64__)
-INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
+INSTANTIATE_TEST_SUITE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
                                 Values(4),  // error not more than 4 unit
                                 Values(1, 4, 8)));
 #else
-INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
+INSTANTIATE_TEST_SUITE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
@@ -259,7 +259,7 @@ INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_U8, ResizeBatchedTestIE,
                                 Values(1, 4, 8)));
 #endif
 
-INSTANTIATE_TEST_CASE_P(ResizeBatchedTestIE_F32, ResizeBatchedTestIE,
+INSTANTIATE_TEST_SUITE_P(ResizeBatchedTestIE_F32, ResizeBatchedTestIE,
                         Combine(Values(CV_32FC1, CV_32FC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
@@ -310,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                                 Values(0),
                                 Values(1, 2, 4, 8)));
 
-INSTANTIATE_TEST_CASE_P(ColorConvertYUV420BatchedFluid, ColorConvertYUV420BatchedTestIE,
+INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420BatchedFluid, ColorConvertYUV420BatchedTestIE,
                         Combine(Values(InferenceEngine::NV12, InferenceEngine::I420),
                                 Values(InferenceEngine::NHWC, InferenceEngine::NCHW),
                                 Values(cv::Size(3840, 2160),
