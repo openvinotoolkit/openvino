@@ -23,7 +23,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
+    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;
     CommonDispatchData SetDefault(const permute_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {

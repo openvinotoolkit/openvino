@@ -17,7 +17,7 @@ public:
     bool Validate(const Params& p, const optional_params& o) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
 protected:
-    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
+    virtual JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const permute_params& params) const = 0;
 };
 }  // namespace kernel_selector

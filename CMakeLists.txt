@@ -64,7 +64,6 @@ function(build_ngraph)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
-    ie_cpack_add_component(ngraph REQUIRED)
     ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
     add_subdirectory(ngraph)
@@ -101,6 +100,8 @@ function(openvino_developer_export_targets)
     set(openvino_export_components "${openvino_export_components}" CACHE INTERNAL
         "A list of OpenVINO exported components" FORCE)
 endfunction()
+
+ie_cpack_add_component(ngraph REQUIRED)
 
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)

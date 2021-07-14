@@ -37,7 +37,7 @@ macro(onnx_set_target_properties)
             ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
             LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
 
-    export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE
+    export(TARGETS onnx_proto NAMESPACE ngraph:: APPEND FILE
             "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endmacro()
 
