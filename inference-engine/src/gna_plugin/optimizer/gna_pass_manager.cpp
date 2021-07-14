@@ -2245,7 +2245,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         if (isFQFuseAllowed) {
-            getInputTo(prevData).clear();
+            getInputTo(prevData).erase(l->name);
         }
 
         // Connect all next layers after FQ to the layer that is before FQ
