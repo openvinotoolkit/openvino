@@ -34,7 +34,6 @@ namespace ngraph
             ///       is outdated. In such a case the update method should be called.
             ///
             /// \param graph_proto Reference to a GraphProto object.
-            // TODO
             EdgeMapper(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
             /// \brief Returns the InputEdge based on a node (node name or output name)

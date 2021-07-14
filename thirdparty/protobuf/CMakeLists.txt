@@ -13,7 +13,7 @@ if (MSVC)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
-    find_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
+    find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
         execute_process(
