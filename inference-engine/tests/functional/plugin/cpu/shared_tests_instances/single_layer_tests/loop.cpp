@@ -56,7 +56,8 @@ namespace {
                                     Values<int64_t>(7),
                                     Values<InferenceEngine::SizeVector>({2, 1, 4}),
                                     Values<InferenceEngine::Precision>(Precision::FP32, Precision::I32),
-                                    Values(CommonTestUtils::DEVICE_CPU)));
+                                    Values(CommonTestUtils::DEVICE_CPU),
+                                    Values<std::map<std::string, std::string>>({})));
     using namespace testing;
     INSTANTIATE_TEST_SUITE_P(smoke_TrivialLoop, TrivialLoopTest,
                             Combine(
