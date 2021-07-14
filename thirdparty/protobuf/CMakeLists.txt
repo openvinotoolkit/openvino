@@ -118,11 +118,10 @@ if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
 endif()
 
 if (NOT BUILD_STANDALONE_STATIC)
-    message("NGRAPH_INSTALL_LIB = ${NGRAPH_INSTALL_LIB}")
     install(TARGETS ${Protobuf_LIBRARIES}
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+        RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+        ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+        LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
             "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()
