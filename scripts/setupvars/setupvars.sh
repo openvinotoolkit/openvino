@@ -105,7 +105,7 @@ fi
 
 if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tests" ]; then
     export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools:$MO_ROOT:$PYTHONPATH"
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tests/layer_tests:$MO_ROOT:$PYTHONPATH"
 fi
 
 if [ -z "$python_version" ]; then
