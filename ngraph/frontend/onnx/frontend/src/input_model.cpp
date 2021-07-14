@@ -94,32 +94,25 @@ void InputModelONNX::remove_output(Place::Ptr place)
 void InputModelONNX::override_all_outputs(const std::vector<Place::Ptr>& outputs)
 {
     extract_subgraph({}, outputs);
-    const auto outs_after_extraction = m_editor.model_outputs();
-    NGRAPH_CHECK(outs_after_extraction.size() == outputs.size(),
-                 "Number of outputs after override_all_outputs should be the same as before");
+    NGRAPH_CHECK(m_editor.model_outputs().size()  == outputs.size(),
+                 "Unexpected number of outputs after override_all_outputs");
     NGRAPH_CHECK(std::all_of(std::begin(outputs),
                              std::end(outputs),
                              [](const Place::Ptr& place) { return place->is_output(); }),
-                 "Provided outputs does not replace all existing one");
+                 "Not all provided arguments of override_all_outputs are new outputs of the model");
 }
 
 void InputModelONNX::override_all_inputs(const std::vector<Place::Ptr>& inputs)
 {
     const auto outputs_before_extraction = m_editor.model_outputs();
-    const auto inputs_number_before_extraction = m_editor.model_inputs().size();
     extract_subgraph({inputs}, {});
     NGRAPH_CHECK(std::equal(std::begin(outputs_before_extraction),
                             std::end(outputs_before_extraction),
                             std::begin(m_editor.model_outputs())),
                  "All outputs should be preserved after override_all_inputs. Provided inputs does "
                  "not satisfy all outputs");
-    NGRAPH_CHECK(inputs_number_before_extraction == m_editor.model_inputs().size(),
-                 "Not enough inputs provided during override_all_inputs. Number of inputs after "
-                 "overriding should be preserved.");
-    NGRAPH_CHECK(std::all_of(std::begin(inputs),
-                             std::end(inputs),
-                             [](const Place::Ptr& place) { return place->is_output(); }),
-                 "Provided inputs does not replace all existing one");
+    NGRAPH_CHECK(m_editor.model_inputs().size() == inputs.size(),
+                 "Unexpected number of inputs after override_all_inputs");
 }
 
 void InputModelONNX::extract_subgraph(const std::vector<Place::Ptr>& inputs,

@@ -105,6 +105,18 @@ namespace ngraph
                     m_editor);
             }
 
+            bool is_input() const override 
+            {
+                const auto inputs = m_editor.model_inputs();
+                return std::find(std::begin(inputs), std::end(inputs), m_name) != std::end(inputs);
+            }
+
+            bool is_output() const override
+            {
+                const auto outputs = m_editor.model_outputs();
+                return std::find(std::begin(outputs), std::end(outputs), m_name) != std::end(outputs);
+            }
+
         private:
             std::string m_name;
             const onnx_editor::ONNXModelEditor& m_editor;
