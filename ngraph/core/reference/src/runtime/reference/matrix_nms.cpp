@@ -135,6 +135,7 @@ namespace ngraph
                                   [&scores_data](int32_t a, int32_t b) {
                                       return scores_data[a] > scores_data[b];
                                   });
+
                 std::vector<T> iou_matrix((original_size * (original_size - 1)) >> 1);
                 std::vector<T> iou_max(original_size);
 

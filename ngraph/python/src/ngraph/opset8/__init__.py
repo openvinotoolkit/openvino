@@ -33,7 +33,7 @@ from ngraph.opset6.ops import ctc_greedy_decoder_seq_len
 from ngraph.opset4.ops import ctc_loss
 from ngraph.opset3.ops import cum_sum
 from ngraph.opset3.ops import cum_sum as cumsum
-from ngraph.opset1.ops import deformable_convolution
+from ngraph.opset8.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
 from ngraph.opset1.ops import detection_output

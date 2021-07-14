@@ -123,6 +123,14 @@ void descriptor::Tensor::set_names(const std::unordered_set<std::string>& names)
     m_names = names;
 }
 
+void descriptor::Tensor::add_names(const std::unordered_set<std::string>& names)
+{
+    for (const auto& name : names)
+    {
+        m_names.insert(name);
+    }
+}
+
 ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
 {
     std::string names;

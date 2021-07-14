@@ -231,7 +231,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
     KernelData kd = KernelData::Default<reduce_params>(params);
 
     auto cldnn_jit = GetJitConstants(params);
-    auto entry_point = GetEntryPoint(kernelName, params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
