@@ -1361,7 +1361,7 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
 }
 
 #if GNA_LIB_VER == 2
-void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel) {
+void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget) {
     Gna2Operation * gnaOperation;
     if (gnaModel == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
@@ -1677,7 +1677,11 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             const auto fltStride = fltStrideShape->Dimensions[0];
                             const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
                             //  FLAT input matrix, pooled outputs per filter
-                            outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);
+                            if (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+                                outputTensor.Shape.Dimensions[1] = outputFromPooling(outFromConv, poolWindow->Dimensions[0], poolStride->Dimensions[0]);
+                            } else {
+                                outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);
+                            }
                         } else { // kDnnConvolutional2dOp
                             // Override GNA operation output pointer with the one from pooling component
                             outputTensor.Data = comp.ptr_outputs;
@@ -1743,7 +1747,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         || (component[i - 1].operation == kDnnConvolutional1dOp)
                         || (component[i - 1].operation == kDnnConvolutional2dOp)
                         || ((component[i - 1].operation == kDnnMaxPoolOp) &&
-                        (component[i - 2].operation == kDnnConvolutional1dOp))) {
+                        (component[i - 2].operation == kDnnConvolutional1dOp
+                            || component[i - 2].operation == kDnnConvolutional2dOp))) {
                         if (gnaOperation->Operands[PwlOpIdx] == nullptr) {
                             HelperGna2OperationSetOperand(gnaOperation, gnaUserAllocator, gnaUserFree, PwlOpIdx, createGna2TensorPwl(1, nullptr));
                         }

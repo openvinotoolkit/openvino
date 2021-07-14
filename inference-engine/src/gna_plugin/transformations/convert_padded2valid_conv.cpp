@@ -10,6 +10,7 @@
 
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
@@ -18,12 +19,6 @@
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertPadded2ValidConv, "ConvertPadded2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedWithBias2ValidConv, "ConvertPaddedWithBias2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedWithBiasAF2ValidConv, "ConvertPaddedWithBiasAF2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedWithBiasMaxPool2ValidConv, "ConvertPaddedWithBiasMaxPool2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedWithBiasMaxPoolAF2ValidConv, "ConvertPaddedWithBiasMaxPoolAF2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedTransposedWithBias2ValidConv, "ConvertPaddedTransposedWithBias2ValidConv", 0);
-NGRAPH_RTTI_DEFINITION(ConvertPaddedTransposedWithBiasAF2ValidConv, "ConvertPaddedTransposedWithBiasAF2ValidConv", 0);
 
 struct ConvData {
     size_t input_height;
@@ -92,26 +87,16 @@ static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& 
     if (!add_const)
         add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
 
-    // The add may be a normal add not conv bias, then we just go further
+    // The add may be a normal add not convolution bias, then we just go further
     return (add_const && shape_size(add_const->get_shape()) == filter_count);
-}
-
-static bool VerifyMaxPool(std::shared_ptr<ngraph::opset7::MaxPool> max_pool) {
-    auto pool_strides = max_pool->get_strides();
-    auto pool_kernel = max_pool->get_kernel();
-
-    // Check if MaxPool vertical stride == pool size
-    // Check if padding is VALID
-    return (max_pool->get_auto_pad() == ngraph::op::PadType::VALID &&
-        pool_kernel.size() == 2 && pool_strides.size() == 2);
 }
 
 static std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
     return std::make_shared<ngraph::opset7::StridedSlice>(
         input, // data
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset }), // begin sice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)0, offset + size }), // end slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, { (size_t)1, (size_t)1 }), // strides
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}), // begin sice index
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}), // end slice index
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}), // strides
         std::vector<int64_t>{1, 0},  // begin mask
         std::vector<int64_t>{1, 0}); // end mask
 }
@@ -142,11 +127,11 @@ static std::shared_ptr<ngraph::Node> CreatePaddedNet(std::shared_ptr<ngraph::ops
     }
 
     auto flat_input = std::make_shared<ngraph::opset7::Reshape>(leading_transpose->input_value(0),
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 },
-            ngraph::Shape{ 1ull, shape_size(leading_transpose->input_value(0).get_shape()) }), false);
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+            ngraph::Shape{1ull, shape_size(leading_transpose->input_value(0).get_shape())}), false);
 
     // Constant with zero padding
-    auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(conv_data.element_type, ngraph::Shape{ 1, biggest_padding }, 0);
+    auto const_holding_padding = std::make_shared<ngraph::opset7::Constant>(conv_data.element_type, ngraph::Shape{1, biggest_padding}, 0);
 
     copy_runtime_info(conv, const_holding_padding);
     std::shared_ptr<ngraph::Node> original_row = flat_input;
@@ -213,21 +198,21 @@ static void GeneratePadding(std::shared_ptr<ngraph::opset7::Transpose> leading_t
     auto padded_input_plane = CreatePaddedNet(leading_transpose, conv, conv_data);
 
     auto padded_input_plane_reshaped = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { static_cast<size_t>(1),
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {static_cast<size_t>(1),
             conv_data.pads_begin_height + conv_data.input_height + conv_data.pads_end_height,
             conv_data.pads_begin_width + conv_data.input_width + conv_data.pads_end_width,
-            conv_data.input_channel_count }), false);
+            conv_data.input_channel_count}), false);
 
     // NHWC => NCHW
     auto transposed2chw = std::make_shared<ngraph::opset7::Transpose>(padded_input_plane_reshaped,
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0ull, 3ull, 1ull, 2ull })->output(0));
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0ull, 3ull, 1ull, 2ull})->output(0));
 
     auto conv_copy = std::make_shared<ngraph::opset7::Convolution>(
         transposed2chw->output(0),
         conv->input_value(1),
         conv->get_strides(),
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::CoordinateDiff{0, 0},
+        ngraph::CoordinateDiff{0, 0},
         conv->get_dilations(),
         ngraph::op::PadType::EXPLICIT);
 
@@ -237,9 +222,7 @@ static void GeneratePadding(std::shared_ptr<ngraph::opset7::Transpose> leading_t
 static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     std::shared_ptr<ngraph::Node> conv,
     std::shared_ptr<ngraph::Node> trailing_transpose,
-    std::shared_ptr<ngraph::Node> bias,
-    std::shared_ptr<ngraph::Node> af,
-    std::shared_ptr<ngraph::Node> max_pool) {
+    std::shared_ptr<ngraph::Node> bias) {
 
     ConvData conv_data;
 
@@ -248,16 +231,13 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
     // or similar cases, so required network must be in NHWC order like in TF
-    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose), { 0, 3, 1, 2 }))
+    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose), {0, 3, 1, 2}))
         return false;
 
-    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(trailing_transpose), { 0, 2, 3, 1 }))
+    if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(trailing_transpose), {0, 2, 3, 1}))
         return false;
 
     if (bias && !VerifyBias(std::dynamic_pointer_cast<ngraph::opset7::Add>(bias), conv_data.filter_count))
-        return false;
-
-    if (max_pool && !VerifyMaxPool(std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(max_pool)))
         return false;
 
     GeneratePadding(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose),
@@ -276,184 +256,46 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
     MATCHER_SCOPE(ConvertPadded2ValidConv);
 
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
+    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
         consumers_and_rank(1, 4));
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
+        {leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant, ngraph::opset7::FakeQuantize>(ngraph::pattern::rank_equals(4))},
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
-        consumers_and_rank(1, 4));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), nullptr, nullptr, nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedWithBias2ValidConv::ConvertPaddedWithBias2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedWithBias2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
+    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, const_input},
         ngraph::pattern::consumers_count(1));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
+    auto fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({bias, const_input, const_input, const_input, const_input},
         ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ bias, const_input },
-        consumers_and_rank(1, 4));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr, nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedWithBiasAF2ValidConv::ConvertPaddedWithBiasAF2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedWithBiasAF2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
+    auto max_pool1 = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({bias},
         ngraph::pattern::consumers_count(1));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
+    auto max_pool2 = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({fq},
         ngraph::pattern::consumers_count(1));
-    auto af = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+    auto af1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({ bias },
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input },
-        consumers_and_rank(1, 4));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(),
-            pattern_map.at(af).get_node_shared_ptr(), nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedWithBiasMaxPool2ValidConv::ConvertPaddedWithBiasMaxPool2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedWithBiasMaxPool2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
-        ngraph::pattern::consumers_count(1));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
-        ngraph::pattern::consumers_count(1));
-    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias },
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ max_pool, const_input },
-        consumers_and_rank(1, 4));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(),
-            nullptr, pattern_map.at(max_pool).get_node_shared_ptr());
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedWithBiasMaxPoolAF2ValidConv::ConvertPaddedWithBiasMaxPoolAF2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedWithBiasMaxPoolAF2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
-        ngraph::pattern::consumers_count(1));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ conv, const_input },
-        ngraph::pattern::consumers_count(1));
-    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({ bias },
-        ngraph::pattern::consumers_count(1));
-    auto af = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
+    auto af2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({ max_pool },
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ af, const_input },
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq}, ngraph::pattern::consumers_count(1));
+    auto af3 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+    auto af4 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool2}, ngraph::pattern::consumers_count(1));
+    auto transpose_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq, af1, af2, af3, af4});
+    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input},
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
+        auto conv_output = conv->output(0).get_node_shared_ptr();
+        IE_ASSERT(conv_output != nullptr);
+
+        auto bias_node = std::dynamic_pointer_cast<ngraph::opset7::Add>(conv_output);
+
         return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(),
-            pattern_map.at(af).get_node_shared_ptr(), pattern_map.at(max_pool).get_node_shared_ptr());
+            pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(trailing_transpose, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedTransposedWithBias2ValidConv::ConvertPaddedTransposedWithBias2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedTransposedWithBias2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
-        consumers_and_rank(1, 4));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ trailing_transpose, const_input },
-        ngraph::pattern::consumers_count(1));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr, nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-ConvertPaddedTransposedWithBiasAF2ValidConv::ConvertPaddedTransposedWithBiasAF2ValidConv() {
-    MATCHER_SCOPE(ConvertPaddedTransposedWithBiasAF2ValidConv);
-
-    auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ ngraph::pattern::any_input(), const_input },
-        consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        { leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4)) },
-        ngraph::pattern::consumers_count(1));
-    auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ conv, const_input },
-        consumers_and_rank(1, 4));
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({ trailing_transpose, const_input },
-        ngraph::pattern::consumers_count(1));
-    auto af = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
-        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({ bias },
-        ngraph::pattern::consumers_count(1));
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(),
-            pattern_map.at(af).get_node_shared_ptr(), nullptr);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(af, matcher_name);
     this->register_matcher(m, callback);
 }
