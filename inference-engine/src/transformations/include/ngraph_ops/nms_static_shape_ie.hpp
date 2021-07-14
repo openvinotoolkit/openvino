@@ -50,7 +50,10 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
         const auto num_boxes_boxes = boxes_ps[1];
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
             const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
+            auto num_classes = scores_ps[1].get_length();
+            if (this->m_attrs.background_class >=0 && this->m_attrs.background_class <= num_classes) {
+                num_classes = num_classes - 1;
+            }
             int64_t max_output_boxes_per_class = 0;
             if (this->m_attrs.nms_top_k >= 0)
                 max_output_boxes_per_class = std::min(num_boxes, static_cast<int64_t>(this->m_attrs.nms_top_k));
