@@ -87,8 +87,7 @@ To build the sample, please use instructions available at [Build the Sample Appl
 
 Running the application with the `-h` option yields the following usage message:
 
-```sh
-./speech_sample -h
+```
 [ INFO ] InferenceEngine:
         API version ............ <version>
         Build .................. <number>
@@ -132,8 +131,8 @@ Running the application with the empty list of options yields the usage message 
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural network to Inference Engine Intermediate Representation format:
 
-```sh
-python mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
+```
+python <path_to_mo>/mo.py --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Assuming that the model optimizer (`mo.py`), Kaldi-trained neural network, `wsj_dnn5b.nnet`, and Kaldi class counts file, `wsj_dnn5b.counts`, are in the working directory this produces
@@ -151,8 +150,8 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 
 Once the IR is created, you can use the following command to do inference on Intel&reg; Processors with the GNA co-processor (or emulation library):
 
-```sh
-./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
+```
+<path_to_sample>/speech_sample -d GNA_AUTO -bs 2 -i <path_to_ark>/dev93_10.ark -m <path_to_model>/wsj_dnn5b.xml -o scores.ark -r <path_to_ark>/dev93_scores_10.ark
 ```
 
 Here, the floating point Kaldi-generated reference neural network scores (`dev93_scores_10.ark`) corresponding to the input feature file (`dev93_10.ark`) are assumed to be available
@@ -170,7 +169,7 @@ All of them can be downloaded from [https://storage.openvinotoolkit.org/models_c
 The acoustic log likelihood sequences for all utterances are stored in the file. Example `scores.ark` or `scores.npz`.  If the `-r` option is used, a report on the statistical score error is generated for each utterance such as
 the following:
 
-```sh
+```
 ./speech_sample -d GNA_AUTO -bs 2 -i dev93_10.ark -m wsj_dnn5b.xml -o scores.ark -r dev93_scores_10.ark
 [ INFO ] InferenceEngine:
         API version ............ <version>

@@ -29,15 +29,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python object_detection_sample_ssd.py -h
+```
+python <path_to_sample>/object_detection_sample_ssd.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: object_detection_sample_ssd.py [-h] -m MODEL -i INPUT [-l EXTENSION]
                                       [-c CONFIG] [-d DEVICE]
                                       [--labels LABELS]
@@ -78,23 +78,37 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name mobilenet-ssd
+```
 
-```sh
-python object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/cat.bmp -d GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name mobilenet-ssd
+```
+
+3. Perform inference of `car.bmp` using `mobilenet-ssd` model on a `GPU`, for example:
+
+```
+python <path_to_sample>/object_detection_sample_ssd.py -m <path_to_model>/mobilenet-ssd.xml -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and creates an output image, drawing bounding boxes for inference results with an over 50% confidence.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: models\mobilenet-ssd.xml
+[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\mobilenet-ssd\FP32\mobilenet-ssd.xml        
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
+[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (300, 300)
 [ INFO ] Starting inference in synchronous mode
-[ INFO ] Found: label = 8, confidence = 1.00, coords = (115, 64), (189, 182)
+[ INFO ] Found: label = 7, confidence = 1.00, coords = (228, 120), (502, 460)
+[ INFO ] Found: label = 7, confidence = 0.95, coords = (637, 233), (743, 608)
 [ INFO ] Image out.bmp created!
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```
