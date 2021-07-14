@@ -82,7 +82,7 @@ Options:
 python <path_to_omz_tools>/downloader.py --name <model_name>
 ```
 
-2. If a model is not IR or ONNX format, it must be converted. You can do this using the special script:
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
 
 ```
 python <path_to_omz_tools>/converter.py --name <model_name>
