@@ -47,7 +47,7 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 * *width (height)*
 
   * **Description**: *width (height)* specifies desired boxes widths (heights) in pixels.
-  * **Range of values**: floating point positive numbers
+  * **Range of values**: floating-point positive numbers
   * **Type**: `float[]`
   * **Default value**: 1.0
   * **Required**: *no*
@@ -65,7 +65,7 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 * *step (step_w, step_h)*
 
   * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height). 
-  * **Range of values**: floating point positive number
+  * **Range of values**: floating-point positive number
   * **Type**: `float`
   * **Default value**: 0.0
   * **Required**: *no*
@@ -73,15 +73,14 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 * *offset*
 
   * **Description**: *offset* is a shift of box respectively to top left corner. For example, *offset* equal 85 means that the shift of neighborhood prior boxes centers is 85.
-  * **Range of values**: floating point positive number
+  * **Range of values**: floating-point positive number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *variance*
 
   * **Description**: *variance* denotes a variance of adjusting bounding boxes. The attribute could be 0, 1 or 4 elements.
-  * **Range of values**: floating point positive numbers
+  * **Range of values**: floating-point positive numbers
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
@@ -99,7 +98,7 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 **Types**
 
 * *T_INT*: any supported integer type.
-* *T_OUT*: supported floating point type.
+* *T_OUT*: supported floating-point type.
 
 **Example**
 
