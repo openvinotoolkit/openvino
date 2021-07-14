@@ -92,7 +92,7 @@ namespace ngraph
         std::vector<pdpd::OutPortName> DecoderPDPDProto::get_output_names() const
         {
             std::vector<std::string> output_names;
-            for (const auto& output : op_place->get_desc()->outputs())
+            for (const auto& output : op_place->get_desc().outputs())
             {
                 output_names.push_back(output.parameter());
             }
@@ -114,13 +114,13 @@ namespace ngraph
             return output_types[0];
         }
 
-        std::string DecoderPDPDProto::get_op_type() const { return op_place->get_desc()->type(); }
+        std::string DecoderPDPDProto::get_op_type() const { return op_place->get_desc().type(); }
 
         std::vector<proto::OpDesc_Attr>
             DecoderPDPDProto::decode_attribute_helper(const std::string& name) const
         {
             std::vector<proto::OpDesc_Attr> attrs;
-            for (const auto& attr : op_place->get_desc()->attrs())
+            for (const auto& attr : op_place->get_desc().attrs())
             {
                 if (attr.name() == name)
                     attrs.push_back(attr);
@@ -129,7 +129,7 @@ namespace ngraph
                                     "An error occurred while parsing the ",
                                     name,
                                     " attribute of ",
-                                    op_place->get_desc()->type(),
+                                    op_place->get_desc().type(),
                                     "node. Unsupported number of attributes. Current number: ",
                                     attrs.size(),
                                     " Expected number: 0 or 1");

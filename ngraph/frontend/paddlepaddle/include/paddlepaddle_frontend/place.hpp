@@ -111,11 +111,11 @@ namespace ngraph
         {
         public:
             OpPlacePDPD(const InputModel& input_model,
-                        const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc,
+                        const paddle::framework::proto::OpDesc& op_desc,
                         const std::vector<std::string>& names);
 
             OpPlacePDPD(const InputModel& input_model,
-                        const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc);
+                        const paddle::framework::proto::OpDesc& op_desc);
 
             void add_in_port(const std::shared_ptr<InPortPlacePDPD>& input,
                              const std::string& name);
@@ -131,7 +131,7 @@ namespace ngraph
                                                                    int idx) const;
             std::shared_ptr<InPortPlacePDPD> get_input_port_pdpd(const std::string& name,
                                                                  int idx) const;
-            const std::shared_ptr<paddle::framework::proto::OpDesc>& get_desc() const;
+            const paddle::framework::proto::OpDesc& get_desc() const;
 
             // External API methods
             std::vector<Place::Ptr> get_consuming_ports() const override;
@@ -167,7 +167,7 @@ namespace ngraph
                                          int outputPortIndex) const override;
 
         private:
-            std::shared_ptr<paddle::framework::proto::OpDesc> m_op_desc;
+            const paddle::framework::proto::OpDesc& m_op_desc;
             std::map<std::string, std::vector<std::shared_ptr<InPortPlacePDPD>>> m_input_ports;
             std::map<std::string, std::vector<std::shared_ptr<OutPortPlacePDPD>>> m_output_ports;
         };
@@ -177,10 +177,10 @@ namespace ngraph
         public:
             TensorPlacePDPD(const InputModel& input_model,
                             const std::vector<std::string>& names,
-                            const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc);
+                            const paddle::framework::proto::VarDesc& var_desc);
 
             TensorPlacePDPD(const InputModel& input_model,
-                            const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc);
+                            const paddle::framework::proto::VarDesc& var_desc);
 
             void add_producing_port(const std::shared_ptr<OutPortPlacePDPD>& out_port);
             void add_consuming_port(const std::shared_ptr<InPortPlacePDPD>& in_port);
@@ -190,7 +190,7 @@ namespace ngraph
             const element::Type& get_element_type() const { return m_type; }
             void set_partial_shape(const PartialShape& pshape) { m_pshape = pshape; }
             void set_element_type(const element::Type& type) { m_type = type; }
-            const std::shared_ptr<paddle::framework::proto::VarDesc>& get_desc() const;
+            const paddle::framework::proto::VarDesc& get_desc() const;
 
             // External usage
             Ptr get_producing_operation() const override;
@@ -200,7 +200,7 @@ namespace ngraph
             bool is_equal_data(Ptr another) const override;
 
         private:
-            std::shared_ptr<paddle::framework::proto::VarDesc> m_var_desc;
+            const paddle::framework::proto::VarDesc& m_var_desc;
             PartialShape m_pshape;
             element::Type m_type;
 

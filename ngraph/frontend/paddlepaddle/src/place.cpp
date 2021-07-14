@@ -25,7 +25,7 @@ bool PlacePDPD::is_output() const
 }
 
 OpPlacePDPD::OpPlacePDPD(const InputModel& input_model,
-                         const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc,
+                         const paddle::framework::proto::OpDesc& op_desc,
                          const std::vector<std::string>& names)
     : PlacePDPD(input_model, names)
     , m_op_desc(op_desc)
@@ -33,7 +33,7 @@ OpPlacePDPD::OpPlacePDPD(const InputModel& input_model,
 }
 
 OpPlacePDPD::OpPlacePDPD(const InputModel& input_model,
-                         const std::shared_ptr<paddle::framework::proto::OpDesc>& op_desc)
+                         const paddle::framework::proto::OpDesc& op_desc)
     : OpPlacePDPD(input_model, op_desc, {})
 {
 }
@@ -62,7 +62,7 @@ std::shared_ptr<InPortPlacePDPD> OpPlacePDPD::get_input_port_pdpd(const std::str
     return m_input_ports.at(name)[idx];
 }
 
-const std::shared_ptr<paddle::framework::proto::OpDesc>& OpPlacePDPD::get_desc() const
+const paddle::framework::proto::OpDesc& OpPlacePDPD::get_desc() const
 {
     return m_op_desc;
 }
@@ -210,11 +210,11 @@ Place::Ptr OpPlacePDPD::get_producing_operation() const
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
                                  const std::vector<std::string>& names,
-                                 const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc)
+                                 const paddle::framework::proto::VarDesc& var_desc)
     : PlacePDPD(input_model, names)
     , m_var_desc(var_desc)
 {
-    const auto& var_type = var_desc->type();
+    const auto& var_type = var_desc.type();
     if (var_type.type() == paddle::framework::proto::VarType::LOD_TENSOR)
     {
         const auto& tensor_desc = var_type.lod_tensor().tensor();
@@ -225,8 +225,8 @@ TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
 }
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
-                                 const std::shared_ptr<paddle::framework::proto::VarDesc>& var_desc)
-    : TensorPlacePDPD(input_model, {var_desc->name()}, var_desc)
+                                 const paddle::framework::proto::VarDesc& var_desc)
+    : TensorPlacePDPD(input_model, {var_desc.name()}, var_desc)
 {
 }
 
@@ -267,7 +267,7 @@ void TensorPlacePDPD::add_consuming_port(const std::shared_ptr<InPortPlacePDPD>&
     m_consuming_ports.push_back(in_port);
 }
 
-const std::shared_ptr<paddle::framework::proto::VarDesc>& TensorPlacePDPD::get_desc() const
+const paddle::framework::proto::VarDesc& TensorPlacePDPD::get_desc() const
 {
     return m_var_desc;
 }

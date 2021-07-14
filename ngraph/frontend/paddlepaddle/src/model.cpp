@@ -72,14 +72,13 @@ namespace ngraph
 
                 for (const auto& var : block.vars())
                 {
-                    m_var_places[var.name()] = std::make_shared<TensorPlacePDPD>(
-                        m_input_model, std::make_shared<VarDesc>(var));
+                    m_var_places[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, var);
                 }
 
                 for (const auto& op : block.ops())
                 {
                     auto op_place =
-                        std::make_shared<OpPlacePDPD>(m_input_model, std::make_shared<OpDesc>(op));
+                        std::make_shared<OpPlacePDPD>(m_input_model, op);
                     m_op_places.push_back(op_place);
 
                     for (const auto& output : op.outputs())
@@ -123,7 +122,7 @@ namespace ngraph
                         const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(
                             place->get_target_tensor_pdpd());
                         const auto& tensor_desc =
-                            var_place->get_desc()->type().lod_tensor().tensor();
+                            var_place->get_desc().type().lod_tensor().tensor();
                         const auto& dims = tensor_desc.dims();
 
                         var_place->set_element_type(TYPE_MAP[tensor_desc.data_type()]);
@@ -174,12 +173,12 @@ namespace ngraph
                 const auto& name = item.first;
                 if (pdpd::endsWith(name, "feed") || pdpd::endsWith(name, "fetch"))
                     continue;
-                if (!var_desc->persistable())
+                if (!var_desc.persistable())
                     continue;
 
-                FRONT_END_GENERAL_CHECK(var_desc->type().type() ==
+                FRONT_END_GENERAL_CHECK(var_desc.type().type() ==
                                         paddle::framework::proto::VarType::LOD_TENSOR);
-                const auto& tensor = var_desc->type().lod_tensor().tensor();
+                const auto& tensor = var_desc.type().lod_tensor().tensor();
                 Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
                 const auto& type = TYPE_MAP[tensor.data_type()];
                 const auto& data_length = shape_size(shape) * type.size();
