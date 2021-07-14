@@ -13,8 +13,7 @@
   * **Description**: the output tensor type
   * **Range of values**: any numeric type
   * **Type**: string
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**:
 
