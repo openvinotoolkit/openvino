@@ -187,11 +187,6 @@ public:
             description << "  " << i.original_id << " " << i.kernel_id << std::endl;
         }
         SCOPED_TRACE(description.str());
-        // std::cout << "Count reorder? " << count_reorder << std::endl;
-        // std::cout << "(executed primitives) fused, not fused: " << fused.get_executed_primitives().size() << ", " << not_fused.get_executed_primitives().size() << std::endl;
-        // std::cout << "(reorder count) fused, not fused: " << reorders_count_fused << ", " << reorders_count_not_fused << std::endl;
-        // std::cout << "(exepected) fused, not fused: " << p.expected_fused_primitives << ", " << p.expected_not_fused_primitives << std::endl;
-        // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
         ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
@@ -8477,7 +8472,6 @@ public:
     void execute(gather_elements_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        // network network_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -8485,24 +8479,23 @@ public:
     }
 
     size_t get_axis_dim(gather_elements_test_params& p) {
-        int tmp;
+        int dim;
         if (p.axis == 0) {return p.input_shape.batch[0];}
         if (p.axis == 1) {return p.input_shape.feature[0];}
-        switch (p.indices_format)
-        {
+        switch (p.indices_format) {
         case format::bfyx:
-            tmp = 4 - p.axis;
+            dim = 4 - p.axis;
             break;
         case format::bfzyx:
-            tmp = 5 - p.axis;
+            dim = 5 - p.axis;
             break;
         case format::bfwzyx:
-            tmp = 6 - p.axis;
+            dim = 6 - p.axis;
             break;
         default:
             break;
         }
-        switch (tmp) {
+        switch (dim) {
             case 1:
                 return p.input_shape.spatial[0];
             case 2:
@@ -8511,26 +8504,8 @@ public:
                 return p.input_shape.spatial[2];
             case 4:
                 return p.input_shape.spatial[3];
-            // case 1:
-            //     return p.input_shape.feature[0];
-            // case 0:
-            //     return p.input_shape.batch[0];
             default:
                 return 1;
-            // case cldnn::gather::gather_axis::along_x:
-            //     return p.input_shape.spatial[0];
-            // case cldnn::gather::gather_axis::along_y:
-            //     return p.input_shape.spatial[1];
-            // case cldnn::gather::gather_axis::along_z:
-            //     return p.input_shape.spatial[2];
-            // case cldnn::gather::gather_axis::along_w:
-            //     return p.input_shape.spatial[3];
-            // case cldnn::gather::gather_axis::along_f:
-            //     return p.input_shape.feature[0];
-            // case cldnn::gather::gather_axis::along_b:
-            //     return p.input_shape.batch[0];
-            // default:
-            //     return 1;
         }
     }
 
@@ -8554,17 +8529,12 @@ public:
 class gather_elements_quantize : public GatherElementsPrimitiveFusingTest {};
 TEST_P(gather_elements_quantize, basic) {
     auto p = GetParam();
-    printf("%d\n", static_cast<int>(get_axis_dim(p)));
     create_topologies(input_layout("input", get_input_layout(p)),
-        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
-        // data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
-        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, /*p.max_number_in_indices - 1*/)),
         data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        // output format, output shape, axis
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
         quantize("quantize", "gather_elements_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
         reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
@@ -8603,8 +8573,6 @@ class gather_elements_scale_activation : public GatherElementsPrimitiveFusingTes
 TEST_P(gather_elements_scale_activation, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-        // data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
-        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
         data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
@@ -8648,8 +8616,6 @@ TEST_P(gather_elements_activation_scale_eltwise, basic) {
     auto p = GetParam();
 
     create_topologies(input_layout("input", get_input_layout(p)),
-        // data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
-        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
         data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),

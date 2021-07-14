@@ -24,7 +24,6 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
         InferenceEngine::Precision::I64,
 };
 
-// ======= CPU Func Test Cases ======== //
 INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsLayerTest,
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({2, 2})),     // Data shape
@@ -75,8 +74,6 @@ INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-// ======= Rank 4 ======== //
-
 const std::vector<std::vector<size_t>> ShapesRank4Axis0 = {
         std::vector<size_t>{1, 7, 8, 4},
         std::vector<size_t>{2, 7, 8, 4},
@@ -106,7 +103,6 @@ INSTANTIATE_TEST_CASE_P(smoke_GatherElements_rank4axis0, GatherElementsLayerTest
     ::testing::Combine(
         ::testing::ValuesIn(ShapesRank4Axis0),              // Data shapes
         ::testing::ValuesIn(ShapesRank4Axis0),              // Indices shpae
-        // ::testing::ValuesIn(axis0),
         ::testing::ValuesIn(std::vector<int>({ 0 })),
         ::testing::ValuesIn(inputPrecisions),               // Data precision
         ::testing::ValuesIn(idxPrecisions),                 // Indices precision
@@ -143,7 +139,6 @@ INSTANTIATE_TEST_CASE_P(smoke_GatherElements_rank4axis3, GatherElementsLayerTest
         ::testing::Values(CommonTestUtils::DEVICE_GPU)),    // Device name
     GatherElementsLayerTest::getTestCaseName);
 
-// ====== rank = 5 ====== //
 const std::vector<std::vector<size_t>> ShapesRank5Axis0 = {
         std::vector<size_t>{2, 3, 9, 4, 9},
         std::vector<size_t>{1, 3, 9, 4, 9},
@@ -225,7 +220,6 @@ INSTANTIATE_TEST_CASE_P(smoke_GatherElements_rank5axis4, GatherElementsLayerTest
         ::testing::Values(CommonTestUtils::DEVICE_GPU)),    // Device name
     GatherElementsLayerTest::getTestCaseName);
 
-// ====== rank = 6 ====== //
 const std::vector<std::vector<size_t>> ShapesRank6Axis0 = {
         std::vector<size_t>{1, 3, 2, 4, 4, 3},
         std::vector<size_t>{3, 3, 2, 4, 4, 3},

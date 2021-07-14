@@ -35,8 +35,8 @@ struct gather_elements : public primitive_base<gather_elements> {
     /// @param id This primitive id.
     /// @param data Input data primitive id.
     /// @param indices Input indexes primitive id.
-    /// @param output_format Output format: bfyx, bfzyx, bfwzyx
-    /// @param output_shape Output shape: {2, 2, 3, 5}, {2, 2, 3, 3, 6}
+    /// @param output_format Output format.
+    /// @param output_shape Output shape.
     /// @param axis An attribute of GatherElements. Required.
     gather_elements(const primitive_id& id,
                    const primitive_id& data,

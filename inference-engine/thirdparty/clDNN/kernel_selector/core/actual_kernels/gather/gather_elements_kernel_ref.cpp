@@ -44,14 +44,6 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
-    std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
-        order_str += ", " + order[i];
-
-    return order_str;
-}
-
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
@@ -69,7 +61,6 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
     CommonDispatchData dispatchData;
 
     const auto& output = params.output;
-    // printf("%ld %ld %ld %ld %ld %ld\n", output.X().v, output.Y().v, output.Z().v, output.W().v, output.Feature().v, output.Batch().v);
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
@@ -77,7 +68,6 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
         break;
 
     case DataLayout::bfzyx:
-        // dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
         dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
         break;
 
@@ -89,55 +79,19 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
         throw std::invalid_argument("Unsupported data layout for gather elements primitive");
         break;
     }
+
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-    // dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }
 
-// static size_t GetIndicesLastDim(const gather_elements_params& params) {
-//     // get indices dims
-//     auto indices_dims = params.inputs[1].LogicalDims();
-//     // std::cout << indices_dims << "incide dims\n";
-
-//     if (indices_dims.size() > 1) {
-//         std::reverse(indices_dims.begin(), indices_dims.end());
-//     }
-
-//     auto indices_last_dim = indices_dims[0];
-
-//     return indices_last_dim;
-// }
-
-// static size_t GetSliceSize(const gather_elements_params& params) {
-//     // get input dims
-//     // auto input_dims = params.inputs[0].LogicalDims();
-
-//     // if (input_dims.size() > 1) {
-//     //     std::reverse(input_dims.begin(), input_dims.end());
-//     // }
-
-//     // // get last dim of indices
-//     // auto indices_last_dim = GetIndicesLastDim(params);
-
-//     // // calculate slize size which is used in kernel to copy
-//     // size_t wi_slice_size = 1;
-//     // for (size_t i = params.batch_dims + indices_last_dim; i < input_dims.size(); i++) {
-//     //     wi_slice_size *= input_dims[i];
-//     // }
-
-//     return 3;
-// }
-
 JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    // parameters in gather_elements_kernel_ref.h
     auto p_axis = static_cast<int8_t>(params.axis);
     if (p_axis < 0) {
         p_axis = params.inputs[0].LogicalDims().size() + params.axis;
     }
-    // printf("%d\n", p_axis);
     jit.AddConstant(MakeJitConstant("AXIS", p_axis));
 
     if (!params.fused_ops.empty()) {
@@ -157,28 +111,10 @@ bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o
     const gather_elements_params& params = static_cast<const gather_elements_params&>(p);
     auto input_dims = params.inputs[0].LogicalDims();
     auto indices_dims = params.inputs[1].LogicalDims();
-    auto indices_rank = indices_dims.size();
 
-    std::reverse(input_dims.begin(), input_dims.end());
-    std::reverse(indices_dims.begin(), indices_dims.end());
-
-    if (indices_rank < 1) {
+    if (input_dims.size() != indices_dims.size()) {
         return false;
     }
-
-    // if (batch_dims + indices_dims[indices_rank - 1] > input_dims.size()) {
-    //     return false;
-    // }
-
-    // if (batch_dims >= std::min(input_dims.size(), static_cast<size_t>(indices_rank))) {
-    //     return false;
-    // }
-
-    // for (uint8_t i = 0; i < batch_dims; i++) {
-    //     if (input_dims[i] != indices_dims[i]) {
-    //         return false;
-    //     }
-    // }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
