@@ -2,6 +2,21 @@
 
 This guide provides installation steps for Intel® Distribution of OpenVINO™ toolkit distributed through the Anaconda* Cloud.
 
+> **NOTE**: Only runtime packages are available from Anaconda* Cloud.
+
+## Introduction
+
+OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
+
+The Intel® Distribution of OpenVINO™ toolkit\*:
+- Enables CNN-based deep learning inference on the edge
+- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+- Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
+The **runtime package** includes the following components installed by default:
+
+| Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
+|-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Inference Engine](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_inference_engine_intro.html)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
 ## System Requirements
 
