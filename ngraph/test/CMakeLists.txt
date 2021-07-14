@@ -385,7 +385,6 @@ set(MULTI_TEST_SRC
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
-    backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert_like.in.cpp
