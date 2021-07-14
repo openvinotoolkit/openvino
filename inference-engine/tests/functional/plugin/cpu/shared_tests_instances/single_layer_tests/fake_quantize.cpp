@@ -147,7 +147,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizePerChannel2D, FakeQuantizeLayerTestRe
         ::testing::Values(config)),
     FakeQuantizeLayerTestRevise::getTestCaseName);
 
-
-//TODO add test for PDPD
-//
 }  // namespace

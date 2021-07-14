@@ -1173,7 +1173,7 @@ namespace
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
-                                                valid_outputs.data());                                                  
+                                                valid_outputs.data());
 
         void* pscores = nullptr;
         void* pselected_num = nullptr;
@@ -2383,7 +2383,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::v1::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
+        runtime::reference::v0::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
                                                  inputs[1]->get_data_ptr<const T>(),
                                                  inputs[2]->get_data_ptr<const T>(),
                                                  inputs[3]->get_data_ptr<const T>(),
