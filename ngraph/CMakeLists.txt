@@ -20,18 +20,6 @@ project (ngraph)
 option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
 option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
-option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
-option(NGRAPH_ONNX_EDITOR_ENABLE "Enable ONNX Editor" OFF)
-option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" OFF)
-option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
-
-if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
-    option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
-endif()
-
-if(NGRAPH_ONNX_EDITOR_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    message(FATAL_ERROR "ONNX Editor component requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
-endif()
 
 message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")

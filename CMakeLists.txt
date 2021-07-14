@@ -55,14 +55,6 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
     endif()
 
-    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
-    endif()
-
     # WA for GCC 7.0
     if(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
