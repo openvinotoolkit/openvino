@@ -8443,27 +8443,27 @@ struct gather_elements_test_params {
     size_t expected_not_fused_primitives;
 };
 
-#define CASE_GATHER_ELEMENTS_FP16_4D_1 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 1, 1, 1}, format::bfyx, {3, 1, 1, 1}, 0, data_types::f16, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP16_4D_2 data_types::f16, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 1, 1, 1}, 1, data_types::f16, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP16_4D_3 data_types::f16, format::bfyx, {2, 2, 3, 5}, format::bfyx, {2, 2, 3, 7}, format::bfyx, {2, 2, 3, 7}, 3, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_1 data_types::f16, format::bfyx, {3, 7, 9, 8}, format::bfyx, {3, 7, 9, 8}, format::bfyx, {3, 7, 9, 8}, 3, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_2 data_types::f16, format::bfyx, {3, 2, 8, 3}, format::bfyx, {2, 2, 8, 3}, format::bfyx, {2, 2, 8, 3}, 0, data_types::f16, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP16_4D_3 data_types::f16, format::bfyx, {1, 3, 2, 9}, format::bfyx, {1, 3, 5, 9}, format::bfyx, {1, 3, 5, 9}, -1, data_types::f16, format::bfyx
 
-#define CASE_GATHER_ELEMENTS_FP16_5D_1 data_types::f16, format::bfzyx, {3, 2, 2, 2, 3}, format::bfzyx, {3, 2, 2, 2, 8}, format::bfzyx, {3, 2, 2, 2, 8}, 4, data_types::f16, format::bfzyx
-#define CASE_GATHER_ELEMENTS_FP16_5D_2 data_types::f16, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {5, 4, 1, 1, 3}, 2, data_types::f16, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP16_5D_1 data_types::f16, format::bfzyx, {3, 2, 5, 2, 3}, format::bfzyx, {3, 2, 2, 2, 3}, format::bfzyx, {3, 2, 2, 2, 3}, 4, data_types::f16, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP16_5D_2 data_types::f16, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 7, 4, 3}, format::bfzyx, {5, 4, 7, 4, 3}, 2, data_types::f16, format::bfzyx
 
 #define CASE_GATHER_ELEMENTS_FP16_6D_1 data_types::f16, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfwzyx, {5, 4, 6, 7, 8, 2}, 4, data_types::f16, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP16_6D_2 data_types::f16, format::bfwzyx, {2, 3, 2, 3, 2, 8}, format::bfwzyx, {2, 3, 2, 3, 2, 8}, format::bfwzyx, {2, 3, 2, 3, 2, 8}, 3, data_types::f16, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP16_6D_3 data_types::f16, format::bfwzyx, {2, 2, 2, 4, 4, 3}, format::bfwzyx, {2, 2, 2, 4, 4, 6}, format::bfwzyx, {2, 2, 2, 4, 4, 6}, 5, data_types::f16, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP16_6D_2 data_types::f16, format::bfwzyx, {2, 1, 2, 3, 2, 1}, format::bfwzyx, {2, 1, 2, 3, 2, 1}, format::bfwzyx, {2, 1, 2, 3, 2, 1}, -2, data_types::f16, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP16_6D_3 data_types::f16, format::bfwzyx, {2, 2, 3, 4, 4, 2}, format::bfwzyx, {2, 2, 6, 4, 4, 2}, format::bfwzyx, {2, 2, 6, 4, 4, 2}, 5, data_types::f16, format::bfwzyx
 
-#define CASE_GATHER_ELEMENTS_FP32_4D_1 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 1, 1, 1}, format::bfyx, {3, 1, 1, 1}, 0, data_types::f32, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP32_4D_2 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {6, 1, 1, 1}, format::bfyx, {6, 1, 1, 1}, 1, data_types::f32, format::bfyx
-#define CASE_GATHER_ELEMENTS_FP32_4D_3 data_types::f32, format::bfyx, {2, 2, 3, 5}, format::bfyx, {2, 2, 3, 7}, format::bfyx, {2, 2, 3, 7}, 3, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_1 data_types::f32, format::bfyx, {6, 7, 9, 8}, format::bfyx, {3, 7, 9, 8}, format::bfyx, {3, 7, 9, 8}, 3, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_2 data_types::f32, format::bfyx, {3, 2, 8, 3}, format::bfyx, {2, 2, 8, 3}, format::bfyx, {2, 2, 8, 3}, 0, data_types::f32, format::bfyx
+#define CASE_GATHER_ELEMENTS_FP32_4D_3 data_types::f32, format::bfyx, {1, 3, 2, 9}, format::bfyx, {1, 3, 5, 9}, format::bfyx, {1, 3, 5, 9}, -1, data_types::f32, format::bfyx
 
-#define CASE_GATHER_ELEMENTS_FP32_5D_1 data_types::f32, format::bfzyx, {3, 2, 2, 2, 3}, format::bfzyx, {3, 2, 2, 2, 8}, format::bfzyx, {3, 2, 2, 2, 8}, 4, data_types::f32, format::bfzyx
-#define CASE_GATHER_ELEMENTS_FP32_5D_2 data_types::f32, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 1, 1, 3}, format::bfzyx, {5, 4, 1, 1, 3}, 2, data_types::f32, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP32_5D_1 data_types::f32, format::bfzyx, {3, 2, 5, 2, 3}, format::bfzyx, {3, 2, 2, 2, 3}, format::bfzyx, {3, 2, 2, 2, 3}, 4, data_types::f32, format::bfzyx
+#define CASE_GATHER_ELEMENTS_FP32_5D_2 data_types::f32, format::bfzyx, {5, 4, 7, 4, 4}, format::bfzyx, {5, 4, 7, 4, 3}, format::bfzyx, {5, 4, 7, 4, 3}, 2, data_types::f32, format::bfzyx
 
 #define CASE_GATHER_ELEMENTS_FP32_6D_1 data_types::f32, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfwzyx, {5, 4, 6, 7, 8, 2}, format::bfwzyx, {5, 4, 6, 7, 8, 2}, 4, data_types::f32, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP32_6D_2 data_types::f32, format::bfwzyx, {2, 3, 2, 3, 2, 8}, format::bfwzyx, {2, 3, 2, 3, 2, 8}, format::bfwzyx, {2, 3, 2, 3, 2, 8}, 3, data_types::f32, format::bfwzyx
-#define CASE_GATHER_ELEMENTS_FP32_6D_3 data_types::f32, format::bfwzyx, {2, 2, 2, 4, 4, 3}, format::bfwzyx, {2, 2, 2, 4, 4, 6}, format::bfwzyx, {2, 2, 2, 4, 4, 6}, 5, data_types::f32, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP32_6D_2 data_types::f32, format::bfwzyx, {2, 1, 2, 3, 2, 1}, format::bfwzyx, {2, 1, 2, 3, 2, 1}, format::bfwzyx, {2, 1, 2, 3, 2, 1}, -2, data_types::f32, format::bfwzyx
+#define CASE_GATHER_ELEMENTS_FP32_6D_3 data_types::f32, format::bfwzyx, {2, 2, 3, 4, 4, 2}, format::bfwzyx, {2, 2, 6, 4, 4, 2}, format::bfwzyx, {2, 2, 6, 4, 4, 2}, 5, data_types::f32, format::bfwzyx
 
 class GatherElementsPrimitiveFusingTest : public ::BaseFusingTest<gather_elements_test_params> {
 public:
@@ -8475,6 +8475,56 @@ public:
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p);
+    }
+
+    size_t get_axis_dim(gather_elements_test_params& p) {
+        int tmp;
+        if (p.axis == 0) {return p.input_shape.batch[0];}
+        if (p.axis == 1) {return p.input_shape.feature[0];}
+        switch (p.indices_format)
+        {
+        case format::bfyx:
+            tmp = 4 - p.axis;
+            break;
+        case format::bfzyx:
+            tmp = 5 - p.axis;
+            break;
+        case format::bfwzyx:
+            tmp = 6 - p.axis;
+            break;
+        default:
+            break;
+        }
+        switch (tmp) {
+            case 1:
+                return p.input_shape.spatial[0];
+            case 2:
+                return p.input_shape.spatial[1];
+            case 3:
+                return p.input_shape.spatial[2];
+            case 4:
+                return p.input_shape.spatial[3];
+            // case 1:
+            //     return p.input_shape.feature[0];
+            // case 0:
+            //     return p.input_shape.batch[0];
+            default:
+                return 1;
+            // case cldnn::gather::gather_axis::along_x:
+            //     return p.input_shape.spatial[0];
+            // case cldnn::gather::gather_axis::along_y:
+            //     return p.input_shape.spatial[1];
+            // case cldnn::gather::gather_axis::along_z:
+            //     return p.input_shape.spatial[2];
+            // case cldnn::gather::gather_axis::along_w:
+            //     return p.input_shape.spatial[3];
+            // case cldnn::gather::gather_axis::along_f:
+            //     return p.input_shape.feature[0];
+            // case cldnn::gather::gather_axis::along_b:
+            //     return p.input_shape.batch[0];
+            // default:
+            //     return 1;
+        }
     }
 
     layout get_input_layout(gather_elements_test_params& p) {
@@ -8497,10 +8547,12 @@ public:
 class gather_elements_quantize : public GatherElementsPrimitiveFusingTest {};
 TEST_P(gather_elements_quantize, basic) {
     auto p = GetParam();
+    printf("%d\n", static_cast<int>(get_axis_dim(p)));
     create_topologies(input_layout("input", get_input_layout(p)),
         // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
+        // data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
         // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, /*p.max_number_in_indices - 1*/)),
-        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
+        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
@@ -8545,7 +8597,8 @@ TEST_P(gather_elements_scale_activation, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
         // data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
-        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
+        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
+        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),
         activation("activation", "gather_elements_prim", activation_func::abs),
@@ -8589,7 +8642,8 @@ TEST_P(gather_elements_activation_scale_eltwise, basic) {
 
     create_topologies(input_layout("input", get_input_layout(p)),
         // data("gather_nd_indices", get_mem(get_indices_layout(p), 0, p.max_number_in_indices - 1)),
-        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
+        // data("gather_elements_indices", get_mem(get_indices_layout(p), 0, 2)), // 2 -> ?
+        data("gather_elements_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p))-1)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         gather_elements("gather_elements_prim", "input", "gather_elements_indices", p.output_format, p.output_shape, p.axis),

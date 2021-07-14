@@ -8,8 +8,8 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(GatherElementsLayerTest, CompareWithRefs) {
-    Run();
-}
+// TEST_P(GatherElementsLayerTest, CompareWithRefs) {
+//     Run();
+// }
 
 }  // namespace LayerTestsDefinitions
