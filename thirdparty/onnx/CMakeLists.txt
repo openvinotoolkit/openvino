@@ -33,9 +33,9 @@ macro(onnx_set_target_properties)
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
 
     install(TARGETS onnx_proto
-        RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-        ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-        LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
+            RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+            ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+            LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
 
     export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE
             "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")

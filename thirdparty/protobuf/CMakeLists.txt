@@ -119,9 +119,9 @@ endif()
 
 if (NOT BUILD_STANDALONE_STATIC)
     install(TARGETS ${Protobuf_LIBRARIES}
-        RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-        ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-        LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
+            RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+            ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
+            LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
     export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
             "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()

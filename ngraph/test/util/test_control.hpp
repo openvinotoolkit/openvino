@@ -97,7 +97,7 @@ namespace ngraph
     {                                                                                              \
     public:                                                                                        \
         NGRAPH_GTEST_TEST_CLASS_NAME_(backend_name, test_case_name, test_name)() {}                \
-        virtual void TestBody();                                                                   \
+        void TestBody() override;                                                                  \
                                                                                                    \
     private:                                                                                       \
         static int AddToRegistry()                                                                 \
