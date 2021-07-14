@@ -86,7 +86,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset = ngraph::get_opset7();
+        const ngraph::OpSet& m_opset = ngraph::get_opset8();
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
     };
 } // namespace
