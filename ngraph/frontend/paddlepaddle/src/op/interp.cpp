@@ -153,7 +153,7 @@ namespace ngraph
                             CoordinateTransformMode::align_corners;
                     }
 
-                    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+                    attrs.nearest_mode = Nearest_mode::simple;
                     attrs.antialias = false;
                     attrs.pads_begin = {0, 0, 0, 0};
                     attrs.pads_end = {0, 0, 0, 0};
