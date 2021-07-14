@@ -112,17 +112,17 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                             case ngraph::element::Type_t::f64:
                                 LayerTestsUtils::LayerTestsCommon::Compare(
                                         reinterpret_cast<const double *>(expectedBuffer) + expected_offset * 6,
-                                        reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums, 1e-5f);
+                                        reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums *6, 1e-5f);
                                 break;
                             default:
                                 break;
                         }
 
-                        // TODO: test usage only, dynamic shape do not need check the tail value
-                        //const auto fBuffer = lockedMemory.as<const float *>();
-                        //for (int i = size; i < actual->size(); i++) {
-                        //    ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
-                        //}
+                        const auto fBuffer = lockedMemory.as<const float *>();
+                        for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
+                            ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
+                                << "Invalid default value: " << fBuffer[i] << " at index: " << i;
+                        }
                         break;
                     }
                     case InferenceEngine::Precision::I32: {
@@ -140,11 +140,10 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                             default:
                                 break;
                         }
-                        // TODO: test usage only, dynamic shape do not need check the tail value
-                        //const auto iBuffer = lockedMemory.as<const int *>();
-                        //for (int i = size; i < actual->size(); i++) {
-                        //    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-                        //}
+                        const auto iBuffer = lockedMemory.as<const int *>();
+                        for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
+                            ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
+                        }
                         break;
                     }
                     default:
