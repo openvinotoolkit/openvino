@@ -13,7 +13,6 @@
   * **Description**: Specifies the axis along which the values are retrieved.
   * **Range of values**: An integer. Negative value means counting dimension from the end.
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *mode*
@@ -21,7 +20,6 @@
   * **Description**: Specifies which operation is used to select the biggest element of two.
   * **Range of values**: `min`, `max`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *sort*
@@ -29,7 +27,6 @@
   * **Description**: Specifies order of output elements and/or indices.
   * **Range of values**: `value`, `index`, `none`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *index_element_type*

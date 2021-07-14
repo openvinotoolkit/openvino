@@ -92,7 +92,6 @@
   * **Description**: *offset* is a shift of box respectively to top left corner.
   * **Range of values**: floating point non-negative number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *variance*

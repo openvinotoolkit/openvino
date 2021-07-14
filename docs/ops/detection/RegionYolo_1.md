@@ -23,7 +23,6 @@
   * **Description**: starting axis index in the input tensor `data` shape that will be flattened in the output; the end of flattened range is defined by `end_axis` attribute.
   * **Range of values**: `-rank(data) .. rank(data)-1`
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *coords*
@@ -31,7 +30,6 @@
   * **Description**: *coords* is the number of coordinates for each region.
   * **Range of values**: an integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *classes*
@@ -39,7 +37,6 @@
   * **Description**: *classes* is the number of classes for each region.
   * **Range of values**: an integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *end_axis*
@@ -47,7 +44,6 @@
   * **Description**: ending axis index in the input tensor `data` shape that will be flattened in the output; the beginning of the flattened range is defined by `axis` attribute.
   * **Range of values**: `-rank(data)..rank(data)-1`
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *num*
@@ -55,7 +51,6 @@
   * **Description**: *num* is the number of regions.
   * **Range of values**: an integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *do_softmax*

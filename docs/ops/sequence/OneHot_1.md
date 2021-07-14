@@ -27,7 +27,6 @@ The types of input scalars `on_value` and `off_value` should match and be equal 
   * **Description**: *axis* is a new axis position in the output shape to fill with one-hot values.
   * **Range of values**: an integer. Negative value means counting dimension from the end.
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:

@@ -15,7 +15,6 @@
   * **Description**: *strides* is a distance (in pixels) to slide the window on the feature map over the (z, y, x) axes for 3D poolings and (y, x) axes for 2D poolings. For example, *strides* equal "4,2,1" means sliding the window 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -23,7 +22,6 @@
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -32,7 +30,6 @@
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -41,7 +38,6 @@
   * **Description**: *kernel* is a size of each filter. For example, *kernel* equal (2, 3) means that each filter has height equal to 2 and width equal to 3.
   * **Range of values**: integer values starting from 1
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *rounding_type*

@@ -28,21 +28,18 @@
   * **Description**: *base_size* is the size of the anchor to which *scale* and *ratio* attributes are applied.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pre_nms_topn*
   * **Description**: *pre_nms_topn* is the number of bounding boxes before the NMS operation. For example, *pre_nms_topn* equal to 15 means to take top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *post_nms_topn*
   * **Description**: *post_nms_topn* is the number of bounding boxes after the NMS operation. For example, *post_nms_topn* equal to 15 means to take after NMS top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *nms_thresh*
@@ -50,7 +47,6 @@
   * **Description**: *nms_thresh* is the minimum value of the proposal to be taken into consideration. For example, *nms_thresh* equal to 0.5 means that all boxes with prediction probability less than 0.5 are filtered out.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *feat_stride*
@@ -58,7 +54,6 @@
   * **Description**: *feat_stride* is the step size to slide over boxes (in pixels). For example, *feat_stride* equal to 16 means that all boxes are analyzed with the slide 16.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *min_size*
@@ -66,7 +61,6 @@
   * **Description**: *min_size* is the minimum size of box to be taken into consideration. For example, *min_size* equal 35 means that all boxes with box size less than 35 are filtered out.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *ratio*
@@ -74,7 +68,6 @@
   * **Description**: *ratio* is the ratios for anchor generation.
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *scale*
@@ -82,7 +75,6 @@
   * **Description**: *scale* is the scales for anchor generation.
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *clip_before_nms*

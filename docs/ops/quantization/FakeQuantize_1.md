@@ -29,7 +29,6 @@ else:
   * **Description**: *levels* is the number of quantization levels (e.g. 2 is for binarization, 255/256 is for int8 quantization)
   * **Range of values**: an integer greater than or equal to 2
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_broadcast*

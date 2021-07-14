@@ -17,7 +17,6 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Description**: number of classes to be predicted
   * **Range of values**: positive integer number
   * **Type**: int
-  * **Default value**: None
   * **Required**: *yes*
 
 * *background_label_id*
@@ -49,7 +48,6 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Description**: maximum number of bounding boxes per batch to be kept after NMS step. -1 means keeping all bounding boxes after NMS step.
   * **Range of values**: integer values
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *code_type*
@@ -73,7 +71,6 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Description**: threshold to be used in the NMS stage
   * **Range of values**: floating point values
   * **Type**: float
-  * **Default value**: None
   * **Required**: *yes*
 
 * *confidence_threshold*

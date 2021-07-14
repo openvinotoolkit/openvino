@@ -43,7 +43,6 @@ If `mode = depth_first`:
     * *blocks_first*: the input depth is divided to `[block_size, ..., block_size,  new_depth]`
     * *depth_first*: the input depth is divided to `[new_depth, block_size, ..., block_size]`
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**

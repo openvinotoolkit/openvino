@@ -22,15 +22,13 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
   * **Description**: *output_dim* is the number of the output channels, size of output `C` dimension.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *spatial_scale*
 
-  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image size. 
+  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image size.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *group_size*
@@ -74,7 +72,7 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
   * **Required**: *no*
 
 * *part_size*
-  * **Description**: *part_size* is the size of `H` and `W` dimensions of the third input (offsets). Basically it is the height and width of the third input 
+  * **Description**: *part_size* is the size of `H` and `W` dimensions of the third input (offsets). Basically it is the height and width of the third input
   with transformation values.
   * **Range of values**: positive integer number
   * **Type**: `int`
@@ -96,7 +94,7 @@ Batch indices must be in the range of `[0, N_in-1]`.
 **Types**:
 
 * *T*: Any floating point type.
- 
+
 
 **Example**
 

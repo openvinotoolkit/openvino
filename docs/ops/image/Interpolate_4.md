@@ -13,7 +13,6 @@
   * **Description**: specifies type of interpolation
   * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
   **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`.
 
@@ -24,7 +23,6 @@
     * `sizes` - an output shape is calculated as `output_shape[axes[i]] = sizes[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
     * `scales` - an output shape is calculated as `output_shape[axes[i]] = floor(scales[i] * (input_shape[axes[i]] + pads_begin[axes[i]] + pads_end[axes[i]]))` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
 
 * *coordinate_transformation_mode*
