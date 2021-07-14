@@ -42,27 +42,6 @@ endforeach()
 # Build
 #
 
-function(build_ngraph)
-    function(ngraph_set option value)
-        if(NOT DEFINED ${option})
-            set(${option} ${value} CACHE BOOL "" FORCE)
-        endif()
-    endfunction()
-
-    # WA for GCC 7.0
-    if(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
-    endif()
-
-    if(ENABLE_LTO)
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-    endif()
-
-    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
-    add_subdirectory(ngraph)
-endfunction()
-
 function(openvino_developer_export_targets)
     cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
 
@@ -96,10 +75,11 @@ function(openvino_developer_export_targets)
 endfunction()
 
 ie_cpack_add_component(ngraph REQUIRED)
+ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
-build_ngraph()
+add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 
 # for Template plugin
