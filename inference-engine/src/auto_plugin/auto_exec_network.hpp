@@ -149,6 +149,8 @@ private:
     DeviceMap<std::vector<WorkerInferRequest>> _workerRequests;
     DeviceMap<NotBusyWorkerRequests>           _idleWorkerRequests;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
+    std::string _cpuDeviceName;
+    std::string _acceleratorDeviceName;
 };
 
 }  // namespace AutoPlugin

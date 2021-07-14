@@ -133,6 +133,10 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
                     });
             }
 
+            if (device.find("CPU") == std::string::npos) {
+                _networkActualNeeded = executableNetwork;
+                _alreadyActualNetwork = true;
+            }
             return executableNetwork;
         };
 
@@ -140,19 +144,20 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
+        _cpuDeviceName = *CPUIter;
         // init worker queue
-        _idleWorkerRequests[*CPUIter];
-        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
+        _idleWorkerRequests[_cpuDeviceName];
+        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, _cpuDeviceName);
     }
 
     // start accelerator task, like GPU
     auto networkPrecision = GetNetworkPrecision(network);
-    const auto accelerator = _autoPlugin->SelectDevice(metaDevices, networkPrecision);
-    bool isAccelerator = accelerator.find("CPU") == std::string::npos;
+    _acceleratorDeviceName = _autoPlugin->SelectDevice(metaDevices, networkPrecision);
+    bool isAccelerator = _acceleratorDeviceName.find("CPU") == std::string::npos;
     if (isAccelerator) {
         // init worker queue
-        _idleWorkerRequests[accelerator];
-        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
+        _idleWorkerRequests[_acceleratorDeviceName];
+        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, _acceleratorDeviceName);
     }
 
     _enablePerfCount = config.find(IE::PluginConfigParams::KEY_PERF_COUNT) != config.end()
@@ -221,22 +226,15 @@ void AutoExecutableNetwork::run(InferenceEngine::Task inferTask) {
 }
 
 bool AutoExecutableNetwork::TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork) {
-    // try to get actual network
-    if (_acceleratorFuture.valid() && _acceleratorFuture.wait_for(std::chrono::nanoseconds(0)) == std::future_status::ready) {
-        soExecNetwork = _acceleratorFuture.get();
-        _alreadyActualNetwork = true;
-        _networkActualNeeded = soExecNetwork;
+    // if already get actual network
+    if (_alreadyActualNetwork) {
+        soExecNetwork = _networkActualNeeded;
         // reapply config to actual network
         // fixme: GPU doesn't support SetConfig and throw exception
         try {
             _networkActualNeeded->SetConfig(_cacheConfig);
         } catch (...) {
         }
-        return true;
-    }
-    // if already get actual network
-    if (_alreadyActualNetwork) {
-        soExecNetwork = _networkActualNeeded;
         return true;
     }
     return false;
@@ -298,25 +296,24 @@ Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
 }
 
 void AutoExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
-//    printf("%s:%d\n", __FUNCTION__, __LINE__);
-    // fixme: this is a sync with default task
+    // printf("%s:%d\n", __FUNCTION__, __LINE__);
     WorkerInferRequest* workerRequestPtr = nullptr;
-    for (auto&& idleWorkerRequests : _idleWorkerRequests) {
-        if (idleWorkerRequests.second.try_pop(workerRequestPtr)) {
-            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests.second};
-            _thisWorkerInferRequest = workerRequestPtr;
-            {
-                auto capturedTask = std::move(inferPipelineTask);
-                capturedTask();
-            }
-            idleGuard.Release();
-            return;
+    // _acceleratorDeviceName could be the same as _cpuDeviceName, such as AUTO:CPU
+    auto& idleWorkerRequests = _alreadyActualNetwork ? _idleWorkerRequests[_acceleratorDeviceName]: _idleWorkerRequests[_cpuDeviceName];
+    if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+        _thisWorkerInferRequest = workerRequestPtr;
+        {
+          auto capturedTask = std::move(inferPipelineTask);
+          capturedTask();
         }
+        idleGuard.Release();
+        return;
     }
 
     // no vacant requests this time, storing the task to the respective queue
     _inferPipelineTasks.push(std::move(inferPipelineTask));
-//    printf("!!! DEBUG: _inferPipelineTasks size = %zu\n", _inferPipelineTasks.unsafe_size());
+    // printf("!!! DEBUG: _inferPipelineTasks size = %zu\n", _inferPipelineTasks.unsafe_size());
 }
 
 }  // namespace AutoPlugin
