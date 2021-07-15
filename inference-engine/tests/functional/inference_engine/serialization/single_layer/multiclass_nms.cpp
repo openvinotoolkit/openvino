@@ -10,7 +10,9 @@ using namespace ngraph;
 using namespace LayerTestsDefinitions;
 
 namespace {
-TEST_P(MulticlassNmsLayerTest, Serialize) { Serialize(); }
+TEST_P(MulticlassNmsLayerTest, Serialize) {
+    Serialize();
+}
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
@@ -43,12 +45,16 @@ const auto nmsParams = ::testing::Combine(
     ::testing::Combine(::testing::ValuesIn(iouThreshold),
                        ::testing::ValuesIn(scoreThreshold),
                        ::testing::ValuesIn(nmsEta)),
-    ::testing::ValuesIn(backgroundClass), ::testing::ValuesIn(keepTopK),
-    ::testing::ValuesIn(outType), ::testing::ValuesIn(sortResultType),
+    ::testing::ValuesIn(backgroundClass),
+    ::testing::ValuesIn(keepTopK),
+    ::testing::ValuesIn(outType),
+    ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc),
                        ::testing::ValuesIn(normalized)),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest, MulticlassNmsLayerTest,
-                        nmsParams, MulticlassNmsLayerTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest,
+                        MulticlassNmsLayerTest,
+                        nmsParams,
+                        MulticlassNmsLayerTest::getTestCaseName);
+}  // namespace
