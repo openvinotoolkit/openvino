@@ -15,6 +15,7 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 
+namespace {
 struct GrnParams {
     template <class IT>
     GrnParams(const float bias, const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const std::vector<IT>& iValues,
@@ -114,3 +115,4 @@ std::vector<GrnParams> generateGrnCombinedParams() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_GRN_With_Hardcoded_Refs, ReferenceGrnLayerTest, ::testing::ValuesIn(generateGrnCombinedParams()),
                          ReferenceGrnLayerTest::getTestCaseName);
+}  // namespace
