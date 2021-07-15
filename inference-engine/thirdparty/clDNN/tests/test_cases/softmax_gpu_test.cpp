@@ -846,7 +846,7 @@ public:
     {
     }
 
-    virtual void SetUp() override
+    void SetUp() override
     {
         max_ulps_diff_allowed = 6;
     }
