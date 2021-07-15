@@ -56,18 +56,18 @@ protected:
         std::shared_ptr<ngraph::Node> inputNode = std::make_shared<ngraph::opset3::Concat>(concatNodes1, 1);
 
         // preresize layer
-        ngraph::opset4::Interpolate::InterpolateAttrs attrs7;
-        attrs7.mode = ngraph::opset4::Interpolate::InterpolateMode::linear_onnx;
-        attrs7.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::sizes;
-        attrs7.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::asymmetric;
-        attrs7.nearest_mode = ngraph::opset4::Interpolate::NearestMode::ceil;
-        std::vector<int64_t> shape7 = { 3, 3 };
+        ngraph::opset4::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = ngraph::opset4::Interpolate::InterpolateMode::linear_onnx;
+        attrs.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::sizes;
+        attrs.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::asymmetric;
+        attrs.nearest_mode = ngraph::opset4::Interpolate::NearestMode::ceil;
+        std::vector<int64_t> shape = {3, 3 };
 
-        std::vector<float> scales7 = { 1.5, 1.5 };
-        auto outputShape7 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape7.data());
-        auto scalesShape7 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::f32, ngraph::Shape{2}, scales7.data());
-        auto axes7 = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{2, 3});
-        std::shared_ptr<ngraph::Node> preresizeNode = std::make_shared<ngraph::opset4::Interpolate>(inputNode, outputShape7, scalesShape7, axes7, attrs7);
+        std::vector<float> scales = {1.5, 1.5 };
+        auto outputShape = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape.data());
+        auto scalesShape = std::make_shared<ngraph::opset3::Constant>(ngraph::element::f32, ngraph::Shape{2}, scales.data());
+        auto axes = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{2, 3});
+        std::shared_ptr<ngraph::Node> preresizeNode = std::make_shared<ngraph::opset4::Interpolate>(inputNode, outputShape, scalesShape, axes, attrs);
 
         // concat layer
         ngraph::OutputVector concatNodes2;
