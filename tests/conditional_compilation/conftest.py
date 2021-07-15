@@ -18,8 +18,8 @@ import yaml
 import pytest
 
 from path_utils import expand_env_vars  # pylint: disable=import-error
-from test_utils import make_build, validate_path_arg, write_session_info, SESSION_INFO_FILE  # pylint: disable=import-error
-
+from test_utils import make_build, validate_path_arg, write_session_info, \
+    SESSION_INFO_FILE  # pylint: disable=import-error
 
 log = logging.getLogger()
 
@@ -64,26 +64,25 @@ def pytest_addoption(parser):
 def pytest_generate_tests(metafunc):
     """Generate tests depending on command line options."""
     params = []
-    collection_ids = []
+    ids = []
 
     with open(metafunc.config.getoption("test_conf"), "r") as file:
         test_cases = yaml.safe_load(file)
 
-    for collection in test_cases:
-        collection_arg = []
-        for model_test in test_cases[collection]:
-            model_arg = []
+    for test in test_cases:
+        model_list = []
+        test_id_list = []
+        for models in test["collection"]:
             extra_args = {}
-            model_path = model_test["model"]["path"]
-            if "marks" in model_test:
-                extra_args["marks"] = model_test["marks"]
+            model_path = models["model"]["path"]
+            if "marks" in test["collection"]:
+                extra_args["marks"] = test["marks"]
+            model_list.append(expand_env_vars(model_path))
+            test_id_list.append(model_path.split("/")[len(model_path.split("/")) - 1].replace(".xml", ""))
+        ids = ids + ['/'.join(test_id_list)]
+        params.append(pytest.param('/'.join(test_id_list), model_list), **extra_args)
 
-            model_arg.append(pytest.param(Path(expand_env_vars(model_path)), id=collection, **extra_args))
-            collection_arg.append(model_arg)
-            if collection not in collection_ids:
-                collection_ids.append(collection)
-        params.append(collection_arg)
-    metafunc.parametrize("model", params, ids=collection_ids)
+    metafunc.parametrize("test_id, model", params, ids=ids)
 
 
 @pytest.fixture(scope="session")
