@@ -45,7 +45,6 @@ const std::vector<double> epsilon = {
 };
 
 std::vector<InferenceEngine::Precision> dataPrecisions = {
-        InferenceEngine::Precision::BF16,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::FP32
 };
