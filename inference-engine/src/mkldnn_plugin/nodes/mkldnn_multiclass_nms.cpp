@@ -117,12 +117,11 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(
                << valid_outputs_dims[0];
 }
 
-void MKLDNNMultiClassNmsNode::
-    initSupportedPrimitiveDescriptors() {
+void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
   if (!supportedPrimitiveDescriptors.empty())
     return;
-  const std::vector<Precision> supportedFloatPrecision = {
-      Precision::FP32, Precision::BF16};
+  const std::vector<Precision> supportedFloatPrecision = {Precision::FP32,
+                                                          Precision::BF16};
   const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32,
                                                               Precision::I64};
 
@@ -168,6 +167,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
       getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
   auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getDesc().getDims();
+
   if (max_output_boxes_per_class == 0)
     return;
   else if (max_output_boxes_per_class == -1)
@@ -310,55 +310,42 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
       getChildEdgeAt(NMS_SELECTEDINDICES)->getDesc().getDims()[0];
   const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
 
-  int *selectedIndicesPtr = selected_indices;
-  float *selectedoutputsPtr = selected_outputs;
-  auto selectedIndicesStride = getChildEdgeAt(NMS_SELECTEDINDICES)
-                                   ->getDesc()
-                                   .getBlockingDesc()
-                                   .getStrides()[0];
-  auto selectedoutputsStride = getChildEdgeAt(NMS_SELECTEDOUTPUTS)
-                                   ->getDesc()
-                                   .getBlockingDesc()
-                                   .getStrides()[1];
-
   std::vector<size_t> m_selected_num;
   m_selected_num.resize(dims_boxes[0]);
 
-  size_t idx = 0lu;
-  for (; idx < validOutputs; idx++) {
-    *selectedIndicesPtr =
-        filtBoxes[idx].batch_index * dims_boxes[1] + filtBoxes[idx].box_index;
-    *selectedoutputsPtr = filtBoxes[idx].class_index;
-    selectedoutputsPtr += selectedoutputsStride;
-    *selectedoutputsPtr = filtBoxes[idx].score;
-    selectedoutputsPtr += selectedoutputsStride;
-    *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4];
-    selectedoutputsPtr += selectedoutputsStride;
-    *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 1];
-    selectedoutputsPtr += selectedoutputsStride;
-    *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 2];
-    selectedoutputsPtr += selectedoutputsStride;
-    *selectedoutputsPtr = boxes[*selectedIndicesPtr * 4 + 3];
-    selectedoutputsPtr += selectedoutputsStride;
+  const size_t selectedBoxesNum_perBatch = selectedBoxesNum / dims_boxes[0];
 
+  for (size_t idx = 0lu; idx < validOutputs; idx++) {
     m_selected_num[filtBoxes[idx].batch_index]++;
-
-    selectedIndicesPtr += selectedIndicesStride;
   }
-  // use '0' instead of '-1' To align with ref
-  std::fill(selectedoutputsPtr,
-            selectedoutputsPtr +
-                (selectedBoxesNum - idx) * selectedoutputsStride * 6,
-            0);
-  std::fill(
-      selectedIndicesPtr,
-      selectedIndicesPtr + (selectedBoxesNum - idx) * selectedIndicesStride, 0);
 
-  if (outDims.size() > NMS_SELECTEDNUM) {
-    for (int i = 0; i < dims_boxes[0]; i++) {
-      selected_num[i] = static_cast<int>(m_selected_num[i]);
+  int64_t output_offset = 0;
+  int64_t original_offset = 0;
+  for (size_t i = 0; i < dims_boxes[0]; i++) {
+    auto real_boxes = m_selected_num[i];
+    selected_num[i] = static_cast<int>(real_boxes);
+
+    for (size_t j = 0; j < real_boxes; j++) {
+      auto original_index = original_offset + j;
+      selected_indices[j + output_offset] =
+          filtBoxes[original_index].batch_index * dims_boxes[1] +
+          filtBoxes[original_index].box_index;
+      auto selected_base = selected_outputs + (output_offset + j) * 6;
+      selected_base[0] = filtBoxes[original_index].class_index;
+      selected_base[1] = filtBoxes[original_index].score;
+      selected_base[2] = boxes[selected_indices[j + output_offset] * 4];
+      selected_base[3] = boxes[selected_indices[j + output_offset] * 4 + 1];
+      selected_base[4] = boxes[selected_indices[j + output_offset] * 4 + 2];
+      selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
     }
+    std::fill_n(selected_outputs + (output_offset + real_boxes) * 6,
+                (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
+    std::fill_n(selected_indices + (output_offset + real_boxes),
+                selectedBoxesNum_perBatch - real_boxes, -1);
+    output_offset += selectedBoxesNum_perBatch;
+    original_offset += real_boxes;
   }
+
   return;
 }
 
@@ -366,8 +353,9 @@ bool MKLDNNMultiClassNmsNode::created() const {
   return getType() == MulticlassNms;
 }
 
-float MKLDNNMultiClassNmsNode::intersectionOverUnion(
-    const float *boxesI, const float *boxesJ, const bool normalized) {
+float MKLDNNMultiClassNmsNode::intersectionOverUnion(const float *boxesI,
+                                                     const float *boxesJ,
+                                                     const bool normalized) {
   float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
   const float norm = static_cast<float>(normalized == false);
 
@@ -536,12 +524,12 @@ void MKLDNNMultiClassNmsNode::checkPrecision(
                << " precision: " << prec;
 }
 
-void MKLDNNMultiClassNmsNode::checkOutput(
-    const SizeVector &dims, const std::vector<Precision> precList,
-    const std::string name, const size_t port) {
+void MKLDNNMultiClassNmsNode::checkOutput(const SizeVector &dims,
+                                          const std::vector<Precision> precList,
+                                          const std::string name,
+                                          const size_t port) {
   checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name,
                  outType);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNmsNode,
-                    MulticlassNms)
+REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNmsNode, MulticlassNms)

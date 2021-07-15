@@ -22,11 +22,10 @@ namespace ngraph
                                                const ngraph::element::Type& output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
-                                               const Shape& selected_indices_shape,
                                                const std::vector<int64_t>& valid_outputs)
                 {
-                    // for static shape
-                    int64_t total_num = static_cast<int64_t>(selected_indices_shape[0]);
+                    int64_t total_num =
+                        std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0);
 
                     float* ptr = static_cast<float*>(prois);
                     memcpy(ptr, selected_outputs.data(), total_num * sizeof(float) * 6);

@@ -51,7 +51,9 @@ protected:
     void SetUp() override;
 
 private:
-    size_t numOfSelectedBoxes;
+    size_t numBatches, numBoxes, numClasses;
+    size_t maxOutputBoxesPerClass;
+    size_t maxOutputBoxesPerBatch;
 };
 
 }  // namespace LayerTestsDefinitions

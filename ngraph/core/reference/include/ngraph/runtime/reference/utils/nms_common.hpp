@@ -11,8 +11,6 @@
 #include <vector>
 #include "ngraph/type/element_type.hpp"
 
-#include "ngraph/shape.hpp"
-
 namespace ngraph
 {
     namespace runtime
@@ -82,7 +80,6 @@ namespace ngraph
                                                const ngraph::element::Type& output_type,
                                                const std::vector<float>& selected_outputs,
                                                const std::vector<int64_t>& selected_indices,
-                                               const Shape& selected_indices_shape,
                                                const std::vector<int64_t>& valid_outputs);
 
             } // namespace nms_common

@@ -4,16 +4,12 @@
 
 #include <vector>
 
-#include "shared_test_classes/single_layer/multiclass_nms.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "single_layer_tests/multiclass_nms.hpp"
 
-using namespace ngraph;
 using namespace LayerTestsDefinitions;
-
-namespace {
-TEST_P(MulticlassNmsLayerTest, Serialize) { Serialize(); }
-
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
+using namespace InferenceEngine;
+using namespace ngraph;
 
 const std::vector<InputShapeParams> inShapeParams = {
     InputShapeParams{3, 100, 5}, InputShapeParams{1, 10, 50},
@@ -36,9 +32,9 @@ const std::vector<bool> normalized = {true, false};
 
 const auto nmsParams = ::testing::Combine(
     ::testing::ValuesIn(inShapeParams),
-    ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
-                       ::testing::Values(InferenceEngine::Precision::I32),
-                       ::testing::Values(InferenceEngine::Precision::FP32)),
+    ::testing::Combine(::testing::Values(Precision::FP32),
+                       ::testing::Values(Precision::I32),
+                       ::testing::Values(Precision::FP32)),
     ::testing::ValuesIn(nmsTopK),
     ::testing::Combine(::testing::ValuesIn(iouThreshold),
                        ::testing::ValuesIn(scoreThreshold),
@@ -51,4 +47,3 @@ const auto nmsParams = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_MulticlassNmsLayerTest, MulticlassNmsLayerTest,
                         nmsParams, MulticlassNmsLayerTest::getTestCaseName);
-} // namespace

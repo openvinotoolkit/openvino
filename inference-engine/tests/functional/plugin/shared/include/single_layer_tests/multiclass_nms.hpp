@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/multiclass_non_max_suppression.hpp"
+#include "shared_test_classes/single_layer/multiclass_nms.hpp"
 
 namespace LayerTestsDefinitions {
 

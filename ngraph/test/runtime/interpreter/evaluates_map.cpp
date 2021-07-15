@@ -1060,7 +1060,6 @@ namespace
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
-                                                info.selected_indices_shape,
                                                 valid_outputs);
         return true;
     }
@@ -1179,7 +1178,7 @@ namespace
         void* pscores = nullptr;
         void* pselected_num = nullptr;
         void* prois;
-        size_t num_selected = static_cast<size_t>(info.selected_indices_shape[0]);
+        size_t num_selected = static_cast<size_t>(std::accumulate(valid_outputs.begin(), valid_outputs.end(), 0));
 
         outputs[0]->set_shape({num_selected, 6});
         prois = outputs[0]->get_data_ptr();
@@ -1200,7 +1199,6 @@ namespace
                                                 op->get_output_type(),
                                                 selected_outputs,
                                                 selected_indices,
-                                                info.selected_indices_shape,
                                                 valid_outputs);
 
         return true;
