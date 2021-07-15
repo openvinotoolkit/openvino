@@ -27,8 +27,8 @@ o_{i} = min(a_{i}, b_{i})
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. Required.
-* **2**: A tensor of type *T* and arbitrary shape. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 

@@ -4,7 +4,7 @@
 
 **Category**: Infrastructure
 
-**Short description**: *Loop* operation performs recurrent execution of the network, which is described in the `body`, iterating through the data. 
+**Short description**: *Loop* operation performs recurrent execution of the network, which is described in the `body`, iterating through the data.
 The operation has similar semantic to the ONNX* Loop [operation](https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13).
 
 **Detailed description**
@@ -20,21 +20,21 @@ There are several combinations of these two inputs `(trip_count, execution condi
 ```
   input (-1, true) // infinite loop
       bool cond = true;
-      for (int i = 0; cond; ++i) 
+      for (int i = 0; cond; ++i)
       {
           cond = true; // sub-graph calculating condition must always return "true"!
       }
 
   input (-1, cond) // while loop
       bool cond = ...;
-      for (int i = 0; cond; ++i) 
+      for (int i = 0; cond; ++i)
       {
           cond = ...;
       }
 
   input (-1, true) // do-while loop
       bool cond = true;
-      for (int i = 0; cond; ++i) 
+      for (int i = 0; cond; ++i)
       {
           cond = ...;
       }
@@ -42,7 +42,7 @@ There are several combinations of these two inputs `(trip_count, execution condi
   input (trip_count, true) // for loop
       int trip_count = ...;
       bool cond = true;
-      for (int i = 0; i < trip_count; ++i) 
+      for (int i = 0; i < trip_count; ++i)
       {
           cond = true; // sub-graph calculating condition must always return "true"!
       }
@@ -50,7 +50,7 @@ There are several combinations of these two inputs `(trip_count, execution condi
   input (trip_count, cond) // for with condition
       int trip_count = ...;
       bool cond = ...;
-      for (int i = 0; i < trip_count && cond; ++i) 
+      for (int i = 0; i < trip_count && cond; ++i)
       {
           cond = ...;
       }
@@ -133,11 +133,11 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Loop Inputs**
 
-* **Trip count**: A scalar or 1D tensor with 1 element of `int64` or `int32` type specifying maximum number of iterations. *Required*.
+* **Trip count**: A scalar or 1D tensor with 1 element of `int64` or `int32` type specifying maximum number of iterations. **Required.**
 
-* **ExecutionCondition**: A scalar or 1D tensor with 1 element of `boolean` type specifying whether to execute the first iteration or not. `True` value means to execute the 1st iteration. *Required*.
+* **ExecutionCondition**: A scalar or 1D tensor with 1 element of `boolean` type specifying whether to execute the first iteration or not. `True` value means to execute the 1st iteration. **Required.**
 
-* **Multiple other inputs**: tensors of different types and shapes. *Optional*.
+* **Multiple other inputs**: tensors of different types and shapes. **Optional.**
 
 **Loop Outputs**
 
@@ -146,12 +146,12 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Body Inputs**
 
-* **Multiple inputs**: tensors of different types and shapes except the one corresponding to the current iteration number. This input is marked in the port_map with attribute `purpose = "current_iteration"` and produces a scalar or 1D tensor with 1 element of `int64` or `int32` type. *Optional*.
+* **Multiple inputs**: tensors of different types and shapes except the one corresponding to the current iteration number. This input is marked in the port_map with attribute `purpose = "current_iteration"` and produces a scalar or 1D tensor with 1 element of `int64` or `int32` type. **Optional.**
 
 
 **Body Outputs**
 
-* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape except the one corresponding to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"` and is mandatory and produces a scalar or 1D tensor with 1 element of `boolean` type. Other outputs are optional. 
+* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape except the one corresponding to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"` and is mandatory and produces a scalar or 1D tensor with 1 element of `boolean` type. Other outputs are optional.
 
 
 **Examples**

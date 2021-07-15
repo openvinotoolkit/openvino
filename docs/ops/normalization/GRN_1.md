@@ -23,7 +23,7 @@
 
 **Inputs**
 
-* **1**: Input tensor with element of any floating point type and `2 <= rank <=4`. Required.
+* **1**: Input tensor with element of any floating point type and `2 <= rank <=4`. **Required.**
 
 **Outputs**
 

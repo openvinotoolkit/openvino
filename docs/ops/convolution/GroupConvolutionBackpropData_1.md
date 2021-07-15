@@ -62,11 +62,11 @@
 
 **Inputs**:
 
-*   **1**: Input tensor of type `T1` and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type `T1` and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
 
-*   **2**: Kernel tensor of type `T1` and rank 4, 5 or 6. Layout is `[GROUPS, C_IN, C_OUT, X, Y, Z]` (number of groups, number of input channels, number of output channels, spatial axes X, Y, Z). Required.
+*   **2**: Kernel tensor of type `T1` and rank 4, 5 or 6. Layout is `[GROUPS, C_IN, C_OUT, X, Y, Z]` (number of groups, number of input channels, number of output channels, spatial axes X, Y, Z). **Required.**
 
-*   **3**: Output shape tensor of type `T2` and rank 1. It specifies spatial shape of the output. Optional.
+*   **3**: Output shape tensor of type `T2` and rank 1. It specifies spatial shape of the output. **Optional.**
 *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute.
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X

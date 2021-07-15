@@ -10,9 +10,9 @@
 
 **Inputs**:
 
-*   **1**: Tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: Tensor of type *T* and arbitrary shape. **Required.**
 
-*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required**.
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to unsqueeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the output). **Required.**
 
 **Outputs**:
 

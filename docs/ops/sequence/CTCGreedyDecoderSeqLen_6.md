@@ -29,7 +29,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Range of values**: true or false
   * **Type**: `boolean`
   * **Default value**: true
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *classes_index_type*
 
@@ -37,7 +37,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i32"
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *sequence_length_type*
 
@@ -45,7 +45,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i32"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**
 
@@ -53,7 +53,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 * **2**: `sequence_length` - input tensor of type *T_I* of shape `[N]` with sequence lengths. The values of sequence length must be less or equal to `T`. **Required.**
 
-* **3**: `blank_index` - scalar or 1D tensor with 1 element of type *T_I*. Specifies the class index to use for the blank class. Regardless of the value of `merge_repeated` attribute, if the output index for a given batch and time step corresponds to the `blank_index`, no new element is emitted. Default value is `C-1`. **Optional**.
+* **3**: `blank_index` - scalar or 1D tensor with 1 element of type *T_I*. Specifies the class index to use for the blank class. Regardless of the value of `merge_repeated` attribute, if the output index for a given batch and time step corresponds to the `blank_index`, no new element is emitted. Default value is `C-1`. **Optional.**
 
 **Output**
 

@@ -23,7 +23,7 @@ Where D is the rank of input tensor `data`. The sum of elements in `split_length
 
 * **1**: `data`. A tensor of type `T1` and arbitrary shape. **Required.**
 
-* **2**: `axis`. Axis along `data` to split. A scalar or tensor with shape `[1]` of type `T2` with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end. 
+* **2**: `axis`. Axis along `data` to split. A scalar or tensor with shape `[1]` of type `T2` with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end.
 **Required.**
 
 * **3**: `split_lengths`. A list containing the dimension values of each output tensor shape along the split `axis`. A 1D tensor of type `T2`. The number of elements in `split_lengths` determines the number of outputs. The sum of elements in `split_lengths` must match `data.shape[axis]`. In addition `split_lengths` can contain a single `-1` element, which means, all remaining items along specified `axis` that are not consumed by other parts. **Required.**

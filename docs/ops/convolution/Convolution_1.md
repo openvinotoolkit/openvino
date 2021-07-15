@@ -77,8 +77,8 @@ The receptive field in each layer is calculated using the formulas:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
-*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
+*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). **Required.**
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X

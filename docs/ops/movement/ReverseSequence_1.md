@@ -28,9 +28,9 @@
 
 **Inputs**:
 
-*   **1**: tensor with input data to reverse. Required.
+*   **1**: tensor with input data to reverse. **Required.**
 
-*   **2**: 1D tensor populated with integers with sequence lengths in the 1st input tensor. Required.
+*   **2**: 1D tensor populated with integers with sequence lengths in the 1st input tensor. **Required.**
 
 **Example**
 

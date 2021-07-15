@@ -73,13 +73,13 @@ OUTPUT =
 
 **Inputs**
 
-* **1**: `data` tensor of arbitrary shape and type *T*. Required.
+* **1**: `data` tensor of arbitrary shape and type *T*. **Required.**
 
-* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the beginning of each axis. Required.
+* **2**: `pads_begin` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the beginning of each axis. **Required.**
 
-* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the ending of each axis. Required.
+* **3**: `pads_end` 1D tensor of type *T_INT*. Number of elements matches the number of indices in *data* attribute. Specifies the number of padding elements at the ending of each axis. **Required.**
 
-* **4**: `pad_value` scalar tensor of type *T*. Used with the `pad_mode = "constant"` only. All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other `pad_mode` values. Optional.
+* **4**: `pad_value` scalar tensor of type *T*. Used with the `pad_mode = "constant"` only. All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other `pad_mode` values. **Optional.**
 
 
 **Outputs**
