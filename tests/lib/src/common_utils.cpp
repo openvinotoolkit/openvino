@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common.h"
+#include "common_utils.h"
 
 #include <inference_engine.hpp>
 

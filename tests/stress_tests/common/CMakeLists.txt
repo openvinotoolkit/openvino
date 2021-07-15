@@ -27,12 +27,12 @@ if(EXISTS "${OpenVINO_SOURCE_DIR}/thirdparty/gflags")
     add_gflags()
 endif()
 
-add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" common)
+add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::gtest
         IE::pugixml
         gflags
-        common
+        tests_shared_lib
     PRIVATE
         IE::gtest_main)
