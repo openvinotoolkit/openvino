@@ -18,8 +18,8 @@ using namespace InferenceEngine;
 struct GrnParams {
     template <class IT, class OT>
     GrnParams(const float bias, const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const ngraph::element::Type& oType,
-              const std::vector<IT>& iValues, const std::vector<OT>& oValues, size_t iSize = 0, size_t oSize = 0)
-        : bias(bias), pshape(shape), inType(iType), outType(oType), inputData(CreateBlob(iType, iValues, iSize)), refData(CreateBlob(oType, oValues, oSize)) {}
+              const std::vector<IT>& iValues, const std::vector<OT>& oValues)
+        : bias(bias), pshape(shape), inType(iType), outType(oType), inputData(CreateBlob(iType, iValues)), refData(CreateBlob(oType, oValues)) {}
     float bias;
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
