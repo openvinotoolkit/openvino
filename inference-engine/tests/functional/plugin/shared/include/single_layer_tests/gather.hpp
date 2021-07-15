@@ -12,4 +12,12 @@ TEST_P(GatherLayerTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(Gather7LayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Gather8LayerTest, CompareWithRefs) {
+    Run();
+};
+
 }  // namespace LayerTestsDefinitions

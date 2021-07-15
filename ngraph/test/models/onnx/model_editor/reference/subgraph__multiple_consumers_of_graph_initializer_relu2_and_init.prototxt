@@ -4,6 +4,12 @@ graph {
   node {
     input: "in1"
     output: "relu1"
+    name: "add1"
+    op_type: "Relu"
+  }
+  node {
+    input: "in1"
+    output: "relu2"
     op_type: "Relu"
   }
   node {
@@ -14,16 +20,18 @@ graph {
   node {
     input: "in2"
     output: "relu4"
+    name: "relu4_name"
     op_type: "Relu"
   }
   node {
     input: "relu1"
     input: "relu2"
     output: "add1"
+    name: "add1_name"
     op_type: "Add"
   }
   node {
-    input: "relu2"
+    input: "add2/placeholder_port_0"
     input: "relu3"
     output: "add2"
     op_type: "Add"
@@ -50,7 +58,7 @@ graph {
     }
   }
   input {
-    name: "relu2"
+    name: "add2/placeholder_port_0"
     type {
       tensor_type {
         elem_type: 1

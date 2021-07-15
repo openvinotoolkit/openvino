@@ -9,7 +9,6 @@ import numpy as np
 from extensions.front.Pack import Pack
 from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.split_normalizer import SqueezeAxis
-from extensions.front.standalone_const_eraser import StandaloneConstEraser
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
 from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
@@ -529,7 +528,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # But the inputs corresponding to padding values is re-used as inputs for newly created Pad node. This input
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
-        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, StandaloneConstEraser, TFSliceToSliceReplacer,
+        return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
                 KerasRNNOutputConcatenation, KerasRNNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -766,6 +765,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
                 else:  # case 1
                     # change output of the end_node to be produced with the last preprocessing op
                     end_node.out_port(0).get_connection().set_source(pre_processing_ops[-1][0].out_port(0))
+                    start_node.in_port(0).disconnect()
         else:  # simply remove the nodes in between start_node and end_node (including them). Case 3 and 6
             end_node.out_port(0).get_connection().set_source(start_node.in_port(0).get_source())
 
@@ -955,7 +955,8 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         detection_output_node.name = 'detection_output'
 
         if coordinates_swap_method == 'swap_weights':
-            swap_weights_xy(graph, backward_bfs_for_operation(detection_output_node.in_node(0), ['MatMul', 'Conv2D']))
+            swap_weights_xy(graph, backward_bfs_for_operation(detection_output_node.in_node(0), ['MatMul', 'Conv2D'],
+                                                              ['ShapeOf']))
 
         # when the use_matmul_crop_and_resize = True then the prior boxes were not swapped and we need to swap them from
         # YXYX to XYXY before passing to the DetectionOutput operation
@@ -1312,7 +1313,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
         # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
-        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
+        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'], ['ShapeOf'])
         swap_weights_xy(graph, conv_nodes)
 
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
@@ -1355,7 +1356,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         node.old_infer(node)
 
-        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
+        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'], ['ShapeOf'])
         mark_squeeze_reshape_concat_before_detection_output(conv_nodes)
 
 

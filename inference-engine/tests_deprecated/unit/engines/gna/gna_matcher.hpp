@@ -18,13 +18,11 @@
 #include <legacy/graph_tools.hpp>
 #include <ngraph/function.hpp>
 #include <ie_precision.hpp>
-#include <ie_icnn_network.hpp>
 #include <ie_blob.h>
 #include <ie_plugin_config.hpp>
 #include <cpp/ie_cnn_network.h>
 
 #include <backend/dnn_types.h>
-#include <gna_plugin_policy.hpp>
 #include <backend/gna_types.h>
 #include <gna/gna_config.hpp>
 #include <gna_plugin.hpp>
@@ -96,7 +94,6 @@ class GnaPluginTestEnvironment {
     bool exportNetworkOnly = false;
     std::function<void (InferenceEngine::CNNNetwork &)> cb;
     std::map<std::string, std::string> config;
-    GNAPluginNS::Policy policy;
     bool matchThrows = false;
     uint32_t proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
     std::string importedModelFileName;
@@ -167,10 +164,6 @@ class GNATestConfigurability : public GNATestBase{
     }
     T & onCPU() {
         _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(SW_FP32);
-        return *dynamic_cast<T*>(this);
-    }
-    T & withPolicy(GNAPluginNS::Policy::ConcatAlignment concatAlignmentPolicy) {
-        _env.policy.ConcatAlignmentPolicy = concatAlignmentPolicy;
         return *dynamic_cast<T*>(this);
     }
     T & withGNADeviceMode(std::string value) {

@@ -40,8 +40,8 @@ The described mechanism is the only possibility to read weights from external fi
 * `const std::string& binPath`
 * `const Blob::CPtr& weights`
 
-You can find more details about external data mechanism in [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/ExternalData.md).
-To convert a model to use external data feature, you can use [ONNX helpers functions](https://github.com/onnx/onnx/blob/master/onnx/external_data_helper.py).
+You can find more details about the external data mechanism in [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/ExternalData.md).
+To convert a model to use the external data feature, you can use [ONNX helper functions](https://github.com/onnx/onnx/blob/master/onnx/external_data_helper.py).
 
 **Unsupported types of tensors:**
 

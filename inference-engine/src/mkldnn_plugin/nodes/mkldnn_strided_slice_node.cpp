@@ -7,18 +7,18 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 
-#include <legacy/ie_layers.h>
 #include "ie_parallel.hpp"
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/tensor_desc_creator.h"
 #include "utils/general_utils.h"
+#include "mkldnn_input_node.h"
 
 #include <string>
 #include <tuple>
 #include <algorithm>
 #include "caseless.hpp"
-
+#include <ngraph/opsets/opset1.hpp>
 
 #define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
 
@@ -35,26 +35,65 @@ static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector&
     return start;
 }
 
-MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
+        if (!ss) {
+            errorMessage = "Only opset1 StridedSlice operation is supported";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        const auto ss = std::dynamic_pointer_cast<const ngraph::opset1::StridedSlice>(op);
+
+        const size_t nDims = std::max(inDims[DATA_ID].ndims(), outDims[0].ndims());
+
+        auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
+            std::vector<int> mask(origMask.begin(), origMask.end());
+            if (needReverse) {
+                for (size_t i = 0; i < mask.size(); i++)
+                    mask[i] = 1 - mask[i];
+            }
+            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
+            return mask;
+        };
+
+        beginMask = createMask(ss->get_begin_mask(), 1, true);
+        endMask = createMask(ss->get_end_mask(), 1, true);
+        newAxisMask = createMask(ss->get_new_axis_mask());
+        shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
+
+        auto origEllipsisMask = ss->get_ellipsis_mask();
+        for (const auto &o : origEllipsisMask) {
+            ellipsisMask.push_back(o);
+        }
+        if (ellipsisMask.size() == 0) {
+            for (size_t i = ellipsisMask.size(); i < nDims; ++i) ellipsisMask.push_back(0);
+        }
+
+    } else {
+        IE_THROW(NotImplemented) << errorMessage;
+    }
+}
 
 void MKLDNNStridedSliceNode::getSupportedDescriptors() {
-    auto stridedSliceLayer = getCnnLayer();
+    auto isConstantNode = [](const MKLDNNNodePtr &node) {
+        return node->getType() == Input && node->isConstant();
+    };
 
-    if (stridedSliceLayer == nullptr)
-        THROW_ERROR << "cannot convert from CNN layer";
+    params.parametersAreConstant = isConstantNode(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()) &&
+                                   isConstantNode(getParentEdgesAtPort(END_ID)[0]->getParent());
 
-    auto inData = stridedSliceLayer->insData[DATA_ID].lock();
-    auto beginData = stridedSliceLayer->insData[BEGIN_ID].lock();
-    auto endData = stridedSliceLayer->insData[END_ID].lock();
-    if (!inData || !beginData || !endData)
-        THROW_ERROR << "has nullable input data";
-
-    params.parametersAreConstant = CaselessEq<std::string>()(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()->getCnnLayer()->type, "const") &&
-                                   CaselessEq<std::string>()(getParentEdgesAtPort(END_ID)[0]->getParent()->getCnnLayer()->type, "const");
-
-    const SizeVector srcDims = inData->getTensorDesc().getDims();
-    const SizeVector dstDims = stridedSliceLayer->outData[0]->getTensorDesc().getDims();
+    const SizeVector srcDims = inDims[DATA_ID].ToSizeVector();
+    const SizeVector dstDims = outDims[0].ToSizeVector();
     const size_t nSrcDims = srcDims.size();
     const size_t nDims = std::max(nSrcDims, dstDims.size());
 
@@ -63,42 +102,26 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (!getChildEdges().size())
         THROW_ERROR << "has incorrect number of output edges";
 
-    beginDims = beginData->getTensorDesc().getDims();
+    beginDims = inDims[BEGIN_ID].ToSizeVector();
     if (beginDims.size() != 1)
         THROW_ERROR << " should have begin vector with 1 dimension";
 
-    endDims = endData->getTensorDesc().getDims();
+    endDims = inDims[END_ID].ToSizeVector();
     if (endDims.size() != 1)
         THROW_ERROR << "should have end vector with 1 dimension";
     if (beginDims[0] != endDims[0])
         THROW_ERROR << "should have begin vector with size equal to end vector size";
 
-    if (stridedSliceLayer->insData.size() > STRIDE_ID) {
-        auto strideData = stridedSliceLayer->insData[STRIDE_ID].lock();
-        if (!strideData)
-            THROW_ERROR << "has nullable input data";
-        if (!CaselessEq<std::string>()(getParentEdgesAtPort(STRIDE_ID)[0]->getParent()->getCnnLayer()->type, "const"))
+    if (inDims.size() > STRIDE_ID) {
+        if (!isConstantNode(getParentEdgesAtPort(STRIDE_ID)[0]->getParent()))
             params.parametersAreConstant = false;
 
-        strideDims = strideData->getTensorDesc().getDims();
+        strideDims = inDims[STRIDE_ID].ToSizeVector();
         if (strideDims.size() > 1)
             THROW_ERROR << "should have stride vector with 1 dimension";
         if (beginDims[0] != strideDims[0])
             THROW_ERROR << "should have stride vector with size equal to begin vector size";
     }
-
-    auto createMask = [&](const char* maskName, std::vector<int>& mask, const int bit = 0) {
-        mask = stridedSliceLayer->GetParamAsInts(maskName);
-        if (strcmp(maskName, "ellipsis_mask") != 0 || mask.size() == 0) {
-            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
-        }
-    };
-
-    createMask("begin_mask", beginMask, 1);
-    createMask("end_mask", endMask, 1);
-    createMask("new_axis_mask", newAxisMask);
-    createMask("shrink_axis_mask", shrinkAxisMask);
-    createMask("ellipsis_mask", ellipsisMask);
 
     int ellipsisMaskCounter = 0;
     params.ellipsisPos1 = -1;
@@ -115,11 +138,14 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 
     if (params.parametersAreConstant) {
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-            auto parentLayer = getParentEdgesAtPort(type)[0]->getParent()->getCnnLayer();
-            auto blob = parentLayer->blobs["custom"];
-            if (blob->getTensorDesc().getPrecision() != Precision::I32)
+            const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
+            if (!constNode) {
+                THROW_ERROR << "can't cast node on " << type << " port to MKLDNNInputNode";
+            }
+            auto blob = constNode->getMemoryPtr();
+            if (blob->GetDataType() != mkldnn::memory::data_type::s32)
                 THROW_ERROR << "supports only parameters input with precision I32";
-            const int *ptr = blob->cbuffer().as<const int *>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            const int *ptr = static_cast<const int*>(blob->GetPtr());
             parameter.assign(ptr, ptr + size);
 
             if (ellipsisMaskCounter == 0 && size < nDims) {
@@ -171,14 +197,14 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
         return;
 
     const bool hasStrides = getParentEdges().size() > 3;
-    InferenceEngine::Precision dataPrecision = getCnnLayer()->insData[DATA_ID].lock()->getPrecision();
-    InferenceEngine::Precision beginPrecision = getCnnLayer()->insData[BEGIN_ID].lock()->getPrecision();
+    InferenceEngine::Precision dataPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
+    InferenceEngine::Precision beginPrecision = getOriginalInputPrecisionAtPort(BEGIN_ID);
     auto beginDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(beginPrecision);
-    InferenceEngine::Precision endPrecision = getCnnLayer()->insData[END_ID].lock()->getPrecision();
+    InferenceEngine::Precision endPrecision = getOriginalInputPrecisionAtPort(END_ID);
     auto endDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(endPrecision);
     InferenceEngine::Precision stridePrecision;
     if (hasStrides)
-        stridePrecision = getCnnLayer()->insData[STRIDE_ID].lock()->getPrecision();
+        stridePrecision = getOriginalInputPrecisionAtPort(STRIDE_ID);
 
     auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
     auto dstDims = getChildEdgeAt(0)->getDims();

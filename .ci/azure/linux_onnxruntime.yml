@@ -61,6 +61,9 @@ jobs:
 
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
+      # For opencv-python: setuptools and upgrade
+      sudo apt-get install python3-setuptools
+      python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
@@ -91,12 +94,9 @@ jobs:
         -DENABLE_PROFILING_ITT=OFF
         -DENABLE_SAMPLES=OFF
         -DENABLE_SPEECH_DEMO=OFF
-        -DENABLE_PYTHON=ON
         -DNGRAPH_ONNX_IMPORT_ENABLE=ON
         -DNGRAPH_ONNX_EDITOR_ENABLE=ON
-        -DNGRAPH_INTERPRETER_ENABLE=ON
         -DNGRAPH_DEBUG_ENABLE=OFF
-        -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 

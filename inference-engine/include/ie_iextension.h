@@ -19,7 +19,6 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
-#include "details/ie_no_copy.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
@@ -233,6 +232,6 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
  */
 #define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                                  \
 INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionShared(std::shared_ptr<InferenceEngine::IExtension>& ext) {   \
-    ext = std::make_shared<Extension>();                                                                                    \
+    ext = std::make_shared<ExtensionType>();                                                                                    \
 }
 }  // namespace InferenceEngine

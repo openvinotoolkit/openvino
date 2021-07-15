@@ -68,10 +68,10 @@ const std::vector<LayerTestsDefinitions::AddTestValues> params = {
     { {}, {}, false }, { {}, {}, true },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, AddTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, AddTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(params)),
     AddTransformation::getTestCaseName);

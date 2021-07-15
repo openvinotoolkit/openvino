@@ -73,10 +73,12 @@ static const char batch_size_message[] = "Optional. Batch size value. If not spe
                                          "Intermediate Representation.";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] = "Optional. Enable threads->cores (\"YES\", default), threads->(NUMA)nodes (\"NUMA\") "
-                                                    "or completely disable (\"NO\") "
-                                                    "CPU threads pinning for CPU-involved inference.";
-
+static const char infer_threads_pinning_message[] =
+    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):\n"
+    "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
+    "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on the hybrid CPUs) \n"
+    "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
+    "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
 // @brief message for stream_output option
 static const char stream_output_message[] = "Optional. Print progress as a plain text. When specified, an interactive progress bar is "
                                             "replaced with a "
@@ -119,6 +121,14 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 
 static const char layout_message[] = "Optional. Prompts how network layouts should be treated by application. "
                                      "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
+
+// @brief message for enabling caching
+static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "
+                                        "List of devices which support caching is shown at the end of this message.";
+
+// @brief message for single load network
+static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
+                                             "All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
@@ -187,7 +197,7 @@ DEFINE_bool(enforcebf16, false, enforce_bf16_message);
 DEFINE_uint32(b, 0, batch_size_message);
 
 // @brief Enable plugin messages
-DEFINE_string(pin, "YES", infer_threads_pinning_message);
+DEFINE_string(pin, "", infer_threads_pinning_message);
 
 /// @brief Enables multiline text output instead of progress bar
 DEFINE_bool(stream_output, false, stream_output_message);
@@ -236,6 +246,12 @@ DEFINE_string(op, "", outputs_precision_message);
 ///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);
 
+/// @brief Define parameter for cache model dir <br>
+DEFINE_string(cache_dir, "", cache_dir_message);
+
+/// @brief Define flag for load network from model file by name without ReadNetwork <br>
+DEFINE_bool(load_from_file, false, load_from_file_message);
+
 /**
  * @brief This function show a help message
  */
@@ -260,11 +276,13 @@ static void showUsage() {
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
+    std::cout << "    -cache_dir \"<path>\"        " << cache_dir_message << std::endl;
+    std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
     std::cout << "    -enforcebf16=<true/false>     " << enforce_bf16_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -pin \"YES\"/\"HYBRID_AWARE\"/\"NO\"/\"NUMA\"   " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;

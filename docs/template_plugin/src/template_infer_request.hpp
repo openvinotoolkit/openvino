@@ -4,25 +4,21 @@
 
 #pragma once
 
+#include <array>
+#include <chrono>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <executable.hpp>
+#include <ie_input_info.hpp>
 #include <map>
+#include <memory>
+#include <ngraph/runtime/tensor.hpp>
+#include <openvino/itt.hpp>
 #include <string>
 #include <vector>
-#include <memory>
-#include <unordered_map>
-
-#include <ie_common.h>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
-#include <threading/ie_itask_executor.hpp>
-#include <openvino/itt.hpp>
-
-#include <ngraph/runtime/tensor.hpp>
-#include <executable.hpp>
-
-#include "template_config.hpp"
-
 
 namespace TemplatePlugin {
 
+// forward declaration
 class ExecutableNetwork;
 
 // ! [infer_request:header]
@@ -30,8 +26,7 @@ class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap&     networkInputs,
-                         const InferenceEngine::OutputsDataMap&    networkOutputs,
+    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
 
@@ -48,26 +43,20 @@ private:
     void allocateDeviceBuffers();
     void allocateBlobs();
 
-    enum {
-        Preprocess,
-        Postprocess,
-        StartPipeline,
-        WaitPipeline,
-        numOfStages
-    };
+    enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
 
-    std::shared_ptr<ExecutableNetwork>                      _executableNetwork;
-    std::array<openvino::itt::handle_t, numOfStages>        _profilingTask;
+    std::shared_ptr<ExecutableNetwork> _executableNetwork;
+    std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     // for performance counters
-    std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
+    std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;
 
-    InferenceEngine::BlobMap                                _networkOutputBlobs;
-    ngraph::ParameterVector                                 _parameters;
-    ngraph::ResultVector                                    _results;
+    InferenceEngine::BlobMap _networkOutputBlobs;
+    ngraph::ParameterVector _parameters;
+    ngraph::ResultVector _results;
 
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>>   _inputTensors;
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>>   _outputTensors;
-    std::shared_ptr<ngraph::runtime::Executable>            _executable;
+    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _inputTensors;
+    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> _outputTensors;
+    std::shared_ptr<ngraph::runtime::Executable> _executable;
 };
 // ! [infer_request:header]
 

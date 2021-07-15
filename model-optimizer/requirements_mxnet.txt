@@ -1,6 +1,7 @@
-mxnet>=1.0.0,<=1.7.0
-networkx>=1.11
-numpy>=1.14.0
-defusedxml>=0.5.0
-urllib3>=1.25.9
-requests>=2.20.0
+mxnet~=1.2.0; sys_platform == 'win32'
+mxnet~=1.7.0.post2; sys_platform != 'win32'
+networkx~=2.5
+numpy>=1.16.6,<1.20
+defusedxml>=0.7.1
+urllib3>=1.26.4
+requests>=2.25.1

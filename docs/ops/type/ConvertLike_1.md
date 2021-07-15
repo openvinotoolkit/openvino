@@ -2,41 +2,37 @@
 
 **Versioned name**: *ConvertLike-1*
 
-**Category**: type conversion
+**Category**: *Type conversion*
 
-**Short description**: Operation converts all elements of the 1st input tensor to a type of elements of 2nd input tensor.
-
-**Attributes**:
-
-    No attributes available.
-
-**Inputs**
-
-* **1**: `data` - A tensor of type T1. **Required.**
-* **2**: `like` - A tensor of type T2. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise *"ConvertLike"* operation. A tensor of the same type with `like` tensor and the same shape with `data` tensor.
-
-**Types**
-
-* *T1*: u8, u16, u32, u64, i8, i16, i32, i64, f16, f32, boolean, bf16
-* *T2*: u8, u16, u32, u64, i8, i16, i32, i64, f16, f32, boolean, bf16
+**Short description**: *ConvertLike* operation performs element-wise conversion on a given input tensor `data` to the element type of an additional input tensor `like`.
 
 **Detailed description**
 
-Conversion from one supported type to another supported type is always allowed. User must be aware of precision loss and value change caused by range difference between two types. For example, a 32-bit float *3.141592* may be round to a 32-bit int *3*.
+Conversion from one supported type to another supported type is always allowed. User must be aware of precision loss and value change caused by range difference between two types. For example, a 32-bit float *3.141592* may be round to a 32-bit int *3*. The result of unsupported conversions is undefined, e.g. conversion of negative signed integer value to any unsigned integer type.
 
-*a* - `data` input tensor, *b* - `like` input tensor.
+Output elements are represented as follows:
 
-\f[
-o_{i} = Convert[destination_type=type(b)](a_{i})
-\f]
+    o[i] = Convert[destination_type=type(b)](a[i])
 
-**Examples**
+where `a` and `b` correspond to `data` and `like` input tensors, respectively.
 
-*Example 1*
+**Attributes**: *ConvertLike* operation has no attributes.
+
+**Inputs**
+
+* **1**: `data` - A tensor of type *T1* and arbitrary shape. **Required.**
+* **2**: `like` - A tensor of type *T2* and arbitrary shape. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise *ConvertLike* operation applied to input tensor `data`. A tensor of type *T2* and the same shape as `data` input tensor.
+
+**Types**
+
+* *T1*: any supported type
+* *T2*: any supported type
+
+**Example**
 
 ```xml
 <layer ... type="ConvertLike">

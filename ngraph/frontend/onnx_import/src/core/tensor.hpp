@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <onnx/onnx_pb.h>
 #include <utility>
 #include <vector>
@@ -243,7 +244,41 @@ namespace ngraph
                     }
                     if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16)
                     {
-                        return detail::__get_data<ngraph::float16>(tensor.int32_data());
+                        using std::begin;
+                        using std::end;
+
+                        const auto& int32_data = tensor.int32_data();
+                        std::vector<ngraph::float16> float16_data;
+                        float16_data.reserve(int32_data.size());
+                        std::transform(begin(int32_data),
+                                       end(int32_data),
+                                       std::back_inserter(float16_data),
+                                       [](int32_t elem) {
+                                           return ngraph::float16::from_bits(
+                                               static_cast<uint16_t>(elem));
+                                       });
+
+                        return detail::__get_data<ngraph::float16>(float16_data);
+                    }
+                    throw error::tensor::invalid_data_type{tensor.data_type()};
+                }
+
+                template <>
+                inline std::vector<ngraph::bfloat16>
+                    get_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<bfloat16>(tensor);
+                    }
+                    if (tensor.has_raw_data())
+                    {
+                        return detail::__get_raw_data<ngraph::bfloat16>(tensor.raw_data(),
+                                                                        tensor.data_type());
+                    }
+                    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16)
+                    {
+                        return detail::__get_data<ngraph::bfloat16>(tensor.int32_data());
                     }
                     throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
@@ -441,6 +476,7 @@ namespace ngraph
                 float64 = ONNX_NAMESPACE::TensorProto_DataType_DOUBLE,
                 uint32 = ONNX_NAMESPACE::TensorProto_DataType_UINT32,
                 uint64 = ONNX_NAMESPACE::TensorProto_DataType_UINT64,
+                bfloat16 = ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16,
                 complex64 = ONNX_NAMESPACE::TensorProto_DataType_COMPLEX64,
                 complex128 = ONNX_NAMESPACE::TensorProto_DataType_COMPLEX128
             };
@@ -526,6 +562,8 @@ namespace ngraph
                     return element::u32;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
                     return element::u64;
+                case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+                    return element::bf16;
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UNDEFINED:
                     throw error::tensor::data_type_undefined{};
                 default: throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
@@ -561,6 +599,8 @@ namespace ngraph
                     return make_ng_constant<uint32_t>(element::u32);
                 case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_UINT64:
                     return make_ng_constant<uint64_t>(element::u64);
+                case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+                    return make_ng_constant<ngraph::bfloat16>(element::bf16);
                 default: throw error::tensor::unsupported_data_type{m_tensor_proto->data_type()};
                 }
             }

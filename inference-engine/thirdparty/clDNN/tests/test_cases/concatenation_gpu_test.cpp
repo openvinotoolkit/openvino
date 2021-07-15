@@ -4,17 +4,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/convolution.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include "test_utils/float16.h"
-#include <api/data.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/convolution.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reorder.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -22,10 +18,9 @@
 #include <thread>
 #include <type_traits>
 #include <fstream>
-#include <api/reorder.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 namespace cldnn
 {
@@ -34,13 +29,13 @@ namespace cldnn
 
 
 TEST(concat_gpu, mixed_input_types) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
-    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 4, 3 } });
-    auto input2 = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 4, 3 } });
-    auto input4 = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 4, 3 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 4, 3 } });
+    auto input4 = engine.allocate_memory({ data_types::i64, format::bfyx, { 1, 1, 4, 3 } });
 
     set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values<int32_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
@@ -59,11 +54,11 @@ TEST(concat_gpu, mixed_input_types) {
             41.0f, 42.0f, 43.0f, 44.0f, 42.0f, 42.0f, 43.0f, 44.0f, 43.0f, 43.0f, 43.0f, 45.0f };
 
     topology topology(
-            input_layout("input0", input0.get_layout()),
-            input_layout("input1", input1.get_layout()),
-            input_layout("input2", input2.get_layout()),
-            input_layout("input3", input3.get_layout()),
-            input_layout("input4", input4.get_layout()),
+            input_layout("input0", input0->get_layout()),
+            input_layout("input1", input1->get_layout()),
+            input_layout("input2", input2->get_layout()),
+            input_layout("input3", input3->get_layout()),
+            input_layout("input4", input4->get_layout()),
             concatenation("concat",
                           { "input0", "input1", "input2", "input3", "input4" },
                           concatenation::concatenation_axis::along_f,
@@ -83,8 +78,8 @@ TEST(concat_gpu, mixed_input_types) {
     EXPECT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<float>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -102,12 +97,12 @@ TEST(concat_gpu, mixed_input_types) {
 }
 
 TEST(concat_gpu, mixed_input_types_5d) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
-    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
-    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
 
     set_values(input0, { half_t(1.0f), half_t(2.0f), half_t(3.0f),
                          half_t(4.0f), half_t(2.0f), half_t(2.0f),
@@ -133,10 +128,10 @@ TEST(concat_gpu, mixed_input_types_5d) {
             31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f };
 
     topology topology(
-            input_layout("input0", input0.get_layout()),
-            input_layout("input1", input1.get_layout()),
-            input_layout("input2", input2.get_layout()),
-            input_layout("input3", input3.get_layout()),
+            input_layout("input0", input0->get_layout()),
+            input_layout("input1", input1->get_layout()),
+            input_layout("input2", input2->get_layout()),
+            input_layout("input3", input3->get_layout()),
             concatenation("concat",
                           { "input0", "input1", "input2", "input3" },
                           concatenation::concatenation_axis::along_f,
@@ -155,8 +150,8 @@ TEST(concat_gpu, mixed_input_types_5d) {
     EXPECT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<float>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
     int z_size = output_layout.size.spatial[2];
     int y_size = output_layout.size.spatial[1];
@@ -176,10 +171,10 @@ TEST(concat_gpu, mixed_input_types_5d) {
 }
 
 TEST(concat_gpu, i8_optimization_with_pool) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 8, 3}});
-    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 8, 3}});
+    auto input0 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 8, 3}});
+    auto input1 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 8, 3}});
 
 
     set_values<int8_t>(input0, { 11, 12, 13,
@@ -207,8 +202,8 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                         18, 14, -13, 15};
 
     layout reorder_layout(data_types::i8, format::yxfb, {7, 2, 2, 1});
-    topology topology(input_layout("input0", input0.get_layout()),
-                      input_layout("input1", input1.get_layout()),
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
                       pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       concatenation("concat",
@@ -228,8 +223,8 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     EXPECT_EQ(outputs.begin()->first, "reorder");
 
     auto output_memory = outputs.at("reorder").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<int8_t>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.size.spatial[0];
     int x_size = output_layout.size.spatial[1];
@@ -279,12 +274,12 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     //  Output:
     // 53  54  30
     // 52  47  37
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
-    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
-    auto input2 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
-    auto weights = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 3, 3, 2 } });
+    auto input0 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto input1 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto input2 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 3, 3, 2 } });
 
     set_values<int8_t>(weights, { 1, 2, 1,
                           2, 1, 2, 1, 2, 1,
@@ -303,14 +298,14 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                           1, 2, -2, 4, 2,
                           3, 5, 3, -3, 1,
                           5, 4, 3, 2, 1 });
-    
+
     VF<int8_t> output_vec = { 53, 54, 30, 52, 47, 37 };
 
-    
+
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 2, 3});
-    topology topology(input_layout("input0", input0.get_layout()),
-                      input_layout("input1", input1.get_layout()),
-                      input_layout("input2", input2.get_layout()),
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
+                      input_layout("input2", input2->get_layout()),
                       concatenation("concat",
                                     {"input0", "input1", "input2"},
                                     concatenation::concatenation_axis::along_f,
@@ -331,8 +326,8 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     EXPECT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<int8_t>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -358,20 +353,20 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     //  Output : 1x1x3
     //
     //  Input0:
-    // -3 6 0 2 -1 -1 6 0 5 4 1 6 2 4 0 5 
-    // -2 -1 1 0 2 3 3 3 6 2 4 7 3 6 7 -1 
-    // 7 7 5 -3 1 -1 5 4 0 3 -2 6 2 5 2 4 
-    // 5 -1 3 6 2 0 -3 -1 0 3 0 -1 1 6 1 6 
-    // 5 -2 2 -1 5 6 3 4 1 0 6 6 7 2 6 3 
-    // 6 7 -1 5 5 6 -1 0 -1 5 5 2 3 -1 -3 4 
+    // -3 6 0 2 -1 -1 6 0 5 4 1 6 2 4 0 5
+    // -2 -1 1 0 2 3 3 3 6 2 4 7 3 6 7 -1
+    // 7 7 5 -3 1 -1 5 4 0 3 -2 6 2 5 2 4
+    // 5 -1 3 6 2 0 -3 -1 0 3 0 -1 1 6 1 6
+    // 5 -2 2 -1 5 6 3 4 1 0 6 6 7 2 6 3
+    // 6 7 -1 5 5 6 -1 0 -1 5 5 2 3 -1 -3 4
     //
     //  Input1:
-    //  4 -2 0 0 6 2 0 4 6 4 4 4 -3 -1 4 -3 
-    //  1 0 -1 5 -1 1 4 2 7 7 0 2 3 4 -1 3 
-    //  7 7 2 -3 -1 5 -2 2 6 -3 0 7 0 3 3 3 
-    //  -1 0 -2 -2 7 -3 -3 -1 5 0 3 4 0 -1 2 5 
-    //  2 -1 2 -3 0 -3 -3 2 4 3 3 5 5 7 5 1 
-    //  2 2 -3 6 6 7 1 -1 -2 5 1 -1 4 5 -3 -2 
+    //  4 -2 0 0 6 2 0 4 6 4 4 4 -3 -1 4 -3
+    //  1 0 -1 5 -1 1 4 2 7 7 0 2 3 4 -1 3
+    //  7 7 2 -3 -1 5 -2 2 6 -3 0 7 0 3 3 3
+    //  -1 0 -2 -2 7 -3 -3 -1 5 0 3 4 0 -1 2 5
+    //  2 -1 2 -3 0 -3 -3 2 4 3 3 5 5 7 5 1
+    //  2 2 -3 6 6 7 1 -1 -2 5 1 -1 4 5 -3 -2
     //
     // Filters:
     // -1, 2, -2, 2, -2, 1, 1, 0, -1, 1, 2, -2, 2, 1, -2, 0,
@@ -382,11 +377,11 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     //  Output:
     //  -14, -35, -10
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 16, 3, 2}});
-    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 16, 3, 2}});
-    auto weights = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 32, 2, 1}});
+    auto input0 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 16, 3, 2}});
+    auto input1 = engine.allocate_memory({data_types::i8, format::bfyx, {1, 16, 3, 2}});
+    auto weights = engine.allocate_memory({data_types::i8, format::bfyx, {1, 32, 2, 1}});
 
     set_values<int8_t>(weights, {-1, 2, -2, 2, -2, 1, 1, 0, -1, 1, 2, -2, 2, 1, -2, 0, 0, -2, -2, -2, -2, -1, 2, 1, 2, -1, -1, 0, 2, -2, -2, 1,
                                 0, -2, 0, 1, -2, -1, -2, 0, -1, -1, -2, 1, -2, 0, 1, 2, 2, 2, 2, -2, 0, 2, 1, -2, -1, -1, 0, -2, 2, -1, 2, -1});
@@ -394,7 +389,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     set_values<int8_t>(input0, {-3, 6, 0, 2, -1, -1, 6, 0, 5, 4, 1, 6, 2, 4, 0, 5,
                                 -2, -1, 1, 0, 2, 3, 3, 3, 6, 2, 4, 7, 3, 6, 7, -1,
                                 7, 7, 5, -3, 1, -1, 5, 4, 0, 3, -2, 6, 2, 5, 2, 4,
-                                5, -1, 3, 6, 2, 0, -3, -1, 0, 3, 0, -1, 1, 6, 1, 6, 
+                                5, -1, 3, 6, 2, 0, -3, -1, 0, 3, 0, -1, 1, 6, 1, 6,
                                 5, -2, 2, -1, 5, 6, 3, 4, 1, 0, 6, 6, 7, 2, 6, 3,
                                 6, 7, -1, 5, 5, 6, -1, 0, -1, 5, 5, 2, 3, -1, -3, 4 });
 
@@ -404,12 +399,12 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                  -1, 0, -2, -2, 7, -3, -3, -1, 5, 0, 3, 4, 0, -1, 2, 5,
                                  2, -1, 2, -3, 0, -3, -3, 2, 4, 3, 3, 5, 5, 7, 5, 1,
                                  2, 2, -3, 6, 6, 7, 1, -1, -2, 5, 1, -1, 4, 5, -3, -2});
-    
+
     VF<int8_t> output_vec = { -14, -35, -10 };
 
     layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});
-    topology topology(input_layout("input0", input0.get_layout()),
-                      input_layout("input1", input1.get_layout()),
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
                       pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
                       concatenation("concat",
@@ -431,8 +426,8 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     EXPECT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<int8_t>();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.size.spatial[0];
     int x_size = output_layout.size.spatial[1];
@@ -527,7 +522,7 @@ public:
     void test(format::type fmt) {
         auto data_type = type_to_data_type<Type>::value;
 
-        const auto& engine = get_test_engine();
+        auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
@@ -539,7 +534,7 @@ public:
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
-        std::vector<memory> in_memory;
+        std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -563,7 +558,7 @@ public:
                 }
             }
 
-            auto in_mem = memory::allocate(engine, in_lay);
+            auto in_mem = engine.allocate_memory(in_lay);
             set_values(in_mem, data_flat);
             in_memory.push_back(in_mem);
 
@@ -585,7 +580,7 @@ public:
         network.execute();
 
         auto out_mem = network.get_output("concat").get_memory();
-        auto out_ptr = out_mem.pointer<Type>();
+        cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num; bi++) {
             size_t f_sum = 0;
@@ -594,7 +589,7 @@ public:
                     for (size_t yi = 0; yi < input_y; yi++) {
                         for (size_t xi = 0; xi < input_x; xi++) {
                             auto output_coords = tensor(batch(bi), feature(f_sum + fi), spatial(xi, yi, 0, 0));
-                            auto output_offset = out_mem.get_layout().get_linear_offset(output_coords);
+                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
@@ -617,7 +612,7 @@ TEST_P(concat_gpu_4d_f16, fs_b_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_4d_f16,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -630,7 +625,7 @@ TEST_P(concat_gpu_4d_i8, b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_i8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -639,7 +634,7 @@ TEST_P(concat_gpu_4d_u8, b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_u8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -651,7 +646,7 @@ public:
     void test(format::type fmt) {
         auto data_type = type_to_data_type<Type>::value;
 
-        const auto& engine = get_test_engine();
+        auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
@@ -663,7 +658,7 @@ public:
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
-        std::vector<memory> in_memory;
+        std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
         for (size_t i = 0; i < in_features.size(); i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
@@ -687,7 +682,7 @@ public:
                 }
             }
 
-            auto in_mem = memory::allocate(engine, in_lay);
+            auto in_mem = engine.allocate_memory(in_lay);
             set_values(in_mem, data_flat);
             in_memory.push_back(in_mem);
 
@@ -699,9 +694,11 @@ public:
         topology.add(concatenation("concat", input_ids, concatenation::concatenation_axis::along_f));
         // Add identity convolution
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
-        auto weights_mem = cldnn::memory::allocate(engine, weights_lay);
+        auto weights_mem = engine.allocate_memory(weights_lay);
+        weights_mem->fill(get_test_stream());
+        get_test_stream().finish();
         {
-            auto weights_ptr = weights_mem.pointer<Type>();
+            cldnn::mem_lock<Type> weights_ptr(weights_mem, get_test_stream());
             for (size_t fi = 0; fi < output_f; ++fi) {
                 auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
                 auto offset = weights_lay.get_linear_offset(coords);
@@ -724,7 +721,8 @@ public:
         network.execute();
 
         auto out_mem = network.get_output("conv").get_memory();
-        auto out_ptr = out_mem.pointer<OutputT>();
+        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
+        ASSERT_EQ(out_mem->get_layout().format, fmt);
 
         for (size_t bi = 0; bi < batch_num; bi++) {
             size_t f_sum = 0;
@@ -733,11 +731,11 @@ public:
                     for (size_t yi = 0; yi < input_y; yi++) {
                         for (size_t xi = 0; xi < input_x; xi++) {
                             auto output_coords = tensor(batch(bi), feature(f_sum + fi), spatial(xi, yi, 0, 0));
-                            auto output_offset = out_mem.get_layout().get_linear_offset(output_coords);
+                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = static_cast<Type>(out_ptr[output_offset]);
-                            EXPECT_EQ(ref_val, actual_val)
+                            ASSERT_EQ(ref_val, actual_val)
                                 << " b=" << bi << ", f=" << f_sum + fi << "(input " << in_i << "), y=" << yi << ", x=" << xi;
                         }
                     }
@@ -755,7 +753,7 @@ TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_f16,
                         ::testing::Values(
                             TestParamType_concat(2, { 2, 32 }, 2, 1),
@@ -770,7 +768,7 @@ TEST_P(concat_id_conv_gpu_4d_i8, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_i8,
                         ::testing::Values(
                             TestParamType_concat(2, { 2, 32 }, 2, 1),

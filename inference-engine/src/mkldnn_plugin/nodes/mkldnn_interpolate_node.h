@@ -44,6 +44,11 @@ enum class InterpolateNearestMode {
     simple
 };
 
+enum class InterpolateShapeCalcMode {
+    sizes,
+    scales
+};
+
 struct jit_interpolate_config_params {
     InterpolateLayoutType layout;
     InterpolateMode mode;
@@ -85,8 +90,7 @@ struct jit_uni_interpolate_kernel {
 
 class MKLDNNInterpolateNode : public MKLDNNNode {
 public:
-    MKLDNNInterpolateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNInterpolateNode() override = default;
+    MKLDNNInterpolateNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -96,7 +100,9 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     // nearest neighbor
@@ -135,10 +141,10 @@ private:
     SizeVector getPaddedInputShape();
     std::vector<float> getScales();
 
-    const size_t DATA_ID = 0;
-    const size_t TARGET_SHAPE_ID = 1;
-    const size_t SCALES_ID = 2;
-    const size_t AXES_ID = 3;
+    static const size_t DATA_ID = 0;
+    static const size_t TARGET_SHAPE_ID = 1;
+    static const size_t SCALES_ID = 2;
+    static const size_t AXES_ID = 3;
     const int LINEAR_KERNEL = 2;
     const int CUBIC_GRID_LEN = 4;
 
@@ -149,6 +155,8 @@ private:
     std::vector<int> padEnd;
     bool hasPad = false;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
+    InterpolateShapeCalcMode shapeCalcMode;
+
     float cubeCoeff = -0.75;
 
     bool isAxesSpecified = false;
@@ -157,7 +165,6 @@ private:
     std::vector<float> scales;
     // target shape is dst dim, full size.
     SizeVector dstDim;
-    std::string shapeInferMode;
     SizeVector srcDim;
     SizeVector srcDimPad;
     int spatialDimSize;
@@ -173,6 +180,8 @@ private:
     std::vector<int> indexTable;
 
     std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
+
+    std::string errorPrefix;
 };
 
 }  // namespace MKLDNNPlugin

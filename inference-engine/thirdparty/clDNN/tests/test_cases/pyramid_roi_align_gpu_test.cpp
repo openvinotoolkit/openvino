@@ -3,21 +3,15 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/pyramid_roi_align.hpp>
-#include <api/memory.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/mutable_data.hpp>
-#include <api/data.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/pyramid_roi_align.hpp>
+#include <cldnn/primitives/data.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template <typename T>
 struct pyramid_roi_align_typed_test : testing::Test {
@@ -26,12 +20,12 @@ struct pyramid_roi_align_typed_test : testing::Test {
 };
 using pyramid_roi_align_types = testing::Types<float, half_t>;
 
-TYPED_TEST_CASE(pyramid_roi_align_typed_test, pyramid_roi_align_types);
+TYPED_TEST_SUITE(pyramid_roi_align_typed_test, pyramid_roi_align_types);
 
 TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
     using Type = typename pyramid_roi_align_typed_test<TypeParam>::Type;
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     const int rois_num = 3;
     const int output_size = 2;
@@ -85,11 +79,11 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
     auto P4_lay = layout(this->data_type, format::bfyx, tensor(1, 1, P4_size, P4_size));
     auto P5_lay = layout(this->data_type, format::bfyx, tensor(1, 1, P5_size, P5_size));
 
-    auto rois_mem = memory::allocate(engine, rois_lay);
-    auto P2_mem = memory::allocate(engine, P2_lay);
-    auto P3_mem = memory::allocate(engine, P3_lay);
-    auto P4_mem = memory::allocate(engine, P4_lay);
-    auto P5_mem = memory::allocate(engine, P5_lay);
+    auto rois_mem = engine.allocate_memory(rois_lay);
+    auto P2_mem = engine.allocate_memory(P2_lay);
+    auto P3_mem = engine.allocate_memory(P3_lay);
+    auto P4_mem = engine.allocate_memory(P4_lay);
+    auto P5_mem = engine.allocate_memory(P5_lay);
 
     tests::set_values(rois_mem, rois_data);
     tests::set_values(P2_mem, P2_data);
@@ -129,7 +123,7 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
     auto result = net.execute();
 
     auto out_mem = result.at("pyramid").get_memory();
-    auto out_ptr = out_mem.pointer<Type>();
+    cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {

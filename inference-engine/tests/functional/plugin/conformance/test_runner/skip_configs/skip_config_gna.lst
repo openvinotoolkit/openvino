@@ -1,0 +1,62 @@
+# Lost results
+.*Add_1087636.*
+.*Add_2868.*
+.*Add_2979.*
+.*Add_53543.*
+
+# OMZ
+# hang
+.*Concat_535028.*
+.*Concat_377139.*
+.*Concat_379481.*
+.*Concat_539044.*
+.*Concat_539074.*
+.*Concat_534956.*
+
+# DLB:
+# Hang:
+.*Convolution_1301086.*
+.*Convolution_1301186.*
+.*Convolution_1761288.*
+.*GroupConvolution_1761341.*
+.*GroupConvolution_1763142.*
+.*Interpolate_475913.*
+.*MVN_1761313.*
+.*ROIAlign_1016430.*
+.*ROIAlign_1016460.*
+.*ROIAlign_1016482.*
+.*ROIAlign_1016504.*
+.*ROIAlign_470931.*
+.*ROIAlign_470968.*
+.*ROIAlign_470993.*
+.*ROIAlign_471018.*
+.*Reshape_1302893.*
+.*Reshape_1302942.*
+.*Reshape_1762836.*
+.*Reshape_1763029.*
+.*Reshape_1763071.*
+.*ScatterNDUpdate_3475452.*
+.*Concat_1196171.*
+.*Concat_1236339.*
+.*Concat_1434303.*
+.*Concat_1443454.*
+.*Concat_1456624.*
+.*Concat_1732527.*
+.*Concat_412712.*
+.*Concat_415114.*
+.*Concat_547245.*
+.*Concat_747309.*
+.*Concat_756481.*
+.*Concat_766939.*
+.*Concat_948784.*
+.*Concat_950832.*
+.*Convolution_1301186.*
+.*GroupConvolution_1303013.*
+.*TensorIterator_1345263.*
+.*TensorIterator_1467673.*
+.*TensorIterator_1578127.*
+.*TensorIterator_1578258.*
+.*TensorIterator_1578389.*
+.*TensorIterator_1578520.*
+.*TensorIterator_1578651.*
+.*TensorIterator_789147.*

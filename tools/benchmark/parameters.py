@@ -91,8 +91,11 @@ def parse_args():
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
-    args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
-                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')'
+    args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
+                      help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
+                           'threads->(NUMA)nodes (\'NUMA\'), '
+                           'threads->appropriate core types (\'HYBRID_AWARE\', which is OpenVINO runtime\'s default for Hybrid CPUs)'
+                           'or completely disable (\'NO\')'
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
@@ -115,12 +118,16 @@ def parse_args():
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
-    args.add_argument('-ip', '--input_precision', type=str, required=False, default='U8', choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
                       help='Optional. Specifies precision for all input layers of the network.')
-    args.add_argument('-op', '--output_precision', type=str, required=False, default='FP32', choices=['U8', 'FP16', 'FP32'],
+    args.add_argument('-op', '--output_precision', type=str, required=False, choices=['U8', 'FP16', 'FP32'],
                       help='Optional. Specifies precision for all output layers of the network.')
     args.add_argument('-iop', '--input_output_precision', type=str, required=False,
                       help='Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.')
+    args.add_argument('-cdir', '--cache_dir', type=str, required=False, default='',
+                      help="Optional. Enable model caching to specified directory")
+    args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
+                      help="Optional. Loads model from file directly without read_network.")
     parsed_args = parser.parse_args()
 
     return parsed_args

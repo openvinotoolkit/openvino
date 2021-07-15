@@ -41,9 +41,9 @@ class must not exceed `max_output_boxes_per_class`.
 
 **Inputs**:
 
-*   **1**: `boxes` - floating point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. Required.
+*   **1**: `boxes` - floating point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
 
-*   **2**: `scores` - floating point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
+*   **2**: `scores` - floating point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
 
 *   **3**: `max_output_boxes_per_class` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 

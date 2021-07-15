@@ -5,8 +5,11 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <legacy/ie_util_internal.hpp>
 #include "nodes/list.hpp"
+#include "common/tensor_desc_creator.h"
+#include "ngraph/descriptor/tensor.hpp"
+#include <ie_ngraph_utils.hpp>
+#include "cpu_types.h"
 
 #include <string>
 #include <vector>
@@ -53,99 +56,76 @@ public:
     }
 
 protected:
-    enum class ConfLayout { ANY, PLN, BLK8, BLK16 };
+    MKLDNNPlugin::Algorithm getAlgorithm() const {
+        return algorithm;
+    }
+    MKLDNNPlugin::Algorithm algorithm;
 
     class DataConfigurator {
     public:
-        explicit DataConfigurator(ConfLayout l):
-            layout(l) {}
+        DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, Precision prc = Precision::UNSPECIFIED, bool constant = false, int inplace = -1) :
+                tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), constant(constant), inplace(inplace) {}
 
-        DataConfigurator(ConfLayout l, bool constant, int inplace = -1, Precision::ePrecision prc = Precision::UNSPECIFIED):
-            layout(l), constant(constant), inplace(inplace), prc(prc) {}
+        DataConfigurator(const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr& tensorDescCreator, Precision prc = Precision::UNSPECIFIED,
+                bool constant = false, int inplace = -1) : tensorDescCreator(tensorDescCreator), prc(prc), constant(constant), inplace(inplace) {}
 
-        DataConfigurator(ConfLayout l, Precision::ePrecision prc):
-            layout(l), prc(prc) {}
-
-        ConfLayout layout;
-        bool constant = false;
-        int inplace = -1;
-        Precision::ePrecision prc = Precision::UNSPECIFIED;     // by default use the layer precision
+        const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
+        const bool constant = false;
+        const int inplace = -1;
+        const Precision prc = Precision::UNSPECIFIED; // By default ngraph node precision is used
+    private:
+        static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
+            auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
+            if (creators.find(tensorDescType) == creators.end()) {
+                IE_THROW() << "Cannot find tensor descriptor creator";
+            }
+            return creators.at(tensorDescType);
+        }
     };
 
-    void addConfig(const CNNLayer* layer, std::vector<DataConfigurator> in_l,
-            std::vector<DataConfigurator> out_l, bool dynBatchSupport = false) {
+    void addConfig(const std::shared_ptr<ngraph::Node>& op,
+                   const std::vector<DataConfigurator>& inDataConfigurators,
+                   const std::vector<DataConfigurator>& outDataConfigurators,
+                   bool dynBatchSupport = false) {
         LayerConfig config;
 
-        if (in_l.size() != layer->insData.size())
-            IE_THROW() << "Incorrect number of input edges for layer " << layer->name << ". Expected " << layer->insData.size()
-                << " but layout specification provided for " << in_l.size();
-        if (out_l.size() != layer->outData.size())
-            IE_THROW() << "Incorrect number of output edges for layer " << layer->name << ". Expected " << layer->outData.size()
-                << " but layout specification provided for " << out_l.size();
+        if (inDataConfigurators.size() != op->get_input_size())
+            IE_THROW() << "Cannot add config for operation " << op->get_friendly_name() << ". Incorrect number of inputs: " <<
+                                  "expected: " << op->get_input_size() << ", provided: " << inDataConfigurators.size();
+        if (outDataConfigurators.size() != op->get_output_size())
+            IE_THROW() << "Cannot add config for operation " << op->get_friendly_name() << ". Incorrect number of outputs: " <<
+                               "expected: " << op->get_output_size() << ", provided: " << outDataConfigurators.size();
 
-        // Fill tensor parameters into config
-        auto fill_port = [] (std::vector<DataConfig>& port, DataConfigurator conf, const DataPtr& data) {
-            auto div_up = [](const int a, const int b) -> int {
-                if (!b)
-                    return 0;
-                return (a + b - 1) / b;
-            };
-            if (!data) IE_THROW() << "Cannot get input data!";
+        auto fill_port = [] (const DataConfigurator& dataConfigurator, const ngraph::descriptor::Tensor& tensor, std::vector<DataConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by tensorDescCreator.
+            // This should be suitable for major of scenarios since almost all nodes add `ncsp` tensorDescCreator which supports any shape rank.
+            if (tensor.get_shape().size() < dataConfigurator.tensorDescCreator->getMinimalRank())
+                return false;
+
+            auto precision = dataConfigurator.prc != Precision::UNSPECIFIED ? dataConfigurator.prc : details::convertPrecision(tensor.get_element_type());
 
             DataConfig dataConfig;
-            dataConfig.inPlace = conf.inplace;
-            dataConfig.constant = conf.constant;
+            dataConfig.inPlace = dataConfigurator.inplace;
+            dataConfig.constant = dataConfigurator.constant;
+            dataConfig.desc = dataConfigurator.tensorDescCreator->createDesc(precision, tensor.get_shape());
 
-            const TensorDesc& data_desc = data->getTensorDesc();
-            const SizeVector& data_dims = data_desc.getDims();
-
-            std::vector<size_t> blocks = data_dims;
-            std::vector<size_t> order(blocks.size());
-            for (size_t i = 0; i < order.size(); i++) order[i] = i;
-
-            const bool isInt8 = (data->getPrecision() == Precision::I8 || data->getPrecision() == Precision::U8);
-
-            if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
-                if (data_dims.size() < 4 || data_dims.size() > 5)
-                    IE_THROW() << "Inapplicable blocking layout."
-                        << "Tensor should be 4D or 5D.";
-
-                int blk_size = conf.layout == ConfLayout::BLK8 ? 8 : 16;
-
-                // Blocking through Channel dimension. Like [nChwXc]
-                order.push_back(1);
-                blocks[1] = div_up(blocks[1], blk_size);
-                blocks.push_back(blk_size);
-            } else if (isInt8) {
-                if (data_dims.size() == 4) {
-                    order = {0, 2, 3, 1};
-                    blocks = {data_dims[0], data_dims[2], data_dims[3], data_dims[1]};
-                } else if (data_dims.size() == 5) {
-                    order = {0, 2, 3, 4, 1};
-                    blocks = {data_dims[0], data_dims[2], data_dims[3], data_dims[4], data_dims[1]};
-                }  // all over keep original plain format
-
-                conf.layout = ConfLayout::PLN;
-            }
-
-            InferenceEngine::Precision precision = (conf.prc == Precision::UNSPECIFIED) ? data_desc.getPrecision() : Precision(conf.prc);
-            if (conf.layout == ConfLayout::ANY) {
-                dataConfig.desc = TensorDesc(precision, data_dims, InferenceEngine::Layout::ANY);
-            } else {
-                dataConfig.desc = TensorDesc(precision, data_dims, {blocks, order});
-            }
             port.push_back(dataConfig);
+
+            return true;
         };
 
-        for (size_t i = 0; i < in_l.size(); i++)
-            fill_port(config.inConfs, in_l[i], layer->insData[i].lock());
+        for (size_t i = 0; i < inDataConfigurators.size(); i++)
+            if (!fill_port(inDataConfigurators[i], op->get_input_tensor(i), config.inConfs))
+                return;
 
-        for (size_t i = 0; i < out_l.size(); i++)
-            fill_port(config.outConfs, out_l[i], layer->outData[i]);
+        for (size_t i = 0; i < outDataConfigurators.size(); i++)
+            if (!fill_port(outDataConfigurators[i], op->get_output_tensor(i), config.outConfs))
+                return;
 
         config.dynBatchSupport = dynBatchSupport;
         confs.push_back(config);
     }
+
     std::string errorMsg;
     std::vector<LayerConfig> confs;
 };
@@ -153,20 +133,22 @@ protected:
 template <class IMPL>
 class ImplFactory : public ILayerImplFactory {
 public:
-    explicit ImplFactory(const CNNLayer *layer) {
-        cnnLayer = InferenceEngine::clonelayer(*layer);
-        cnnLayer->_fusedWith = layer->_fusedWith;
-        cnnLayer->insData = layer->insData;
-        cnnLayer->outData = layer->outData;
-    }
+    explicit ImplFactory(const std::shared_ptr<ngraph::Node>& op) : ngraphOp(op) {}
 
     // First implementation has more priority than next
     StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc *resp) noexcept override {
-        impls.push_back(ILayerImpl::Ptr(new IMPL(cnnLayer.get())));
+        try {
+            impls.push_back(ILayerImpl::Ptr(new IMPL(ngraphOp)));
+        } catch (const InferenceEngine::Exception& ex) {
+            strncpy(resp->msg, ex.what(), sizeof(resp->msg) - 1);
+            IE_SUPPRESS_DEPRECATED_START
+            return ex.getStatus() != OK ? ex.getStatus() : GENERAL_ERROR;
+            IE_SUPPRESS_DEPRECATED_END
+        }
         return OK;
     }
 protected:
-    InferenceEngine::CNNLayerPtr cnnLayer;
+    const std::shared_ptr<ngraph::Node> ngraphOp;
 };
 
 #define REG_FACTORY_FOR(__prim, __type) \

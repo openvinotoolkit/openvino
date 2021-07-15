@@ -4,13 +4,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/binary_convolution.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
+#include "binary_convolution_inst.h"
 #include "mvn_inst.h"
+
 #include <vector>
 #include <memory>
 #include <list>
@@ -57,7 +58,10 @@ std::map<program_node*, format::type> get_preferred_formats(program_impl& p, lay
             continue;
 
         auto ex = lo.get_preferred_format(*n);
+        auto impl = lo.get_preferred_impl_type(*n);
         fmt_map[n] = ex;
+
+        n->set_preferred_impl_type(impl);
     }
     return fmt_map;
 }

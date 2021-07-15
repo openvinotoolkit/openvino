@@ -13,6 +13,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 
 namespace BehaviorTestsDefinitions {
 using PreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -111,7 +112,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -124,8 +125,9 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i] + inData[i], outData[i]);
+        }
     }
 }
 
@@ -155,16 +157,17 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.init(3);
     for (size_t i = 0; i < 3; i++) {
-        preProcess[i]->meanData = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                                                       {10, 10},
-                                                                                       InferenceEngine::Layout::HW));
-        preProcess[i]->meanData->allocate();
-        auto lockedMem = preProcess[i]->meanData->buffer();
+        auto meanData = make_blob_with_precision(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,  {10, 10},
+            InferenceEngine::Layout::HW));
+        meanData->allocate();
+        auto lockedMem = meanData->buffer();
         auto* data = lockedMem.as<float *>();
         for (size_t j = 0; j < 100; j++) {
             data[j] = 0;
             data[j] -= i * 100 + j;
         }
+        ASSERT_NO_THROW(preProcess.setMeanImageForChannel(meanData, i));
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
     // Load CNNNetwork to target plugins
@@ -181,7 +184,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -242,7 +245,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -255,8 +258,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+        for (size_t i = 0; i < inBlob->size(); i++) {
+            ASSERT_EQ(inData[i] + 5, outData[i]);
+        }
     }
 }
 
@@ -306,7 +310,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -320,10 +324,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+            ASSERT_EQ(inData[i] + 5, outData[i]);
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -361,7 +364,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -387,7 +390,6 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
             }
     }
 }
-
 
 TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -428,7 +430,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -498,7 +500,7 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -511,11 +513,11 @@ TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]*2, outData[i]);
+        for (size_t i = 0; i < inBlob->size(); i++) {
+            ASSERT_EQ(inData[i] / 2, outData[i]);
+        }
     }
 }
-
 
 TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -563,7 +565,7 @@ TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
         auto lockedMem = inBlob->buffer();
         auto *inData = lockedMem.as<float*>();
         for (size_t i = 0; i < inBlob->size(); i++)
-            inData[i] = i;
+            inData[i] = static_cast<float>(i);
     }
 
     req.Infer();
@@ -577,7 +579,7 @@ TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
         for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]*2, outData[i]);
+            ASSERT_EQ(inData[i] / 2, outData[i]);
     }
 }
 
@@ -625,6 +627,24 @@ public:
         return result.str();
     }
 
+    static InferenceEngine::Layout getOppositeLayout(InferenceEngine::Layout l) {
+        if (InferenceEngine::Layout::NCHW == l) {
+            return InferenceEngine::Layout::NHWC;
+        } else if (InferenceEngine::Layout::NHWC == l) {
+            return InferenceEngine::Layout::NCHW;
+        }
+        return InferenceEngine::Layout::ANY;
+    }
+
+    static InferenceEngine::Precision getOppositePrecision(InferenceEngine::Precision p) {
+        if (InferenceEngine::Precision::U8 == p) {
+            return InferenceEngine::Precision::FP32;
+        } else if (InferenceEngine::Precision::FP32 == p) {
+            return InferenceEngine::Precision::U8;
+        }
+        return InferenceEngine::Precision::UNSPECIFIED;
+    }
+
     void SetUp()  override {
         std::tie(netPrecision, iPrecision, oPrecision,
                  netLayout, iLayout, oLayout,
@@ -653,7 +673,7 @@ TEST_P(PreprocessConversionTest, Infer) {
     unsigned int shape_size = 9, channels = 3, batch = 1, offset = 0;
     {
         ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         param->set_friendly_name("param");
         auto relu = std::make_shared<ngraph::op::Relu>(param);
@@ -705,9 +725,9 @@ TEST_P(PreprocessConversionTest, Infer) {
     if (setOutputBlob) {
         outBlob = make_blob_with_precision(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
         outBlob->allocate();
-        req.SetBlob(cnnNet.getOutputsInfo().begin()->first, outBlob);
+        req.SetBlob("relu", outBlob);
     } else {
-        outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+        outBlob = req.GetBlob("relu");
     }
 
     // Fill input
@@ -715,14 +735,14 @@ TEST_P(PreprocessConversionTest, Infer) {
         auto lockedMem = inBlob->buffer();
         auto desc = inBlob->getTensorDesc();
 
-        if (iPrecision == InferenceEngine::Precision::FP32) {
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
             auto *inData = lockedMem.as<float*>();
             for (size_t i = 0; i < inBlob->size(); i++)
-                inData[desc.offset(i)] = i;
-        } else if (iPrecision == InferenceEngine::Precision::U8) {
+                inData[desc.offset(i)] = static_cast<float>(i);
+        } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
             auto *inData = lockedMem.as<std::uint8_t*>();
             for (size_t i = 0; i < inBlob->size(); i++)
-                inData[desc.offset(i)] = i;
+                inData[desc.offset(i)] = static_cast<std::uint8_t>(i);
         } else {
             ASSERT_TRUE(false);
         }
@@ -735,12 +755,233 @@ TEST_P(PreprocessConversionTest, Infer) {
         auto outMem = outBlob->cbuffer();
         auto desc = outBlob->getTensorDesc();
 
-        if (oPrecision == InferenceEngine::Precision::FP32) {
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
             const auto* outData = outMem.as<const float *>();
             ASSERT_EQ(inBlob->size(), outBlob->size());
             for (size_t i = 0; i < inBlob->size(); i++)
                 ASSERT_EQ(i, outData[desc.offset(i)]) << i;
-        } else if (oPrecision == InferenceEngine::Precision::U8) {
+        } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
+            const auto* outData = outMem.as<const std::uint8_t *>();
+            ASSERT_EQ(inBlob->size(), outBlob->size());
+            for (size_t i = 0; i < inBlob->size(); i++)
+                ASSERT_EQ(i, outData[desc.offset(i)]) << i;
+        } else {
+            ASSERT_TRUE(false);
+        }
+    }
+}
+
+typedef std::tuple<
+        InferenceEngine::Precision,         // Network precision
+        bool,                               // Change input precision
+        bool,                               // Change output precision
+        InferenceEngine::Layout,            // Network layout - always NCHW
+        bool,                               // Change input layout
+        bool,                               // Change output layout
+        bool,                               // SetBlob or GetBlob for input blob
+        bool,                               // SetBlob or GetBlob for output blob
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> PreprocessSetBlobCheckParams;
+
+class PreprocessDynamicallyInSetBlobTest : public testing::WithParamInterface<PreprocessSetBlobCheckParams>,
+                                   public CommonTestUtils::TestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<PreprocessSetBlobCheckParams> obj) {
+        InferenceEngine::Precision netPrecision;
+        InferenceEngine::Layout netLayout;
+        bool changeIPrecision, changeOPrecision;
+        bool changeILayout, changeOLayout;
+        bool setInputBlob, setOutputBlob;
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(netPrecision, changeIPrecision, changeOPrecision,
+                 netLayout, changeILayout, changeOLayout,
+                 setInputBlob, setOutputBlob,
+                 targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "iPRC=" << changeIPrecision << "_";
+        result << "oPRC=" << changeOPrecision << "_";
+        result << "netLT=" << netLayout << "_";
+        result << "iLT=" << changeILayout << "_";
+        result << "oLT=" << changeOLayout << "_";
+        result << "setIBlob=" << setInputBlob << "_";
+        result << "setOBlob=" << setOutputBlob << "_";
+        result << "targetDevice=" << targetDevice;
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
+
+    InferenceEngine::Layout getOppositeLayout(InferenceEngine::Layout l) {
+        if (InferenceEngine::Layout::NCHW == l) {
+            return InferenceEngine::Layout::NHWC;
+        } else if (InferenceEngine::Layout::NHWC == l) {
+            return InferenceEngine::Layout::NCHW;
+        }
+        return InferenceEngine::Layout::ANY;
+    }
+
+    InferenceEngine::Precision getOppositePrecision(InferenceEngine::Precision p) {
+        if (InferenceEngine::Precision::U8 == p) {
+            return InferenceEngine::Precision::FP32;
+        } else if (InferenceEngine::Precision::FP32 == p) {
+            return InferenceEngine::Precision::U8;
+        }
+        return InferenceEngine::Precision::UNSPECIFIED;
+    }
+
+    void SetUp()  override {
+        std::tie(netPrecision, changeIPrecision, changeOPrecision,
+                 netLayout, changeILayout, changeOLayout,
+                 setInputBlob, setOutputBlob,
+                 targetDevice, configuration) = this->GetParam();
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+    }
+
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    InferenceEngine::Precision netPrecision;
+    bool changeIPrecision, changeOPrecision;
+    InferenceEngine::Layout netLayout;
+    bool changeILayout, changeOLayout;
+    bool setInputBlob, setOutputBlob;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
+};
+
+TEST_P(PreprocessDynamicallyInSetBlobTest, Infer) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    unsigned int shape_size = 9, channels = 3, batch = 1;
+    {
+        ngraph::PartialShape shape({batch, channels, shape_size, shape_size});
+        ngraph::element::Type type(InferenceEngine::details::convertPrecision(netPrecision));
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    auto req = execNet.CreateInferRequest();
+    InferenceEngine::Blob::Ptr inBlob = nullptr, outBlob = nullptr;
+
+    // create input blob
+
+    auto recreateInputBlob = [&] (InferenceEngine::Blob::Ptr & _inBlob) {
+        auto desc = cnnNet.getInputsInfo().begin()->second->getTensorDesc();
+        desc = InferenceEngine::TensorDesc(
+            changeIPrecision ? getOppositePrecision(desc.getPrecision()) : desc.getPrecision(),
+            desc.getDims(),
+            changeILayout ? getOppositeLayout(desc.getLayout()) : desc.getLayout());
+        auto tempBlob = make_blob_with_precision(desc);
+        tempBlob->allocate();
+
+        _inBlob = std::move(tempBlob);
+    };
+
+    if (setInputBlob) {
+        recreateInputBlob(inBlob);
+        if (changeIPrecision) {
+            EXPECT_THROW(req.SetBlob("param", inBlob), InferenceEngine::ParameterMismatch);
+            // fallback
+            inBlob = req.GetBlob("param");
+        } else {
+            EXPECT_NO_THROW(req.SetBlob("param", inBlob));
+        }
+    } else {
+        inBlob = req.GetBlob("param");
+        recreateInputBlob(inBlob);
+    }
+
+    // Fill input
+    {
+        auto lockedMem = inBlob->buffer();
+        auto desc = inBlob->getTensorDesc();
+
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
+            auto *inData = lockedMem.as<float*>();
+            for (size_t i = 0; i < inBlob->size(); i++)
+                inData[desc.offset(i)] = static_cast<float>(i);
+        } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
+            auto *inData = lockedMem.as<std::uint8_t*>();
+            for (size_t i = 0; i < inBlob->size(); i++)
+                inData[desc.offset(i)] = static_cast<std::uint8_t>(i);
+        } else {
+            ASSERT_TRUE(false);
+        }
+    }
+
+    // create output blob
+
+    auto recreateOutputBlob = [&] (InferenceEngine::Blob::Ptr & _outBlob) {
+        auto desc = cnnNet.getOutputsInfo().begin()->second->getTensorDesc();
+        desc = InferenceEngine::TensorDesc(
+            changeOPrecision ? getOppositePrecision(desc.getPrecision()) : desc.getPrecision(),
+            desc.getDims(),
+            changeOLayout ? getOppositeLayout(desc.getLayout()) : desc.getLayout());
+        auto tempBlob = make_blob_with_precision(desc);
+        tempBlob->allocate();
+
+        _outBlob = std::move(tempBlob);
+    };
+
+    if (setOutputBlob) {
+        recreateOutputBlob(outBlob);
+        if (changeOPrecision) {
+            ASSERT_THROW(req.SetBlob("relu", outBlob), InferenceEngine::ParameterMismatch);
+            // fallback
+            outBlob = req.GetBlob("relu");
+        } else {
+            ASSERT_NO_THROW(req.SetBlob("relu", outBlob));
+        }
+    } else {
+        outBlob = req.GetBlob("relu");
+        recreateOutputBlob(outBlob);
+    }
+
+    if (setOutputBlob && setInputBlob) {
+        ASSERT_NO_THROW(req.Infer());
+    } else {
+        // TODO: if blob from GetBlob is re-created, no checks are performed
+        // should be "GetBlob re-creation error mismatch"
+        // EXPECT_THROW(req.Infer(), InferenceEngine::Exception);
+
+        ASSERT_NO_THROW(req.Infer());
+    }
+
+    // Check output
+    {
+        auto outMem = outBlob->cbuffer();
+        auto desc = outBlob->getTensorDesc();
+
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
+            const auto* outData = outMem.as<const float *>();
+            ASSERT_EQ(inBlob->size(), outBlob->size());
+            for (size_t i = 0; i < inBlob->size(); i++)
+                ASSERT_EQ(i, outData[desc.offset(i)]) << i;
+        } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
             const auto* outData = outMem.as<const std::uint8_t *>();
             ASSERT_EQ(inBlob->size(), outBlob->size());
             for (size_t i = 0; i < inBlob->size(); i++)

@@ -62,7 +62,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
 
     auto finalKernelName = GetKernelName(orgParams);
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

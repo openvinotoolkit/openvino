@@ -83,14 +83,20 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<DequantizationMultiply>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(parent, splitedMul[i]);
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 
         lastNodes.push_back(multiply);
         replacement.push_back(multiply);
     }
 
-    replace_node(split, replacement);
+    for (size_t i = 0ul; i < newSplit->get_output_size(); ++i) {
+        for (auto input : split->output(i).get_target_inputs()) {
+            input.replace_source_output(replacement[i]);
+        }
+    }
+
     updateOutputs(context, lastNodes, newSplit);
     return true;
 }
@@ -105,15 +111,13 @@ void SplitTransformation::updateOutputs(
         updateOutput(context, lastNodes[0], originalNode);
     } else {
         const std::string originalName = originalNode->get_friendly_name();
-        for (auto& lastNode : lastNodes) {
+        for (size_t outIdx = 0; outIdx < lastNodes.size(); ++outIdx) {
             for (size_t i = 0; i < outputSize; ++i) {
                 std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
                 std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
-                if (outputNode.get() == lastNode.get()) {
-                    std::ostringstream oss;
-                    oss << i;
+                if (outputNode.get() == lastNodes[outIdx].get()) {
                     originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-                    lastNode->set_friendly_name(originalName + "." + oss.str());
+                    lastNodes[outIdx]->set_friendly_name(originalName + "." + std::to_string(outIdx));
                     break;
                 }
             }
@@ -126,7 +130,20 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer).empty()) && LayerTransformation::canBeTransformed(context, layer);
+    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer).empty()) {
+        return false;
+    }
+
+    const auto consumers = NetworkHelper::consumers(layer);
+    const auto concat = as_type_ptr<opset1::Concat>(consumers[0]);
+
+    // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
+    if (concat && concat->get_axis() != 1ul) {
+        const size_t id = consumers[0]->get_instance_id();
+        return std::any_of(consumers.begin(), consumers.end(), [&](const std::shared_ptr<Node>& node) { return node->get_instance_id() != id; });
+    }
+
+    return true;
 }
 
 } // namespace low_precision

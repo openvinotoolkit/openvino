@@ -13,8 +13,6 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include <legacy/ie_util_internal.hpp>
-
 using namespace InferenceEngine;
 using namespace ngraph;
 
@@ -105,7 +103,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
 
 std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShapes,
+    const ngraph::PartialShape& inputShapes,
     const std::string& targetDevice,
     const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;

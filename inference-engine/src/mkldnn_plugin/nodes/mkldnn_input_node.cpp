@@ -3,29 +3,371 @@
 //
 
 #include "mkldnn_input_node.h"
-#include "../mkldnn_extension_utils.h"
+#include "common/cpu_memcpy.h"
+#include "mkldnn_extension_utils.h"
+
 #include <string>
 #include <tuple>
 #include <algorithm>
+#include <cmath>
+#include <utils/general_utils.h>
+#include <ngraph/ops.hpp>
+#include <ie_parallel.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <blob_factory.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 #include "common/cpu_convert.h"
+#include "utils/cpu_utils.hpp"
+#include <cpu/x64/jit_generator.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
-using namespace InferenceEngine::details;
+using namespace InferenceEngine;
+using namespace details;
+using namespace ngraph::op;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
 
-MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
-    constant = ConstantType::NoConst;
-    if (layer && CaselessEq<std::string>()(layer->type, "const")) {
-        constant = ConstantType::Const;
-        if (layer->blobs.size() != 1 || getType() != Input || !layer->blobs.begin()->second)
-            IE_THROW() << "Incorrect const input " << getName();
-        constBlob = layer->blobs.begin()->second;
-    } else {
-        constBlob = nullptr;
+namespace {
+
+struct jit_has_subnormals_base : public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
+
+    typedef struct {
+        const float* src;
+        const size_t count;
+        bool hasSubnormals;
+    } args_t;
+
+    typedef void (*fn_t)(const args_t*);
+
+    jit_has_subnormals_base() {
+        jit_ker_ = nullptr;
     }
+
+    fn_t get() {
+        return jit_ker() || create_kernel() == dnnl::impl::status::success
+                ? (fn_t)jit_ker()
+                : nullptr;
+    }
+
+protected:
+    void foreach(const Xbyak::Reg64& idx,
+                 size_t step,
+                 const Xbyak::Reg64& end,
+                 std::function<void(const Xbyak::Reg64&)> && fn) {
+        Label loop, exit;
+
+        L(loop);
+        cmp(idx, end);
+        jge(exit);
+
+        fn(idx);
+
+        add(idx, step);
+        jmp(loop);
+        L(exit);
+    }
+
+    void copy_floats(const Xbyak::Reg64& dst,
+                     const Xbyak::Reg64& src,
+                     const Xbyak::Reg64& size) {
+        push(rsi);
+        push(r15);
+
+        xor_(rsi, rsi);
+
+        foreach(rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+            mov(r15d, dword[src + idx * sizeof(float)]);
+            mov(dword[dst + idx * sizeof(float)], r15d);
+        });
+
+        pop(r15);
+        pop(rsi);
+    }
+
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Ymm &mask, const Xbyak::Ymm &zero) {
+        auto a = ymm1;
+        auto b = ymm2;
+        auto c = ymm3;
+
+        vmovdqu(a, yword[src]);         // load 8 floats
+        vpcmpeqd(b, a, zero);           // if (a == 0) b = 1 else b = 0
+        vpand(c, a, mask);              // c = a & 01111111100000000000000000000000
+        vpcmpeqd(c, c, zero);           // if (c == 0) c = 1 else c = 0
+        vptest(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
+    }
+
+    void check_subnormals(const Xbyak::Reg64& src, const Xbyak::Xmm &mask, const Xbyak::Xmm &zero) {
+        auto a = xmm1;
+        auto b = xmm2;
+        auto c = xmm3;
+
+        movdqu(a, xword[src]);          // load 4 floats
+        movdqu(b, a);                   // b = a
+        movdqu(c, a);                   // c = a
+        pcmpeqd(b, zero);               // if (a == 0) b = 1 else b = 0
+        pand(c, mask);                  // c = a & 01111111100000000000000000000000
+        pcmpeqd(c, zero);               // if (c == 0) c = 1 else c = 0
+        ptest(b, c);                    // if ((!b & c) == 0) CF = 1 else CF = 0
+    }
+
+    template<cpu_isa_t isa>
+    struct reg;
+
+protected:
+    Label exit, has_subnormals, no_subnormals;
+
+    const Reg64 &reg_src = rax;
+    const Reg64 &reg_dst = rbx;
+    const Reg64 &reg_sz = rdx;
+    const Reg64 &reg_idx = rsi;
+    const Reg64 &reg_mask_addr = r15;
+
+    static const uint32_t mask_data[8];
+};
+
+const uint32_t jit_has_subnormals_base::mask_data[8] = {
+    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23,
+    0xFF << 23, 0xFF << 23, 0xFF << 23, 0xFF << 23
+};
+
+template<>
+struct jit_has_subnormals_base::reg<cpu_isa_t::avx2> {
+    constexpr static uint32_t length = 8;
+    constexpr static const Xbyak::Ymm & rmm4 = Xbyak::util::ymm4;
+    constexpr static const Xbyak::Ymm & rmm5 = Xbyak::util::ymm5;
+};
+
+template<>
+struct jit_has_subnormals_base::reg<cpu_isa_t::sse41> {
+    constexpr static uint32_t length = 4;
+    constexpr static const Xbyak::Xmm & rmm4 = Xbyak::util::xmm4;
+    constexpr static const Xbyak::Xmm & rmm5 = Xbyak::util::xmm5;
+};
+
+template<cpu_isa_t isa>
+struct jit_has_subnormals : public jit_has_subnormals_base {
+    void generate() final {
+        size_t const vlen = reg<isa>::length;
+        const int sh_bits = std::ilogb(vlen);
+
+        auto zero = reg<isa>::rmm4;
+        auto mask = reg<isa>::rmm5;
+
+        preamble();
+
+        // Get arguments addresses
+        mov(reg_src, ptr[param1 + offsetof(args_t, src)]);
+        lea(reg_dst, ptr[param1 + offsetof(args_t, hasSubnormals)]);
+        mov(reg_sz, ptr[param1 + offsetof(args_t, count)]);
+        mov(reg_mask_addr, (size_t)mask_data);
+
+        // Initialize necessary consts
+        uni_vpxor(zero, zero, zero);
+        uni_vmovdqu(mask, ptr[reg_mask_addr]);
+
+        // Main loop
+        xor_(reg_idx, reg_idx);
+        mov(r8, reg_sz);
+        shr(r8, sh_bits);
+
+        foreach(reg_idx, 1, r8, [&, this](const Xbyak::Reg64& idx) {
+            check_subnormals(reg_src, mask, zero);
+            jnc(has_subnormals);
+            add(reg_src, sizeof(float) * vlen);
+        });
+
+        // Tail
+        shl(reg_idx, sh_bits);
+        sub(reg_sz, reg_idx);
+        test(reg_sz, reg_sz);
+        jz(exit);
+
+        // use space on stack for 4 or 8 floats
+        sub(rsp, vlen * sizeof(float));
+        mov(r8, rsp);
+
+        uni_vmovdqu(ptr[r8], zero);
+
+        copy_floats(r8, reg_src, reg_sz);
+        check_subnormals(r8, mask, zero);
+        jc(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(has_subnormals);
+
+        mov(rax, 1);
+        mov(byte[reg_dst], al);
+        jmp(exit);
+
+        L(no_subnormals);
+        add(rsp, vlen * sizeof(float));
+
+        L(exit);
+
+        postamble();
+    }
+};
+
+jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
+    if (mayiuse(cpu_isa_t::avx2)) {
+        static jit_has_subnormals<cpu_isa_t::avx2> generator;
+        static auto fn = generator.get();
+        return fn;
+    } else if (mayiuse(cpu_isa_t::sse41)) {
+        static jit_has_subnormals<cpu_isa_t::sse41> generator;
+        static auto fn = generator.get();
+        return fn;
+    }
+    return nullptr;
+}
+
+}   // namespace
+
+MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    if (!one_of(op->get_type_info(),
+            v0::Parameter::type_info,
+            v0::Constant::type_info,
+            v0::Result::type_info,
+            v3::ReadValue::type_info,
+            v6::ReadValue::type_info))
+        IE_THROW(NotImplemented) << "CPU Input node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+
+    constant = ConstantType::NoConst;
+
+    constOp = ngraph::as_type_ptr<ngraph::op::Constant>(op);
+    if (constOp) {
+        constant = ConstantType::Const;
+        cloneBlobIfRequired();
+     }
+}
+
+void MKLDNNInputNode::cloneBlobIfRequired() {
+    MKLDNNDims dims(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
+    const auto prec = convertPrecision(constOp->get_element_type());
+    const size_t size = dims.size();
+    MKLDNNMemoryDesc memDesc(dims, MKLDNNExtensionUtils::IEPrecisionToDataType(prec));
+
+    auto cloneBlob = [&, this] () {
+        MKLDNNMemory memory{ getEngine() };
+        memory.Create(memDesc, constOp->get_data_ptr());
+
+        MKLDNNMemoryPtr ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        ptr->Create(memDesc);
+        ptr->SetData(memory);
+
+        return ptr;
+    };
+
+    auto isBlobAligned = [&, this] () {
+        const void *ptr = constOp->get_data_ptr();
+        return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+    };
+
+    // The presence of subnormals is better to determined at IR read time.
+    auto hasSubnormals = [&, this] () {
+        if (prec == InferenceEngine::Precision::FP32) {
+            uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
+
+            if (!size)
+                return false;
+
+            if (auto fn = jit_has_subnormals_function()) {
+                static const size_t batch_size = 2048;
+                const size_t iterations_num = size / batch_size + 1;
+
+                volatile bool has_subnormals = false;
+
+                parallel_for(iterations_num, [&](int n) {
+                    auto ptr = u32data + n * batch_size;
+                    const jit_has_subnormals_base::args_t args = {
+                        reinterpret_cast<float const *>(ptr),
+                        std::min(batch_size, (size_t)(u32data + size - ptr)),
+                        false
+                    };
+
+                    fn(&args);
+
+                    if (args.hasSubnormals)
+                        has_subnormals = true;
+                });
+
+                return has_subnormals;
+            } else {
+                for (size_t i = 0; i < size; ++i) {
+                    if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
+    // WA for CVS-46304
+    auto isWA = [&, this] () {
+        auto outputs = constOp->outputs();
+        for (auto const output : outputs) {
+            auto node = output.get_node();
+            if (!node
+                || TypeFromName(node->get_type_name()) != Type::FullyConnected)
+                continue;
+            if (mayiuse(cpu_isa_t::avx512_common)) {
+                if (size % 16)
+                    return true;
+            } else if (mayiuse(cpu_isa_t::avx)) {
+                if (size % 8)
+                    return true;
+            } else if (mayiuse(cpu_isa_t::sse41)) {
+                if (size % 4)
+                    return true;
+            }
+        }
+        return false;
+    };
+
+    auto blobKey = [&, this] () {
+        char ptr[32];
+        snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
+        return getName()
+                + "_" + std::to_string(size * prec.size())
+                + "_" + ptr;
+    };
+
+    if (weightCache) {
+        MKLDNNMemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
+        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(ptr);
+    } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
+        auto ptr = new MKLDNNMemory(getEngine());
+        ptr->Create(memDesc, constOp->get_data_ptr());
+        memoryPtr = MKLDNNMemoryCPtr(ptr);
+    } else {
+        memoryPtr = std::const_pointer_cast<const MKLDNNMemory>(cloneBlob());
+    }
+}
+
+MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &prc, const std::string &name,
+                                 const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(type, name, eng, cache) {
+    constant = ConstantType::NoConst;
+    if (getType() == Input) {
+        outDims.emplace_back(dims);
+        addOriginalOutputPrecision(prc);
+    }  else if (getType() == Output) {
+        inDims.emplace_back(dims);
+        addOriginalInputPrecision(prc);
+    }
+}
+
+void MKLDNNInputNode::withMeanImage() {
+    isMeanImage = true;
+}
+
+MKLDNNMemoryCPtr MKLDNNInputNode::getMemoryPtr() const {
+    return memoryPtr;
 }
 
 void MKLDNNInputNode::getSupportedDescriptors() {
@@ -46,28 +388,38 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::LayerConfig config;
+    LayerConfig config;
     config.dynBatchSupport = true;
     if (getType() == Input || getType() == MemoryInput) {
-        precision = getCnnLayer()->outData[0]->getPrecision();
-        if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
-            precision = InferenceEngine::Precision::FP32;
+        precision = getOriginalOutputPrecisionAtPort(0);
+        if (precision == Precision::U16 || isMeanImage) {
+            precision = Precision::FP32;
         }
-        InferenceEngine::DataConfig dataConfig;
+        DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+        auto mem_tdesc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
         dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
+        // ReadValue operation expects constant input
+        if (!getParentEdges().empty()) {
+            DataConfig inConfig;
+            inConfig.inPlace = -1;
+            inConfig.constant = true;
+            inConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+            config.inConfs.push_back(inConfig);
+        }
     } else if (getType() == Output) {
-        precision = getCnnLayer()->insData[0].lock()->getPrecision();
-        if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
-        InferenceEngine::DataConfig dataConfig;
+        precision = getOriginalInputPrecisionAtPort(0);
+        if (precision == Precision::U16) precision = Precision::FP32;
+        DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+        auto mem_tdesc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
         dataConfig.desc = mem_tdesc;
         config.inConfs.push_back(dataConfig);
     }
@@ -95,79 +447,6 @@ void MKLDNNInputNode::createPrimitive() {
 
 bool MKLDNNInputNode::created() const {
     return getType() == Input || getType() == Output;
-}
-
-namespace {
-    bool isDefaultOrder(const InferenceEngine::SizeVector &order) {
-        return std::is_sorted(order.begin(), order.end(),
-                                [](size_t a, size_t b) { return a + 1 == b; });
-    }
-
-    std::tuple<bool, size_t> isDefaultStrides(const InferenceEngine::SizeVector &strides,
-                                              const InferenceEngine::SizeVector &dims) {
-        if (strides.size() != dims.size())
-            return std::make_tuple(false, 0);
-
-        size_t dim = 1;
-
-        for (size_t i = dims.size(); i-- > 0;) {
-            if (strides[i] != dim)
-                return std::make_tuple(false, 0);
-            dim *= dims[i];
-        }
-
-        return std::make_tuple(true, dim);
-    }
-
-    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs,
-                             bool isNeedPrecValid = true) {
-        auto const &lhsBlockingDesc = lhs.getBlockingDesc();
-        auto const &rhsBlockingDesc = rhs.getBlockingDesc();
-
-        bool lhsDefaultStrides = false, rhsDefaultStrides = false;
-        size_t lhsSize = 0lu, rhsSize = 0lu;
-
-        std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
-        std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());
-        bool isCompatTensors = lhsSize == rhsSize
-                               && lhsDefaultStrides
-                               && rhsDefaultStrides
-                               && isDefaultOrder(lhsBlockingDesc.getOrder())
-                               && isDefaultOrder(rhsBlockingDesc.getOrder());
-
-        return (isNeedPrecValid ? lhs.getPrecision() == rhs.getPrecision() : true) && isCompatTensors;
-    }
-}   // namespace
-
-void MKLDNNInputNode::execute(mkldnn::stream strm) {
-    if (!constBlob)
-        return;
-    auto dstBlob = getChildEdgeAt(0)->getBlob();
-
-    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
-        || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
-               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
-        size_t dstSize = dstBlob->size() / 8;
-        if (constBlob->size() != dstSize) {
-            IE_THROW() << "Incorrect blob sizes for node " << getName();
-        }
-
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() != dstBlob->getTensorDesc().getPrecision() &&
-               isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc(), false)) {
-        cpu_convert(constBlob->cbuffer().as<const void *>(), dstBlob->buffer().as<void *>(),
-                    constBlob->getTensorDesc().getPrecision(), dstBlob->getTensorDesc().getPrecision(), dstBlob->size());
-    } else {
-        IE_THROW() << "Input node with name: '" << getName() << "' has incompatible tensors";
-    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);

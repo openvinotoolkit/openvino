@@ -121,17 +121,19 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["ADD_1"] = "FP32";
+        expectedPrecisions["ADD_1"] = "ndef";
         expectedPrecisions["CONV_1"] = "BF16";
         expectedPrecisions["ELT_1"] = "ndef";
     }
 };
 
 TEST_P(ScaleshiftConvEltwiseScaleshift, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseScaleshift,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseScaleshift,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -140,7 +142,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ScaleshiftConvEltwiseScal
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ScaleshiftConvEltwiseScaleshift::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ScaleshiftConvEltwiseScaleshift,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, ScaleshiftConvEltwiseScaleshift,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

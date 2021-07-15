@@ -9,11 +9,10 @@
 #include <limits>
 #include <cstdint>
 #include <algorithm>
-#include "backend/gna_types.h"
 
 #ifdef _NO_MKL_
 #include <cmath>
-#include <backend/make_pwl.hpp>
+#include "backend/make_pwl.hpp"
 
 #define SCOPY(num, in, inci, out, inco) for (int i_ = 0; i_ < *(num); i_++) *(out + i_ * *(inco)) = *(in + i_ * *(inci));
 #define SSCAL(num, scale, inout, inco)  for (int i_ = 0; i_ < *(num); i_++) *(inout + i_ * *(inco)) = *(scale) * *(inout + i_ * *(inco));
@@ -27,7 +26,6 @@
 
 #include "pwl.h"
 #include "gna_plugin_log.hpp"
-#include "backend/dnn_types.h"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
 

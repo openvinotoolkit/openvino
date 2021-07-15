@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
-#include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
@@ -27,8 +26,8 @@ namespace ngraph
             class NGRAPH_API SpaceToBatch : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"SpaceToBatch", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 SpaceToBatch() = default;
 
                 /// \brief Constructs a SpaceToBatch operation.
@@ -51,6 +50,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 bool evaluate_space_to_batch(const HostTensorVector& outputs,

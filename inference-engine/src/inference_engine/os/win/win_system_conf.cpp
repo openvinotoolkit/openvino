@@ -10,10 +10,10 @@
 #include <memory>
 #include <vector>
 #include "ie_system_conf.h"
-#include "ie_parallel.hpp"
+#include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
-int getNumberOfCPUCores() {
+int getNumberOfCPUCores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
     // querying the size of the resulting structure, passing the nullptr for the buffer
@@ -32,12 +32,21 @@ int getNumberOfCPUCores() {
         offset += reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get() + offset)->Size;
         phys_cores++;
     } while (offset < sz);
+
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    auto core_types = custom::info::core_types();
+    if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
+        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
+                                                               .set_core_type(core_types.back())
+                                                               .set_max_threads_per_core(1));
+    }
+    #endif
     return phys_cores;
 }
 
 #if !(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
 // OMP/SEQ threading on the Windows doesn't support NUMA
-std::vector<int> getAvailableNUMANodes() { return std::vector<int>(1, 0); }
+std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 
 }  // namespace InferenceEngine

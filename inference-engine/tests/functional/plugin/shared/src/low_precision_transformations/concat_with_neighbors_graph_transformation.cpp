@@ -18,7 +18,7 @@ namespace LayerTestsDefinitions {
 
 std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShapes;
+    ngraph::PartialShape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, inputShapes, targetDevice, params) = obj.param;
@@ -28,7 +28,7 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::Tes
 
 InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
@@ -43,7 +43,7 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
 void ConcatWithNeighborsGraphTransformation::SetUp() {
     threshold = 2.e-2;
     ngraph::element::Type ngPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
 
@@ -52,14 +52,16 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
         inputShape,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} },
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} });
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} },
+        "concat",
+        "");
 
     validate();
 }
 
 void ConcatWithNeighborsGraphTransformation::validate() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();

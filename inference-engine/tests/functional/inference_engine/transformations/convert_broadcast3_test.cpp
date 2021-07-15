@@ -223,7 +223,7 @@ TEST_P(ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest, CompareFunctions) {
     convert_broadcast3_test(f, f_ref);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertBroadcast3NUMPY, ConvertBroadcast3NUMPYTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3NUMPY, ConvertBroadcast3NUMPYTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{1, 2, 3, 4, 5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{8, 3, 64, 64, 64}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{2, 3, 64, 64, 64}),
@@ -241,7 +241,7 @@ INSTANTIATE_TEST_CASE_P(ConvertBroadcast3NUMPY, ConvertBroadcast3NUMPYTest,
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{2, 3, 9}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{3, 3, 3})));
 
-INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTMulTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTMulTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{1, 2, 3, 4, 5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{1, 3, 64, 64, 64}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{2, 1, 64, 64, 64}),
@@ -261,7 +261,7 @@ INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTMulT
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{2, 1, 9}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{3, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{2, 2, 3, 4, 5},    TargetShape{2, 2, 3, 4, 5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{3, 3, 64, 64, 64}, TargetShape{3, 3, 64, 64, 64}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{2, 3, 64, 64, 1},  TargetShape{2, 3, 64, 64, 64}),
@@ -280,7 +280,7 @@ INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroa
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{2, 2, 1},       TargetShape{2, 2, 9}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{3},             TargetShape{3, 3, 3})));
 
-INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastMultiplyTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastMultiplyTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{4}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{3}),
@@ -296,7 +296,7 @@ INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroa
                         std::make_tuple(InputShape{2, DYN, 9},          TargetShape{3}),
                         std::make_tuple(InputShape{3, 3, DYN},          TargetShape{2})));
 
-INSTANTIATE_TEST_CASE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest,
+INSTANTIATE_TEST_SUITE_P(ConvertBroadcast3BIDIRECT, ConvertBroadcast3BIDIRECTBroadcastLogicalOrTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, TargetShape{5}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64},      TargetShape{4}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64},      TargetShape{3}),
