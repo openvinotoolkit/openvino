@@ -72,13 +72,13 @@ namespace ngraph
 
                 for (const auto& var : block.vars())
                 {
-                    m_var_places[var.name()] = std::make_shared<TensorPlacePDPD>(m_input_model, var);
+                    m_var_places[var.name()] =
+                        std::make_shared<TensorPlacePDPD>(m_input_model, var);
                 }
 
                 for (const auto& op : block.ops())
                 {
-                    auto op_place =
-                        std::make_shared<OpPlacePDPD>(m_input_model, op);
+                    auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, op);
                     m_op_places.push_back(op_place);
 
                     for (const auto& output : op.outputs())
