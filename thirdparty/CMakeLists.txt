@@ -131,10 +131,10 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
     set(USE_STATIC_PROTOBUF OFF)
     set(BUILD_SHARED_LIBS ON)
 
-    if(NOT NGRAPH_USE_SYSTEM_PROTOBUF)
-        add_subdirectory(protobuf)
-    else()
+    if(NGRAPH_USE_SYSTEM_PROTOBUF)
         find_package(Protobuf REQUIRED)
+    else()
+        add_subdirectory(protobuf)
     endif()
 
     set(BUILD_SHARED_LIBS ${BEFORE_PROTOBUF_BUILD_SHARED_LIBS})
