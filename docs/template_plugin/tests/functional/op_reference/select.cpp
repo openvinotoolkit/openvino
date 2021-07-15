@@ -17,26 +17,26 @@ using namespace InferenceEngine;
 
 struct SelectParams {
     template <class IT, class OT>
-    SelectParams(const ngraph::element::Type& data_type, const ngraph::op::AutoBroadcastSpec& broadcast, const ngraph::PartialShape& select_input_pshape,
-                 const std::vector<char>& select_input, const ngraph::PartialShape& if_input_pshape, const std::vector<IT>& if_input,
-                 const ngraph::PartialShape& else_input_pshape, const std::vector<IT>& else_input, const std::vector<OT>& expected_output)
+    SelectParams(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast, const PartialShape& select_input_pshape,
+                 const std::vector<char>& select_input, const PartialShape& if_input_pshape, const std::vector<IT>& if_input,
+                 const PartialShape& else_input_pshape, const std::vector<IT>& else_input, const std::vector<OT>& expected_output)
         : data_type(data_type),
           broadcast(broadcast),
           select_input_pshape(select_input_pshape),
-          select_input(CreateBlob(ngraph::element::boolean, select_input)),
+          select_input(CreateBlob(element::boolean, select_input)),
           if_input_pshape(if_input_pshape),
           if_input(CreateBlob(data_type, if_input)),
           else_input_pshape(else_input_pshape),
           else_input(CreateBlob(data_type, else_input)),
           expected_output(CreateBlob(data_type, expected_output)) {}
 
-    ngraph::element::Type data_type;
-    ngraph::op::AutoBroadcastSpec broadcast;
-    ngraph::PartialShape select_input_pshape;
+    element::Type data_type;
+    op::AutoBroadcastSpec broadcast;
+    PartialShape select_input_pshape;
     InferenceEngine::Blob::Ptr select_input;
-    ngraph::PartialShape if_input_pshape;
+    PartialShape if_input_pshape;
     InferenceEngine::Blob::Ptr if_input;
-    ngraph::PartialShape else_input_pshape;
+    PartialShape else_input_pshape;
     InferenceEngine::Blob::Ptr else_input;
     InferenceEngine::Blob::Ptr expected_output;
 };
@@ -61,7 +61,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const ngraph::element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
+    static std::shared_ptr<Function> CreateFunction(const element::Type& data_type, const op::AutoBroadcastSpec& broadcast,
                                                     const PartialShape& select_pshape, const PartialShape& if_pshape, const PartialShape& else_pshape) {
         auto A = std::make_shared<op::Parameter>(element::boolean, select_pshape);
         auto B = std::make_shared<op::Parameter>(data_type, if_pshape);
@@ -78,62 +78,62 @@ INSTANTIATE_TEST_SUITE_P(smoke_Select_With_Hardcoded_Refs, ReferenceSelectLayerT
                          ::testing::Values(
                              // fp32, no brodcasting
                              SelectParams(element::f32,                                         // if/else/output data type
-                                          ngraph::op::AutoBroadcastType::NONE,                  // broadcasting type
-                                          ngraph::PartialShape {2, 2, 2},                       // select shape
+                                          op::AutoBroadcastType::NONE,                  // broadcasting type
+                                          PartialShape {2, 2, 2},                       // select shape
                                           std::vector<char> {0, 1, 1, 0, 0, 1, 0, 1},           // select data
-                                          ngraph::PartialShape {2, 2, 2},                       // if shape
+                                          PartialShape {2, 2, 2},                       // if shape
                                           std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},          // if data
-                                          ngraph::PartialShape {2, 2, 2},                       // else shape
+                                          PartialShape {2, 2, 2},                       // else shape
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 6, 17, 8}),     // expected output data
                              // i32, no brodcasting
                              SelectParams(element::i32,                                         // if/else/output data type
-                                          ngraph::op::AutoBroadcastType::NONE,                  // broadcasting type
-                                          ngraph::PartialShape {2, 2, 2},                       // select shape
+                                          op::AutoBroadcastType::NONE,                  // broadcasting type
+                                          PartialShape {2, 2, 2},                       // select shape
                                           std::vector<char> {0, 1, 1, 0, 0, 1, 0, 1},           // select data
-                                          ngraph::PartialShape {2, 2, 2},                       // if shape
+                                          PartialShape {2, 2, 2},                       // if shape
                                           std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},          // if data
-                                          ngraph::PartialShape {2, 2, 2},                       // else shape
+                                          PartialShape {2, 2, 2},                       // else shape
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 6, 17, 8}),     // expected output data
                              // fp32, numpy brodcasting
                              SelectParams(element::f32,                                         // if/else/output data type
-                                          ngraph::op::AutoBroadcastType::NUMPY,                 // broadcasting type
-                                          ngraph::PartialShape {4},                             // select shape
+                                          op::AutoBroadcastType::NUMPY,                 // broadcasting type
+                                          PartialShape {4},                             // select shape
                                           std::vector<char> {0, 1, 1, 0},                       // select data
-                                          ngraph::PartialShape {4},                             // if shape
+                                          PartialShape {4},                             // if shape
                                           std::vector<float> {1, 2, 3, 4},                      // if data
-                                          ngraph::PartialShape {2, 4},                          // else shape
+                                          PartialShape {2, 4},                          // else shape
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 2, 3, 18}),     // expected output data
                              // i32, numpy brodcasting
                              SelectParams(element::i32,                                         // if/else/output data type
-                                          ngraph::op::AutoBroadcastType::NUMPY,                 // broadcasting type
-                                          ngraph::PartialShape {4},                             // select shape
+                                          op::AutoBroadcastType::NUMPY,                 // broadcasting type
+                                          PartialShape {4},                             // select shape
                                           std::vector<char> {0, 1, 1, 0},                       // select data
-                                          ngraph::PartialShape {4},                             // if shape
+                                          PartialShape {4},                             // if shape
                                           std::vector<float> {1, 2, 3, 4},                      // if data
-                                          ngraph::PartialShape {2, 4},                          // else shape
+                                          PartialShape {2, 4},                          // else shape
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 2, 3, 18}),     // expected output data
                              // fp32, pdpd brodcasting
                              SelectParams(element::f32,                                       // if/else/output data type
                                           {op::AutoBroadcastType::PDPD, -1},                  // broadcasting type
-                                          ngraph::PartialShape {2, 4},                        // select shape
+                                          PartialShape {2, 4},                        // select shape
                                           std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},         // select data
-                                          ngraph::PartialShape {2, 4},                        // if shape
+                                          PartialShape {2, 4},                        // if shape
                                           std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},        // if data
-                                          ngraph::PartialShape {4},                           // else shape
+                                          PartialShape {4},                           // else shape
                                           std::vector<float> {11, 12, 13, 14},                // else data
                                           std::vector<float> {11, 12, 13, 14, 11, 6, 7, 8}),  // expected output data
                              // i32, pdpd brodcasting
                              SelectParams(element::i32,                                        // if/else/output data type
                                           {op::AutoBroadcastType::PDPD, -1},                   // broadcasting type
-                                          ngraph::PartialShape {2, 4},                         // select shape
+                                          PartialShape {2, 4},                         // select shape
                                           std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},          // select data
-                                          ngraph::PartialShape {2, 4},                         // if shape
+                                          PartialShape {2, 4},                         // if shape
                                           std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},         // if data
-                                          ngraph::PartialShape {4},                            // else shape
+                                          PartialShape {4},                            // else shape
                                           std::vector<float> {11, 12, 13, 14},                 // else data
                                           std::vector<float> {11, 12, 13, 14, 11, 6, 7, 8})),  // expected output data
                          ReferenceSelectLayerTest::getTestCaseName);
