@@ -82,7 +82,7 @@ Also the number outputs from *If* always must be greater than zero and equal to 
 
 *Example 1: a typical If structure*
 ```xml
-    <layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset7">
+    <layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset8">
         <input>
             <port id="0"/>
             <port id="1">
