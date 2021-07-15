@@ -45,7 +45,7 @@ For `tanh` approximation mode, *Gelu* function is represented as:
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

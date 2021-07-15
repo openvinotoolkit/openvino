@@ -63,10 +63,10 @@ Where
     <input>
         <port id="0">       <!-- data -->
             <dim>10</dim>   <!-- batch -->
-            <dim>2</dim>    <!-- spatial dimension 1 -->   
+            <dim>2</dim>    <!-- spatial dimension 1 -->
         </port>
         <port id="1">       <!-- block_shape value: [1, 5] -->
-            <dim>2</dim>  
+            <dim>2</dim>
         </port>
         <port id="2">       <!-- crops_begin value: [0, 2] -->
             <dim>2</dim>
@@ -76,7 +76,7 @@ Where
         </port>
     </input>
     <output>
-        <port id="3">      
+        <port id="3">
             <dim>2</dim>    <!-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1]) -->
             <dim>8</dim>    <!-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
         </port>
@@ -91,13 +91,13 @@ Where
     <input>
         <port id="0">       <!-- data -->
             <dim>48</dim>   <!-- batch -->
-            <dim>3</dim>    <!-- spatial dimension 1 -->   
+            <dim>3</dim>    <!-- spatial dimension 1 -->
             <dim>3</dim>    <!-- spatial dimension 2 -->
             <dim>1</dim>    <!-- spatial dimension 3 -->
             <dim>3</dim>    <!-- spatial dimension 4 -->
         </port>
         <port id="1">       <!-- block_shape value: [1, 2, 4, 3, 1] -->
-            <dim>5</dim>  
+            <dim>5</dim>
         </port>
         <port id="2">       <!-- crops_begin value: [0, 0, 1, 0, 0] -->
             <dim>5</dim>
@@ -107,7 +107,7 @@ Where
         </port>
     </input>
     <output>
-        <port id="3">      
+        <port id="3">
             <dim>2</dim>    <!-- data.shape[0] / (block_shape.shape[0] * block_shape.shape[1] * ... * block_shape.shape[4]) -->
             <dim>6</dim>    <!-- data.shape[1] * block_shape.shape[1] - crops_begin[1] - crops_end[1]-->
             <dim>10</dim>   <!-- data.shape[2] * block_shape.shape[2] - crops_begin[2] - crops_end[2] -->

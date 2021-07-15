@@ -10,7 +10,7 @@
 
 **Inputs**:
 
-*   **1**: Arbitrary input tensor. Required.
+*   **1**: Arbitrary input tensor. **Required.**
 
 **Outputs**:
 

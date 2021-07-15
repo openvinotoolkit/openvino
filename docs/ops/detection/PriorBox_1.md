@@ -138,9 +138,9 @@
 
 **Inputs**:
 
-*   **1**: `output_size` - 1D tensor of type *T_INT* with two elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required**.
+*   **1**: `output_size` - 1D tensor of type *T_INT* with two elements `[height, width]`. Specifies the spatial size of generated grid with boxes. **Required.**
 
-*   **2**: `image_size` - 1D tensor of type *T_INT* with two elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Required**.
+*   **2**: `image_size` - 1D tensor of type *T_INT* with two elements `[image_height, image_width]` that specifies shape of the image for which boxes are generated. **Required.**
 
 **Outputs**:
 

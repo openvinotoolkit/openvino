@@ -20,7 +20,7 @@ sigmoid( x ) = \frac{1}{1+e^{-x}}
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of any floating point type. Required.
+*   **1**: Input tensor *x* of any floating point type. **Required.**
 
 **Outputs**:
 

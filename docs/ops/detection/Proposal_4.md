@@ -138,11 +138,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 **Inputs**:
 
-*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. **Required.**
 
-*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. **Required.**
 
-*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. **Required.**
 
 **Outputs**
 

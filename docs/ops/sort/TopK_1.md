@@ -35,11 +35,11 @@
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i32"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: Arbitrary tensor. Required.
+*   **1**: Arbitrary tensor. **Required.**
 
 *   **2**: *k* -- scalar specifies how many maximum/minimum elements should be computed
 

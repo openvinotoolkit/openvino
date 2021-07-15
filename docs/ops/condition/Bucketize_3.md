@@ -18,7 +18,7 @@ For example, if the first input tensor is `[[3, 50], [10, -1]]` and the second i
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 * *with_right_bound*
 
@@ -27,13 +27,13 @@ For example, if the first input tensor is `[[3, 50], [10, -1]]` and the second i
     * true - bucket includes the right interval edge
     * false - bucket includes the left interval edge
   * **Type**: `boolean`
-  * **Default value**: true 
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: N-D tensor of *T* type with elements for the bucketization. Required.
-*   **2**: 1-D tensor of *T_BOUNDARIES* type with sorted unique boundaries for buckets. Required.
+*   **1**: N-D tensor of *T* type with elements for the bucketization. **Required.**
+*   **2**: 1-D tensor of *T_BOUNDARIES* type with sorted unique boundaries for buckets. **Required.**
 
 **Outputs**:
 

@@ -35,7 +35,7 @@ For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

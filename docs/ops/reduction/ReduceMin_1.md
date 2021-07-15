@@ -17,7 +17,7 @@ where indices i0, ..., iN run through all valid indices for input `data`, and fi
 
 Particular cases:
 
-1. If `axes` is an empty list, *ReduceMin* corresponds to the identity operation. 
+1. If `axes` is an empty list, *ReduceMin* corresponds to the identity operation.
 2. If `axes` contains all dimensions of input `data`, a single reduction value is calculated for the entire input tensor.
 
 **Attributes**

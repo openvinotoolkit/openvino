@@ -31,17 +31,17 @@ but allows scattering for the arbitrary axis.
 
 **Inputs**:
 
-*   **1**: `data` tensor of arbitrary rank `r` and of type *T*. Required.
+*   **1**: `data` tensor of arbitrary rank `r` and of type *T*. **Required.**
 
 *   **2**: `indices` tensor with indices of type *T_IND*.
 All index values are expected to be within bounds `[0, s - 1]` along axis of size `s`. If multiple indices point to the
 same output location then the order of updating the values is undefined. If an index points to non-existing output
-tensor element or is negative then an exception is raised. Required.
+tensor element or is negative then an exception is raised. **Required.**
 
-*   **3**: `updates` tensor of type *T*. Required.
+*   **3**: `updates` tensor of type *T*. **Required.**
 
 *   **4**: `axis` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in range `[-r, r - 1]` where `r` is the rank of `data`. Required.
+The value can be in range `[-r, r - 1]` where `r` is the rank of `data`. **Required.**
 
 **Outputs**:
 

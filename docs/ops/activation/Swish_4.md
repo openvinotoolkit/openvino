@@ -22,9 +22,9 @@ where β corresponds to `beta` scalar input.
 
 **Inputs**:
 
-*   **1**: `data`. A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: `data`. A tensor of type *T* and arbitrary shape. **Required.**
 
-*   **2**: `beta`. A non-negative scalar value of type *T*. Multiplication parameter for the sigmoid. Default value 1.0 is used. **Optional**.
+*   **2**: `beta`. A non-negative scalar value of type *T*. Multiplication parameter for the sigmoid. Default value 1.0 is used. **Optional.**
 
 **Outputs**:
 

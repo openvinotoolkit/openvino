@@ -55,7 +55,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, GROUPS * C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
 *   **2**: Convolution kernel tensor of type *T* and rank 4, 5 or 6. Layout is `[GROUPS, C_OUT, C_IN, Z, Y, X]` (number of groups, number of output channels, number of input channels, spatial axes Z, Y, X),
   *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute.
   *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
