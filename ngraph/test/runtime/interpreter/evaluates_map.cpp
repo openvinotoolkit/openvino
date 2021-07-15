@@ -2856,34 +2856,64 @@ namespace
 //                  const HostTensorVector& outputs,
 //                  const HostTensorVector& inputs)
 //    {
-//        element::Type_t t_out = op->get_out_type();
+//        element::Type_t t_out = get_out_type();
 //        char* out;
 //        switch (t_out) {
-//            case element::Type_t::i32: {
+//            case element::Type_t::i32:
 //                out = (char *) outputs[0]->get_data_ptr<const int32_t>();
-//            }
 //                break;
-//            case element::Type_t::i64: {
+//            case element::Type_t::i64:
 //                out = (char *) outputs[0]->get_data_ptr<const int64_t>();
-//            }
-//            case element::Type_t::f16: {
+//                break;
+//            case element::Type_t::f16:
 //                out = (char *) outputs[0]->get_data_ptr<const float16>();
-//            }
-//            case element::Type_t::f32: {
+//                break;
+//            case element::Type_t::f32:
 //                out = (char *) outputs[0]->get_data_ptr<const float>();
-//            }
-//            case element::Type_t::f64: {
+//                break;
+//            case element::Type_t::f64:
 //                out = (char *) outputs[0]->get_data_ptr<const double >();
-//            }
+//                break;
 //            default:
 //                out = nullptr;
 //        }
-//        runtime::reference::random_uniform(inputs[0]->get_data_ptr<const char>(),
-//                                           out,
-//                                 inputs[0]->get_shape(),
-//                                           op->get_out_type().size(),
-//                                           op->get_seed(),
-//                                           op->get_seed2());
+//
+//        using T = typename element_type_traits<ET>::value_type;
+//        T start_val;
+//
+//        uint64_t* out_shape;
+//        std::vector<uint64_t> out_shape_uint64;
+//        out_shape_uint64.resize(shape_size(inputs[0]->get_shape()));
+//
+//        if (inputs[0]->get_element_type() == element::Type_t::u64)
+//        {
+//            out_shape = (uint64_t*)inputs[0]->get_data_ptr<const char>();
+//        }
+//        else if (inputs[0]->get_element_type() == element::Type_t::i32)
+//        {
+//            auto out_shape_i32 = inputs[0]->get_data_ptr<const int32_t>();
+//            std::transform(out_shape_i32,
+//                           out_shape_i32 + shape_size(inputs[0]->get_shape()),
+//                           out_shape_uint64.begin(),
+//                           [](const int32_t& elem) { return static_cast<uint64_t>(elem); });
+//            out_shape = out_shape_uint64.data();
+//        }
+//        else if (inputs[0]->get_element_type() == element::Type_t::i64)
+//        {
+//            auto out_shape_i64 = inputs[0]->get_data_ptr<const int64_t>();
+//            std::transform(out_shape_i64,
+//                           out_shape_i64 + shape_size(inputs[0]->get_shape()),
+//                           out_shape_uint64.begin(),
+//                           [](const int64_t& elem) { return static_cast<uint64_t>(elem); });
+//            out_shape = out_shape_uint64.data();
+//        }
+//
+//        random_uniform(out_shape,
+//                       out,
+//                       inputs[0]->get_shape(),
+//                       get_out_type(),
+//                       get_seed(),
+//                       get_seed2());
 //        return true;
 //    }
 

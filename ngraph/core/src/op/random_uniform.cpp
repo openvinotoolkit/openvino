@@ -11,7 +11,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v8::RandomUniform, "RandomUniform", 8);
 
-op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape, ngraph::element::Type output_type, int64_t seed, int64_t seed2)
+op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape/*, const Output<Node>& min_val, const Output<Node>& max_val*/, ngraph::element::Type output_type, int64_t seed, int64_t seed2)
         : Op({out_shape}), m_output_type(output_type), m_seed(seed), m_seed2(seed2)
 {
     constructor_validate_and_infer_types();
@@ -35,6 +35,11 @@ void op::v8::RandomUniform::validate_and_infer_types()
         }
     }
 
+//    NODE_VALIDATION_CHECK(
+//            this, get_input_partial_shape(1).compatible(Shape{}), "'min_val' input is not a scalar");
+//    NODE_VALIDATION_CHECK(
+//            this, get_input_partial_shape(2).compatible(Shape{}), "'max_val' input is not a scalar");
+
     set_output_type(0, get_out_type(), output_shape);
 }
 
@@ -51,7 +56,7 @@ shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector
 {
     NGRAPH_OP_SCOPE(v8_Roll_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::RandomUniform>(new_args[0], m_output_type, m_seed, m_seed2);
+    return make_shared<v8::RandomUniform>(new_args[0]/*, new_args[1], new_args[2]*/, m_output_type, m_seed, m_seed2);
 }
 
 std::pair<uint32_t, uint32_t> split_high_low(uint64_t value)
@@ -91,31 +96,30 @@ void raise_key(uint64_t& key)
     key = unite_high_low(key_lr.second, key_lr.first);
 }
 
-float Uint32ToFloat(uint32_t x) {
-    const uint32_t man = x & 0x7fffffu;  // 23 bit mantissa
-    const uint32_t exp = static_cast<uint32_t>(127);
-    const uint32_t val = (exp << 23) | man;
+float uint32_to_float(uint32_t x) {
+    uint32_t x_uint32 = (static_cast<uint32_t>(127) << 23) | x & 0x7fffffu;
 
-    // Assumes that endian-ness is same for float and uint32.
-    float result;
-    memcpy(&result, &val, sizeof(val));
-    return result - 1.0f;
+    float x_float;
+    memcpy(&x_float, &x_uint32, sizeof(x_uint32));
+    return x_float - 1.0f;
 }
 
-float16 Uint16ToHalf(uint16_t x) {
-// IEEE754 halfs are formatted as follows (MSB first):
-//    sign(1) exponent(5) mantissa(10)
-// Conceptually construct the following:
-//    sign == 0
-//    exponent == 15  -- an excess 15 representation of a zero exponent
-//    mantissa == 10 random bits
-const uint16_t man = x & 0x3ffu;  // 10 bit mantissa
-const uint16_t exp = static_cast<uint16_t>(15);
-const uint16_t val = (exp << 10) | man;
+float16 uint32_to_float16(uint32_t x) {
+    uint16_t x_uint16 = static_cast<uint16_t>(x);
+    x_uint16 = (static_cast<uint16_t>(15) << 10) | x & 0x3ffu;
 
-float16 result;
-memcpy(&result, &val, sizeof(val));
-return result - float16(1.0);
+    float16 x_float16;
+    memcpy(&x_float16, &x_uint16, sizeof(x_uint16));
+    return x_float16 - static_cast<float16>(1);
+}
+
+double uint32_to_double(uint32_t x1, uint32_t x2) {
+    uint64_t mantissa = ((static_cast<uint64_t>(x1) & 0xfffffu) << 32) | static_cast<uint64_t>(x2);
+    uint64_t x_uint64 = ((static_cast<uint64_t>(1023) << 52) | mantissa);
+
+    double x_double;
+    memcpy(&x_double, &x_uint64, sizeof(x_uint64));
+    return x_double - 1.0;
 }
 
 void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, uint32_t* res)
@@ -159,24 +163,33 @@ void random_uniform(const uint64_t* out_shape,
         uint32_t res[4];
         run_philox(key, counter, n, 10, res);
 
-        if (elem_type == ngraph::element::Type_t::f32) {
-            float res_float[4];
-            res_float[0] = Uint32ToFloat(res[0]);
-            res_float[1] = Uint32ToFloat(res[1]);
-            res_float[2] = Uint32ToFloat(res[2]);
-            res_float[3] = Uint32ToFloat(res[3]);
+        switch (elem_type) {
+            case ngraph::element::Type_t::f32: {
+                float res_float[4];
+                std::transform(res, res + 4, res_float, uint32_to_float);
+                memcpy(out + k * elem_type.size(), res_float, std::min((size_t) 4, elem_count - k) * elem_type.size());
+                break;
+            }
+            case ngraph::element::Type_t::f16: {
+                float16 res_float16[4];
+                std::transform(res, res + 4, res_float16, uint32_to_float16);
+                memcpy(out + k * elem_type.size(), res_float16,
+                       std::min((size_t) 4, elem_count - k) * elem_type.size());
+                break;
+            }
+            case ngraph::element::Type_t::f64: {
+                double res_double[2];
+                res_double[0] = uint32_to_double(res[0], res[1]);
+                res_double[1] = uint32_to_double(res[2], res[3]);
+                memcpy(out + k * elem_type.size(), res_double,
+                       std::min((size_t) 2, elem_count - k) * elem_type.size());
+                break;
+            }
+            default:
+                throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
 
-            memcpy(out + k * elem_type.size(), res_float, std::min((size_t) 4, elem_count - k) * elem_type.size());
-        } else
-        {
-            float16 res_float[4];
-            res_float[0] = Uint16ToHalf(res[0]);
-            res_float[1] = Uint16ToHalf(res[1]);
-            res_float[2] = Uint16ToHalf(res[2]);
-            res_float[3] = Uint16ToHalf(res[3]);
-
-            memcpy(out + k * elem_type.size(), res_float, std::min((size_t) 4, elem_count - k) * elem_type.size());
         }
+
         if (++n == 0)
             ++counter;
     }
@@ -206,6 +219,9 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
             default:
                 out = nullptr;
         }
+//
+//        using T = typename element_type_traits<ET>::value_type;
+//        T start_val;
 
         uint64_t* out_shape;
         std::vector<uint64_t> out_shape_uint64;

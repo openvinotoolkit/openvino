@@ -25,7 +25,10 @@ namespace ngraph
             /// \brief      Constructs a RandomUniform operation.
             ///
             /// \param      output_shape         Node producing the tensor with output shape.
-            RandomUniform(const Output<Node>& out_shape, ngraph::element::Type dtype, int64_t seed, int64_t seed2);
+            RandomUniform(const Output<Node>& out_shape,
+//                          const Output<Node>& min_val,
+//                          const Output<Node>& max_val,
+                          ngraph::element::Type dtype, int64_t seed, int64_t seed2);
 
             void validate_and_infer_types() override;
 
