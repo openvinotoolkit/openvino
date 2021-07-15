@@ -41,7 +41,6 @@ namespace ngraph
         private:
             static std::shared_ptr<Function>
                 convert_model(const std::shared_ptr<InputModelPDPD>& model);
-
         };
 
     } // namespace frontend

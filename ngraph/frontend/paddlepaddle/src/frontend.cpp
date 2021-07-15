@@ -81,15 +81,14 @@ namespace ngraph
                 if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variant))
                 {
                     auto m_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)
-                            ->get();
+                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)->get();
                     return m_stream.get();
                 }
                 else if (is_type<VariantWrapper<std::string>>(variant))
                 {
                     const auto& model_path =
                         as_type_ptr<VariantWrapper<std::string>>(variant)->get();
-                    ext_stream.open(model_path, std::ios::in | std::ifstream::binary);                    
+                    ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
                 }
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 else if (is_type<VariantWrapper<std::wstring>>(variant))
@@ -244,7 +243,7 @@ namespace ngraph
             {
                 // The case when folder with __model__ and weight files is provided or .pdmodel file
                 if (is_type<VariantWrapper<std::string>>(variants[0]))
-                {                    
+                {
                     std::string m_path =
                         as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(m_path);
@@ -260,7 +259,7 @@ namespace ngraph
                 // The case with only model stream provided and no weights. This means model has
                 // no learnable weights
                 else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
-                {                    
+                {
                     std::shared_ptr<std::istream> p_model_stream =
                         as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
                             ->get();
