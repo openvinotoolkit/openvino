@@ -81,7 +81,7 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
     size_t outer_sum = (out_idx / outer_sum_inc_indices) * outer_sum_inc_data;
     size_t inner_sum = out_idx % max_inner_sum;
     if (indices[out_idx] < 0 || indices[out_idx] >= data_shape[AXIS]) {
-        printf("indices values of GatherElement exceed data size. %ld %ld \n", out_idx, indices[out_idx]);
+        printf("indices values of GatherElement exceed data size.\n");
         return;
     }
     uint idx = outer_sum + max_inner_sum * indices[out_idx] + inner_sum;

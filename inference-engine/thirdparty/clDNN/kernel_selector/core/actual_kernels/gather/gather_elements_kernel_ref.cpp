@@ -18,8 +18,32 @@
 #include "kernel_selector_utils.h"
 #include <string>
 #include <vector>
-#include <iostream>
+
 namespace kernel_selector {
+static size_t GetGatherElementsChannelIndex(const gather_elements_params& params) {
+    Tensor::DataChannelName name = Tensor::DataChannelName::X;
+
+    size_t inputSize = params.inputs[0].GetDims().size();
+
+    switch (params.axis) {
+        case GatherElementsAxis::X:
+            return inputSize - 1;
+        case GatherElementsAxis::Y:
+            return inputSize - 2;
+        case GatherElementsAxis::Z:
+            return inputSize - 3;
+        case GatherElementsAxis::W:
+            return 2;
+        case GatherElementsAxis::FEATURE:
+            return 1;
+        case GatherElementsAxis::BATCH:
+            return 0;
+        default:
+            break;
+    }
+
+    return DataTensor::Channelndex(params.output.GetLayout(), name);
+}
 
 ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -88,11 +112,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    auto p_axis = static_cast<int8_t>(params.axis);
-    if (p_axis < 0) {
-        p_axis = params.inputs[0].LogicalDims().size() + params.axis;
-    }
-    jit.AddConstant(MakeJitConstant("AXIS", p_axis));
+    jit.AddConstant(MakeJitConstant("AXIS", GetGatherElementsChannelIndex(params)));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetDefaultOrder(params.inputs[0].GetDims().size());

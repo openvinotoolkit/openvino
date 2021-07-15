@@ -26,6 +26,24 @@ using namespace cldnn;
 
 namespace cldnn {
 namespace gpu {
+kernel_selector::gather_elements_axis convert_axis(gather_elements::gather_elements_axis axis) {
+    switch (axis) {
+        case gather_elements::along_x:
+            return kernel_selector::gather_elements_axis::X;
+        case gather_elements::along_y:
+            return kernel_selector::gather_elements_axis::Y;
+        case gather_elements::along_z:
+            return kernel_selector::gather_elements_axis::Z;
+        case gather_elements::along_w:
+            return kernel_selector::gather_elements_axis::W;
+        case gather_elements::along_f:
+            return kernel_selector::gather_elements_axis::FEATURE;
+        case gather_elements::along_b:
+            return kernel_selector::gather_elements_axis::BATCH;
+        default:
+            return kernel_selector::gather_elements_axis::X;
+    }
+}
 
 struct gather_elements_gpu : typed_primitive_gpu_impl<gather_elements> {
     using parent = typed_primitive_gpu_impl<gather_elements>;
@@ -37,8 +55,7 @@ public:
         auto gather_elements_optional_params =
             get_default_optional_params<kernel_selector::gather_elements_optional_params>(arg.get_program());
 
-        // gather_elements_params.indices_rank = arg.get_primitive()->indices_rank;
-        gather_elements_params.axis = arg.get_primitive()->axis;
+        gather_elements_params.axis = convert_axis(arg.get_primitive()->axis);
 
         gather_elements_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 
