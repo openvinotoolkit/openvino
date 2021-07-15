@@ -48,10 +48,12 @@ private:
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto normalize = attrs().get<int>("normalize");
         auto across_channels = attrs().get<int>("across_channels");
+        auto across_width = attrs().get<int>("across_width");
         auto eps = attrs().get<float>("eps");
 
         serializer.append(static_cast<int32_t>(normalize));
         serializer.append(static_cast<int32_t>(across_channels));
+        serializer.append(static_cast<int32_t>(across_width));
         serializer.append(static_cast<float>(eps));
     }
 
@@ -88,11 +90,13 @@ void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const 
     for (int i = 0; i < indicesSize; i++) {
         axes.insert(getDimFromAxis(ndims, indicesPtr[i]));
     }
+    const auto width = axes.count(Dim::W);
 
-    VPU_THROW_UNLESS(!axes.count(Dim::N) && axes.count(Dim::H) && axes.count(Dim::W),
+    VPU_THROW_UNLESS(!axes.count(Dim::N) && width,
                      "Unsupported combination of indices in layer \"%s\". "
                      "Only across channel and full batch supported.", layer->name);
     const auto acrossChannels = axes.count(Dim::C) != 0;
+    const auto acrossWidth = width == 1 && axes.count(Dim::H) == 0;
 
     const auto normVariance = layer->GetParamAsBool("normalize_variance");
     const auto eps = layer->GetParamAsFloat("eps");
@@ -104,6 +108,7 @@ void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const 
     auto stage = model->addNewStage<MVNStage>(layer->name, StageType::MVN, layer, inputs, outputs);
     stage->attrs().set<int>("normalize", normVariance);
     stage->attrs().set<int>("across_channels", acrossChannels);
+    stage->attrs().set<int>("across_width", acrossWidth);
     stage->attrs().set<float>("eps", eps);
 }
 
