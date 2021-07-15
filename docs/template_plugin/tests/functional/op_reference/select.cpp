@@ -117,23 +117,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Select_With_Hardcoded_Refs, ReferenceSelectLayerT
                                           std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},  // else data
                                           std::vector<float> {11, 2, 3, 14, 15, 2, 3, 18}),     // expected output data
                              // fp32, pdpd brodcasting
-                             SelectParams(element::f32,                                          // if/else/output data type
-                                          {op::AutoBroadcastType::PDPD, -1},                     // broadcasting type
-                                          ngraph::PartialShape {2, 4},                           // select shape
-                                          std::vector<char> {0, 0, 0, 0, 0, 0, 0, 0},            // select data
-                                          ngraph::PartialShape {2, 4},                           // if shape
-                                          std::vector<float> {1, 2, 3, 4, 1, 2, 3, 4},           // if data
-                                          ngraph::PartialShape {2, 4},                           // else shape
-                                          std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18},   // else data
-                                          std::vector<float> {11, 12, 13, 14, 15, 16, 17, 18}),  // expected output data
+                             SelectParams(element::f32,                                       // if/else/output data type
+                                          {op::AutoBroadcastType::PDPD, -1},                  // broadcasting type
+                                          ngraph::PartialShape {2, 4},                        // select shape
+                                          std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},         // select data
+                                          ngraph::PartialShape {2, 4},                        // if shape
+                                          std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},        // if data
+                                          ngraph::PartialShape {4},                           // else shape
+                                          std::vector<float> {11, 12, 13, 14},                // else data
+                                          std::vector<float> {11, 12, 13, 14, 11, 6, 7, 8}),  // expected output data
                              // i32, pdpd brodcasting
-                             SelectParams(element::i32,                                           // if/else/output data type
-                                          {ngraph::op::AutoBroadcastType::PDPD, -1},              // broadcasting type
-                                          ngraph::PartialShape {2, 4},                            // select shape
-                                          std::vector<char> {0, 0, 0, 0, 0, 0, 0, 0},             // select data
-                                          ngraph::PartialShape {2, 4},                            // if shape
-                                          std::vector<float> {1, 2, 3, 4, 1, 2, 3, 4},            // if data
-                                          ngraph::PartialShape {2, 4},                            // else shape
-                                          std::vector<float> {11, 12, 11, 12, 11, 12, 11, 12},    // else data
-                                          std::vector<float> {11, 12, 11, 12, 11, 12, 11, 12})),  // expected output data
+                             SelectParams(element::i32,                                        // if/else/output data type
+                                          {op::AutoBroadcastType::PDPD, -1},                   // broadcasting type
+                                          ngraph::PartialShape {2, 4},                         // select shape
+                                          std::vector<char> {0, 0, 0, 0, 0, 1, 1, 1},          // select data
+                                          ngraph::PartialShape {2, 4},                         // if shape
+                                          std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8},         // if data
+                                          ngraph::PartialShape {4},                            // else shape
+                                          std::vector<float> {11, 12, 13, 14},                 // else data
+                                          std::vector<float> {11, 12, 13, 14, 11, 6, 7, 8})),  // expected output data
                          ReferenceSelectLayerTest::getTestCaseName);

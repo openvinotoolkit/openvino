@@ -491,7 +491,9 @@ namespace ngraph
                         arg0_padded_shape.pop_back();
                     }
 
-                    for (int64_t i = 0; i < axis; ++i)
+                    for (int64_t i = 0;
+                         (i < axis) && (arg0_padded_shape.size() < arg1_shape.size());
+                         ++i)
                     {
                         arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
                     }
@@ -505,8 +507,9 @@ namespace ngraph
                     {
                         arg2_padded_shape.pop_back();
                     }
-
-                    for (int64_t i = 0; i < axis; ++i)
+                    for (int64_t i = 0;
+                         (i < axis) && (arg2_padded_shape.size() < arg1_shape.size());
+                         ++i)
                     {
                         arg2_padded_shape.insert(arg2_padded_shape.begin(), 1);
                     }
@@ -560,7 +563,7 @@ namespace ngraph
                         const size_t arg0_idx = std::inner_product(
                             arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
                         const size_t arg1_idx = std::inner_product(
-                            output_coord.begin(), output_coord.end(), output_coord.begin(), 0);
+                            output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
                         const size_t arg2_idx = std::inner_product(
                             arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
                         const size_t output_idx = std::inner_product(
