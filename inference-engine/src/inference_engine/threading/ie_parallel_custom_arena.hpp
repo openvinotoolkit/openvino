@@ -20,9 +20,8 @@
 #include <vector>
 #include <memory>
 
-#include "cpusets_api_observer.hpp"
-
 #if defined(_WIN32)  defined(_WIN64)
+#include "cpusets_api_observer.hpp"
 #include <Windows.h>
 #endif
 
