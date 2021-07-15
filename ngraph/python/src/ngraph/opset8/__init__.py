@@ -5,6 +5,8 @@ from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
 from ngraph.opset1.ops import acos
 from ngraph.opset4.ops import acosh
+from ngraph.opset8.ops import adaptive_avg_pool
+from ngraph.opset8.ops import adaptive_max_pool
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
 from ngraph.opset4.ops import asinh

@@ -24,6 +24,33 @@ integral_np_types = [
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_adaptive_avg_pool(dtype):
+    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
+    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
+
+    node = ng.adaptive_avg_pool(data, output_shape)
+
+    assert node.get_type_name() == "AdaptiveAvgPool"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("ind_type", ["i32", "i64"])
+def test_adaptive_max_pool(dtype, ind_type):
+    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
+    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
+
+    node = ng.adaptive_max_pool(data, output_shape, ind_type)
+
+    assert node.get_type_name() == "AdaptiveMaxPool"
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
+    assert list(node.get_output_shape(1)) == [2, 24, 16, 16]
+    assert node.get_output_element_type(1) == Type.i32 if ind_type == "i32" else Type.i64
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_binary_convolution(dtype):
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
