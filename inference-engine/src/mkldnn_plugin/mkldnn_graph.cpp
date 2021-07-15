@@ -1222,15 +1222,11 @@ void MKLDNNGraph::EnforceBF16() {
         ROIPooling,
     };
 
-    auto shouldNotBeSkipped = [&](const MKLDNNNodePtr& node) {
-        return significantNodes.count(node->getType());
-    };
-
     std::function<void(const MKLDNNNodePtr&, std::unordered_set<MKLDNNNodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const MKLDNNNodePtr& node, std::unordered_set<MKLDNNNodePtr>& skipNodes) -> void {
-        for (const auto& edge : node->getParentEdges()) {
-            const auto& parent = edge.lock()->getParent();
-            if (shouldNotBeSkipped(parent)) // stop at significant nodes
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (significantNodes.count(parent->getType())) // stop at significant nodes
                 continue;
 
             const auto res = skipNodes.insert(parent);
