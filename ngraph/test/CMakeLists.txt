@@ -176,6 +176,7 @@ set(SRC
     type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
+    type_prop/prior_box_clustered.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -277,6 +278,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/prior_box.cpp
+    visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/reduce_l1.cpp
@@ -456,6 +458,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp

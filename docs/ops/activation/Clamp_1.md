@@ -36,7 +36,7 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
