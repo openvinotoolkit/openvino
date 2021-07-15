@@ -132,7 +132,7 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-bool FrontEnd::supported_by_arguments(const std::vector<std::shared_ptr<Variant>>& variants) const
+bool FrontEnd::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const
 {
     return false;
 }
