@@ -20,20 +20,28 @@ using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and sco
                                    InferenceEngine::Precision,  // max_output_boxes_per_class precision
                                    InferenceEngine::Precision>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
-using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
-                             InputPrecisions,                                    // Input precisions
-                             ngraph::op::v8::MulticlassNms::SortResultType,      // Order of output elements
-                             bool,                                               // If necessary to sort selected boxes across batches
-                             ngraph::element::Type,                              // Output type
-                             int,                                                // Maximum number of boxes to be selected per class
-                             int,                                                // Maximum number of boxes to be selected per batch element
-                             int,                                                // Background class id
-                             bool,                                               // Boxes normalized or not
-                             std::string>;                                       // Device name
+using InputfloatVar = std::tuple<float,  // iouThreshold
+                                 float,  // scoreThreshold
+                                 float>; // nmsEta
 
-class MulticlassNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
+using InputboolVar = std::tuple<bool,  // nmsEta
+                                bool>; // normalized
+
+using MulticlassNmsParams =
+    std::tuple<InputShapeParams, // Params using to create 1st and 2nd inputs
+               InputPrecisions,  // Input precisions
+               int32_t,          // Max output boxes per class
+               InputfloatVar,    // iouThreshold, scoreThreshold, nmsEta
+               int32_t,          // background_class
+               int32_t,          // keep_top_k
+               ngraph::element::Type, // Output type
+               ngraph::op::util::NmsBase::SortResultType, // SortResultType
+               InputboolVar,       // Sort result across batch, normalized
+               std::string>;
+
+class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NmsParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<MulticlassNmsParams> obj);
     void GenerateInputs() override;
     void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                  const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs)
@@ -43,7 +51,9 @@ protected:
     void SetUp() override;
 
 private:
-    size_t numOfSelectedBoxes;
+    size_t numBatches, numBoxes, numClasses;
+    size_t maxOutputBoxesPerClass;
+    size_t maxOutputBoxesPerBatch;
 };
 
 }  // namespace LayerTestsDefinitions

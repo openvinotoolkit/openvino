@@ -86,7 +86,8 @@ enum Type {
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
     NonMaxSuppression,
-    MatrixNms
+    MatrixNms,
+    MulticlassNms
 };
 
 enum Algorithm {
