@@ -408,6 +408,18 @@ std::string toString(GatherAxis a) {
     }
 }
 
+std::string toString(GatherElementsAxis a) {
+    switch (a) {
+        case GatherElementsAxis::X:       return "X";
+        case GatherElementsAxis::Y:       return "Y";
+        case GatherElementsAxis::Z:       return "Z";
+        case GatherElementsAxis::W:       return "W";
+        case GatherElementsAxis::FEATURE: return "FEATURE";
+        case GatherElementsAxis::BATCH:   return "BATCH";
+        default: return "";
+    }
+}
+
 std::string toString(ScatterUpdateAxis a) {
     switch (a) {
         case ScatterUpdateAxis::X:       return "X";

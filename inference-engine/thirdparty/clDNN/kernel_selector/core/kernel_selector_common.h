@@ -148,6 +148,7 @@ std::string toString(MVNEpsMode mode);
 std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
 std::string toString(GatherAxis a);
+std::string toString(GatherElementsAxis a);
 std::string toString(ScatterUpdateAxis a);
 std::string toString(ResampleType type);
 std::string toString(CoordinateTransformationMode mode);

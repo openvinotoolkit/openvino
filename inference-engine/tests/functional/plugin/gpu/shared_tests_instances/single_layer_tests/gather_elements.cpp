@@ -31,7 +31,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set1, GatherElementsLayerTest,
                             ::testing::ValuesIn(std::vector<int>({-1, 0, 1})),  // Axis
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_set2, GatherElementsLayerTest,
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set2, GatherElementsLayerTest,
                             ::testing::ValuesIn(std::vector<int>({0, -3})),     // Axis
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_set3, GatherElementsLayerTest,
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set3, GatherElementsLayerTest,
                             ::testing::Values(3, -1),                               // Axis
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
                             ::testing::Values(0, -4),                               // Axis
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
                             ::testing::Values(3, -2),                                  // Axis
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::ValuesIn(idxPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
 const std::vector<std::vector<size_t>> ShapesRank4Axis0 = {
