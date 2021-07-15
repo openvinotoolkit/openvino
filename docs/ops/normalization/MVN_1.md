@@ -44,16 +44,14 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
     * `false` - do not share mean values across channels
     * `true` - share mean values across channels
   * **Type**: `boolean`
-  * **Default value**: None
-  * **Required**: *no*
+  * **Required**: *yes*
 
 * *reduction_axes*
 
   * **Description**: 1D tensor of unique elements and type *T_IND* which specifies indices of dimensions in `data` that define normalization slices. Negative value means counting dimensions from the back.
   * **Range of values**: allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order cannot be sorted
   * **Type**: `int`
-  * **Default value**: None
-  * **Required**: *no*
+  * **Required**: *yes*
 
 * *normalize_variance*
 
@@ -62,18 +60,16 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
     * `false` - do not normalize variance
     * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: None
-  * **Required**: *no*
+  * **Required**: *yes*
 
 * *eps*
 
   * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value. For example, *epsilon* equal to 0.001 means that 0.001 is added to the variance.
   * **Range of values**: a positive floating-point number
   * **Type**: `double`
-  * **Default value**: 1e-9
   * **Required**: *yes*
 
-*   **Note** It is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
+*   **Note** Imprtant: it is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
 
 **Inputs**
 

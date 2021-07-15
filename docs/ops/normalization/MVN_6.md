@@ -33,7 +33,6 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
     * `false` - do not normalize variance
     * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *eps*
@@ -41,7 +40,6 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
   * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: 1e-6
   * **Required**: *yes*
 
 * *eps_mode*
@@ -51,7 +49,6 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
     * `inside_sqrt` - add epsilon inside sqrt
     * `outside_sqrt` - add epsilon outside of sqrt
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
