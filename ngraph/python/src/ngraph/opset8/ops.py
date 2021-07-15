@@ -102,6 +102,43 @@ def deformable_convolution(
 
 
 @nameable_op
+def adaptive_avg_pool(
+        data: NodeInput,
+        output_shape: NodeInput
+) -> Node:
+    """Return a node which performs AdaptiveAvgPool operation.
+
+    @param data: The list of input nodes
+    @param output_shape: the shape of spatial dimentions after operation
+    @return: The new node performing AdaptiveAvgPool operation on the data
+    """
+    inputs = as_nodes(data, output_shape)
+    return _get_node_factory_opset8().create("AdaptiveAvgPool", inputs)
+
+
+@nameable_op
+def adaptive_max_pool(
+        data: NodeInput,
+        output_shape: NodeInput,
+        index_element_type: str = "i64"
+) -> Node:
+    """Return a node which performs AdaptiveMaxPool operation.
+
+    @param data: The list of input nodes
+    @param output_shape: the shape of spatial dimentions after operation
+    @param index_element_type: Type of indices output.
+    @return: The new node performing AdaptiveMaxPool operation on the data
+    """
+    inputs = as_nodes(data, output_shape)
+
+    attributes = {
+        "index_element_type": index_element_type,
+    }
+
+    return _get_node_factory_opset8().create("AdaptiveMaxPool", inputs, attributes)
+
+
+@nameable_op
 def multiclass_nms(
     boxes: NodeInput,
     scores: NodeInput,

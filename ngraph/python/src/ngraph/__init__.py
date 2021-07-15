@@ -32,6 +32,8 @@ from ngraph.opset8 import absolute
 from ngraph.opset8 import absolute as abs
 from ngraph.opset8 import acos
 from ngraph.opset8 import acosh
+from ngraph.opset8 import adaptive_avg_pool
+from ngraph.opset8 import adaptive_max_pool
 from ngraph.opset8 import add
 from ngraph.opset8 import asin
 from ngraph.opset8 import asinh
