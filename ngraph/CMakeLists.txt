@@ -29,7 +29,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" OFF)
 endif()
 if(NGRAPH_ONNX_FRONTEND_ENABLE AND NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    message(FATAL_ERROR "ONNX Editor component requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
+    message(FATAL_ERROR "ONNX FrontEnd component requires ONNX Importer. Set NGRAPH_ONNX_IMPORT_ENABLE=ON.")
 endif()
 
 message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
