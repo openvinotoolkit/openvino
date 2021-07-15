@@ -70,40 +70,40 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.output.Batch().v));
 
-    if (params.has_num_select_per_class) {
+    if (params.num_select_per_class_type == NmsArgType::Input) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexNumSelectPerClass());
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", "convert_int(num_select_per_class[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", 0));
+        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", params.num_select_per_class));
     }
 
-    if (params.has_iou_threshold) {
+    if (params.iou_threshold_type == NmsArgType::Input) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexIouThreshold());
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "convert_float(iou_threshold[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "0.0f"));
+        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", params.iou_threshold));
     }
 
-    if (params.has_score_threshold) {
+    if (params.score_threshold_type == NmsArgType::Input) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexScoreThreshold());
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "convert_float(score_threshold[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "0.0f"));
+        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", params.score_threshold));
     }
 
-    if (params.has_soft_nms_sigma) {
+    if (params.soft_nms_sigma_type == NmsArgType::Input) {
         char inputTypeStr[128];
         snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSoftNmsSigma());
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", std::string(inputTypeStr)));
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
     } else {
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "0.0f"));
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", params.soft_nms_sigma));
     }
 
     if (params.has_second_output) {
@@ -198,7 +198,7 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-        if (params.has_score_threshold)
+        if (params.score_threshold_type == NmsArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
         break;
 
@@ -213,13 +213,13 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
-        if (params.has_num_select_per_class)
+        if (params.num_select_per_class_type == NmsArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
-        if (params.has_iou_threshold)
+        if (params.iou_threshold_type == NmsArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold() });
-        if (params.has_score_threshold)
+        if (params.score_threshold_type == NmsArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
-        if (params.has_soft_nms_sigma)
+        if (params.soft_nms_sigma_type == NmsArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
         break;
 

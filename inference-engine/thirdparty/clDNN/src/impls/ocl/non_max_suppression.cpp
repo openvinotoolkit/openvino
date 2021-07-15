@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "data_inst.h"
 #include "non_max_suppression_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
@@ -29,17 +30,21 @@ protected:
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
-        if (instance.has_num_select_per_class())
+        if (instance.has_num_select_per_class() && !instance.node.num_select_per_class_node().is_constant()) {
             args.inputs.push_back(instance.num_select_per_class_mem());
+        }
 
-        if (instance.has_iou_threshold())
+        if (instance.has_iou_threshold() && !instance.node.iou_threshold_node().is_constant()) {
             args.inputs.push_back(instance.iou_threshold_mem());
+        }
 
-        if (instance.has_score_threshold())
+        if (instance.has_score_threshold() && !instance.node.score_threshold_node().is_constant()) {
             args.inputs.push_back(instance.score_threshold_mem());
+        }
 
-        if (instance.has_soft_nms_sigma())
+        if (instance.has_soft_nms_sigma() && !instance.node.soft_nms_sigma_node().is_constant()) {
             args.inputs.push_back(instance.soft_nms_sigma_mem());
+        }
 
         args.output = instance.output_memory_ptr();
         if (instance.has_second_output())
@@ -60,23 +65,47 @@ public:
         params.inputs.push_back(convert_data_tensor(arg.input_scores().get_output_layout()));
 
         if (arg.has_num_select_per_class()) {
-            params.inputs.push_back(convert_data_tensor(arg.num_select_per_class_node().get_output_layout()));
-            params.has_num_select_per_class = true;
+            cldnn::program_node& node = arg.num_select_per_class_node();
+            if (node.is_constant()) {
+                params.num_select_per_class_type = kernel_selector::NmsArgType::Constant;
+                params.num_select_per_class = getValue<int>(node);
+            } else {
+                params.num_select_per_class_type = kernel_selector::NmsArgType::Input;
+                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+            }
         }
 
         if (arg.has_iou_threshold()) {
-            params.inputs.push_back(convert_data_tensor(arg.iou_threshold_node().get_output_layout()));
-            params.has_iou_threshold = true;
+            cldnn::program_node& node = arg.iou_threshold_node();
+            if (node.is_constant()) {
+                params.iou_threshold_type = kernel_selector::NmsArgType::Constant;
+                params.iou_threshold = getValue<float>(node);
+            } else {
+                params.iou_threshold_type = kernel_selector::NmsArgType::Input;
+                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+            }
         }
 
         if (arg.has_score_threshold()) {
-            params.inputs.push_back(convert_data_tensor(arg.score_threshold_node().get_output_layout()));
-            params.has_score_threshold = true;
+            cldnn::program_node& node = arg.score_threshold_node();
+            if (node.is_constant()) {
+                params.score_threshold_type = kernel_selector::NmsArgType::Constant;
+                params.score_threshold = getValue<float>(node);
+            } else {
+                params.score_threshold_type = kernel_selector::NmsArgType::Input;
+                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+            }
         }
 
         if (arg.has_soft_nms_sigma()) {
-            params.inputs.push_back(convert_data_tensor(arg.soft_nms_sigma_node().get_output_layout()));
-            params.has_soft_nms_sigma = true;
+            cldnn::program_node& node = arg.soft_nms_sigma_node();
+            if (node.is_constant()) {
+                params.soft_nms_sigma_type = kernel_selector::NmsArgType::Constant;
+                params.soft_nms_sigma = getValue<float>(node);
+            } else {
+                params.soft_nms_sigma_type = kernel_selector::NmsArgType::Input;
+                params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
+            }
         }
 
         if (arg.has_second_output()) {
@@ -104,6 +133,40 @@ public:
         auto non_max_suppression_node = new non_max_suppression_impl(arg, best_kernels[0]);
 
         return non_max_suppression_node;
+    }
+
+private:
+    template <class T>
+    static T getValue(cldnn::program_node& node) {
+        T retValue;
+        auto mem = node.as<data>().get_attached_memory_ptr();
+        auto& stream = node.get_program().get_stream();
+        switch (mem->get_layout().data_type) {
+        case data_types::f16: {
+            mem_lock<half_t> lock(mem, stream);
+            auto mem_value = static_cast<half_t*>(lock.data());
+            retValue = static_cast<T>(*mem_value);
+        } break;
+        case data_types::f32: {
+            mem_lock<float> lock(mem, stream);
+            auto mem_value = static_cast<float*>(lock.data());
+            retValue = static_cast<T>(*mem_value);
+        } break;
+        case data_types::i32: {
+            mem_lock<int32_t> lock(mem, stream);
+            auto mem_value = static_cast<int32_t*>(lock.data());
+            retValue = static_cast<T>(*mem_value);
+        } break;
+        case data_types::i64: {
+            mem_lock<int64_t> lock(mem, stream);
+            auto mem_value = static_cast<int64_t*>(lock.data());
+            retValue = static_cast<T>(*mem_value);
+        } break;
+        default:
+            throw std::runtime_error("Not supported data type.");
+        }
+
+        return retValue;
     }
 };
 

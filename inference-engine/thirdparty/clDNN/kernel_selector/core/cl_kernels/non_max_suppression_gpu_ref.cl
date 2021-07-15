@@ -277,7 +277,6 @@ KERNEL (non_max_suppression_ref_stage_0)(
     const short batchId = get_global_id(0);
     const ushort classId = get_global_id(1);
     const ushort box_gid = get_global_id(2);
-
     const int start_bid = box_gid * NUM_SCORE_PER_ITEM;
     const int end_bid = min(start_bid + NUM_SCORE_PER_ITEM, NUM_BOXES);
 
@@ -371,8 +370,7 @@ KERNEL (non_max_suppression_ref_stage_1)(
     const int workItemId = get_global_id(2);
     const int localClassId = get_local_id(1);
     __local int __range[LOCAL_CLASS_NUM][LOCAL_WORK_NUM * 2];
-
-    const int sortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
+    const int kSortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     if (workItemId == 0) {
         __range[localClassId][0] = 0;
