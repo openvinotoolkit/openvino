@@ -23,7 +23,7 @@ declared in `variable_id` and returns an error otherwise.
 
 **Inputs**
 
-*   **1**: `new_value` - input tensor of any supported type. **Required**.
+*   **1**: `new_value` - input tensor of any supported type. **Required.**
 
 **Outputs**
 

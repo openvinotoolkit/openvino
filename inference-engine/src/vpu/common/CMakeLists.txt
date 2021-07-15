@@ -53,7 +53,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
     openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
-                                         PRIVATE mvnc openvino::itt)
+                                         PRIVATE openvino::itt)
 
     if(NOT STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy)
