@@ -34,8 +34,6 @@ class PadTFToPad(FrontReplacementPattern):
                 # the input with fill value is an optional third input in TF
                 if not tfpad.in_port(2).disconnected():
                     tfpad.in_port(2).get_connection().set_destination(new_pad.in_port(3))
-                else:
-                    new_pad.in_port(3).disconnect()
 
             # convert TF representation of the pads as [N, 2] to MO representation: [N] and [N]
             transposed_pads = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])})

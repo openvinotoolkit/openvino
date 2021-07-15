@@ -100,6 +100,19 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
     @staticmethod
     def pass_rc_through(node: Node, reverse_channels: Node):
+        r"""
+        BEFORE                          AFTER
+
+          previous_op
+              |
+        ReverseChannels begin end       previous_op begin end
+                     \    /   /                   \   /  /
+                        Pad                         Pad
+                                                     |
+                                              ReverseChannels
+
+        returns boolean value whatever we should continue propagating current ReverseChannels operation down or not
+        """
         # detaching reverse_channels node from the graph
         reverse_channels.out_port(0).get_connection().set_source(
             reverse_channels.in_port(0).get_connection().get_source())
@@ -286,6 +299,21 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
     @staticmethod
     def lift_up_through(node: Node, reverse_channels: Node):
+        r"""
+        BEFORE                       AFTER
+
+                                     previous_op
+                                          \
+        previous_op  begin end       ReverseChannels   begin end
+                 \     /  /                        \    /   /
+                   Pad                               Pad
+                    |                                 |
+              ReverseChannels                      next_op
+                    |
+                 next_op
+
+        returns boolean value whatever we should continue propagating current ReverseChannels operation up or not
+        """
         if node.is_in_port_connected(0):
             port = node.in_port(0)
             axis = reverse_channels.axis
@@ -294,9 +322,11 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             port.get_connection().set_source(reverse_channels_copy.out_port(0))
             src.connect(reverse_channels_copy.in_port(0))
 
-        reverse_channels.out_port(0).get_connection().set_source(
-            reverse_channels.in_port(0).get_connection().get_source())
-        reverse_channels.in_port(0).disconnect()
+            reverse_channels.out_port(0).get_connection().set_source(
+                reverse_channels.in_port(0).get_connection().get_source())
+            reverse_channels.in_port(0).disconnect()
+            return True
+        return False
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):
