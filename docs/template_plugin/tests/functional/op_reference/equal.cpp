@@ -18,10 +18,9 @@ using namespace InferenceEngine;
 struct EqualParams {
     template <class IT, class OT>
     EqualParams(const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2 , const ngraph::element::Type& iType,
-                const ngraph::element::Type& oType, const std::vector<IT>& iValues1, const std::vector<IT>& iValues2, const std::vector<OT>& oValues,
-                size_t iSize = 0, size_t oSize = 0)
-        : pshape1(input_shape1), pshape2(input_shape2), inType(iType), outType(oType), inputData1(CreateBlob(iType, iValues1, iSize)),
-        inputData2(CreateBlob(iType, iValues2, iSize)), refData(CreateBlob(oType, oValues, oSize)) {}
+                const ngraph::element::Type& oType, const std::vector<IT>& iValues1, const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
+        : pshape1(input_shape1), pshape2(input_shape2), inType(iType), outType(oType), inputData1(CreateBlob(iType, iValues1)),
+        inputData2(CreateBlob(iType, iValues2)), refData(CreateBlob(oType, oValues)) {}
     ngraph::PartialShape pshape1;
     ngraph::PartialShape pshape2;
     ngraph::element::Type inType;
