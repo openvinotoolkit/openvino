@@ -48,7 +48,7 @@ public:
         result << "AdaPoolTest_";
         result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
         result << "OS=" << CommonTestUtils::vec2str(pooledSpatialShape) << "(spat.)_";
-        result << (netPr == Precision::FP32 ? "FP32" : "BF16") << "_";
+        result << netPr.name() << "_";
         result << mode << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams) << "_";
         result << std::to_string(obj.index);
@@ -156,7 +156,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::BF16
 };
 
 const std::vector<std::vector<int>> pooled3DVector = {
