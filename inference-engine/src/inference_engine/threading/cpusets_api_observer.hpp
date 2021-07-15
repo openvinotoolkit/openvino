@@ -14,9 +14,9 @@ namespace win {
 
 constexpr bool debug_mode = false;
 
-static std::map<BYTE, std::vector<DWORD>> core_types_map{};
-static std::vector<BYTE> core_types_ids_vector{};
-static std::vector<DWORD> whole_system_ids{};
+extern std::map<BYTE, std::vector<DWORD>> core_types_map;
+extern std::vector<BYTE> core_types_ids_vector;
+extern std::vector<DWORD> whole_system_ids;
 
 inline void report_cpu_configuration(SYSTEM_CPU_SET_INFORMATION* cpuSetInfo, size_t count) {
     for (size_t i = 0; i < count; ++i) {

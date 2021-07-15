@@ -37,8 +37,10 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
-                                                               .set_core_type(core_types.back())
-                                                               .set_max_threads_per_core(1));
+                                                               .set_core_type(core_types.back()));
+        if (phys_cores > 1) { // disable hyperthreading manually
+            phys_cores /= 2;
+        }
     }
     #endif
     return phys_cores;
