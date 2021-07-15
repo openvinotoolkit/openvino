@@ -120,9 +120,6 @@ if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
     message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
 endif()
 
-message(WARNING "BUILD_STANDALONE_STATIC = ${BUILD_STANDALONE_STATIC}")
-message(WARNING "USE_STATIC_PROTOBUF = ${USE_STATIC_PROTOBUF}")
-
 if (NOT BUILD_STANDALONE_STATIC)
     install(TARGETS ${Protobuf_LIBRARIES}
             RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph

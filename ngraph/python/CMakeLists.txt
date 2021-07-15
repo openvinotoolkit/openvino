@@ -11,10 +11,6 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(ngraph REQUIRED)
 endif()
 
-if(ngraph_FOUND)
-    message("ngraph version = {${ngraph_VERSION}}")
-endif()
-
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
