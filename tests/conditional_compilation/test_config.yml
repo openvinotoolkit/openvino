@@ -1,7 +1,6 @@
 - collection:
     - model:
         path: ${TESTDATA}/models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml
-        device:
     - model:
         path: ${TESTDATA}/models/mobilenet_v2_1.0_224/mobilenet_v2_1.0_224_i8.xml
 - collection:
