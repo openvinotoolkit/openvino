@@ -20,6 +20,7 @@
 namespace {
 using namespace testing;
 using namespace ngraph::pass;
+using namespace ngraph;
 
 class ClampTransformationTestValues {
 public:
@@ -37,24 +38,28 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
     bool nonDequantizationMultiply;
 };
 
-class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationTestValues> {
+typedef std::tuple <
+    ngraph::PartialShape,
+    ClampTransformationTestValues> ClampTransformationParams;
+
+class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationParams> {
 public:
     void SetUp() override {
-        const ClampTransformationTestValues testValues = GetParam();
+        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ClampTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = testValues.nonDequantizationMultiply ?
             ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
-                testValues.inputShape,
+                inputShape,
                 testValues.actual.precisionBeforeDequantization) :
             ngraph::builder::subgraph::ClampFunction::getOriginal(
-                testValues.inputShape,
+                inputShape,
                 testValues.actual.precisionBeforeDequantization,
                 testValues.actual.dequantization);
 
@@ -64,22 +69,23 @@ public:
 
         referenceFunction = testValues.nonDequantizationMultiply ?
             ngraph::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
-                testValues.inputShape,
+                inputShape,
                 testValues.actual.precisionBeforeDequantization) :
             ngraph::builder::subgraph::ClampFunction::getReference(
-                testValues.inputShape,
+                inputShape,
                 testValues.expected.precisionBeforeDequantization,
                 testValues.expected.dequantizationBefore,
                 testValues.expected.precisionAfterOperation,
                 testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationTestValues> obj) {
-        const ClampTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
+        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ClampTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
         result << toString(testValues.params) << "_" <<
-            testValues.inputShape << "_" <<
+            inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore <<
@@ -94,10 +100,15 @@ TEST_P(ClampTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
+    ngraph::PartialShape({ 1, 3, 224, 224 }),
+    ngraph::PartialShape({ Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }),
+};
+
 const std::vector<ClampTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -114,7 +125,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // U8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -139,7 +149,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // I8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -154,7 +163,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // U8 without convert
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -169,7 +177,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // I8 without convert
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::f32,
@@ -184,7 +191,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
 },
     // U8 without subtract
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -199,7 +205,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // I8 without subtract
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -214,7 +219,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -237,7 +241,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -260,7 +263,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -283,7 +285,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -304,55 +305,8 @@ const std::vector<ClampTransformationTestValues> testValues = {
             },
         }
     },
-    // U8 dequantization in second dimension
-    {
-        ngraph::Shape({ 1, 3, 4, 4 }),
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
-            },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-    // I8 dequantization in second dimension
-    {
-        ngraph::Shape({ 1, 3, 4, 4 }),
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
-            }
-        },
-        {
-            ngraph::element::i8,
-            {
-                {ngraph::element::f32},
-                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
-                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
-            },
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
     // U8 asymmetric quantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         {
             ngraph::element::u8,
@@ -375,7 +329,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // U8 without asymmetric quantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::u8,
@@ -398,7 +351,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // per channel quantization with small values
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -421,7 +373,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // without dequantization
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -436,7 +387,6 @@ const std::vector<ClampTransformationTestValues> testValues = {
     },
     // with non dequantization multiply (issue #49965)
     {
-        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -451,9 +401,162 @@ const std::vector<ClampTransformationTestValues> testValues = {
         true // non dequantization multiply
     },
 };
-INSTANTIATE_TEST_CASE_P(
+
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ClampTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValues)),
     ClampTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapes = {
+    ngraph::PartialShape({ 1, 3, 4, 4 }),
+};
+
+const std::vector<ClampTransformationTestValues> testValuesDeqBySpatialDimension = {
+    // U8 dequantization in second dimension
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+    // I8 dequantization in second dimension
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 128.f, 128.f, 128.f}, ngraph::element::f32, {1, 1, 4, 1}},
+                {{3.f, 3.f, 3.f, 3.f}, ngraph::element::f32, {1, 1, 4, 1}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ClampTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(testValuesDeqBySpatialDimension)),
+    ClampTransformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    ngraph::PartialShape({ Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }),
+};
+
+const std::vector<ClampTransformationTestValues> testValues = {
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {128.f}, {3.f}}
+        }
+    },
+    // U8 per channel quantization with the same values
+     {
+         LayerTransformation::createParamsU8I8(),
+         {
+             ngraph::element::u8,
+             {
+                 {ngraph::element::f32},
+                 {{128.f, 128.f, 128.f}},
+                 {{3.f, 3.f, 3.f}}
+             }
+         },
+         {
+             ngraph::element::u8,
+             {
+                 {ngraph::element::f32},
+                 {{128.f, 128.f, 128.f}},
+                 {{3.f, 3.f, 3.f}}
+             },
+             ngraph::element::f32,
+             {},
+         }
+     },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ClampTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+    ClampTransformation::getTestCaseName);
+} // namespace testValues3
+
+namespace testValues4 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+    PartialShape::dynamic()
+};
+
+const std::vector<ClampTransformationTestValues> testValues = {
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ClampTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(testValues)),
+    ClampTransformation::getTestCaseName);
+} // namespace testValues4
 } // namespace

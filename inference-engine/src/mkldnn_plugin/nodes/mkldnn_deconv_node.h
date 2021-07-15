@@ -37,6 +37,7 @@ public:
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     bool withGroups = false;
@@ -60,7 +61,7 @@ private:
 
     std::string errorPrefix;
 
-    bool canBeExecutedInInt8();
+    bool canBeExecutedInInt8() const;
     InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 

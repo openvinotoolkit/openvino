@@ -210,5 +210,8 @@ REGISTER_FACTORY(v6, GatherElements);
 REGISTER_FACTORY(v7, Gather);
 // REGISTER_FACTORY(v7, GatherElements);
 
+// ------------------------------ Supported v8 ops ------------------------------ //
+REGISTER_FACTORY(v8, Gather);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

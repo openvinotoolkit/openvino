@@ -25,7 +25,6 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
   * **Description**: *min* is the lower bound of values in the output.
   * **Range of values**: arbitrary floating point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *max*
@@ -33,21 +32,20 @@ clamp( x_{i} )=\min\big( \max\left( x_{i}, min\_value \right), max\_value \big)
   * **Description**: *max* is the upper bound of values in the output.
   * **Range of values**: arbitrary floating point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: A tensor of type `T` and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
 
 **Outputs**:
 
-*   **1**: A tensor of type `T` with same shape as input tensor.
+*   **1**: A tensor of type *T* with same shape as input tensor.
 
 **Types**
 
 * *T*: any numeric type.
-*   **Note**: In case of integral numeric type, ceil is used to convert *min* from `float` to `T` and floor is used to convert *max* from `float` to `T`.
+*   **Note**: In case of integral numeric type, ceil is used to convert *min* from `float` to *T* and floor is used to convert *max* from `float` to *T*.
 
 **Example**
 

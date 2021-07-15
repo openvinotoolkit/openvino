@@ -238,13 +238,13 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(ICore* core);
+    virtual void SetCore(std::weak_ptr<ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual ICore* GetCore() const noexcept;
+    virtual std::shared_ptr<ICore> GetCore() const noexcept;
 
     /**
      * @brief      Queries a plugin about supported layers in network
@@ -286,36 +286,19 @@ protected:
                                                                            const std::map<std::string, std::string>& config);
 
     /**
-     * @brief Creates an executable network from an previously exported network
-     * @note The function is called from
-     * IInferencePlugin::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
-     * performs common steps first and calls this plugin-dependent implementation after.
-     * @param networkModel Reference to network model output stream
-     * @param config A string -> string map of parameters
-     * @return An Executable network
+     * @brief Set input and output information to executable network. This method is used to
+     * set addtional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
+     * @param exeNetwork An executable network object to set information to
+     * @param inputs An input information to set
+     * @param outputs An output information to set
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetworkImpl(std::istream& networkModel,
-                                                                          const std::map<std::string, std::string>& config);
-
-    /**
-     * @brief Imports network wit RemoteContext
-     * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param config A string -> string map of parameters
-     * @return An Executable network
-     */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetworkImpl(std::istream& networkModel,
-                                                                          const std::shared_ptr<RemoteContext>& context,
-                                                                          const std::map<std::string, std::string>& config);
-
     void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                            const ConstInputsDataMap& inputs,
                            const ConstOutputsDataMap& outputs);
 
     std::string _pluginName;  //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
-    ICore* _core = nullptr;  //!< A pointer to ICore interface
+    std::weak_ptr<ICore> _core;  //!< A pointer to ICore interface
 };
 
 namespace details {

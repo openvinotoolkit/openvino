@@ -24,7 +24,7 @@ void FrontEnd::parseActivation(const Model& model, const ie::CNNLayerPtr& layer,
     const auto type = layer->GetParamAsString("type");
 
     const auto activationParserIt = activationParsers.find(type);
-    VPU_THROW_UNSUPPORTED_UNLESS(activationParserIt != activationParsers.end(),
+    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(activationParserIt != activationParsers.end(),
                                  "Failed to compile layer \"%v\"(type = %v) ", layer->name, type);
 
     activationParserIt->second(model, layer, inputs, outputs);

@@ -18,6 +18,7 @@
 
 namespace {
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class SplitTransformationTestValues {
@@ -36,7 +37,7 @@ public:
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -79,7 +80,7 @@ public:
             testValues.addUnsupportedConcat);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params.setSupportAsymmetricQuantization(true));
+        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
@@ -127,7 +128,7 @@ const std::vector<ngraph::element::Type> precisions = {
 const std::vector<SplitTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
+        { 1, 3, 16, 16 }, std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -145,9 +146,44 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+                {{ngraph::element::f32}, {128.f}, {3.f}},
+            }
+        }
+    },
+    {
+        PartialShape::dynamic(), std::int64_t{2}, size_t{2},
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // I8 per tensor quantization
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
+        { 1, 3, 16, 16 }, std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::i8,
@@ -165,7 +201,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -184,9 +220,49 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // U8 per channel quantization with different values and dynamic shapes
+    {
+        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{1}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {1.f}, {11.f}},
+                {{ngraph::element::f32}, {2.f}, {22.f}},
+                {{ngraph::element::f32}, {3.f}, {33.f}},
+            }
+        }
+    },
+    // U8 per channel quantization with different values and dynamic shapes (dynamic channels)
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, std::int64_t{1}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {{1.f, 2.f, 3.f}, ngraph::element::f32, {1, 3, 1, 1}},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // U8 per channel quantization with different values (constants without batch)
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -207,7 +283,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with different values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -228,7 +304,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -249,7 +325,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // I8 per channel quantization with the same values
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -270,7 +346,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 split second dimension
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
+        { 1, 3, 16, 16 }, std::int64_t{-1}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -303,7 +379,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // I8 split second dimension
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
+        { 1, 3, 16, 16 }, std::int64_t{-1}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -336,7 +412,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // U8 without subtract
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -355,9 +431,51 @@ const std::vector<SplitTransformationTestValues> testValues = {
             }
         }
     },
+    // U8 without subtract, dynamic shape
+    {
+        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{-3}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::u8,
+            {
+                {{ngraph::element::f32}, {}, {11.f}},
+                {{ngraph::element::f32}, {}, {22.f}},
+                {{ngraph::element::f32}, {}, {33.f}},
+            }
+        }
+    },
+    // U8 without subtract, dynamic shape (dynamic channels)
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{-3}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32},
+            {},
+            {{11.f, 22.f, 33.f}, ngraph::element::f32, {1, 3, 1, 1}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
     // I8 without subtract
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
+        { 1, 3, 16, 16 }, std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -378,7 +496,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // I8 dequantization in second dimension
     {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
+        { 1, 4, 3, 3 }, std::int64_t{1}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -406,7 +524,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // without Convert
     {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{1}, size_t{2},
+        { 1, 4, 3, 3 }, std::int64_t{1}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::f32,
@@ -434,7 +552,24 @@ const std::vector<SplitTransformationTestValues> testValues = {
     },
     // issue #56781: unsupported Concat after Split
     {
-        ngraph::Shape({ 1, 4, 3, 3 }), std::int64_t{2}, size_t{3},
+        { 1, 4, 3, 3 }, std::int64_t{2}, size_t{3},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {3.f}},
+            ngraph::element::f32,
+            {}
+        },
+        true
+    },
+    // issue #56781: unsupported Concat after Split, dynamic channels
+    {
+        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+        std::int64_t{2}, size_t{3},
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -456,7 +591,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         { }
     },
 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     SplitTransformation,
     ::testing::Combine(

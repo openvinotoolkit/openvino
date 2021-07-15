@@ -56,7 +56,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<normalize_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -72,7 +72,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      GetFusedPrimitiveInputsCount(params));
 
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
 
     return {kd};
 }

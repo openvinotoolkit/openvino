@@ -11,14 +11,10 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 # Remove disabled ops
 list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
     )
 list(REMOVE_ITEM LIBRARY_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/matmul_integer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/qlinear_matmul.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.hpp
     )
 
@@ -49,15 +45,13 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder
+target_link_libraries(onnx_importer PRIVATE onnx_common ngraph::builder inference_engine_transformations
     PUBLIC ngraph)
 
-set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
-target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
+target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
+                                                $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 
-target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src 
-                                                 ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
+target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -77,13 +71,8 @@ install(TARGETS onnx_importer EXPORT ngraphTargets
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
 install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
-    DESTINATION ${ONNX_INSTALL_INCLUDE}
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.h"
-)
+        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+        COMPONENT ngraph_dev
+        FILES_MATCHING PATTERN "*.hpp")
 
-if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-endif()
+export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")

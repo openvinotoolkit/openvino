@@ -10,7 +10,7 @@
 #include <iomanip> // std::setw
 
 #include <vpu/utils/ie_helpers.hpp>
-#include <graph_transformer/include/vpu/model/data_desc.hpp>
+#include <vpu/model/data_desc.hpp>
 
 typedef std::map<std::string, std::string> ParamsStruct;
 

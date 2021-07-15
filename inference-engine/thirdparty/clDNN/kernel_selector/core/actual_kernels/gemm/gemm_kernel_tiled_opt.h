@@ -12,12 +12,12 @@ class GemmKernelTiledOpt : public GemmKernelBase {
 public:
     using Parent = GemmKernelBase;
 
-    mutable struct GemmTuningData {
+    struct GemmTuningData {
         size_t simd_size = 8;
         size_t tile_m_size = 1;
         size_t tile_k_size = 1;
         size_t tile_n_size = 1;
-    } tuning_data;
+    };
 
     GemmKernelTiledOpt() : GemmKernelBase("gemm_tiled_opt") {}
 

@@ -101,6 +101,10 @@ inline std::pair<bool, std::string> compare_functions(
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
 
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name);
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names);
+
 namespace ngraph {
 namespace pass {
 class InjectionPass;
@@ -322,7 +326,8 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::shared_ptr<ngraph::Function>>,
                 private AttributeStorage<SubGraphOpInputDescription>,
                 private AttributeStorage<SubGraphOpOutputDescription>,
-                private AttributeStorage<ngraph::op::FrameworkNodeAttrs> {
+                private AttributeStorage<ngraph::op::FrameworkNodeAttrs>,
+                private AttributeStorage<std::shared_ptr<ngraph::Variable>> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -361,7 +366,8 @@ public:
                storage<std::shared_ptr<ngraph::Function>>().get_attributes_number() +
                storage<SubGraphOpInputDescription>().get_attributes_number() +
                storage<SubGraphOpOutputDescription>().get_attributes_number() +
-               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number();
+               storage<ngraph::op::FrameworkNodeAttrs>().get_attributes_number() +
+               storage<std::shared_ptr<ngraph::Variable>>().get_attributes_number();
     }
 };
 
@@ -563,6 +569,14 @@ struct Equal<SubGraphOpOutputDescription> {
 };
 
 template <>
+struct Equal<std::shared_ptr<ngraph::Variable>> {
+    static bool equal_value(
+            const std::shared_ptr<ngraph::Variable>& lhs, const std::shared_ptr<ngraph::Variable>& rhs) {
+        return lhs->get_info() == rhs->get_info();
+    }
+};
+
+template <>
 struct Equal<uint8_t*> {
     static constexpr uint8_t BITS_IN_BYTE_COUNT = 8;
 
@@ -705,6 +719,19 @@ struct Get<ngraph::op::FrameworkNodeAttrs, void> {
     }
 };
 
+template <>
+struct Get<std::shared_ptr<ngraph::Variable>, void> {
+    static std::string value(const std::shared_ptr<ngraph::Variable>& variable) {
+        std::stringstream oss;
+        const auto variable_info = variable->get_info();
+        oss << "[";
+        oss << "data_shape=" << variable_info.data_shape << ", ";
+        oss << "data_type=" << variable_info.data_type << ", ";
+        oss << "variable_id=" << variable_info.variable_id;
+        oss << "]";
+        return oss.str();
+    }
+};
 
 }  // namespace str
 

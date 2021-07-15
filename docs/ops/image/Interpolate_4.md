@@ -13,7 +13,6 @@
   * **Description**: specifies type of interpolation
   * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
   **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`.
 
@@ -24,7 +23,6 @@
     * `sizes` - an output shape is calculated as `output_shape[axes[i]] = sizes[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
     * `scales` - an output shape is calculated as `output_shape[axes[i]] = floor(scales[i] * (input_shape[axes[i]] + pads_begin[axes[i]] + pads_end[axes[i]]))` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
 
 * *coordinate_transformation_mode*
@@ -89,13 +87,13 @@
 
 **Inputs**
 
-*   **1**: `data` - tensor of type `T` with data for interpolation. **Required.**
+*   **1**: `data` - tensor of type *T* with data for interpolation. **Required.**
 
-*   **2**: `sizes` - 1D tensor of type `T_SIZE` describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
+*   **2**: `sizes` - 1D tensor of type *T_SIZE* describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
 
-*   **3**: `scales` - 1D tensor of type `T_SCALES` describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
+*   **3**: `scales` - 1D tensor of type *T_SCALES* describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
 
-*   **4**: `axes` - 1D tensor of type `T_AXES` specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
+*   **4**: `axes` - 1D tensor of type *T_AXES* specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 

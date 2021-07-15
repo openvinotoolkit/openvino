@@ -78,7 +78,10 @@ void MKLDNNGraph::CreateGraph(NET &net, const MKLDNNExtensionManager::Ptr& extMg
 
     Replicate(net, extMgr);
     InitGraph();
+
     status = Ready;
+
+    ENABLE_CPU_DEBUG_CAP(serialize(*this));
 }
 
 template void MKLDNNGraph::CreateGraph(const std::shared_ptr<const ngraph::Function>&,
@@ -343,10 +346,6 @@ void MKLDNNGraph::InitGraph() {
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
-#endif
-
-#if !defined(NDEBUG) && defined(PRINT_GRAPH_INFO)
-    printGraphInfo();
 #endif
     ExecuteConstantNodesOnly();
 }
@@ -809,7 +808,7 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     mkldnn::stream stream(eng);
 
-    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(infer_count));
+    ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
     for (int i = 0; i < graphNodes.size(); i++) {
         if (request != nullptr) {
@@ -954,6 +953,10 @@ void MKLDNNGraph::setConfig(const Config &cfg) {
     config = cfg;
 }
 
+const Config& MKLDNNGraph::getConfig() const {
+    return config;
+}
+
 void MKLDNNGraph::setProperty(const std::map<std::string, std::string>& properties) {
     config.readProperties(properties);
 }
@@ -974,17 +977,16 @@ void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
     }
 }
 
-void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
+void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
+    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
+        if ((*it) == edge) {
+            graphEdges.erase(it);
+            return;
         }
-    };
+    }
+}
 
+void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1006,14 +1008,14 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1023,16 +1025,6 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1059,14 +1051,14 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1085,7 +1077,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (remEdge) {
             inNum = remEdge->getInputNum();
             remEdge->drop();
-            removeEdge(*this, remEdge);
+            RemoveEdge(remEdge);
         }
         int outNum = parentConv->parentEdges.size();
 
@@ -1216,22 +1208,4 @@ void MKLDNNGraph::EnforceBF16() {
 
 InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
-}
-
-void MKLDNNGraph::printGraphInfo() const {
-    for (auto &graphNode : graphNodes) {
-        std::cout << "name: " << graphNode->getName() << " [ ";
-        if (graphNode->parentEdges.size() > 0) {
-            auto prnt_out_desc = graphNode->parentEdges[0].lock()->getOutputDesc();
-            std::cout << "in: " << prnt_out_desc.getPrecision().name()
-                      << "/l=" << prnt_out_desc.getLayout()
-                      << "; ";
-        }
-        if (graphNode->childEdges.size() > 0) {
-            auto chld_in_desc = graphNode->childEdges[0].lock()->getInputDesc();
-            std::cout << "out: " << chld_in_desc.getPrecision().name()
-                      << "/l=" << chld_in_desc.getLayout();
-        }
-        std::cout << " ]"  << std::endl;
-    }
 }

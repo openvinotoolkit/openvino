@@ -235,7 +235,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
     void output_descriptions_on_adapter(const std::vector<std::shared_ptr<
                                         ngraph::op::util::SubGraphOp::OutputDescription>>& output_descriptions,
-                                        const std::vector<std::string>& parameter_mapping,
+                                        const uint32_t& input_count,
                                         const std::vector<std::string>& result_mapping,
                                         pugi::xml_node& port_map) {
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
@@ -246,7 +246,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& output_description : output_descriptions) {
             pugi::xml_node output = port_map.append_child("output");
-            output.append_attribute("external_port_id").set_value(parameter_mapping.size() + output_description->m_output_index);
+            output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
             output.append_attribute("internal_layer_id").set_value(result_mapping[output_description->m_body_value_index].c_str());
 
             if (auto concat_output = as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
@@ -306,7 +306,11 @@ public:
                 input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                                 <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                output_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
+                uint32_t op_input_count = 0;
+                for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
+                    op_input_count++;
+                }
+                output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map);
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
                 special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
@@ -461,10 +465,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
-        ngraph::get_opset7()};
+        ngraph::get_opset7(), ngraph::get_opset8()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -491,6 +495,7 @@ std::string get_opset_name(
 std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";
@@ -700,19 +705,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
-        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
-        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
-        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
-
-        if (exec_graph) {
-            visit_exec_graph_node(layer, node);
-        }
-
-        const bool data_attr_size =
-            data.attributes().begin() == data.attributes().end();
-        if (data_attr_size) {
-            layer.remove_child(data);
-        }
 
         int port_id = 0;
         // <layers/input>
@@ -779,6 +771,21 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.insert_move_after(output, layer.first_child());
             }
+        }
+
+        // fill <data> general attributes
+        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler);
+        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
+
+        if (exec_graph) {
+            visit_exec_graph_node(layer, node);
+        }
+
+        const bool data_attr_size =
+            data.attributes().begin() == data.attributes().end();
+        if (data_attr_size) {
+            layer.remove_child(data);
         }
     }
     // <edges>

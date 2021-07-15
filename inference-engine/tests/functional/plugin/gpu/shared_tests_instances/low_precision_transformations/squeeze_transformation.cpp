@@ -46,7 +46,7 @@ namespace {
         }
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, SqueezeTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, SqueezeTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GPU),

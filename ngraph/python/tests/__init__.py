@@ -25,8 +25,6 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "MaxUnpool")
-xfail_issue_33512 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Einsum")
 xfail_issue_33535 = xfail_test(reason="nGraph does not support the following ONNX operations:"
                                       "DynamicQuantizeLinear")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -47,12 +45,10 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
 xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
-xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
-xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)"
                                       "is_static() nGraph <value> operation with name: <value> cannot be"
                                       "converted to <value> layer with name: <value> because output"
@@ -110,8 +106,6 @@ xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint da
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_51993 = xfail_test(reason="PRelu supports only 1D tensor for 'slope' input broadcasted"
-                                      "by channel")
 xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
@@ -119,7 +113,6 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
-xfail_issue_40686 = xfail_test(reason="NANs as results")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
@@ -149,5 +142,6 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
-
-xfail_issue_45432 = xfail_test(reason="Einsum is not implemented in CPU plugin.")
+xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
+xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
+xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")

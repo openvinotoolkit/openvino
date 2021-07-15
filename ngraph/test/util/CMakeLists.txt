@@ -26,12 +26,9 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-if(NGRAPH_LIB_VERSIONING_ENABLE)
-    set_target_properties(ngraph_test_util PROPERTIES
-        VERSION ${NGRAPH_VERSION})
-endif()
-target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
-target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend libgtest)
+target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..
+    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(ngraph_test_util PUBLIC ngraph ngraph_backend gtest gmock)
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(ngraph_test_util PRIVATE onnx_common)
 endif()

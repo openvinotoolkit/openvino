@@ -70,8 +70,8 @@ MockPlugin::LoadExeNetworkImpl(const CNNNetwork& network,
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const std::map<std::string, std::string>& config) {
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                          const std::map<std::string, std::string>& config) {
     if (_target) {
         return _target->ImportNetwork(networkModel, config);
     } else {
@@ -80,9 +80,9 @@ MockPlugin::ImportNetworkImpl(std::istream& networkModel,
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-MockPlugin::ImportNetworkImpl(std::istream& networkModel,
-                              const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                              const std::map<std::string, std::string>& config) {
+MockPlugin::ImportNetwork(std::istream& networkModel,
+                         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                         const std::map<std::string, std::string>& config) {
     if (_target) {
         return _target->ImportNetwork(networkModel, context, config);
     } else {
@@ -108,7 +108,7 @@ MockPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
     }
 }
 
-void MockPlugin::SetCore(InferenceEngine::ICore* core) noexcept {
+void MockPlugin::SetCore(std::weak_ptr<InferenceEngine::ICore> core) noexcept {
     if (_target) {
         _target->SetCore(core);
     }

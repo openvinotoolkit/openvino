@@ -66,8 +66,17 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
-    // Template plugin handles only FP32 networks
-    passManager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ngraph::element::f16, ngraph::element::f32}});
+    // GAPI supports only FP32 networks for pre-processing
+    bool needF16toF32 = false;
+    for (const auto& param : function->get_parameters()) {
+        if (param->get_element_type() == ngraph::element::f16 &&
+            inputInfoMap.at(param->get_friendly_name())->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP16) {
+            needF16toF32 = true;
+            break;
+        }
+    }
+    if (needF16toF32)
+        passManager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ngraph::element::f16, ngraph::element::f32}});
     // Example: register plugin specific transformation
     passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
@@ -95,14 +104,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(cons
 }
 // ! [plugin:load_exe_network_impl]
 
-// ! [plugin:import_network_impl]
-InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetworkImpl(std::istream& modelStream, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
+// ! [plugin:import_network]
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& modelStream, const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetwork");
 
     auto fullConfig = Configuration {config, _cfg};
     return std::make_shared<ExecutableNetwork>(modelStream, fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
-// ! [plugin:import_network_impl]
+// ! [plugin:import_network]
 
 // ! [plugin:query_network]
 InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork& network, const ConfigMap& config) const {

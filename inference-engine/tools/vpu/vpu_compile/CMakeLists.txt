@@ -5,7 +5,6 @@
 set(TARGET_NAME myriad_compile)
 
 file(GLOB SRCS
-    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
@@ -17,13 +16,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     )
 endif()
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common
-    ${IE_MAIN_SOURCE_DIR}/samples/common
-)
-
 target_link_libraries(${TARGET_NAME} PRIVATE
-    inference_engine vpu_graph_transformer
+    inference_engine
+    vpu_graph_transformer
     gflags
     ie_samples_utils
 )
@@ -39,6 +34,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 # install
 
+ie_cpack_add_component(myriad_dev DEPENDS myriad)
+
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT myriad)
+        COMPONENT myriad_dev)

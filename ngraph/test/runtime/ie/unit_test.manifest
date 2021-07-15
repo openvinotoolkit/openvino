@@ -339,13 +339,7 @@ max_matrix_to_scalar_zero_by_zero
 max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
-normalize_across_empty_axes_input
-normalize_l2_all_mode_add
-normalize_l2_none_mode_add
-normalize_l2_zero_mode_add
-normalize_l2_all_mode_max
-normalize_l2_none_mode_max
-normalize_l2_zero_mode_max
+
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -368,44 +362,31 @@ any_2x0_to_scalar
 all_trivial
 all_2x0_to_scalar
 all_dynamic
-reduce_sum_keep_dynamic
-reduce_sum_keep_stable_simple_double
-reduce_sum_keep_stable_acc_double
-reduce_sum_keep_stable_acc
-reduce_sum_keep_3d_eliminate_zero_dim
-reduce_sum_keep_vector_zero
-reduce_sum_keep_matrix_rows_zero
-reduce_sum_dynamic
-reduce_sum_3d_eliminate_zero_dim_int32
-reduce_sum_keep_3d_eliminate_zero_dim_int32
-reduce_sum_keep_trivial_in_double
-reduce_sum_3d_eliminate_zero_dim
-reduce_sum_matrix_to_scalar_zero_by_zero
-reduce_sum_vector_zero
-reduce_sum_matrix_cols_zero
-reduce_sum_matrix_rows_zero
-reduce_sum_keep_matrix_to_scalar_zero_by_zero
-reduce_sum_keep_matrix_cols_zero
-reduce_product_matrix_columns
 
-# accuracy
-reduce_sum_keep_stable_acc
+# Reduce ops disabled/accuracy: 56520
+# disabled reference implementation
+reduce_max_to_scalar_int8
+reduce_max_keep_to_scalar_int8
+reduce_mean_to_scalar_int8
+reduce_mean_keep_to_scalar_int8
 reduce_sum_keep_2d_to_scalar_int8
+reduce_sum_2d_to_scalar_int8
+reduce_product_to_scalar_int8
+reduce_product_keep_to_scalar_int8
+reduce_min_to_scalar_int8
+reduce_min_keep_to_scalar_int8
+# accuracy
+reduce_mean_matrix_rows_int32
+reduce_mean_keep_matrix_rows_int32
+reduce_sum_keep_stable_acc
 reduce_sum_keep_3d_to_scalar_int32
 reduce_sum_keep_large_1d_to_scalar
-reduce_sum_stable_simple_double
-reduce_sum_stable_acc_double
 reduce_sum_stable_acc
-reduce_sum_trivial_in_double
-reduce_sum_2d_to_scalar_int8
 reduce_sum_3d_to_scalar_int32
 reduce_sum_large_1d_to_scalar
 
 # Doesn't throw expected exception type.
 unhandled_op
-
-# Const layer Constant_6325 has incorrect dimensions in the output data 0
-reshape_t2s
 
 # Expected equality of these values:
 #  (vector<char>{42})
@@ -413,22 +394,6 @@ reshape_t2s
 #  read_vector<char>(result)
 #    Which is: { '\0' }
 reshape_s2t1
-reshape_v2m_col
-reshape_v2m_row
-reshape_v2t_middle
-reshape_m2m_same
-reshape_m2m_transpose
-reshape_m2m_dim_change_transpose
-reshape_3d_transpose_021
-reshape_3d_transpose_210
-reshape_3d_transpose_201
-reshape_3d_transpose_102
-reshape_3d_transpose_120
-reshape_4d_transpose
-reshape_4d_no_transpose
-reshape_transposed_shape_change
-reshape_6d
-reshape_shufflenet_5d
 dyn_group_convolution_backprop_data
 group_conv
 group_conv_striding
@@ -455,7 +420,6 @@ lrn_across_all_dims
 elu
 elu_negative_alpha
 max_pool_2d_1channel_1image_overpadded
-normalize_across_chw_4d_max_bias
 grn_2d_with_bias
 erf
 divide_adjoint_stability
@@ -478,77 +442,6 @@ onnx_dyn_shapes_model_tile_static
 gather_4d_indices_axis_0_uint8
 tensor_constant_with_op
 constant_equality_bool
-reduce_product_matrix_rows
-reduce_product_3d_to_matrix_most_sig
-reduce_product_3d_to_matrix_least_sig
-reduce_product_keep_matrix_columns
-reduce_product_keep_matrix_rows
-reduce_product_keep_3d_to_matrix_most_sig
-reduce_product_keep_3d_to_matrix_least_sig
-reduce_product_matrix_columns_dynamic
-reduce_product_matrix_rows_dynamic
-reduce_product_keep_matrix_columns_dynamic
-reduce_product_keep_matrix_rows_dynamic
-reduce_min_matrix_columns
-reduce_min_matrix_rows
-reduce_min_matrix_rows_int32
-reduce_min_3d_to_matrix_most_sig
-reduce_min_3d_to_matrix_least_sig
-reduce_min_keep_matrix_columns
-reduce_min_keep_matrix_rows
-reduce_min_keep_matrix_rows_int32
-reduce_min_keep_3d_to_matrix_most_sig
-reduce_min_keep_3d_to_matrix_least_sig
-reduce_min_matrix_columns_dynamic
-reduce_min_matrix_rows_dynamic
-reduce_min_keep_matrix_columns_dynamic
-reduce_min_keep_matrix_rows_dynamic
-
-# zero dimension / result mismatch
-reduce_product_matrix_rows_zero
-reduce_product_matrix_cols_zero
-reduce_product_vector_zero
-reduce_product_matrix_to_scalar_zero_by_zero
-reduce_product_3d_eliminate_zero_dim
-reduce_product_to_scalar_int8
-reduce_product_keep_matrix_rows_zero
-reduce_product_keep_matrix_cols_zero
-reduce_product_keep_vector_zero
-reduce_product_keep_matrix_to_scalar_zero_by_zero
-reduce_product_keep_3d_eliminate_zero_dim
-reduce_product_keep_to_scalar_int8
-reduce_min_to_scalar_int8
-reduce_min_matrix_rows_zero
-reduce_min_matrix_cols_zero
-reduce_min_vector_zero
-reduce_min_matrix_to_scalar_zero_by_zero
-reduce_min_3d_eliminate_zero_dim
-reduce_min_keep_to_scalar_int8
-reduce_min_keep_matrix_rows_zero
-reduce_min_keep_matrix_cols_zero
-reduce_min_keep_vector_zero
-reduce_min_keep_matrix_to_scalar_zero_by_zero
-reduce_min_keep_3d_eliminate_zero_dim
-reduce_mean_to_scalar_int8
-reduce_mean_matrix_rows_int32
-reduce_mean_keep_to_scalar_int8
-reduce_mean_keep_matrix_rows_int32
-reduce_max_to_scalar_int8
-reduce_max_matrix_rows_zero
-reduce_max_matrix_rows_zero_int32
-reduce_max_matrix_cols_zero
-reduce_max_vector_zero
-reduce_max_matrix_to_scalar_zero_by_zero
-reduce_max_3d_to_scalar_double
-reduce_max_3d_eliminate_zero_dim
-reduce_max_keep_to_scalar_int8
-reduce_max_keep_matrix_rows_zero
-reduce_max_keep_matrix_rows_zero_int32
-reduce_max_keep_matrix_cols_zero
-reduce_max_keep_vector_zero
-reduce_max_keep_matrix_to_scalar_zero_by_zero
-reduce_max_keep_3d_to_scalar_double
-reduce_max_keep_3d_eliminate_zero_dim
 
 # Incorrect precision f64!
 sum_trivial_in_double
@@ -758,9 +651,6 @@ lrn_2d_across_outermost_axis
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-prelu
-prelu_shared_slope
-prelu_negative_slope
 convolution_simple_padding
 
 # Cannot cast ngraph node Stack to CNNLayer!
@@ -779,14 +669,6 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# Unsupported primitive of type: SpaceToBatch
-space_to_batch
-batch_to_space
-
-# [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
-normalize_across_1axis_5d
-normalize_across_123axes_5d
-
 # Unsupported operator detected in the graph.
 gemm
 gemm_C
@@ -795,11 +677,6 @@ gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
 scale_shift_no_broadcast
 scale_shift
-
-# Cannot cast ngraph node ShuffleChannels to CNNLayer!
-shuffle_channels_simple
-shuffle_channels_negative_axis
-shuffle_channels_float
 
 # Detected op not belonging to opset1!
 onnx_model_quant_conv_linear
@@ -828,9 +705,6 @@ cum_sum_default
 cum_sum_2dim
 cum_sum_3d
 cum_sum_2dim_allmodes
-
-# Unsupported primitive of type: Ceiling
-ceiling
 
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
@@ -1032,6 +906,56 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# NormalizeL2 - output mismatch,
+# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NomalizeL2 - unsorted axes are not supported,
+# message: "Doesn't support reduction axes: (3.1.2)"
+# Issue: 59794
+IE_CPU.normalize_l2_4D_axes_unsorted_312_max
+IE_CPU.normalize_l2_4D_axes_unsorted_312_add
+
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Issue: 35627, 59791
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
+
 # (Constant W, R inputs are required) Ticket: 49207
 # W, R inputs as Parameter, default clip value
 # Operation has a form that is not supported.
@@ -1053,90 +977,6 @@ roll_3d_input
 roll_3d_input_negative_shift
 roll_negative_axes
 
-# convert operation
-IE_CPU.convert_u8_to_boolean
-IE_CPU.convert_i32_to_boolean
-IE_CPU.convert_f32_to_boolean
-IE_CPU.convert_u8_to_f16
-IE_CPU.convert_u8_to_i16
-IE_CPU.convert_u8_to_i64
-IE_CPU.convert_u8_to_u16
-IE_CPU.convert_u8_to_u32
-IE_CPU.convert_u8_to_u64
-IE_CPU.convert_f16_to_f32
-IE_CPU.convert_u32_to_f32
-IE_CPU.convert_i4_to_f32
-IE_CPU.convert_u1_to_f32
-IE_CPU.convert_u4_to_f32
-
-IE_CPU.convert_u1_to_u1
-IE_CPU.convert_u4_to_u1
-IE_CPU.convert_u8_to_u1
-IE_CPU.convert_u16_to_u1
-IE_CPU.convert_u32_to_u1
-IE_CPU.convert_u64_to_u1
-IE_CPU.convert_i4_to_u1
-IE_CPU.convert_i8_to_u1
-IE_CPU.convert_i16_to_u1
-IE_CPU.convert_i32_to_u1
-IE_CPU.convert_i64_to_u1
-IE_CPU.convert_f16_to_u1
-IE_CPU.convert_bf16_to_u1
-IE_CPU.convert_f32_to_u1
-
-IE_CPU.convert_u1_to_i4
-IE_CPU.convert_u4_to_i4
-IE_CPU.convert_u8_to_i4
-IE_CPU.convert_u16_to_i4
-IE_CPU.convert_u32_to_i4
-IE_CPU.convert_u64_to_i4
-IE_CPU.convert_i8_to_i4
-IE_CPU.convert_i16_to_i4
-IE_CPU.convert_i32_to_i4
-IE_CPU.convert_i64_to_i4
-IE_CPU.convert_f16_to_i4
-IE_CPU.convert_bf16_to_i4
-IE_CPU.convert_f32_to_i4
-
-IE_CPU.convert_u1_to_u4
-IE_CPU.convert_u4_to_u4
-IE_CPU.convert_u8_to_u4
-IE_CPU.convert_u16_to_u4
-IE_CPU.convert_u32_to_u4
-IE_CPU.convert_u64_to_u4
-IE_CPU.convert_i4_to_u4
-IE_CPU.convert_i8_to_u4
-IE_CPU.convert_i16_to_u4
-IE_CPU.convert_i32_to_u4
-IE_CPU.convert_i64_to_u4
-IE_CPU.convert_f16_to_u4
-IE_CPU.convert_bf16_to_u4
-IE_CPU.convert_f32_to_u4
-
-IE_CPU.convert_u1_to_i8
-IE_CPU.convert_u4_to_i8
-IE_CPU.convert_i4_to_i8
-IE_CPU.convert_u1_to_i16
-IE_CPU.convert_u4_to_i16
-IE_CPU.convert_i4_to_i16
-IE_CPU.convert_u1_to_i32
-IE_CPU.convert_u4_to_i32
-IE_CPU.convert_i4_to_i32
-IE_CPU.convert_u1_to_i64
-IE_CPU.convert_u4_to_i64
-IE_CPU.convert_i4_to_i64
-IE_CPU.convert_u1_to_u8
-IE_CPU.convert_u4_to_u8
-IE_CPU.convert_i4_to_u8
-IE_CPU.convert_u1_to_u16
-IE_CPU.convert_u4_to_u16
-IE_CPU.convert_i4_to_u16
-IE_CPU.convert_u1_to_u32
-IE_CPU.convert_u4_to_u32
-IE_CPU.convert_i4_to_u32
-IE_CPU.convert_u1_to_u64
-IE_CPU.convert_u4_to_u64
-IE_CPU.convert_i4_to_u64
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1199,6 +1039,7 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
+mish_f16
 
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
@@ -1218,6 +1059,41 @@ IE_CPU.nonmaxsuppression_two_classes
 IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
 IE_CPU.onnx_model_nonmaxsuppression_single_box
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
+
+# Unsupported dynamic op
+IE_CPU.multiclass_nms_by_score
+IE_CPU.multiclass_nms_by_class_id
+IE_CPU.multiclass_nms_output_type_i32
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id_cross_batch
+IE_CPU.multiclass_nms_no_output
+IE_CPU.multiclass_nms_by_background
+IE_CPU.multiclass_nms_by_keep_top_k
+IE_CPU.multiclass_nms_by_nms_eta
+IE_CPU.multiclass_nms_flipped_coordinates
+IE_CPU.multiclass_nms_identical_boxes
+IE_CPU.multiclass_nms_limit_output_size
+IE_CPU.multiclass_nms_single_box
+IE_CPU.multiclass_nms_by_IOU
+IE_CPU.multiclass_nms_by_IOU_and_scores
+
+# Unsupported dynamic op
+IE_CPU.matrix_nms_output_type_i64
+IE_CPU.matrix_nms_output_type_i32
+IE_CPU.matrix_nms_gaussian
+IE_CPU.matrix_nms_two_batches_two_classes
+IE_CPU.matrix_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.matrix_nms_two_batches_two_classes_by_classid_cross_batch
+IE_CPU.matrix_nms_by_keep_top_k
+IE_CPU.matrix_nms_background
+IE_CPU.matrix_nms_flipped_coordinates
+IE_CPU.matrix_nms_post_threshold
+IE_CPU.matrix_nms_identical_boxes
+IE_CPU.matrix_nms_nms_top_k
+IE_CPU.matrix_nms_single_box
+IE_CPU.matrix_nms_no_output
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
@@ -1242,6 +1118,7 @@ IE_CPU.dft1d_eval_float16
 IE_CPU.dft2d_eval_float16
 IE_CPU.dft3d_eval_float16
 IE_CPU.onnx_constant_sparse_tensor_float16_3x4
+IE_CPU.onnx_float16_tensor_as_int32
 
 
 # nGraph test infrastructure doesn't support (b)float16 input data in IE_CPU-tests
@@ -1635,6 +1512,13 @@ onnx_controlflow_loop_infinite
 # unsupported dynamic ops
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
 IE_GPU.range_v4_trunc_inputs
+variadic_split_1d_dynamic
+variadic_split_2d_axis_0_dynamic
+variadic_split_2d_axis_1_dynamic
+variadic_split_4d_axis_0_dynamic
+variadic_split_4d_axis_1_dynamic
+variadic_split_4d_axis_2_dynamic
+variadic_split_4d_axis_3_dynamic
 
 # CPU plugin does not support bool type
 IE_CPU.evaluate_2D_gather_elements_3x2_data_bool
@@ -1669,14 +1553,6 @@ IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
 # incorrect result for Minimum if u16 type is used
 minimum_u16
 IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
-
-# not implemented in CPU and GPU
-evaluate_mvn_6_no_variance
-evaluate_mvn_6
-evaluate_mvn_6_inside_sqrt
-evaluate_mvn_6_across_chanells
-evaluate_mvn_6_across_batch
-IE_CPU.onnx_mvn_v6
 
 # not yet implemented on CPU/GPU Gather 7
 gather_v7_data_int32_2d_indices_axis_1_negative_batch_dims
@@ -1733,3 +1609,11 @@ IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
+
+# No plugin support for AdaptiveAvgPool and AdaptiveMaxPool
+adaptive_avg_pool_1d
+adaptive_avg_pool_2d
+adaptive_avg_pool_3d
+adaptive_max_pool_1d
+adaptive_max_pool_2d
+adaptive_max_pool_3d

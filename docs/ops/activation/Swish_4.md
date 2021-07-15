@@ -9,7 +9,8 @@
 **Detailed description**
 
 *Swish* operation is introduced in this [article](https://arxiv.org/abs/1710.05941).
-It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
+
+*Swish* is a smooth, non-monotonic function. The non-monotonicity property of *Swish* distinguishes itself from most common activation functions. It performs element-wise activation function on a given input tensor,  based on the following mathematical formula:
 
 \f[
 Swish(x) = x\cdot \sigma(\beta x) = x \left(1 + e^{-(\beta x)}\right)^{-1}
@@ -21,13 +22,13 @@ where β corresponds to `beta` scalar input.
 
 **Inputs**:
 
-*   **1**: `data`. A tensor of type `T` and arbitrary shape. **Required**.
+*   **1**: `data`. A tensor of type *T* and arbitrary shape. **Required**.
 
-*   **2**: `beta`. A non-negative scalar value of type `T`. Multiplication parameter for the sigmoid. Default value 1.0 is used. **Optional**.
+*   **2**: `beta`. A non-negative scalar value of type *T*. Multiplication parameter for the sigmoid. Default value 1.0 is used. **Optional**.
 
 **Outputs**:
 
-*   **1**: The result of element-wise *Swish* function applied to the input tensor `data`. A tensor of type `T` and the same shape as `data` input tensor.
+*   **1**: The result of element-wise *Swish* function applied to the input tensor `data`. A tensor of type *T* and the same shape as `data` input tensor.
 
 **Types**
 
