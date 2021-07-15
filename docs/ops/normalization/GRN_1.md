@@ -23,11 +23,15 @@
 
 **Inputs**
 
-* **1**: Input tensor with element of any floating point type and `2 <= rank <=4`. **Required.**
+* **1**:  `data` - A tensor of type *T* and `2 <= rank <= 4`. **Required.**
 
 **Outputs**
 
-* **1**: Output tensor of the same type and shape as the input tensor.
+* **1**: The result of *GRN* function applied to `data` input tensor. Normalized tensor of the same type and shape as the data input.
+
+**Types**
+
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 
