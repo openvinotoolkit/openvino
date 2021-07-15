@@ -27,7 +27,7 @@ def test_cc_collect(test_id, model, openvino_ref, test_info,
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
     """
-    out = artifacts / artifacts / test_id / test_id
+    out = artifacts / test_id / test_id
     test_info["test_id"] = artifacts / test_id
 
     # cleanup old data if any
@@ -59,7 +59,7 @@ def test_cc_collect(test_id, model, openvino_ref, test_info,
 @pytest.mark.dependency(depends=["cc_collect"])
 def test_minimized_pkg(test_id, model, openvino_root_dir, artifacts):  # pylint: disable=unused-argument
     """Build and install OpenVINO package with collected conditional compilation statistics."""
-    out = artifacts / test_id/ test_id
+    out = artifacts / test_id / test_id
     install_prefix = out / "install_pkg"
     build_dir = openvino_root_dir / "build_minimized"
 
