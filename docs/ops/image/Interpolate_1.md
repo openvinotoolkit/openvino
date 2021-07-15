@@ -13,7 +13,6 @@
   * **Description**: `axes` specify spatial dimension indices where interpolation is applied. Other dimensions are treated as batch dimensions. The order of elements in `axes` attribute matters and mapped directly to elements with the same indices in the 2nd input `target_spatial_shape`.
   * **Range of values**: list of non-negative integer numbers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *mode*
@@ -21,7 +20,6 @@
   * **Description**: specifies type of interpolation
   * **Range of values**: one of `nearest`, `linear`, `cubic`, `area`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
 
 * *align_corners*

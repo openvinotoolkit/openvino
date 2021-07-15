@@ -8,7 +8,6 @@
 
 namespace kernel_selector {
 const primitive_db KernelBase::db;
-thread_local size_t KernelBase::counter = 0;
 
 std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     auto gws = dispatchData.gws;

@@ -176,6 +176,7 @@ set(SRC
     type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
+    type_prop/prior_box_clustered.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -277,6 +278,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/prior_box.cpp
+    visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/reduce_l1.cpp
@@ -387,7 +389,6 @@ set(MULTI_TEST_SRC
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
@@ -457,6 +458,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
@@ -579,6 +581,7 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -647,6 +650,7 @@ install(TARGETS unit-test
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
 target_link_libraries(unit-test PRIVATE frontend_manager)
+target_link_libraries(unit-test PRIVATE cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
