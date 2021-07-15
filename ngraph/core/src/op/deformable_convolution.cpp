@@ -291,6 +291,30 @@ namespace deformable_convolution
                              group,
                              deformable_group,
                              use_bilinear_interpolation_padding);
+            NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                             i32,
+                             inputs,
+                             out,
+                             strides,
+                             pads_begin,
+                             pads_end,
+                             dilations,
+                             auto_pad,
+                             group,
+                             deformable_group,
+                             use_bilinear_interpolation_padding);
+            NGRAPH_TYPE_CASE(evaluate_deformable_convolution,
+                             i16,
+                             inputs,
+                             out,
+                             strides,
+                             pads_begin,
+                             pads_end,
+                             dilations,
+                             auto_pad,
+                             group,
+                             deformable_group,
+                             use_bilinear_interpolation_padding);
         default: rc = false; break;
         }
         return rc;
@@ -320,6 +344,8 @@ bool op::v8::DeformableConvolution::has_evaluate() const
     switch (get_input_element_type(0))
     {
     case ngraph::element::f16:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
     case ngraph::element::f32: return true;
     default: break;
     }
