@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-*GRN* computes the L2 norm by channels for input tensor with shape `[N, C, ...]`. *GRN* does the following with the input tensor:
+*GRN* computes the L2 norm across channels for input tensor with shape `[N, C, ...]`. *GRN* does the following with the input tensor:
 
     output[i0, i1, ..., iN] = x[i0, i1, ..., iN] / sqrt(sum[j = 0..C-1](x[i0, j, ..., iN]**2) + bias)
 
