@@ -115,6 +115,6 @@ write_basic_package_version_file(${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
     COMPATIBILITY SameMajorVersion)
 
 install(FILES ${ngraph_BINARY_DIR}/ngraphConfig.cmake
-        ${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+              ${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION "deployment_tools/ngraph/cmake"
         COMPONENT ngraph_dev)

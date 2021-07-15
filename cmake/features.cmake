@@ -130,6 +130,9 @@ ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of un
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 
+# WA for ngraph python build on Windows debug
+list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+
 #
 # Process featues
 #
