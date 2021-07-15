@@ -29,13 +29,13 @@ Where D is the rank of input tensor `data`. The axis being split must be evenly 
 
 **Inputs**
 
-* **1**: `data`. A tensor of type `T` and arbitrary shape. **Required.**
-* **2**: `axis`. Axis along `data` to split. A scalar of type `T_AXIS` within the range `[-rank(data), rank(data) - 1]`. Negative values address dimensions from the end. **Required.**
+* **1**: `data`. A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: `axis`. Axis along `data` to split. A scalar of type *T_AXIS* within the range `[-rank(data), rank(data) - 1]`. Negative values address dimensions from the end. **Required.**
 * **Note**: The dimension of input tensor `data` shape along `axis` must be evenly divisible by *num_splits* attribute.
 
 **Outputs**
 
-* **Multiple outputs**: Tensors of type `T`. The i-th output has the same shape as `data` input tensor except for dimension along `axis` which is `data.shape[axis]/num_splits`.
+* **Multiple outputs**: Tensors of type *T*. The i-th output has the same shape as `data` input tensor except for dimension along `axis` which is `data.shape[axis]/num_splits`.
 
 **Types**
 

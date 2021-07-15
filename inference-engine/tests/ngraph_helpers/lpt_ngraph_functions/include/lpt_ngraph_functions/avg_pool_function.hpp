@@ -20,20 +20,20 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool addFQ,
         const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,

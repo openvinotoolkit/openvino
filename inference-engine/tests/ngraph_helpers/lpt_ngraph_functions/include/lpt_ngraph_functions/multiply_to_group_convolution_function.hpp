@@ -18,18 +18,18 @@ namespace subgraph {
 class MultiplyToGroupConvolutionFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type& precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const bool haveMultiplyWithNoConstBeforeDequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::element::Type& precision,
         const std::shared_ptr<ngraph::opset1::Constant>& weights,
         const std::shared_ptr<ngraph::opset1::Constant>& biases,

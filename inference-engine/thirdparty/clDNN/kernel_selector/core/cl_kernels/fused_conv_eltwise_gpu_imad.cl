@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/imad.cl"
 #if QUANTIZATION_TERM
 #    define ACCUMULATOR_TYPE int

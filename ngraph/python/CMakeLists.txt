@@ -6,7 +6,7 @@ cmake_minimum_required (VERSION 3.13)
 
 project (pyngraph)
 
-if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
     find_package(ngraph REQUIRED)
 endif()
@@ -15,26 +15,14 @@ if(ngraph_FOUND)
     message("ngraph version = {${ngraph_VERSION}}")
 endif()
 
-include(FetchContent)
-
-FetchContent_Declare(
-    pybind11
-    GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
-    GIT_TAG        "v2.6.2"
-)
-
-FetchContent_GetProperties(pybind11)
-if(NOT pybind11_POPULATED)
-    FetchContent_Populate(pybind11)
-    add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
-endif()
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pybind11 EXCLUDE_FROM_ALL)
 
 # PYTHON_VERSION_MAJOR and PYTHON_VERSION_MINOR are defined inside pybind11
 set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-message("Python version=${PYTHON_VERSION}")
+message(STATUS "Python version=${PYTHON_VERSION}")
 
 set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-if(OpenVINO_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
     else()
@@ -94,14 +82,14 @@ if(NGRAPH_UNIT_TEST_ENABLE)
 endif()
 
 # perform copy
-if(OpenVINO_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET _${PROJECT_NAME}
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
     )
 endif()
 
-if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     if(COMMAND ie_python_minimal_api)
         ie_python_minimal_api(_${PROJECT_NAME})
     endif()
