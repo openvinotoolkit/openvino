@@ -96,7 +96,6 @@ xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
-xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")

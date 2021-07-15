@@ -45,7 +45,6 @@ from tests import (
     xfail_issue_44968,
     xfail_issue_45180,
     xfail_issue_45344,
-    xfail_issue_46762,
     xfail_issue_47323,
     xfail_issue_47337,
     xfail_issue_48052,
@@ -183,13 +182,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_top_k_smallest_cpu",
     ),
     (xfail_issue_33633, "OnnxBackendNodeModelTest.test_maxpool_2d_dilations_cpu"),
-    (
-        xfail_issue_46762,
-        "OnnxBackendNodeModelTest.test_min_uint8_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint16_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint32_cpu",
-        "OnnxBackendNodeModelTest.test_min_uint64_cpu",
-    ),
     (
         xfail_issue_55760,
         "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
