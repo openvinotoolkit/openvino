@@ -47,7 +47,7 @@ if(CMAKE_CROSSCOMPILING)
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 endif()
 
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs")
+set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
