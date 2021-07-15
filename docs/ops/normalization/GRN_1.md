@@ -36,7 +36,7 @@
 **Example**
 
 ```xml
-<layer id="5" name="normalization" type="GRN">
+<layer ... type="GRN">
     <data bias="1e-4"/>
     <input>
         <port id="0">
