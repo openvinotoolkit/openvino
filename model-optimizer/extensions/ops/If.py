@@ -25,7 +25,7 @@ class If(Op):
             'then_graph': None,  # an Graph object with a "then" body sub-graph (condition is True)
             'else_graph': None,  # an Graph object with a "else" body sub-graph (condition is False)
             'sub_graphs': ['then_graph', 'else_graph'],  # built-in attribute with all sub-graphs
-            'version': 'opset7',
+            'version': 'opset8',
             'infer': self.infer,
             'type_infer': self.type_infer,
         }
