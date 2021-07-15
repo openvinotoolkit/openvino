@@ -214,8 +214,11 @@ int main(int argc, char* argv[]) {
             std::map<std::string, std::string>& device_config = config.at(device);
 
             // high-level performance modes
-            if (!ov_perf_hint.empty())
+            if (!ov_perf_hint.empty()) {
                 device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+                if (FLAGS_nireq != 0)
+                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+            }
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {

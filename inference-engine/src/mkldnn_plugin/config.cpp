@@ -41,6 +41,27 @@ Config::Config() {
     updateProperties();
 }
 
+std::string Config::CheckPerformanceHintValue(std::string val) {
+    if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
+        return val;
+    else
+        IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
+        << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT;
+}
+
+int Config::CheckPerformanceHintRequestValue(std::string val) {
+    int val_i = -1;
+    try {
+        val_i = std::stoi(val);
+        if (val_i > 0)
+            return val_i;
+        else
+            throw std::logic_error("wrong val");
+    } catch (const std::exception&) {
+        IE_THROW() << "Wrong value of " << val << " for property key "
+                   << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS << ". Expected only positive integer numbers";
+    }
+}
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
@@ -109,11 +130,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                     << ". Expected only YES/NO";
             }
         } else if (key == PluginConfigParams::KEY_PERFORMANCE_HINT) {
-            if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
-                ovPerfMode = val;
-            else
-                IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
-                                   << ". Expected only " << PluginConfigParams::LATENCY << "/" << PluginConfigParams::THROUGHPUT;
+            ovPerfHint = CheckPerformanceHintValue(val);
+        } else if (key == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS) {
+            ovPerfHintNumRequests = CheckPerformanceHintRequestValue(val);
         }  else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -163,8 +182,10 @@ void Config::updateProperties() {
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
-        if (!ovPerfMode.empty())
-            _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, ovPerfMode });
+        if (!ovPerfHint.empty())
+            _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, ovPerfHint });
+        if (!ovPerfHintNumRequests)
+            _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, std::to_string(ovPerfHintNumRequests) });
     }
 }
 

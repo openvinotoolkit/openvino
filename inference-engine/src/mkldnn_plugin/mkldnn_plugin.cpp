@@ -591,8 +591,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     //const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
-    // if (mode != config.end() || !engConfig.ovPerfMode.empty()) {
-        //const auto mode_name = (mode != config.end()) ? mode->second : engConfig.ovPerfMode;
+    // if (mode != config.end() || !engConfig.ovPerfHint.empty()) {
+        // const auto mode_name = (mode != config.end())
+        //  ? Config::CheckPerformanceHintValue(mode->second) : engConfig.ovPerfHint;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
         //const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
         // if (streams == config.end() && !streamsSet) { // for EXPERIMENT: overriding the user streams settings
@@ -661,6 +662,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 //                        std::cout << "case 3.1" << std::endl;
 //                    }
                 }
+                auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
+                if (num_requests != config.end())
+                    num_streams = std::min(num_streams, Config::CheckPerformanceHintRequestValue(num_requests->second));
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
 
                 std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
