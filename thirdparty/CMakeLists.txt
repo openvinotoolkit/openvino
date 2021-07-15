@@ -125,21 +125,11 @@ endif()
 #
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
-    set(BEFORE_PROTOBUF_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    # protobuf type for ONNX importer / editor
-    set(BUILD_STANDALONE_STATIC OFF)
-    set(USE_STATIC_PROTOBUF OFF)
-    set(BUILD_SHARED_LIBS ON)
-
     if(NGRAPH_USE_SYSTEM_PROTOBUF)
         find_package(Protobuf REQUIRED)
     else()
         add_subdirectory(protobuf)
     endif()
-
-    set(BUILD_SHARED_LIBS ${BEFORE_PROTOBUF_BUILD_SHARED_LIBS})
-    unset(BEFORE_PROTOBUF_BUILD_SHARED_LIBS)
-    unset(BUILD_STANDALONE_STATIC)
 
     # forward variables used in the other places
     set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
