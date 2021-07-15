@@ -69,7 +69,7 @@ The box height and width are calculated the following way: `roi_width = max(spat
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 * *IND_T*: any supported integer type.
 
