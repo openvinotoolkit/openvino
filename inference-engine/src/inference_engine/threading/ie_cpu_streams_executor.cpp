@@ -21,6 +21,17 @@
 #include "threading/ie_cpu_streams_executor.hpp"
 #include <openvino/itt.hpp>
 
+#if defined(_WIN32) || defined(_WIN64)
+
+namespace win {
+
+std::map<BYTE, std::vector<DWORD>> core_types_map{};
+std::vector<BYTE> core_types_ids_vector{};
+std::vector<DWORD> whole_system_ids{};
+
+}
+#endif
+
 using namespace openvino;
 
 namespace InferenceEngine {
