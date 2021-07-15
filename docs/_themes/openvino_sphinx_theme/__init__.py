@@ -10,31 +10,6 @@ from sphinx.util import logging
 SPHINX_LOGGER = logging.getLogger(__name__)
 
 
-def update_templates(app, pagename, templatename, context, doctree):
-    """Update template names for page build."""
-    template_sections = [
-        "theme_navbar_start",
-        "theme_navbar_center",
-        "theme_navbar_end",
-        "theme_footer_items",
-        "theme_page_sidebar_items",
-        "sidebars",
-    ]
-
-    for section in template_sections:
-        if context.get(section):
-            # Break apart `,` separated strings so we can use , in the defaults
-            if isinstance(context.get(section), str):
-                context[section] = [
-                    ii.strip() for ii in context.get(section).split(",")
-                ]
-
-            # Add `.html` to templates with no suffix
-            for ii, template in enumerate(context.get(section)):
-                if not os.path.splitext(template)[1]:
-                    context[section][ii] = template + ".html"
-
-
 def setup_edit_url(app, pagename, templatename, context, doctree):
     """Add a function that jinja can access for returning the edit URL of a page."""
 
@@ -114,9 +89,16 @@ def read_doxygen_mapping(app, config):
         ExtensionError('{}: must be a json file.'.format(doxygen_mapping_file))
 
 
+def get_theme_path():
+    theme_path = os.path.abspath(os.path.dirname(__file__))
+    return theme_path
+
+
 def setup(app):
+    theme_path = get_theme_path()
     app.connect('config-inited', read_doxygen_mapping)
     app.connect("html-page-context", setup_edit_url, priority=sys.maxsize)
     app.add_config_value('repositories', dict(), rebuild=True)
     app.add_config_value('doxygen_mapping_file', dict(), rebuild=True)
+    app.add_html_theme('openvino_sphinx_theme', theme_path)
     return {"parallel_read_safe": True, "parallel_write_safe": True}

@@ -22,6 +22,14 @@ project = 'OpenVINO Toolkit'
 copyright = '2021, Intel'
 author = 'Intel'
 
+language = 'en'
+
+html_context = {
+    'current_version': 'latest',
+    'versions': (('latest', '/en/latest/'), ('2022.1', '/en/2022.1/')),
+    'languages': (('English', '/en/latest/'), ('Chinese', '/cn/latest/'))
+}
+
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be

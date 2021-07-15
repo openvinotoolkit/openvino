@@ -153,13 +153,11 @@ pip3 install -r requirements_onnx.txt
 
 ## Using the protobuf Library in the Model Optimizer for Caffe\*
 
-@sphinxdirective
-.. raw:: html
 
-    <details>
-        <summary>Click to expand</summary>
-@endsphinxdirective
 
+
+<details>
+    <summary>Click to expand</summary>
 
 These procedures require:
 
@@ -267,14 +265,7 @@ python3 -m easy_install dist/protobuf-3.6.1-py3.6-win-amd64.egg
 ```shell
 set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 ```
-
-@sphinxdirective
-
-.. raw:: html
-
-    </details>
-
-@endsphinxdirective
+</details>
 
 ## See Also
 

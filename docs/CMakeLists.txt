@@ -96,11 +96,6 @@ function(build_docs)
     set(DOXYGEN_MAPPING_SCRIPT "${DOXYGEN_DIR}/create_mapping.py")
     set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
 
-    # Doxygen config
-    set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
-    set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
-    configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
-
     # out dirs
     set(XML_OUTPUT "${DOCS_BUILD_DIR}/xml")
     set(RST_OUTPUT "${DOCS_BUILD_DIR}/rst")
@@ -125,6 +120,11 @@ function(build_docs)
     set(DOXYREST_CONFIG_OUT "${DOCS_BUILD_DIR}/doxyrest-config.lua")
     configure_file(${DOXYREST_CONFIG_IN} ${DOXYREST_CONFIG_OUT} @ONLY)
     configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
+
+    # Doxygen config
+    set(DOXYFILE_SOURCE "${DOXYGEN_DIR}/Doxyfile.config")
+    set(DOXYFILE_BUILD "${DOCS_BUILD_DIR}/Doxyfile.config")
+    configure_file(${DOXYFILE_SOURCE} ${DOXYFILE_BUILD} @ONLY)
 
     list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
         --input_dir=${OpenVINO_MAIN_SOURCE_DIR}
@@ -209,30 +209,17 @@ function(build_docs)
 
     add_custom_command(TARGET sphinx_docs
                        POST_BUILD
-                       COMMAND ${PYTHON_EXECUTABLE} ${DOXY_LOG_SCRIPT} --log "${DOCS_BUILD_DIR}/doxygen.log"
-                                                                        --include_omz $<BOOL:${OMZ_DOCS_DIR}>
-                                                                        --include_wb $<BOOL:${WORKBENCH_DOCS_DIR}>
-                                                                        --include_pot $<BOOL:${POT_DOCS_DIR}>
-                                                                        --include_gst $<BOOL:${GST_DOCS_DIR}>
-                       COMMENT "Parse doxygen log to find errors."
+                       COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                       COMMENT "Linkchecker"
+                       WORKING_DIRECTORY ${RST_OUTPUT}
                        VERBATIM)
 
-    # added linkcheker
-
-    if(EXISTS "${LINKCHECKER_PY}")
-        add_custom_target(docs_check
-                            COMMAND ${PYTHON_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
-                            COMMENT "Check links in generated documentation"
-                            WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
-                            VERBATIM)
-        set_target_properties(docs_check PROPERTIES FOLDER docs)
-    endif()
 
     find_program(browser NAMES xdg-open)
     if(browser)
         add_custom_target(ie_docs_open
-                          COMMAND ${browser} "${OpenVINO_MAIN_SOURCE_DIR}/docs/html/index.html"
-                          DEPENDS ie_docs
+                          COMMAND ${browser} "${SPHINX_OUTPUT}/index.html"
+                          DEPENDS sphinx_docs
                           COMMENT "Open OpenVINO documentation"
                           VERBATIM)
         set_target_properties(ie_docs_open PROPERTIES FOLDER docs)
