@@ -85,7 +85,8 @@ if [ -f "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh" ]; th
     source "$INTEL_OPENVINO_DIR/data_processing/dl_streamer/bin/setupvars.sh"
 fi
 
-export PATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PATH:+:$PATH}"
+export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
+export PATH="$MO_ROOT:${PATH:+:$PATH}"
 export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer${PYTHONPATH:+:$PYTHONPATH}"
 
 
@@ -101,11 +102,6 @@ fi
 
 if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit" ]; then
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit:$PYTHONPATH"
-fi
-
-if [ -e "$INTEL_OPENVINO_DIR/deployment_tools/tests" ]; then
-    export MO_ROOT="$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer"
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tests/layer_tests:$MO_ROOT:$PYTHONPATH"
 fi
 
 if [ -z "$python_version" ]; then
