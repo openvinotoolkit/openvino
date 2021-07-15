@@ -11,6 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
+// DEPRECATED, remove MvnLayerTest when KMB and ARM plugin will switch to use Mvn1LayerTest (#60420)
 typedef std::tuple<
         InferenceEngine::SizeVector, // Input shapes
         InferenceEngine::Precision,  // Input precision

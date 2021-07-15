@@ -7,6 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
+// DEPRECATED, remove MvnLayerTest when KMB and ARM plugin will switch to use Mvn1LayerTest (#60420)
 std::string MvnLayerTest::getTestCaseName(const testing::TestParamInfo<mvnParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;

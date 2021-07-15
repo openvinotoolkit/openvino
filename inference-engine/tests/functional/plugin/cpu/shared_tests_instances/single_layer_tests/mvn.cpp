@@ -44,9 +44,15 @@ const std::vector<double> epsilon = {
     0.000000001
 };
 
+std::vector<InferenceEngine::Precision> dataPrecisions = {
+        InferenceEngine::Precision::BF16,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32
+};
+
 const auto MvnAcrossChannels = ::testing::Combine(
     ::testing::ValuesIn(inputShapes),
-    ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::ValuesIn(dataPrecisions),
     ::testing::ValuesIn(emptyReductionAxes),
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
@@ -68,11 +74,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_AcrossChannels, Mvn1LayerTest, Mv
 
 INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_ReductionAxes, Mvn1LayerTest, MvnReductionAxes, Mvn1LayerTest::getTestCaseName);
 
-
-std::vector<InferenceEngine::Precision> dataPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
 
 std::vector<InferenceEngine::Precision> idxPrecisions = {
     InferenceEngine::Precision::I32,
