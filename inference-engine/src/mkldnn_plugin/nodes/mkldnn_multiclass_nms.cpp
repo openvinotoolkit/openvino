@@ -308,13 +308,13 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             filtBoxes.begin(), filtBoxes.end(),
             [](const filteredBoxes& l, const filteredBoxes& r) {
                 return ((l.batch_index < r.batch_index) ||
-                        (l.batch_index == r.batch_index) &&
+                        ((l.batch_index == r.batch_index) &&
                             ((l.class_index < r.class_index) ||
                              ((l.class_index == r.class_index) &&
                               l.score > r.score) ||
                              ((std::fabs(l.score - r.score) <= 1e-6) &&
                               l.class_index == r.class_index &&
-                              l.box_index < r.box_index)));
+                              l.box_index < r.box_index))));
             });
     }
 
