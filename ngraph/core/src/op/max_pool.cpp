@@ -182,10 +182,12 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Shape& kernel,
                          const op::RoundingType rounding_type,
                          const PadType& auto_pad,
-                         const element::Type& index_element_type)
+                         const element::Type& index_element_type,
+                         const uint64_t axis)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
-    , m_dilations(dilations)
-    , m_index_element_type(index_element_type)
+    , m_dilations{dilations}
+    , m_index_element_type{index_element_type}
+    , m_axis{axis}
 {
     constructor_validate_and_infer_types();
 }
@@ -201,6 +203,7 @@ bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("rounding_type", m_rounding_type);
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("index_element_type", m_index_element_type);
+    visitor.on_attribute("axis", m_axis);
     return true;
 }
 
@@ -228,5 +231,6 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_kernel,
                                     m_rounding_type,
                                     m_auto_pad,
-                                    m_index_element_type);
+                                    m_index_element_type,
+                                    m_axis);
 }

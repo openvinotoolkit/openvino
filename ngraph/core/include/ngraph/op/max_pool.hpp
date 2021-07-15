@@ -82,8 +82,11 @@ namespace ngraph
                 /// \param rounding_type Whether to use ceiling or floor rounding type while
                 ///                      computing the output shape.
                 /// \param auto_pad The pad type for automatic calculation of the padding sizes.
-                /// \param index_element_type The datatype used by the second output tensor
+                /// \param index_element_type The data type used by the second output tensor
                 ///                           containing the selected indices.
+                /// \param axis Indicates a dimension in the input data shape which should be used
+                ///             as a starting point for calculation of the upper bound of allowed
+                ///             values of the indices output.
                 MaxPool(const Output<Node>& arg,
                         const Strides& strides,
                         const Strides& dilations,
@@ -92,7 +95,8 @@ namespace ngraph
                         const Shape& kernel,
                         const op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT,
-                        const element::Type& index_element_type = element::i32);
+                        const element::Type& index_element_type = element::i32,
+                        const uint64_t axis = 0);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -117,6 +121,7 @@ namespace ngraph
             private:
                 Strides m_dilations;
                 element::Type m_index_element_type{element::i32};
+                uint64_t m_axis;
             };
         } // namespace v8
     }     // namespace op
