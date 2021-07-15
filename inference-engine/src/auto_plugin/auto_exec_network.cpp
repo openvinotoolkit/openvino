@@ -125,7 +125,6 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
                             // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                             // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                             Task t;
-                            // todo: need two pipeline tasks for CPU and Accelerator
                             if (_inferPipelineTasks.try_pop(t)) {
                                 ScheduleToWorkerInferRequest(std::move(t));
                             }
