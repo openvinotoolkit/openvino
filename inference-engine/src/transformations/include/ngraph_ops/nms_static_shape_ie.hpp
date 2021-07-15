@@ -12,6 +12,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 namespace ngraph {
 namespace op {
@@ -104,6 +105,8 @@ const ::ngraph::Node::type_info_t& NmsStaticShapeIE<BaseNmsOp>::get_type_info_st
 template <typename BaseNmsOp>
 const ::ngraph::Node::type_info_t NmsStaticShapeIE<BaseNmsOp>::type_info = NmsStaticShapeIE<BaseNmsOp>::get_type_info_static();
 
+TRANSFORMATIONS_API std::shared_ptr<const op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>> CastMulticlassNms(const std::shared_ptr<ngraph::Node> &op);
+TRANSFORMATIONS_API std::shared_ptr<const op::internal::NmsStaticShapeIE<op::v8::MatrixNms>> CastMatrixNms(const std::shared_ptr<ngraph::Node> &op);
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph

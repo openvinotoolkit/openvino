@@ -26,9 +26,7 @@ bool MKLDNNMultiClassNmsNode::isSupportedOperation(
     const std::shared_ptr<ngraph::Node>& op,
     std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<
-            const ngraph::op::internal::NmsStaticShapeIE<
-                ngraph::op::v8::MulticlassNms>>(op);
+        const auto nms = ngraph::op::internal::CastMulticlassNms(op);
         if (!nms) {
             errorMessage =
                 "Only internal MulitClassNonMaxSuppression operation is "
@@ -52,9 +50,7 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(
     }
     errorPrefix =
         "multiclass_nms layer with name '" + op->get_friendly_name() + "' ";
-    const auto nms =
-        std::dynamic_pointer_cast<const ngraph::op::internal::NmsStaticShapeIE<
-            ngraph::op::v8::MulticlassNms>>(op);
+    const auto nms = ngraph::op::internal::CastMulticlassNms(op);
 
     if (nms->get_input_size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: "
