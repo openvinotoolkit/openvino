@@ -83,15 +83,38 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
     auto metaDevices = _autoPlugin->GetDeviceList(config);
     auto core = _autoPlugin->GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
     auto LoadNetworkAsync =
-        [this, core, modelPath, network](const std::string& device) -> IE::SoExecutableNetworkInternal {
+        [this, core, modelPath, network](std::vector<DeviceName> deviceList) -> IE::SoExecutableNetworkInternal {
+            DeviceName device;
             IE::SoExecutableNetworkInternal executableNetwork;
-            // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
-            if (!modelPath.empty()) {
-                executableNetwork = core->LoadNetwork(modelPath, device, {});
-            } else {
-                executableNetwork = core->LoadNetwork(network, device, {});
+            auto networkPrecision = GetNetworkPrecision(network);
+            // select device
+            while (!deviceList.empty()) {
+                device = _autoPlugin->SelectDevice(deviceList, networkPrecision);
+                try {
+                    // std::cout << "!!! DEBUG: Starting Async loading to the " << device << " !!!" << std::endl;
+                    if (!modelPath.empty()) {
+                        executableNetwork = core->LoadNetwork(modelPath, device, {});
+                    } else {
+                        executableNetwork = core->LoadNetwork(network, device, {});
+                    }
+                    // TEST
+                    // if (device == "GPU") {
+                    //     IE_THROW(NotImplemented);
+                    // }
+                    // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+                    break;
+                } catch (...) {
+                    std::cout << "!!! WARNING: LoadNetwork failed to " << device << " !!!" << std::endl;
+                    auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(), [device](const DeviceName& d){
+                        return d == device;
+                    });
+                    deviceList.erase(eraseDevice);
+                    executableNetwork = {};
+                }
             }
-            // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
+            if (!executableNetwork) {
+                IE_THROW() << "Failed to load network in this thread";
+            }
 
             uint32_t optimalNum {0};
             try {
@@ -133,6 +156,7 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
             }
 
             if (device.find("CPU") == std::string::npos) {
+                _acceleratorDeviceName = device;
                 _networkActualNeeded = executableNetwork;
                 _alreadyActualNetwork = true;
             }
@@ -144,19 +168,20 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
                                       [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
     if (CPUIter != metaDevices.end()) {
         _cpuDeviceName = *CPUIter;
+        // set default accelerator device name, will update later if has other device
+        _acceleratorDeviceName = _cpuDeviceName;
         // init worker queue
         _idleWorkerRequests[_cpuDeviceName];
-        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, _cpuDeviceName);
+        _cpuFuture = std::async(std::launch::async, LoadNetworkAsync, std::vector<std::string>{_cpuDeviceName});
+        // erase CPU device from list
+        metaDevices.erase(CPUIter);
     }
 
     // start accelerator task, like GPU
-    auto networkPrecision = GetNetworkPrecision(network);
-    _acceleratorDeviceName = _autoPlugin->SelectDevice(metaDevices, networkPrecision);
-    bool isAccelerator = _acceleratorDeviceName.find("CPU") == std::string::npos;
-    if (isAccelerator) {
+    if (!metaDevices.empty()) {
         // init worker queue
         _idleWorkerRequests[_acceleratorDeviceName];
-        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, _acceleratorDeviceName);
+        _acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, metaDevices);
     }
 
     _enablePerfCount = config.find(IE::PluginConfigParams::KEY_PERF_COUNT) != config.end()
@@ -187,7 +212,11 @@ AutoExecutableNetwork::~AutoExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
     if (!_alreadyActualNetwork) {
         // printf("!!! DEBUG: actual network is still not ready, wait that\n");
-        _acceleratorFuture.get();
+        try {
+            _acceleratorFuture.get();
+        } catch (...) {
+            printf("WARNING: accelerator LoadNetwork failed\n");
+        }
     }
     /* NOTE: The only threads that use `AutoExecutableNetwork` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
