@@ -18,10 +18,9 @@ struct ROIPoolingParams {
     ROIPoolingParams(const size_t iH, const size_t iW, const size_t ch, const size_t rois,
                      const size_t oH, const size_t oW, const float sS, const std::string mode,
                      void inputInit(float&),
-                     const std::vector<float>& proposalValues, const std::vector<float>& outputValues,
-                     size_t iSize = 0, size_t pSize = 0, size_t oSize = 0)
+                     const std::vector<float>& proposalValues, const std::vector<float>& outputValues)
         : inputH(iH), inputW(iW), channelCount(ch), roiCount(rois), outputH(oH), outputW(oW), spatialScale(sS), poolingMode(mode),
-        proposal(CreateBlob(element::f32, proposalValues, pSize)), refData(CreateBlob(element::f32, outputValues, oSize)) {
+        proposal(CreateBlob(element::f32, proposalValues)), refData(CreateBlob(element::f32, outputValues)) {
         auto inputSize = iH * iW * ch;
         std::vector<float> inputValues(inputSize);
         std::for_each(inputValues.begin(), inputValues.end(), inputInit);
