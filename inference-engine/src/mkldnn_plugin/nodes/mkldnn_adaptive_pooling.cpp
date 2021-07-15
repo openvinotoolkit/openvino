@@ -98,11 +98,8 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    if (mayiuse(avx512_core) && (outputPrecision == Precision::BF16 || inputPrecision == Precision::BF16)) {
-      outputPrecision = inputPrecision = Precision::BF16;
-    } else {
-      outputPrecision = inputPrecision = Precision::FP32;
-    }
+    // we supports only fp32 currently
+    outputPrecision = inputPrecision = Precision::FP32;
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
     auto outputDataType = inputDataType;
@@ -191,8 +188,7 @@ struct MKLDNNAdaptivePoolingNode::AdaptivePoolingExecute {
 void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
-    if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
-          (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
+    if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
         IE_THROW() <<"Adaptive Pooling doesn't support demanded precisions";
 
     AdaptivePoolingContext ctx = {
