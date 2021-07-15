@@ -81,11 +81,13 @@ from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
+from ngraph.opset8.ops import matrix_nms
 from ngraph.opset1.ops import max_pool
 from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
+from ngraph.opset8.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative
