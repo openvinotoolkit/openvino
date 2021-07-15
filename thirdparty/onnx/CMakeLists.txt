@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+
 #------------------------------------------------------------------------------
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
@@ -22,23 +24,9 @@ macro(onnx_set_target_properties)
     elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         target_compile_options(onnx PRIVATE -Wno-all)
         target_compile_options(onnx_proto PRIVATE -Wno-all -Wno-unused-variable)
-
-        # it fixes random problems with double registration of descriptors to protobuf database
-        set_target_properties(onnx_proto PROPERTIES
-            CXX_VISIBILITY_PRESET default
-            C_VISIBILITY_PRESET default
-            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
 
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
-
-    install(TARGETS onnx_proto
-            RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-            ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-            LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
-
-    export(TARGETS onnx_proto NAMESPACE ngraph:: APPEND FILE
-            "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endmacro()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)

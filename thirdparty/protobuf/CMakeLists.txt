@@ -3,7 +3,7 @@
 #
 
 #------------------------------------------------------------------------------
-# Configure and install Google Protobuf ...
+# Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
@@ -27,7 +27,7 @@ if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
-    find_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
+    find_host_program(SYSTEM_PROTOC protoc PATHS ENV PATH)
 
     if(SYSTEM_PROTOC)
         execute_process(
@@ -46,35 +46,14 @@ if(CMAKE_CROSSCOMPILING)
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 endif()
 
-if (CMAKE_GENERATOR STREQUAL "Ninja")
-    set(MAKE_UTIL make)
-else()
-    set(MAKE_UTIL $(MAKE))
-endif()
+set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs")
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
-if (NOT BUILD_STANDALONE_STATIC)
-    add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
-    get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION protobuf_VERSION)
-endif()
-if (USE_STATIC_PROTOBUF)
-    include(FetchContent)
-    FetchContent_Declare(
-            ext_protobuf_static
-            URL ${CMAKE_CURRENT_SOURCE_DIR}/protobuf
-    )
-    FetchContent_GetProperties(ext_protobuf_static)
-    if((NOT ext_protobuf_static_POPULATED) AND BUILD_STANDALONE_STATIC)
-        FetchContent_Populate(ext_protobuf_static)
-        add_subdirectory(${ext_protobuf_static_SOURCE_DIR}/cmake ${ext_protobuf_static_BINARY_DIR} EXCLUDE_FROM_ALL)
-        get_directory_property(protobuf_VERSION DIRECTORY ${ext_protobuf_static_SOURCE_DIR}/cmake DEFINITION protobuf_VERSION)
-    endif()
-endif()
+add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
+get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION protobuf_VERSION)
 
-if (BUILD_STANDALONE_STATIC)
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_static_SOURCE_DIR}/src)
-else()
-    set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
-endif()
+set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 
 if(NGRAPH_USE_PROTOBUF_LITE)
     set(Protobuf_LIBRARIES libprotobuf-lite)
@@ -118,15 +97,6 @@ endif()
 
 if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
     message(WARNING "system protobuf version does not match with the compiled one, please update system protobuf or submodule")
-endif()
-
-if (NOT BUILD_STANDALONE_STATIC)
-    install(TARGETS ${Protobuf_LIBRARIES}
-            RUNTIME DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-            ARCHIVE DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph
-            LIBRARY DESTINATION deployment_tools/ngraph/lib COMPONENT ngraph)
-    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE
-           "${OpenVINO_BINARY_DIR}/ngraph/ngraphTargets.cmake")
 endif()
 
 # forward variables used in the other places

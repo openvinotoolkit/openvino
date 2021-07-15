@@ -48,6 +48,7 @@ namespace ngraph
         {
         public:
             Node() = delete;
+            // TODO: hide this ctor since it uses protobufs generated structures
             Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph);
 
             Node(Node&&) noexcept;
