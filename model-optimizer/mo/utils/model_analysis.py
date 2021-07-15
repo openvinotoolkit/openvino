@@ -121,4 +121,4 @@ def graph_contains_scope(graph: Graph, scope: str):
     """
     if scope[-1] != '/':
         scope += '/'
-    return any([node.soft_get('name').startswith(scope) for node in graph.get_op_nodes()])
+    return any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
