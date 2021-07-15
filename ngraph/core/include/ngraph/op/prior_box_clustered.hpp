@@ -17,6 +17,7 @@ namespace ngraph
             // clip           Clip output to [0,1]
             // step_widths    Distance between prior box centers
             // step_heights   Distance between prior box centers
+            // step           Distance between prior box centers (when step_w = step_h)
             // offset         Box offset relative to top center of image
             // variances      Values to adjust prior boxes with
             std::vector<float> widths;
@@ -24,6 +25,7 @@ namespace ngraph
             bool clip = true;
             float step_widths = 0.0f;
             float step_heights = 0.0f;
+            float step = 0.0f;
             float offset = 0.0f;
             std::vector<float> variances;
         };

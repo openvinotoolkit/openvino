@@ -37,6 +37,10 @@ namespace {
         0.0f, 1.5f
     };
 
+    const std::vector<float> step = {
+        0.0f
+    };
+
     const std::vector<float> offsets = {
         0.5f
     };
@@ -58,6 +62,7 @@ namespace {
         ::testing::ValuesIn(clips),
         ::testing::ValuesIn(step_widths),
         ::testing::ValuesIn(step_heights),
+        ::testing::ValuesIn(step),
         ::testing::ValuesIn(offsets),
         ::testing::ValuesIn(variances));
 
