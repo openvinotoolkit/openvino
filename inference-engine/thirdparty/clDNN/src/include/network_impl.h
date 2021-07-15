@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "cldnn/graph/network.hpp"
@@ -10,7 +9,8 @@
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/stream.hpp"
 #include "program_impl.h"
-#include "implementation_map.h"
+#include "topology_impl.h"
+#include "impls/implementation_map.hpp"
 
 #include <map>
 #include <vector>

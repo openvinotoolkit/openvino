@@ -85,6 +85,7 @@ public:
     primitive_id org_id() const { return _node.get_org_primitive_id(); }
     bool can_be_optimized() const { return _node.can_be_optimized(); }
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
+    program_node const& get_node() const { return _node; }
     network_impl& get_network() const { return _network; }
     uint32_t get_network_id() const;
     void set_output_memory(memory::ptr mem);

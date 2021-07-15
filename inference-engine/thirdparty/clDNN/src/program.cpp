@@ -55,8 +55,10 @@
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
 #include "to_string_utils.h"
-#include "gpu/register_gpu.hpp"
 #include "runtime/cldnn_itt.hpp"
+#include "impls/ocl/register.hpp"
+#include "impls/cpu/register.hpp"
+#include "impls/common/register.hpp"
 
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -126,7 +128,9 @@ program_impl::~program_impl() {
 void program_impl::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
-        gpu::register_implementations_gpu();
+        common::register_implementations();
+        cpu::register_implementations();
+        ocl::register_implementations();
         is_initialized = true;
     }
 }
