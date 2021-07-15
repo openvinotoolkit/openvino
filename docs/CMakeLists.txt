@@ -92,6 +92,7 @@ function(build_docs)
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
     set(DOXY_LOG_SCRIPT "${DOXYGEN_DIR}/log.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
+    set(PREPARE_XML_SCRIPT "${DOXYGEN_DIR}/prepare_xml.py")
     set(COPY_IMAGES_SCRIPT "${DOXYGEN_DIR}/copy_images.py")
     set(DOXYGEN_MAPPING_SCRIPT "${DOXYGEN_DIR}/create_mapping.py")
     set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
@@ -172,7 +173,6 @@ function(build_docs)
 
     add_custom_target(doxygen_xml
                       COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_BUILD}
-                      COMMAND doxyrest -c ${DOXYREST_CONFIG_OUT}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       COMMENT "Generate doxygen XML output"
                       VERBATIM)
@@ -181,21 +181,15 @@ function(build_docs)
     add_custom_command(TARGET doxygen_xml
                        PRE_BUILD
                        ${commands}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_THEMES_IN} ${SPHINX_THEMES_OUT}
+                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process docs"
                        VERBATIM)
 
     # Post-process docs
     add_custom_command(TARGET doxygen_xml
                        POST_BUILD
-                       COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
-                       COMMENT "Post-process docs"
+                       COMMAND ${PYTHON_EXECUTABLE} ${PREPARE_XML_SCRIPT} ${XML_OUTPUT}
+                       COMMENT "Prepare xml"
                        VERBATIM)
 
     add_custom_target(sphinx_docs
@@ -206,6 +200,21 @@ function(build_docs)
 
     set_target_properties(doxygen_xml sphinx_docs
                           PROPERTIES FOLDER docs)
+
+    add_custom_command(TARGET sphinx_docs
+                       PRE_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
+                       COMMAND doxyrest -c ${DOXYREST_CONFIG_OUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
+                       COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
+                       COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_SPHINX_IN} ${DOXYREST_SPHINX_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_STATIC_IN} ${SPHINX_STATIC_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_TEMPLATES_IN} ${SPHINX_TEMPLATES_OUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_THEMES_IN} ${SPHINX_THEMES_OUT}
+                       WORKING_DIRECTORY ${RST_OUTPUT}
+                       VERBATIM)
 
     add_custom_command(TARGET sphinx_docs
                        POST_BUILD

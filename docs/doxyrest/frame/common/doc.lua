@@ -412,6 +412,11 @@ function formatDocBlock_graph(block, context, graphtype)
 	return "\n\n.. " .. graphtype .. "::\n\n" .. code .. "\n\n"
 end
 
+function formatDocBlock_sphinxdirective(block, context)
+	local code = getCodeDocBlockContents(block, context)
+	return "\n\n" .. code .. "\n\n"
+end
+
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 g_blockKindFormatMap =
@@ -447,6 +452,7 @@ g_blockKindFormatMap =
 	["dot"]                  = function(b, c) return formatDocBlock_graph(b, c, "graphviz") end,
 	["plantuml"]             = function(b, c) return formatDocBlock_graph(b, c, "uml") end,
 	["msc"]                  = function(b, c) return formatDocBlock_graph(b, c, "msc") end,
+	["sphinxdirective"]      = formatDocBlock_sphinxdirective
 }
 
 function getDocBlockContents(block, context)
