@@ -78,9 +78,9 @@ def pytest_generate_tests(metafunc):
             if "marks" in test["collection"]:
                 extra_args["marks"] = test["marks"]
             model_list.append(expand_env_vars(model_path))
-            test_id_list.append(model_path.split("/")[len(model_path.split("/")) - 1].replace(".xml", ""))
-        ids = ids + ['/'.join(test_id_list)]
-        params.append(pytest.param('/'.join(test_id_list), model_list), **extra_args)
+            test_id_list.append(model_path.split("/")[- 1])
+        ids = ids + ['-'.join(test_id_list)]
+        params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
 
     metafunc.parametrize("test_id, model", params, ids=ids)
 
