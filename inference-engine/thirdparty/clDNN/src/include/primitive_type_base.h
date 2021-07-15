@@ -12,7 +12,7 @@
 #include "program_node.h"
 #include "primitive_inst.h"
 #include "network_impl.h"
-#include "implementation_map.h"
+#include "impls/implementation_map.hpp"
 
 #include <memory>
 #include <string>
@@ -37,25 +37,25 @@ struct primitive_type_base : primitive_type {
     }
 
     // TODO: Should we get rid of engine type in impl map? Or we must pass internal build engine to get real ocl type?
-    std::unique_ptr<primitive_impl> choose_impl(const engine& /* engine */, const cldnn::program_node& node) const override {
+    std::unique_ptr<primitive_impl> choose_impl(const cldnn::program_node& node) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
 
-        auto factory = implementation_map<PType>::get(engine_types::ocl, node);
+        auto factory = implementation_map<PType>::get(node);
         return std::move(std::unique_ptr<primitive_impl>(factory(node)));
     }
 
-    bool does_an_implementation_exist(const engine& /* engine */, const cldnn::program_node& node) const override {
+    bool does_an_implementation_exist(const cldnn::program_node& node) const override {
         if (node.type() != this)
-            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
+            throw std::invalid_argument("primitive_type_base::does_an_implementation_exist: primitive type mismatch");
 
-        return implementation_map<PType>::check(engine_types::ocl, node);
+        return implementation_map<PType>::check(node);
     }
 
-    bool does_possible_implementation_exist(const engine& /* engine */, const cldnn::program_node& node) const override {
+    bool does_possible_implementation_exist(const cldnn::program_node& node) const override {
         if (node.type() != this)
-            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
-        return implementation_map<PType>::check_io_eq(engine_types::ocl, node);
+            throw std::invalid_argument("primitive_type_base::does_possible_implementation_exist: primitive type mismatch");
+        return implementation_map<PType>::check_io_eq(node);
     }
 
     cldnn::layout calc_output_layout(const cldnn::program_node& node) const override {

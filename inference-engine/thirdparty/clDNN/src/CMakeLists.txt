@@ -38,12 +38,15 @@ file(GLOB __CLDNN_Headers__include
     "${__CLDNN_Directory__include}/*.hpp"
   )
 
-set(__CLDNN_Directory__gpu             "${CMAKE_CURRENT_SOURCE_DIR}/gpu")
-set(__CLDNN_Label__gpu                 "gpu")
+set(__CLDNN_Directory__impls             "${CMAKE_CURRENT_SOURCE_DIR}/impls")
+set(__CLDNN_Label__gpu                 "impls")
 file(GLOB __CLDNN_Sources__gpu
-    "${__CLDNN_Directory__gpu}/*.h"
-    "${__CLDNN_Directory__gpu}/*.hpp"
-    "${__CLDNN_Directory__gpu}/*.cpp"
+    "${__CLDNN_Directory__impls}/common/*.hpp"
+    "${__CLDNN_Directory__impls}/common/*.cpp"
+    "${__CLDNN_Directory__impls}/cpu/*.hpp"
+    "${__CLDNN_Directory__impls}/cpu/*.cpp"
+    "${__CLDNN_Directory__impls}/ocl/*.hpp"
+    "${__CLDNN_Directory__impls}/ocl/*.cpp"
   )
 
 set(__CLDNN_Directory__cg_cache        "${CLDNN__CODEGEN_INCDIR}")
@@ -130,5 +133,5 @@ endif()
 # ======================================================================================================
 
 ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(gpu/detection_output_cpu.cpp half.cpp
+set_source_files_properties(impls/cpu/detection_output.cpp half.cpp
   PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

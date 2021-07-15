@@ -6,6 +6,7 @@
 
 #include "cldnn/primitives/primitive.hpp"
 #include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/implementation_desc.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -93,6 +94,9 @@ public:
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);
+
+    void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
+    impl_types get_preferred_impl_type() const { return impl_type; }
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
@@ -325,6 +329,7 @@ protected:
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;
 
+    impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
 

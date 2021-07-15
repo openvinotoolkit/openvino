@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 #include "cldnn/runtime/engine.hpp"
+#include "cldnn/primitives/implementation_desc.hpp"
 
 #include "topology.hpp"
 
@@ -98,14 +97,6 @@ struct learning_params {
 
     learning_params() : momentum(0.9f), weights_decay(0.0005f) {}
 };
-
-/// @brief Description of primitives implementation.
-struct implementation_desc {
-    format::type output_format;  ///< Output format.
-    std::string kernel_name;  ///< GPU kernel name.
-};
-
-using implementation_forcing_map = std::map<primitive_id, implementation_desc>;
 
 /// @brief Represents user-provided program build option.
 struct build_option {
