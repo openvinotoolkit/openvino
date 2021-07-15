@@ -535,6 +535,7 @@ extensions/front/tf/yolo_v2_voc.json
 extensions/front/tf/yolo_v3.json
 extensions/front/tf/yolo_v3_tiny.json
 extensions/front/tf/yolo_v3_voc.json
+extensions/front/tf/yolo_v4.json
 extensions/front/ThresholdedReluDecomposition.py
 extensions/front/TopKNormalize.py
 extensions/front/transformations_config.py

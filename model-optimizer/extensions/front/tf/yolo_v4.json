@@ -1,0 +1,15 @@
+[
+    {
+        "id": "TFYOLOV4",
+        "match_kind": "general",
+        "custom_attributes": {
+        "classes": 80,
+        "anchors": [12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401],
+        "coords": 4,
+        "num": 9,
+        "masks":[[6, 7, 8], [3, 4, 5], [0, 1, 2]],
+        "entry_points": ["Func/StatefulPartitionedCall/output/_543", "Func/StatefulPartitionedCall/output/_542", "Func/StatefulPartitionedCall/output/_544"],
+        "include_postprocess": false
+        }
+    }
+]
