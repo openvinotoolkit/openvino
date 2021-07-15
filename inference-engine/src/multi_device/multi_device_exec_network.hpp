@@ -75,7 +75,7 @@ public:
     }
     bool try_pop(T& value) {
         std::lock_guard<std::mutex> lock(_mutex);
-        if (!_queue.empty()) {
+        if (_capacity && !_queue.empty()) {
             value = std::move(_queue.front());
             _queue.pop();
             return true;
@@ -96,8 +96,6 @@ public:
 private:
     std::queue<T>   _queue;
     mutable std::mutex      _mutex;
-    std::condition_variable _notFull;
-    std::condition_variable _notEmpty;
     std::size_t     _capacity { 0 };
 };
 #endif
