@@ -47,20 +47,6 @@ namespace kernels {
 
 namespace avx {
 
-void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz,
-                    const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
-                    int xmaxdf, const short xindex[], const Q0_16 xalpha[],
-                    Q8_8 vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
-}
-
-void calcRowArea_32F(float dst[], const float *src[], const Size& inSz,
-                     const Size& outSz, float yalpha, const MapperUnit32F& ymap,
-                     int xmaxdf, const int xindex[], const float xalpha[],
-                     float vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
-}
-
 CV_ALWAYS_INLINE void main_computation_horizontalPass_lpi4(const v_uint8& val_0,
                                                            const v_uint8& val_1,
                                                            const v_uint8& val_2,
@@ -202,7 +188,8 @@ CV_ALWAYS_INLINE void verticalPass_anylpi_8U(const uint8_t* src0[], const uint8_
 }
 
 template<int chanNum>
-CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+CV_ALWAYS_INLINE bool calcRowLinear_8UC_Impl(avx2_tag,
+                                             std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                                              const uint8_t* src0[],
                                              const uint8_t* src1[],
                                              const short    alpha[],
@@ -214,6 +201,9 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>,
                                              const Size&    outSz,
                                                const int    lpi) {
     constexpr int half_nlanes = (v_uint8::nlanes / 2);
+    if ((inSz.width * chanNum < half_nlanes) || (outSz.width < half_nlanes))
+        return false;
+
     const int shift = (half_nlanes / 4);
 
     if (4 == lpi) {
@@ -286,41 +276,9 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>,
             }
         }
     }
+    return true;
 }
 
-// Resize (bi-linear, 8UC3)
-void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                      const short    alpha[],
-                      const short    clone[],  // 4 clones of alpha
-                      const short    mapsx[],
-                      const short    beta[],
-                      uint8_t  tmp[],
-                      const Size    &inSz,
-                      const Size    &outSz,
-                      int      lpi) {
-    constexpr const int chanNum = 3;
-
-    calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
-
-// Resize (bi-linear, 8UC4)
-void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                      const short    alpha[],
-                      const short    clone[],  // 4 clones of alpha
-                      const short    mapsx[],
-                      const short    beta[],
-                      uint8_t  tmp[],
-                      const Size    &inSz,
-                      const Size    &outSz,
-                      int      lpi) {
-    constexpr const int chanNum = 4;
-
-    calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
 
 CV_ALWAYS_INLINE void horizontalPass_lpi4_8UC1(const short clone[], const short mapsx[],
                                                uint8_t tmp[], uint8_t* dst[], const int& length) {
@@ -389,6 +347,43 @@ CV_ALWAYS_INLINE void horizontalPass_anylpi_8U(const short alpha[], const short 
 }
 }  // namespace avx
 
+// Resize (bi-linear, 8UC3)
+template<>
+bool calcRowLinear8UC3C4Impl<avx2_tag, 3>(avx2_tag,
+                                          std::array<std::array<uint8_t*, 4>, 3> &dst,
+                                          const uint8_t* src0[],
+                                          const uint8_t* src1[],
+                                          const short    alpha[],
+                                          const short    clone[],  // 4 clones of alpha
+                                          const short    mapsx[],
+                                          const short    beta[],
+                                              uint8_t    tmp[],
+                                          const Size&    inSz,
+                                          const Size&    outSz,
+                                          const int      lpi,
+                                          const int      ) {
+    constexpr int chanNum = 3;
+    return avx::calcRowLinear_8UC_Impl<chanNum>(avx2_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+}
+
+// Resize (bi-linear, 8UC4)
+template<>
+bool calcRowLinear8UC3C4Impl<avx2_tag, 4>(avx2_tag,
+                                          std::array<std::array<uint8_t*, 4>, 4> &dst,
+                                          const uint8_t* src0[],
+                                          const uint8_t* src1[],
+                                          const short    alpha[],
+                                          const short    clone[],  // 4 clones of alpha
+                                          const short    mapsx[],
+                                          const short    beta[],
+                                              uint8_t    tmp[],
+                                          const Size&   inSz,
+                                          const Size&   outSz,
+                                          const int     lpi,
+                                          const int      ) {
+    constexpr int chanNum = 4;
+    return avx::calcRowLinear_8UC_Impl<chanNum>(avx2_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+}
 
 // 8UC1 Resize (bi-linear)
 template<>
@@ -519,6 +514,16 @@ template void calcRowLinear32FC1Impl(avx2_tag, float* dst[], const float* src0[]
                                      const float alpha[], const int mapsx[],
                                      const float beta[], const Size& inSz, const Size& outSz,
                                      const int lpi, const int l);
+
+template void calcRowAreaImpl<avx2_tag, uint8_t, Q0_16, short, Q8_8>(avx2_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
+                                                                     const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
+                                                                     int xmaxdf, const short xindex[], const Q0_16 xalpha[],
+                                                                     Q8_8 vbuf[]);
+
+template void calcRowAreaImpl<avx2_tag, float, float, int, float>(avx2_tag, float dst[], const float *src[], const Size& inSz,
+                                                                  const Size& outSz, float yalpha, const MapperUnit32F& ymap,
+                                                                  int xmaxdf, const int xindex[], const float xalpha[],
+                                                                  float vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

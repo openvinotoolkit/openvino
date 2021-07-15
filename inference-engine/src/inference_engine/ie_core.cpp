@@ -169,7 +169,7 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     return deviceNames;
 }
 
-class Core::Impl : public ICore {
+class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     // Fields are ordered by deletion order
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
@@ -688,7 +688,8 @@ public:
                     plugin.SetName(deviceName);
 
                     // Set Inference Engine class reference to plugins
-                    ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
+                    std::weak_ptr<InferenceEngine::ICore> mutableCore = std::const_pointer_cast<InferenceEngine::ICore>(
+                            shared_from_this());
                     plugin.SetCore(mutableCore);
                 }
 
@@ -774,7 +775,7 @@ public:
     }
 
     /**
-     * @brief Porvides a list of plugin names in registry; physically such plugins may not be created
+     * @brief Provides a list of plugin names in registry; physically such plugins may not be created
      * @return A list of plugin names
      */
     std::vector<std::string> GetListOfDevicesInRegistry() const {
