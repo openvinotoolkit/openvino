@@ -417,10 +417,10 @@ class IREngine(object):
 
         then_body_ir = IREngine(path_to_xml=None,
                                 path_to_bin=self.path_to_bin,
-                                xml_tree=ET.ElementTree(xml_then_body_child[0]))
+                                xml_tree=ElementTree(xml_then_body_child[0]))
         else_body_ir = IREngine(path_to_xml=None,
                                 path_to_bin=self.path_to_bin,
-                                xml_tree=ET.ElementTree(xml_else_body_child[0]))
+                                xml_tree=ElementTree(xml_else_body_child[0]))
 
         self.graph.graph['hashes'].update(then_body_ir.graph.graph['hashes'])
         self.graph.graph['hashes'].update(else_body_ir.graph.graph['hashes'])
