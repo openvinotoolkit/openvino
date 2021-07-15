@@ -16,8 +16,8 @@
 
 * *bias*
 
-  * **Description**: *bias* is added to the variance.
-  * **Range of values**: a non-negative floating point value
+  * **Description**: *bias* is added to the sum of squares.
+  * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Required**: *yes*
 
