@@ -92,6 +92,7 @@ VERIFIED_OP_REFERENCES = [
     'ScatterNDUpdate-4',
     'ShapeOf-1',
     'ShapeOf-3',
+    'ShuffleChannels-1',
     'Sigmoid-1',
     'Sin-1',
     'Sinh-1'
