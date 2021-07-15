@@ -27,15 +27,8 @@ public:
 
 private:
     int spatialDimsCount;
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-    template <typename dataType>
-    void executeSpecified();
-    template<typename T>
-    struct AdaptivePoolingExecute;
+    InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
     inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
-    template <typename T>
-    T avgDiv(const T sum, size_t binSize);
 
     std::string errorPrefix;
 };

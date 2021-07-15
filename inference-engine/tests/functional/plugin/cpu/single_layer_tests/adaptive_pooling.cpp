@@ -77,7 +77,7 @@ protected:
         auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
         adapoolAvg->get_rt_info() = getCPUInfo();
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = std::string("unknown_FP32");
         threshold = 1e-2;
         function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
                     std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
