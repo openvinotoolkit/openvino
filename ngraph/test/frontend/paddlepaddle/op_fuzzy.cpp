@@ -4,11 +4,11 @@
 
 #include <fstream>
 
+#include <cnpy.h>
+#include "ngraph/ngraph.hpp"
+#include "op_fuzzy.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_control.hpp"
-#include <cnpy.h>
-#include "op_fuzzy.hpp"
-#include "ngraph/ngraph.hpp"
 
 using namespace ngraph;
 using namespace InferenceEngine;

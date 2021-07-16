@@ -28,6 +28,6 @@ static CutModelParam getTestData_2in_2out()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndCutModelTest,
-                        ::testing::Values(getTestData_2in_2out()),
-                        FrontEndCutModelTest::getTestCaseName);
+                         FrontEndCutModelTest,
+                         ::testing::Values(getTestData_2in_2out()),
+                         FrontEndCutModelTest::getTestCaseName);
