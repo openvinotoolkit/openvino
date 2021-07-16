@@ -16,32 +16,14 @@ using namespace ngraph;
 
 namespace {
 
-template <typename T>
-std::vector<T> create_iota_vector(size_t size, T first_value = {}) {
-    std::vector<T> d(size);
-    std::iota(begin(d), end(d), first_value);
-    return d;
-}
-
-template <typename T>
-struct Iota {
-    Iota(T e = {}): first_element_value(e) {}
-    T first_element_value;
-};
-
 struct Tensor {
     Tensor() = default;
+
     Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
 
     template <typename T>
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const Iota<T>& data_info): shape {shape}, type {type} {
-        data = CreateBlob(type, create_iota_vector<T>(shape_size(shape), data_info.first_element_value));
-    }
-
-    template <typename T>
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements): shape {shape}, type {type} {
-        data = CreateBlob(type, data_elements);
-    }
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements)
+        : Tensor {shape, type, CreateBlob(type, data_elements)} {}
 
     ngraph::Shape shape;
     ngraph::element::Type type;
