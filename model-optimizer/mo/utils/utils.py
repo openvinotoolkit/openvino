@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
+import json
 import os
 import re
 import warnings
-
 from typing import Callable
+from mo.utils.error import Error
 
+import fastjsonschema as json_validate
 import numpy as np
 
 
@@ -133,3 +135,16 @@ def unique_by(xs: list, predicate: Callable) -> list:
     """
     groups = group_by_with_binary_predicate(xs, predicate)
     return [group[0] for group in groups]
+
+
+def validate_json_config(json_config: list, config_file_name: str):
+    try:
+        base_dir = get_mo_root_dir()
+        schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
+        with open(schema_file, 'r') as f:
+            schema = json.load(f)
+            validator = json_validate.compile(schema)
+            validator(json_config)
+    except Exception as exc:
+        raise Error("Failed to validate custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
+                    refer_to_faq_msg(70)) from exc
