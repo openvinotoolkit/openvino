@@ -19,7 +19,6 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
-using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::cpu::x64;
 
 bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
