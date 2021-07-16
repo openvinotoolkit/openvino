@@ -27,7 +27,7 @@ The HSwish operation is introduced in the following [article](https://arxiv.org/
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
+* *T*: arbitrary supported floating-point type.
 
 
 **Example**

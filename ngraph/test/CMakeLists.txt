@@ -531,7 +531,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -634,10 +634,6 @@ target_link_libraries(unit-test PRIVATE ie_backend)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
-endif()
-
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
 target_link_libraries(unit-test PRIVATE interpreter_backend)
