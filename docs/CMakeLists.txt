@@ -49,21 +49,15 @@ set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
 set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
-set(DOXYREST_EXECUTABLE "" CACHE PATH "doxyrest executable")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
     find_package(PythonInterp 3 REQUIRED)
     find_package(LATEX REQUIRED)
 
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show lxml
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_QUIET
-    )
-
-    if (NOT ${PIP_EXIT_CODE} EQUAL 0)
-        message(FATAL_ERROR "lxml package is not installed. Please use \"pip install lxml\".")
+    find_program(DOXYREST_EXECUTABLE NAMES doxyrest)
+    if (NOT DOXYREST_EXECUTABLE)
+        message(FATAL_ERROR "No doxyrest found. Documentation output is not available")
     endif()
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -180,6 +174,7 @@ function(build_docs)
     # Preprocess docs
     add_custom_command(TARGET doxygen_xml
                        PRE_BUILD
+                       COMMAND ${PYTHON_EXECUTABLE} -mpip install -r ${DOCS_SOURCE_DIR}/requirements.txt
                        ${commands}
                        WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process docs"
@@ -204,7 +199,7 @@ function(build_docs)
     add_custom_command(TARGET sphinx_docs
                        PRE_BUILD
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${DOXYREST_IN} ${DOXYREST_OUT}
-                       COMMAND doxyrest -c ${DOXYREST_CONFIG_OUT}
+                       COMMAND ${DOXYREST_EXECUTABLE} -c ${DOXYREST_CONFIG_OUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${XML_OUTPUT} ${RST_OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_MAIN_SOURCE_DIR}/../
                        COMMAND ${CMAKE_COMMAND} -E copy ${SPHINX_INDEX_IN} ${SPHINX_INDEX_OUT}
