@@ -81,7 +81,7 @@ rest output tensor elements.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

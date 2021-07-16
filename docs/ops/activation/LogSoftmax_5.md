@@ -32,7 +32,7 @@ LogSoftmax(x, axis) = t - Log(ReduceSum(Exp(t), axis))
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Mathematical Formulation**
 

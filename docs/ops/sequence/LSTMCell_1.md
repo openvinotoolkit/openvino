@@ -79,7 +79,7 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 ```xml

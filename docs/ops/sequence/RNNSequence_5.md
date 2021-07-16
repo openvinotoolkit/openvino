@@ -73,7 +73,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 **Types**
 
-* *T1*: any supported floating point type.
+* *T1*: any supported floating-point type.
 * *T2*: any supported integer type.
 
 **Example**
