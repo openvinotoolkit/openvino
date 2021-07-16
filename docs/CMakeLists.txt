@@ -174,7 +174,7 @@ function(build_docs)
     # Preprocess docs
     add_custom_command(TARGET doxygen_xml
                        PRE_BUILD
-                       COMMAND ${PYTHON_EXECUTABLE} -mpip install -r ${DOCS_SOURCE_DIR}/requirements.txt
+                       # COMMAND ${PYTHON_EXECUTABLE} -mpip install -r ${DOCS_SOURCE_DIR}/requirements.txt
                        ${commands}
                        WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process docs"
@@ -211,12 +211,12 @@ function(build_docs)
                        WORKING_DIRECTORY ${RST_OUTPUT}
                        VERBATIM)
 
-    add_custom_command(TARGET sphinx_docs
-                       POST_BUILD
-                       COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
-                       COMMENT "Linkchecker"
-                       WORKING_DIRECTORY ${RST_OUTPUT}
-                       VERBATIM)
+    # add_custom_command(TARGET sphinx_docs
+    #                    POST_BUILD
+    #                    COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
+    #                    COMMENT "Linkchecker"
+    #                    WORKING_DIRECTORY ${RST_OUTPUT}
+    #                    VERBATIM)
 
 
     find_program(browser NAMES xdg-open)
