@@ -16,35 +16,79 @@ using namespace ngraph;
 
 namespace {
 
+template <typename T>
+std::vector<T> create_iota_vector(size_t size, T first_value = {}) {
+    std::vector<T> d(size);
+    std::iota(begin(d), end(d), first_value);
+    return d;
+}
+
+template <typename T>
+struct Iota {
+    Iota(T e = {}): first_element_value(e) {}
+    T first_element_value;
+};
+
+struct Tensor {
+    Tensor() = default;
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
+
+    template <typename T>
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const Iota<T>& data_info): shape {shape}, type {type} {
+        data = CreateBlob(type, create_iota_vector<T>(shape_size(shape), data_info.first_element_value));
+    }
+
+    template <typename T>
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements): shape {shape}, type {type} {
+        data = CreateBlob(type, data_elements);
+    }
+
+    ngraph::Shape shape;
+    ngraph::element::Type type;
+    InferenceEngine::Blob::Ptr data;
+};
+
 struct AcoshParams {
-    template <class IT, class OT>
-    AcoshParams(const PartialShape& shape, const element::Type& type, const std::vector<IT>& iValues, const std::vector<OT>& oValues, size_t size = 0)
-        : pshape(shape), type(type), input_data(CreateBlob(type, iValues, size)), expected_output(CreateBlob(type, oValues, size)) {}
-    PartialShape pshape;
-    element::Type type;
-    InferenceEngine::Blob::Ptr input_data;
-    InferenceEngine::Blob::Ptr expected_output;
+    Tensor input;
+    Tensor expected;
+};
+
+struct Builder {
+    AcoshParams params;
+
+    operator AcoshParams() const {
+        return params;
+    }
+
+#define ADD_SET_PARAM(set_p)                   \
+    Builder& set_p(decltype(params.set_p) t) { \
+        params.set_p = std::move(t);           \
+        return *this;                          \
+    }
+    ADD_SET_PARAM(input);
+    ADD_SET_PARAM(expected);
+#undef ADD_SET_PARAM
 };
 
 class ReferenceAcoshLayerTest : public testing::TestWithParam<AcoshParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.pshape, params.type);
-        inputData = {params.input_data};
-        refOutData = {params.expected_output};
+        function = CreateFunction(params.input.shape, params.input.type);
+        inputData = {params.input.data};
+        refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<AcoshParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "shape=" << param.pshape << "_";
-        result << "type=" << param.type;
+        result << "shape=" << param.input.shape << "_";
+        result << "type=" << param.input.type;
         return result.str();
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& pshape, const element::Type& type) {
-        const auto in = std::make_shared<op::Parameter>(type, pshape);
+    static std::shared_ptr<Function> CreateFunction(const Shape& shape, const element::Type& type) {
+        const auto in = std::make_shared<op::Parameter>(type, shape);
         const auto acosh = std::make_shared<op::Acosh>(in);
         return std::make_shared<Function>(NodeVector {acosh}, ParameterVector {in});
     }
@@ -57,10 +101,13 @@ TEST_P(ReferenceAcoshLayerTest, AcoshWithHardcodedRefs) {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_Acosh_With_Hardcoded_Refs, ReferenceAcoshLayerTest,
-                         ::testing::Values(AcoshParams {PartialShape {8}, element::f32, std::vector<float> {1.f, 2.f, 3.f, 4.f, 5.f, 10.f, 100.f, 1000.f},
-                                                        std::vector<float> {0.f, 1.316958, 1.762747, 2.063437, 2.292432, 2.993223, 5.298292, 7.600902}},
-                                           AcoshParams {PartialShape {8}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 10, 100, 1000},
-                                                        std::vector<int32_t> {0, 1, 2, 2, 2, 3, 5, 8}},
-                                           AcoshParams {PartialShape {8}, element::u32, std::vector<uint32_t> {1, 2, 3, 4, 5, 10, 100, 1000},
-                                                        std::vector<uint32_t> {0, 1, 2, 2, 2, 3, 5, 8}}),
+                         ::testing::Values(Builder {}
+                                               .input({{8}, element::f32, std::vector<float> {1.f, 2.f, 3.f, 4.f, 5.f, 10.f, 100.f, 1000.f}})
+                                               .expected({{8}, element::f32, std::vector<float> {0., 1.317, 1.763, 2.063, 2.292, 2.993, 5.298, 7.6012}}),
+                                           Builder {}
+                                               .input({{8}, element::i32, std::vector<int32_t> {1, 2, 3, 4, 5, 10, 100, 1000}})
+                                               .expected({{8}, element::i32, std::vector<int32_t> {0, 1, 2, 2, 2, 3, 5, 8}}),
+                                           Builder {}
+                                               .input({{8}, element::u32, std::vector<uint32_t> {1, 2, 3, 4, 5, 10, 100, 1000}})
+                                               .expected({{8}, element::u32, std::vector<uint32_t> {0, 1, 2, 2, 2, 3, 5, 8}})),
                          ReferenceAcoshLayerTest::getTestCaseName);
