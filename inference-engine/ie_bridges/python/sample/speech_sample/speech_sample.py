@@ -260,10 +260,11 @@ def main():
                 total_inference_time = total_cycles/frequency
                 active_time = active_cycles/frequency
                 stall_time = stall_cycles/frequency
-                log.info(f"\nPerformance Statistics of GNA Hardware")
-                log.info(f"   Total Inference Time: " + str(total_inference_time * 1000) + " ms")
-                log.info(f"   Active Time: " + str(active_time * 1000) + " ms") 
-                log.info(f"   Stall Time: " + str(stall_time * 1000) + " ms\n")
+                log.info('')
+                log.info(f"Performance Statistics of GNA Hardware")
+                log.info(f"   Total Inference Time: {(total_inference_time * 1000):.4f} ms")
+                log.info(f"   Active Time: {(active_time * 1000):.4f} ms") 
+                log.info(f"   Stall Time:  {(stall_time * 1000):.4f} ms")
 
             log.info('')
 
