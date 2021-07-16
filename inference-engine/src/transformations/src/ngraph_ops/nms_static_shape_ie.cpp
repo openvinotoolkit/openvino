@@ -10,13 +10,9 @@ namespace ngraph {
 namespace op {
 namespace internal {
 
-std::shared_ptr<const NmsStaticShapeIE<op::v8::MulticlassNms>> CastMulticlassNms(const std::shared_ptr<ngraph::Node> &op) {
-    return std::dynamic_pointer_cast<const NmsStaticShapeIE<op::v8::MulticlassNms>>(op);
-}
+template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MulticlassNms>;
+template class TRANSFORMATIONS_API op::internal::NmsStaticShapeIE<op::v8::MatrixNms>;
 
-std::shared_ptr<const NmsStaticShapeIE<op::v8::MatrixNms>> CastMatrixNms(const std::shared_ptr<ngraph::Node> &op) {
-    return std::dynamic_pointer_cast<const NmsStaticShapeIE<op::v8::MatrixNms>>(op);
-}
 }  // namespace internal
 }  // namespace op
 }  // namespace ngraph

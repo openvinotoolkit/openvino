@@ -25,7 +25,7 @@ using MatrixNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v
 
 bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node> &op, std::string &errorMessage) noexcept {
     try {
-        const auto nms = ngraph::op::internal::CastMatrixNms(op);
+        const auto nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(op);
         if (!nms) {
             errorMessage = "Only internal MatrixNms operation is supported";
             return false;
@@ -44,7 +44,8 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     }
 
     errorPrefix = "MatirxNMS layer with name '" + op->get_friendly_name() + "' ";
-    const auto matrix_nms = ngraph::op::internal::CastMatrixNms(op);
+    const auto matrix_nms = std::dynamic_pointer_cast<const MatrixNmsIEInternal>(
+            op);
 
     if (matrix_nms->get_input_size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: "
