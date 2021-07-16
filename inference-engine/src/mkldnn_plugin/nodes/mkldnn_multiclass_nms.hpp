@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,28 +6,23 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <memory>
-#include <string>
-#include <vector>
 
+#include <string>
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
 class MKLDNNMultiClassNmsNode : public MKLDNNNode {
-   public:
-    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op,
-                            const mkldnn::engine& eng,
-                            MKLDNNWeightsSharing::Ptr& cache);
+public:
+    MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr& cache);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override{};
+    void createPrimitive() override {};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op,
-                                     std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     struct filteredBoxes {
         float score;
@@ -35,14 +30,8 @@ class MKLDNNMultiClassNmsNode : public MKLDNNNode {
         int class_index;
         int box_index;
         filteredBoxes() = default;
-        filteredBoxes(float _score,
-                      int _batch_index,
-                      int _class_index,
-                      int _box_index)
-            : score(_score),
-              batch_index(_batch_index),
-              class_index(_class_index),
-              box_index(_box_index) {}
+        filteredBoxes(float _score, int _batch_index, int _class_index, int _box_index)
+            : score(_score), batch_index(_batch_index), class_index(_class_index), box_index(_box_index) {}
     };
 
     struct boxInfo {
@@ -51,23 +40,15 @@ class MKLDNNMultiClassNmsNode : public MKLDNNNode {
         int suppress_begin_index;
     };
 
-    float intersectionOverUnion(const float* boxesI,
-                                const float* boxesJ,
-                                const bool normalized);
+    float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes,
-                    const float* scores,
-                    const SizeVector& boxesStrides,
-                    const SizeVector& scoresStrides,
+    void nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides,
                     std::vector<filteredBoxes>& filtBoxes);
 
-    void nmsWithoutEta(const float* boxes,
-                       const float* scores,
-                       const SizeVector& boxesStrides,
-                       const SizeVector& scoresStrides,
+    void nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides,
                        std::vector<filteredBoxes>& filtBoxes);
 
-   private:
+private:
     // input (port Num)
     const size_t NMS_BOXES = 0;
     const size_t NMS_SCORES = 1;
@@ -101,14 +82,8 @@ class MKLDNNMultiClassNmsNode : public MKLDNNNode {
     std::vector<size_t> numBoxOffset;
     const std::string inType = "input", outType = "output";
 
-    void checkPrecision(const Precision prec,
-                        const std::vector<Precision> precList,
-                        const std::string name,
-                        const std::string type);
-    void checkOutput(const SizeVector& dims,
-                     const std::vector<Precision> precList,
-                     const std::string name,
-                     const size_t port);
+    void checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type);
+    void checkOutput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port);
 };
 
 }  // namespace MKLDNNPlugin
