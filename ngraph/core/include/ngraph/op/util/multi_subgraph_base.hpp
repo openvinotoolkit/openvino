@@ -185,7 +185,8 @@ namespace ngraph
                 };
 
                 /// \brief Produces an output
-                class NGRAPH_API BodyOutputDescription : public OutputDescription
+                /// \brief Produces an output from a specific iteration
+                class NGRAPH_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription
                 {
                 public:
                     static constexpr type_info_t type_info{"BodyOutputDescription", 0};
@@ -194,11 +195,16 @@ namespace ngraph
                     /// \brief      Constructs a new instance.
                     ///
                     /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The MultiSubGraphOp output index
+                    /// \param      output_index      The SubGraphOp output index
+                    /// \param      iteration         which iteration (typically -1, final) will
+                    ///                               supply the value
                     ///
-                    BodyOutputDescription(uint64_t body_value_index, uint64_t output_index);
+                    BodyOutputDescription(uint64_t body_value_index,
+                                          uint64_t output_index,
+                                          int64_t iteration = -1);
                     BodyOutputDescription() = default;
-                    std::shared_ptr<OutputDescription> copy() const override;
+                    std::shared_ptr<MultiSubGraphOp::OutputDescription> copy() const override;
+                    int64_t m_iteration{0};
                 };
                 using MultiSubgraphInputDescriptionPtr =
                     std::shared_ptr<MultiSubGraphOp::InputDescription>;

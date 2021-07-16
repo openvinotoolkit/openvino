@@ -11,22 +11,6 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::SubGraphOp, "SubGraphOp", 0);
 
-constexpr DiscreteTypeInfo op::util::SubGraphOp::BodyOutputDescription::type_info;
-
-op::util::SubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
-                                                                   uint64_t output_index,
-                                                                   int64_t iteration)
-    : OutputDescription(body_value_index, output_index)
-    , m_iteration(iteration)
-{
-}
-
-std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
-    op::util::SubGraphOp::BodyOutputDescription::copy() const
-{
-    return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
-}
-
 op::util::SubGraphOp::SubGraphOp()
     : MultiSubGraphOp(1)
 {

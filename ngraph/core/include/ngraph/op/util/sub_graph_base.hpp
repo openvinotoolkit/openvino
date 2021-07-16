@@ -21,28 +21,6 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                /// \brief Produces an output from a specific iteration
-                class NGRAPH_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"BodyOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The SubGraphOp output index
-                    /// \param      iteration         which iteration (typically -1, final) will
-                    ///                               supply the value
-                    ///
-                    BodyOutputDescription(uint64_t body_value_index,
-                                          uint64_t output_index,
-                                          int64_t iteration);
-                    BodyOutputDescription() = default;
-                    std::shared_ptr<MultiSubGraphOp::OutputDescription> copy() const override;
-                    int64_t m_iteration{0};
-                };
-
                 virtual std::shared_ptr<Function> get_function() { return m_bodies[0]; };
                 virtual std::shared_ptr<const Function> get_function() const
                 {

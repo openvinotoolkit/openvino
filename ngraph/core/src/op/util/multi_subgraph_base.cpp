@@ -104,16 +104,18 @@ std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
                                                                         m_body_parameter_index);
 }
 
-op::util::MultiSubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
-                                                                        uint64_t output_index)
+op::util::SubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
+                                                                   uint64_t output_index,
+                                                                   int64_t iteration)
     : OutputDescription(body_value_index, output_index)
+    , m_iteration(iteration)
 {
 }
 
 std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
     op::util::MultiSubGraphOp::BodyOutputDescription::copy() const
 {
-    return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index);
+    return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
 }
 
 op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args)
