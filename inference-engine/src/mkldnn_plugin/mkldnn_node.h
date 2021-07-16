@@ -656,7 +656,7 @@ protected:
         this->type = type;
     }
 
-    virtual int getMaxBatch();
+    virtual size_t getMaxBatch();
 
 
     virtual std::unique_ptr<MemoryDesc> getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
@@ -755,7 +755,7 @@ protected:
             PortConfig portConfig;
             portConfig.inPlace = portConfigurator.inPlace;
             portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape.getStaticDims());
+            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape);
 
             port.push_back(std::move(portConfig));
 

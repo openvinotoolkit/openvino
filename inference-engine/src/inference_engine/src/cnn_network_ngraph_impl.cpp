@@ -398,7 +398,6 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
-                manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
                 manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();

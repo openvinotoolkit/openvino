@@ -35,13 +35,16 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
         IE_THROW() << "No graph was found";
     graph = &(execNetwork->GetGraph()._graph);
 
-    // Allocate all input blobs
+    // TODO [DS]: phase 2: when dynamic TensorDesc representation becomes available, we will rewrite the behaviour to allocate the dynamic Blob as well.
+    // Allocate all input blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkInputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        if (!(it.second->getInputData()->isDynamic()))
+            MKLDNNInferRequest::GetBlob(it.first);
     }
-    // Allocate all output blobs
+    // Allocate all output blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkOutputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        if (!(it.second->isDynamic()))
+            MKLDNNInferRequest::GetBlob(it.first);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics

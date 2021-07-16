@@ -142,9 +142,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(itr->second->createDesc(inpPrecision, srcShape.getStaticDims()));
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{1});
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, Shape(SizeVector {1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{outputShapes.size()});
+            config.inConfs[2].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
 
@@ -189,7 +189,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inpPrecision, srcShape.getStaticDims(), blkDims, order, offset, offsets, strides);
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inpPrecision, srcShape, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < outputShapes.size(); i++) {
             auto outBlockingDesc = refConfig.outConfs[i].desc->as<BlockedMemoryDesc>();
@@ -197,7 +197,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
             const auto& dims = outBlockingDesc->getShape().getStaticDims();
 
             config.outConfs[i].inPlace = 0;
-            config.outConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outPrecision, dims, outBlkDims, order, offset, offsets, strides);
+            config.outConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outPrecision, Shape(dims), outBlkDims, order, offset, offsets, strides);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
@@ -213,9 +213,9 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(inpPrecision, srcShape.getStaticDims());
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{1});
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, Shape(SizeVector{1}));
         if (INPUTS_NUM == 3) {
-            config.inConfs[2].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{outputShapes.size()});
+            config.inConfs[2].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, Shape(SizeVector{outputShapes.size()}));
             config.inConfs[2].constant = true;
         }
         config.outConfs.resize(outputShapes.size());
@@ -337,7 +337,7 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto outBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[i].desc);
         config.outConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outBlockingDesc.getPrecision(),
-                                                                 outBlockingDesc.getShape().getStaticDims(),
+                                                                 outBlockingDesc.getShape(),
                                                                  outBlockingDesc.getBlockDims(),
                                                                  outBlockingDesc.getOrder(),
                                                                  firstInBlockingDesc.getOffsetPadding() + offset,

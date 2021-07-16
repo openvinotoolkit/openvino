@@ -12,9 +12,9 @@ class MKLDNNMemoryDesc;
 
 class BlockedMemoryDesc : public MemoryDesc {
 public:
-    BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims);
+    BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape);
 
-    BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims, const std::vector<size_t>& blockedDims,
+    BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const std::vector<size_t>& blockedDims,
                       const std::vector<size_t>& order, size_t offsetPadding = 0, const std::vector<size_t>& offsetPaddingToData = {},
                       const std::vector<size_t>& strides = {});
 
@@ -80,6 +80,10 @@ public:
     bool hasLayoutType(LayoutType layoutType) const override;
 
     std::string serializeFormat() const override;
+
+    size_t getMaxMemSize() const override;
+
+    std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const override;
 
 private:
     size_t getElementOffset(size_t elemNumber) const override;

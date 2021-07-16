@@ -166,7 +166,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
     manager.register_pass<ngraph::pass::TransposeMatMul>();
