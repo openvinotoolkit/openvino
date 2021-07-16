@@ -69,7 +69,7 @@ where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\eps
   * **Type**: `double`
   * **Required**: *yes*
 
-*   **Note** Imprtant: it is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
+*   **Note** Important: it is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
 
 **Inputs**
 
