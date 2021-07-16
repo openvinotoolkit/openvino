@@ -7,7 +7,7 @@
 namespace LayerTestsDefinitions {
 
 
-std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
+std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj) {
     fqSpecificParams fqParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -117,7 +117,7 @@ void FakeQuantizeLayerTest::UpdateSeed() {
 
 
 
-std::string FakeQuantizeLayerTestRevise::getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSetRevise> obj) {
+std::string FakeQuantizeLayerTestRevise::getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSetRevise>& obj) {
     fqSpecificParamsRevise fqParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

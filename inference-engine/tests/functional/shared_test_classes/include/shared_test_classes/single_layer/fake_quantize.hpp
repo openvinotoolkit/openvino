@@ -49,7 +49,7 @@ typedef std::tuple<
 class FakeQuantizeLayerTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;
@@ -87,7 +87,7 @@ typedef std::tuple<
 class FakeQuantizeLayerTestRevise : public testing::WithParamInterface<fqLayerTestParamsSetRevise>,
                                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSetRevise> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSetRevise>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;
