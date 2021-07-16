@@ -53,9 +53,9 @@ o_{i}=\frac{o_{i}}{\sqrt {\sum {o_{k}^2}}+\epsilon}
 
 **Inputs**
 
-* **1**: `data` - Input tensor to be normalized. Type *T*. Required.
+* **1**: `data` - Input tensor to be normalized. Type *T*. **Required.**
 
-* **2**: `axes` - 1D tensor which specifies indices of dimensions in `data` that define normalization slices. Allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_IND*. Required.
+* **2**: `axes` - 1D tensor which specifies indices of dimensions in `data` that define normalization slices. Allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order can be not sorted. Negative value means counting dimensions from the back. Type *T_IND*. **Required.**
 
 **Outputs**
 
