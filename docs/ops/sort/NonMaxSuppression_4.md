@@ -66,11 +66,11 @@ The output tensor is filled with -1s for output tensor elements if the total num
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_MAX_BOXES*: integer type.
 
-* *T_THRESHOLDS*: floating point type.
+* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 

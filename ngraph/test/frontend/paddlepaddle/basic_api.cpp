@@ -21,8 +21,8 @@ static const std::vector<std::string> models{
 };
 
 INSTANTIATE_TEST_SUITE_P(PDPDBasicTest,
-                        FrontEndBasicTest,
-                        ::testing::Combine(::testing::Values(PDPD),
-                                           ::testing::Values(std::string(TEST_PDPD_MODELS)),
-                                           ::testing::ValuesIn(models)),
-                        FrontEndBasicTest::getTestCaseName);
+                         FrontEndBasicTest,
+                         ::testing::Combine(::testing::Values(PDPD),
+                                            ::testing::Values(std::string(TEST_PDPD_MODELS)),
+                                            ::testing::ValuesIn(models)),
+                         FrontEndBasicTest::getTestCaseName);
