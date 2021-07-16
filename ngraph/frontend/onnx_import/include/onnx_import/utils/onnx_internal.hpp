@@ -36,7 +36,6 @@ namespace ngraph
             ///
             /// \return     An nGraph function that represents a single output from the created
             /// graph.
-            ONNX_IMPORTER_API
             std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
                                                         const std::string& model_path);
         } // namespace detail
