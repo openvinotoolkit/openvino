@@ -374,7 +374,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithSplitedIntermed
     Output<Node> lastOutput = intermediateOp->output(1);
     if (addConvolution) {
         auto weights = ngraph::opset1::Constant::create(
-            precision, ngraph::Shape{ inputShape[1].get_length() / numSplit, inputShape[1].get_length() / numSplit, 1, 1 }, { 1 });
+            precision, ngraph::Shape{ static_cast<size_t>(inputShape[1].get_length() / numSplit),
+                                      static_cast<size_t>(inputShape[1].get_length() / numSplit), 1, 1 }, { 1 });
         auto convolution = std::make_shared<ngraph::opset1::Convolution>(
             intermediateOp->output(1),
             weights,
@@ -1260,7 +1261,8 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithSplitedInterme
     if (addConvolution) {
         auto weights = ngraph::opset1::Constant::create(
             precision,
-            ngraph::Shape{ inputShape[1].get_length() / numSplit, inputShape[1].get_length() / numSplit, 1, 1 }, { 1 });
+            ngraph::Shape{ static_cast<size_t>(inputShape[1].get_length() / numSplit),
+                           static_cast<size_t>(inputShape[1].get_length() / numSplit), 1, 1 }, { 1 });
 
         auto convolution = std::make_shared<ngraph::opset1::Convolution>(
             lastDequantization2,

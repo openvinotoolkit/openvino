@@ -16,7 +16,6 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            unitTestUtils
             inference_engine_lp_transformations
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
@@ -26,3 +25,10 @@ addIeTargetTest(
         LABELS
             IE
 )
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(cpp_interfaces/ie_memory_state_internal_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
+
+link_system_libraries(${TARGET_NAME} PRIVATE unitTestUtils)

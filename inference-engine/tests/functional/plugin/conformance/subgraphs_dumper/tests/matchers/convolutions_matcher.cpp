@@ -17,7 +17,7 @@ using ngraph::element::Type_t;
 
 class ConvolutionMatcherTest : public ::testing::Test {
 protected:
-    void SetUp() {
+    void SetUp() override {
         matcher = SubgraphsDumper::ConvolutionsMatcher();
         op_info = LayerTestsUtils::OPInfo();
     }

@@ -16,7 +16,6 @@ struct gather_params : public base_params {
     GatherAxis axis;
     int64_t batch_dim;
     bool support_neg_ind;
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

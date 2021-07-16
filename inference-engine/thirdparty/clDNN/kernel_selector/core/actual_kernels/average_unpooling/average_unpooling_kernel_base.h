@@ -16,10 +16,6 @@ struct average_unpooling_params : public base_params {
 
     uSize unpoolSize;
     uSize unpoolStride;
-
-    virtual ParamsKey GetParamsKey() const {
-        return base_params::GetParamsKey();
-    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -21,7 +21,7 @@ struct arg_max_min_params : public base_params {
     uint32_t outputs_num = 1;
     bool values_first = false;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
         k.EnableArgMaxMinAxis(argMaxMinAxis);
 

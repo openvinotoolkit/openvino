@@ -259,7 +259,7 @@ namespace ngraph
             void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
                              const ngraph::recurrent_graph_rewrite_callback& callback);
 
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
             size_t m_num_iters;

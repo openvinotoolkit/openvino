@@ -701,7 +701,7 @@ public:
     };
 
 protected:
-    virtual void SetUp() override {}
+    void SetUp() override {}
 };
 
 NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_defaults_fwd_const)
@@ -1688,7 +1688,7 @@ public:
     };
 
 protected:
-    virtual void SetUp() override {}
+    void SetUp() override {}
 };
 
 NGRAPH_TEST_F(${BACKEND_NAME}, RNNSequenceOp, onnx_model_rnn_defaults_fwd_const)

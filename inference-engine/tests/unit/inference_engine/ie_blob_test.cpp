@@ -16,10 +16,6 @@
 
 class BlobTests: public ::testing::Test {
 protected:
-    virtual void TearDown() {}
-
-    virtual void SetUp() {}
-
     std::shared_ptr<MockAllocator> createMockAllocator() {
         return std::shared_ptr<MockAllocator>(new MockAllocator());
     }

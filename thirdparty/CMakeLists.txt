@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
@@ -114,6 +118,31 @@ endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_gtest_libraries()
+endif()
+
+#
+# Protobuf
+#
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        find_package(Protobuf REQUIRED)
+    else()
+        add_subdirectory(protobuf)
+    endif()
+
+    # forward variables used in the other places
+    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+endif()
+
+#
+# ONNX
+#
+
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    add_subdirectory(onnx)
 endif()
 
 #

@@ -42,7 +42,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -149,7 +149,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
