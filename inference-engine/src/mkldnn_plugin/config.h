@@ -5,6 +5,7 @@
 #pragma once
 
 #include <threading/ie_istreams_executor.hpp>
+#include <ie_performance_hints.hpp>
 #include "utils/debug_capabilities.h"
 
 #include <string>
@@ -25,13 +26,8 @@ struct Config {
     bool enableDynamicBatch = false;
     std::string dumpToDot = "";
     int batchLimit = 0;
-    std::string ovPerfHint = "";
-    int ovPerfHintNumRequests = 0;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
-
-    static std::string CheckPerformanceHintValue(std::string val);
-    static int CheckPerformanceHintRequestValue(std::string val);
-
+    InferenceEngine::PerfHintsConfig  perfHintsConfig;
 #if defined(__arm__) || defined(__aarch64__)
     // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
