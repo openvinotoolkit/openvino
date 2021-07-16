@@ -66,7 +66,7 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
 
 * *trans_std*
   * **Description**: *trans_std* is the value that all third input values (offests) are multiplied with to modulate the magnitude of the offsets.
-  * **Range of values**: floating point number
+  * **Range of values**: floating-point number
   * **Type**: `float`
   * **Default value**: 1
   * **Required**: *no*
@@ -93,7 +93,7 @@ Batch indices must be in the range of `[0, N_in-1]`.
 
 **Types**:
 
-* *T*: Any floating point type.
+* *T*: Any floating-point type.
 
 
 **Example**
