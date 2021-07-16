@@ -13,110 +13,13 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief Abstract base class for sub-graph based ops, i.e ops that have sub-graph
+            /// \brief Abstract base class for sub-graph based ops, i.e ops that have only one
+            /// sub-graph
             ///
             class NGRAPH_API SubGraphOp : public MultiSubGraphOp
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-
-                ///
-                /// \brief      Describes a body input formed from slices of an input to
-                ///             SubGraphOp.
-                ///
-                class NGRAPH_API SliceInputDescription : public MultiSubGraphOp::InputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"SliceInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    /// \param      body_parameter_index  Body parameter position to receive input
-                    /// \param      start                 First index for slices
-                    /// \param      stride                Step amount for slices
-                    /// \param      part_size             Width of slices
-                    /// \param      end                   Last index for slices
-                    /// \param      axis                  Axis being sliced
-                    ///
-                    SliceInputDescription(uint64_t input_index,
-                                          uint64_t body_parameter_index,
-                                          int64_t start,
-                                          int64_t stride,
-                                          int64_t part_size,
-                                          int64_t end,
-                                          int64_t axis);
-                    SliceInputDescription() = default;
-                    std::shared_ptr<MultiSubGraphOp::InputDescription> copy() const override;
-                    int64_t m_start{0};
-                    int64_t m_stride{0};
-                    int64_t m_part_size{0};
-                    int64_t m_end{0};
-                    int64_t m_axis{0};
-                };
-
-                ///
-                /// \brief      Describes a body input initialized from a SubGraphOp input on
-                ///             the first iteration, and then a body output thereafter.
-                ///
-                class NGRAPH_API MergedInputDescription : public MultiSubGraphOp::InputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"MergedInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    ///                                   supplying a value to body_parameter for
-                    ///                                   the initial iteration.
-                    /// \param      body_parameter_index  Body parameter position to receive input.
-                    /// \param      body_value_index      Body value to supply body_parameter for
-                    /// successive
-                    ///                                   iterations.
-                    ///
-                    MergedInputDescription(uint64_t input_index,
-                                           uint64_t body_parameter_index,
-                                           uint64_t body_value_index);
-                    MergedInputDescription() = default;
-                    std::shared_ptr<MultiSubGraphOp::InputDescription> copy() const override;
-                    uint64_t m_body_value_index{0};
-                };
-
-                /// \brief Produces an output by concatenating an output from each iteration
-                class NGRAPH_API ConcatOutputDescription : public MultiSubGraphOp::OutputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"ConcatOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The SubGraphOp output index
-                    /// \param      start             First index for slices
-                    /// \param      stride            Step amount for slices
-                    /// \param      part_size         Width of slices
-                    /// \param      end               Last index for slices
-                    /// \param      axis              Axis being sliced
-                    ///
-                    ConcatOutputDescription(uint64_t body_value_index,
-                                            uint64_t output_index,
-                                            int64_t start,
-                                            int64_t stride,
-                                            int64_t part_size,
-                                            int64_t end,
-                                            int64_t axis);
-                    ConcatOutputDescription() = default;
-
-                    std::shared_ptr<MultiSubGraphOp::OutputDescription> copy() const override;
-                    int64_t m_start{0};
-                    int64_t m_stride{0};
-                    int64_t m_part_size{0};
-                    int64_t m_end{0};
-                    int64_t m_axis{0};
-                };
 
                 /// \brief Produces an output from a specific iteration
                 class NGRAPH_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription

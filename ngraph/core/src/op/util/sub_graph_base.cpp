@@ -11,72 +11,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::SubGraphOp, "SubGraphOp", 0);
 
-constexpr DiscreteTypeInfo op::util::SubGraphOp::SliceInputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::SubGraphOp::MergedInputDescription::type_info;
-
 constexpr DiscreteTypeInfo op::util::SubGraphOp::BodyOutputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::SubGraphOp::ConcatOutputDescription::type_info;
-
-op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
-                                                                   uint64_t body_parameter_index,
-                                                                   int64_t start,
-                                                                   int64_t stride,
-                                                                   int64_t part_size,
-                                                                   int64_t end,
-                                                                   int64_t axis)
-    : InputDescription(input_index, body_parameter_index)
-    , m_start(start)
-    , m_stride(stride)
-    , m_part_size(part_size)
-    , m_end(end)
-    , m_axis(axis)
-{
-}
-
-std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
-    op::util::SubGraphOp::SliceInputDescription::copy() const
-{
-    return std::make_shared<SliceInputDescription>(
-        m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
-}
-
-op::util::SubGraphOp::MergedInputDescription::MergedInputDescription(uint64_t input_index,
-                                                                     uint64_t body_parameter_index,
-                                                                     uint64_t body_value_index)
-    : InputDescription(input_index, body_parameter_index)
-    , m_body_value_index(body_value_index)
-{
-}
-
-std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
-    op::util::SubGraphOp::MergedInputDescription::copy() const
-{
-    return std::make_shared<MergedInputDescription>(
-        m_input_index, m_body_parameter_index, m_body_value_index);
-}
-
-op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
-                                                                       uint64_t output_index,
-                                                                       int64_t start,
-                                                                       int64_t stride,
-                                                                       int64_t part_size,
-                                                                       int64_t end,
-                                                                       int64_t axis)
-    : OutputDescription(body_value_index, output_index)
-    , m_start(start)
-    , m_stride(stride)
-    , m_part_size(part_size)
-    , m_end(end)
-    , m_axis(axis)
-{
-}
-
-std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
-    op::util::SubGraphOp::ConcatOutputDescription::copy() const
-{
-    return std::make_shared<ConcatOutputDescription>(
-        m_body_value_index, m_output_index, m_start, m_stride, m_part_size, m_end, m_axis);
-}
 
 op::util::SubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
                                                                    uint64_t output_index,

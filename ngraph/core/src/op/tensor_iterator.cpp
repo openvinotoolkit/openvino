@@ -75,6 +75,17 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 void op::v0::TensorIterator::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+
+    NODE_VALIDATION_CHECK(
+        this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+
+    NODE_VALIDATION_CHECK(this,
+                          m_input_descriptions.size() == 1,
+                          "Loop contains input descriptions for other bodies");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_descriptions.size() == 1,
+                          "Loop contains output descriptions for other bodies");
+
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions[0].size(),
                           "Number of inputs must be the same as number of input descriptions");

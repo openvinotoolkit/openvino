@@ -11,8 +11,11 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp, "MultiSubGraphOp", 0);
 
+constexpr DiscreteTypeInfo op::util::SubGraphOp::SliceInputDescription::type_info;
+constexpr DiscreteTypeInfo op::util::SubGraphOp::MergedInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::InvariantInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::BodyOutputDescription::type_info;
+constexpr DiscreteTypeInfo op::util::SubGraphOp::ConcatOutputDescription::type_info;
 
 op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index,
                                                               uint64_t body_parameter_index)
@@ -28,6 +31,66 @@ op::util::MultiSubGraphOp::OutputDescription::OutputDescription(uint64_t body_va
 {
 }
 
+op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
+                                                                   uint64_t body_parameter_index,
+                                                                   int64_t start,
+                                                                   int64_t stride,
+                                                                   int64_t part_size,
+                                                                   int64_t end,
+                                                                   int64_t axis)
+    : InputDescription(input_index, body_parameter_index)
+    , m_start(start)
+    , m_stride(stride)
+    , m_part_size(part_size)
+    , m_end(end)
+    , m_axis(axis)
+{
+}
+
+std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
+    op::util::SubGraphOp::SliceInputDescription::copy() const
+{
+    return std::make_shared<SliceInputDescription>(
+        m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
+}
+
+op::util::SubGraphOp::MergedInputDescription::MergedInputDescription(uint64_t input_index,
+                                                                     uint64_t body_parameter_index,
+                                                                     uint64_t body_value_index)
+    : InputDescription(input_index, body_parameter_index)
+    , m_body_value_index(body_value_index)
+{
+}
+
+std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
+    op::util::SubGraphOp::MergedInputDescription::copy() const
+{
+    return std::make_shared<MergedInputDescription>(
+        m_input_index, m_body_parameter_index, m_body_value_index);
+}
+
+op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
+                                                                       uint64_t output_index,
+                                                                       int64_t start,
+                                                                       int64_t stride,
+                                                                       int64_t part_size,
+                                                                       int64_t end,
+                                                                       int64_t axis)
+    : OutputDescription(body_value_index, output_index)
+    , m_start(start)
+    , m_stride(stride)
+    , m_part_size(part_size)
+    , m_end(end)
+    , m_axis(axis)
+{
+}
+
+std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
+    op::util::SubGraphOp::ConcatOutputDescription::copy() const
+{
+    return std::make_shared<ConcatOutputDescription>(
+        m_body_value_index, m_output_index, m_start, m_stride, m_part_size, m_end, m_axis);
+}
 op::util::MultiSubGraphOp::InvariantInputDescription::InvariantInputDescription(
     uint64_t input_index, uint64_t body_parameter_index)
     : InputDescription(input_index, body_parameter_index)
@@ -58,19 +121,19 @@ op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args)
 {
 }
 
-op::util::MultiSubGraphOp::MultiSubGraphOp(size_t bodies_index)
+op::util::MultiSubGraphOp::MultiSubGraphOp(size_t number_of_bodies)
 {
-    m_bodies.resize(bodies_index);
-    m_input_descriptions.resize(bodies_index);
-    m_output_descriptions.resize(bodies_index);
+    m_bodies.resize(number_of_bodies);
+    m_input_descriptions.resize(number_of_bodies);
+    m_output_descriptions.resize(number_of_bodies);
 }
 
-op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t bodies_index)
+op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies)
     : MultiSubGraphOp(args)
 {
-    m_bodies.resize(bodies_index);
-    m_input_descriptions.resize(bodies_index);
-    m_output_descriptions.resize(bodies_index);
+    m_bodies.resize(number_of_bodies);
+    m_input_descriptions.resize(number_of_bodies);
+    m_output_descriptions.resize(number_of_bodies);
 }
 
 Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value)
@@ -84,30 +147,35 @@ void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
                                                      const ParameterVector bodies_parameters)
 {
     auto input_index = input_for_value(value).get_index();
-    size_t body_index = 0;
     for (auto& param : bodies_parameters)
     {
-        if (param == nullptr)
+        for (size_t body_index = 0; body_index < m_bodies.size(); ++body_index)
         {
-            body_index++;
-            continue;
+            auto param_index = m_bodies[body_index]->get_parameter_index(param);
+            if (param_index != -1)
+            {
+                m_input_descriptions[body_index].push_back(
+                    std::make_shared<MultiSubGraphOp::InvariantInputDescription>(input_index,
+                                                                                 param_index));
+            }
         }
-        m_input_descriptions[body_index].push_back(
-            std::make_shared<MultiSubGraphOp::InvariantInputDescription>(
-                input_index, m_bodies[body_index]->get_parameter_index(param)));
-        body_index++;
     }
 }
 
 Output<Node> op::util::MultiSubGraphOp::set_body_outputs(ResultVector bodies_results)
 {
-    auto output_index = m_output_descriptions[0].size();
-    size_t body_index = 0;
+    auto output_index = get_output_size();
     for (auto& body_result : bodies_results)
     {
-        m_output_descriptions[body_index].push_back(std::make_shared<BodyOutputDescription>(
-            m_bodies[body_index]->get_result_index(body_result), output_index));
-        body_index++;
+        for (size_t body_index = 0; body_index < m_bodies.size(); body_index++)
+        {
+            auto body_result_index = m_bodies[body_index]->get_result_index(body_result);
+            if (body_result_index != -1)
+            {
+                m_output_descriptions[body_index].push_back(
+                    std::make_shared<BodyOutputDescription>(body_result_index, output_index));
+            }
+        }
     }
     set_output_size(output_index + 1);
     return Output<Node>(shared_from_this(), output_index);

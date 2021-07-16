@@ -38,6 +38,17 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 void op::v5::Loop::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v5_Loop_validate_and_infer_types);
+
+    NODE_VALIDATION_CHECK(
+        this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+
+    NODE_VALIDATION_CHECK(this,
+                          m_input_descriptions.size() == 1,
+                          "Loop contains input descriptions for other bodies");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_descriptions.size() == 1,
+                          "Loop contains output descriptions for other bodies");
+
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
         const auto& cur_iter_rank = m_bodies[0]
