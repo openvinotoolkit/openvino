@@ -27,6 +27,7 @@ VERIFIED_OP_REFERENCES = [
     'Cosh-1',
     'DeformableConvolution-1',
     'DeformablePSROIPooling-1',
+    'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',
