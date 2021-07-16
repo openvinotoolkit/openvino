@@ -52,7 +52,6 @@ namespace signop
 
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_sign, boolean, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
