@@ -46,7 +46,7 @@ public:
             const FakeQuantizeOnDataWithConstant& fqOnData);
 
     static std::shared_ptr<ngraph::Function> get(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const std::vector<Branch>& branches,
         const ngraph::element::Type precisionFqOnData,
         const FakeQuantizeOnData& fqOnData);
