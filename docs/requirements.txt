@@ -1,5 +1,4 @@
 git+https://github.com/sphinx-contrib/youtube.git
-git+https://github.com/intel-innersource/libraries.ui.intel-design-system.spark-sphinx-theme.git
 alabaster==0.7.12
 Babel==2.9.1
 beautifulsoup4==4.9.3
