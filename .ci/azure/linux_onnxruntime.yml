@@ -95,7 +95,6 @@ jobs:
         -DENABLE_SAMPLES=OFF
         -DENABLE_SPEECH_DEMO=OFF
         -DNGRAPH_ONNX_IMPORT_ENABLE=ON
-        -DNGRAPH_ONNX_EDITOR_ENABLE=ON
         -DNGRAPH_DEBUG_ENABLE=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)

@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
-#include "gpu/primitive_gpu_base.h"
+#include "impls/ocl/primitive_base.hpp"
 #include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
@@ -45,7 +45,7 @@ void post_input_reorder::run(program_impl& p) {
         const auto impl = node->get_selected_impl();
         // add a reorder if primitive's input format doesn't match implementation's input format
         if (node->is_type<fully_connected>()) {
-            const auto& fc_impl = dynamic_cast<const gpu::typed_primitive_gpu_impl<fully_connected>&>(*impl);
+            const auto& fc_impl = dynamic_cast<const ocl::typed_primitive_impl_ocl<fully_connected>&>(*impl);
             const auto& fc_params = *static_cast<kernel_selector::fully_connected_params*>(fc_impl._kernel_data.params.get());
 
             auto layout_format = from_data_layout(fc_params.inputs[0].GetLayout());
@@ -62,7 +62,7 @@ void post_input_reorder::run(program_impl& p) {
                 reorder.set_unique_id(node->get_unique_id() + "_input_reorder");
                 reorder.get_output_layout(false);
                 node->set_output_layout(previous_layout, false);
-                reorder.set_selected_impl(reorder.type()->choose_impl(p.get_engine(), reorder));
+                reorder.set_selected_impl(reorder.type()->choose_impl(reorder));
             }
         }
     }
