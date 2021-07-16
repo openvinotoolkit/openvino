@@ -33,23 +33,16 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
 
 ## Videos
 
-\htmlonly
 <table>
   <tr>
     <td>
-\endhtmlonly
 <iframe width="220" src="https://www.youtube.com/embed/Kl1ptVb7aI8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\htmlonly
 </td>
 <td>
-\endhtmlonly
     <iframe width="220" src="https://www.youtube.com/embed/BBt1rseDcy0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\htmlonly
 </td>
 <td>
-\endhtmlonly
 <iframe width="220" src="https://www.youtube.com/embed/RF8ypHyiKrY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-\htmlonly
 </td>
   </tr>
   <tr>
@@ -58,5 +51,4 @@ To learn about all Model Optimizer parameters and conversion technics, see the [
     <td><strong>Choosing the Right Precision</strong>. <br>Duration: 4:18.</td>
   </tr>
 </table>
-\endhtmlonly
 
