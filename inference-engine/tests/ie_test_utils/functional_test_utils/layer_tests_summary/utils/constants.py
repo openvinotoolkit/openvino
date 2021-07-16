@@ -27,6 +27,7 @@ VERIFIED_OP_REFERENCES = [
     'Cosh-1',
     'DeformableConvolution-1',
     'DeformablePSROIPooling-1',
+    'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',
@@ -64,6 +65,7 @@ VERIFIED_OP_REFERENCES = [
     'NonZero-3',
     'NormalizeL2-1',
     'PriorBox-1',
+    'PriorBoxClustered-1',
     'Proposal-1',
     'Proposal-4',
     'PSROIPooling-1',
@@ -91,6 +93,7 @@ VERIFIED_OP_REFERENCES = [
     'ScatterNDUpdate-4',
     'ShapeOf-1',
     'ShapeOf-3',
+    'ShuffleChannels-1',
     'Sigmoid-1',
     'Sin-1',
     'Sinh-1'

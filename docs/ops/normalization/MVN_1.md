@@ -44,12 +44,11 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
   * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value. For example, *epsilon* equal to 0.001 means that 0.001 is added to the variance.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: 4D or 5D input tensor of any floating point type. Required.
+* **1**: 4D or 5D input tensor of any floating point type. **Required.**
 
 **Outputs**
 
