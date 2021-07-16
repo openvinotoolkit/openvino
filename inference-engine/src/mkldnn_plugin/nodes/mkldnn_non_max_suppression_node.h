@@ -86,8 +86,8 @@ private:
     SizeVector inputShape_SCORETHRESHOLD;
     SizeVector inputShape_SOFTNMSSIGMA;
 
-    SizeVector outputShape_SELECTEDINDICES;
-    SizeVector outputShape_SELECTEDSCORES;
+    Shape outputShape_SELECTEDINDICES;
+    Shape outputShape_SELECTEDSCORES;
 
     std::string errorPrefix;
 

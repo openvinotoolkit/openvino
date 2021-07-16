@@ -101,7 +101,7 @@ BlockedMemoryDesc MemoryDescUtils::convertToBlockedDescriptor(const MKLDNNMemory
     //       fill it with zero.
     ie_blk_offset_to_data.insert(ie_blk_offset_to_data.end(), inner_ndims, 0);
 
-    BlockedMemoryDesc res(MKLDNNMemory::convertToIePrec(desc.data_type()), SizeVector {begin(dims), end(dims)}, ie_blk_dims,
+    BlockedMemoryDesc res(MKLDNNMemory::convertToIePrec(desc.data_type()), Shape({begin(dims), end(dims)}), ie_blk_dims,
                           ie_blk_order, ie_blk_offset0, ie_blk_offset_to_data, ie_blk_strides);
     return res;
 }
@@ -364,14 +364,14 @@ MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const BlockedMemoryDesc &des
     offsetPaddingToData.resize(desc.getBlockDims().size(), 0);
     size_t offsetPadding = Shape::UNDEFINED_DIM;
 
-    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape().getDims(), desc.getBlockDims(),
+    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape(), desc.getBlockDims(),
                                                         desc.getOrder(), offsetPadding, offsetPaddingToData, strides);
 }
 
 MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
         auto blockedDesc = desc->as<BlockedMemoryDesc>();
-        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape().getDims(),
+        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(blockedDesc->getPrecision(), blockedDesc->getShape(),
                                               blockedDesc->getBlockDims(), blockedDesc->getOrder());
     } else if (MemoryDescType::Mkldnn == desc->getType()) {
         auto mkldnnDesc = desc->as<MKLDNNMemoryDesc>();

@@ -57,7 +57,8 @@ public:
     }
 
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
-    void PullOutputData(const InferenceEngine::BlobMap &out);
+    // TODO [DS]: phase 2: return to constant reference when dynamic blob representation becomes available
+    void PullOutputData(InferenceEngine::BlobMap &out);
 
     void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 

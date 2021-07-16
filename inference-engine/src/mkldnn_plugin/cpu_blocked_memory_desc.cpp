@@ -8,7 +8,8 @@
 
 using namespace MKLDNNPlugin;
 
-BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims) : MemoryDesc(dims, Blocked) , precision(prc) {
+BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape) : MemoryDesc(shape, Blocked) , precision(prc) {
+    auto& dims = shape.getDims();
     order.resize(dims.size());
     std::iota(order.begin(), order.end(), 0);
     blockedDims = dims;
@@ -21,14 +22,14 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
     }
 }
 
-BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims, const std::vector<size_t>& blockedDims,
+BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const std::vector<size_t>& blockedDims,
                   const std::vector<size_t>& order, size_t offsetPadding, const std::vector<size_t>& offsetPaddingToData,
-                  const std::vector<size_t>& strides) : MemoryDesc(dims, Blocked), precision(prc) {
+                  const std::vector<size_t>& strides) : MemoryDesc(shape, Blocked), precision(prc) {
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "BlockedMemoryDesc do not support undefined order.";
     }
 
-    if (std::any_of(blockedDims.begin() + dims.size(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "BlockedMemoryDesc doesn't support undefined blockedDims.";
     }
 
@@ -126,6 +127,20 @@ size_t BlockedMemoryDesc::getMemSizeImp() const {
     e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
 
     return e_size;
+}
+
+size_t BlockedMemoryDesc::getMaxMemSize() const {
+    if (shape.isStatic()) {
+        return getCurrentSize();
+    }
+
+    auto& maxDims = shape.getMaxDims();
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+        return UNDEFINED_SIZE;
+    }
+
+    auto maxDimsDesc = cloneWithNewDims(maxDims);
+    return maxDimsDesc->getCurrentSize();
 }
 
 size_t BlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const {
@@ -244,4 +259,44 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     }
 
     return result.str();
+}
+
+std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDims(const std::vector<size_t> &dims) const {
+    // TODO [DS]: phase 2 : move to the base class
+    // TODO [DS]: phase 2 : to discuss the behaviour, should we check the upper bound?
+    if (getShape().getRank() != dims.size()) {
+        IE_THROW(ParameterMismatch) << "Can not clone descriptor since it has rank = " << getShape().getRank() <<
+            ", but dims with size=" << dims.size() << "were provided.";
+    }
+
+    auto comparator = [](size_t lhs, size_t rhs) {
+        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
+    };
+
+    if (!std::equal(getShape().getDims().begin(), getShape().getDims().end(), dims.begin(), comparator)) {
+        IE_THROW(ParameterMismatch) << "Can not clone descriptor! Incompatible dims, shape: " << dims2str(getShape().getDims())
+            << " provided dims: " << dims2str(dims);
+    }
+
+    // TODO [DS]: phase 2 : end code frame to be moved
+
+    std::vector<size_t> newBlockedDims(order.size());
+
+    for (size_t i = 0; i < dims.size(); ++i) {
+        newBlockedDims[order[i]] = dims[i];
+    }
+
+    for (size_t i = dims.size(); i < order.size(); ++i) {
+        if (newBlockedDims[order[i]] != Shape::UNDEFINED_DIM) {
+            newBlockedDims[order[i]] = div_up(newBlockedDims[order[i]], blockedDims[i]);
+            newBlockedDims[i] = blockedDims[i];
+        }
+    }
+
+    std::vector<size_t> newOffsetPaddingToData;
+    if (std::none_of(offsetPaddingToData.begin(), offsetPaddingToData.end(), [](size_t x){ return x == Shape::UNDEFINED_DIM;})) {
+        newOffsetPaddingToData = offsetPaddingToData;
+    }
+
+    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(precision, Shape(dims), newBlockedDims, order, offsetPadding, newOffsetPaddingToData);
 }

@@ -35,13 +35,15 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
         IE_THROW() << "No graph was found";
     graph = &(execNetwork->GetGraph()._graph);
 
-    // Allocate all input blobs
+    // Allocate all input blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkInputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        if (it.second->getInputData()->getPartialShape().is_static())
+            MKLDNNInferRequest::GetBlob(it.first);
     }
-    // Allocate all output blobs
+    // Allocate all output blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkOutputs) {
-        MKLDNNInferRequest::GetBlob(it.first);
+        if (it.second->getPartialShape().is_static())
+            MKLDNNInferRequest::GetBlob(it.first);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics

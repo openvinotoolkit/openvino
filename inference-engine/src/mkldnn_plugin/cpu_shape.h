@@ -34,7 +34,7 @@ public:
     }
 
     /**
-     * @brief 
+     * @brief
      * for static shape
      * maxDims = [2, 3, 4, 5]
      * minDims = [2, 3, 4, 5]
@@ -51,7 +51,7 @@ public:
     }
 
     /**
-     * @brief 
+     * @brief
      * for static shape
      * maxDims = [2, 3, 4, 5]
      * minDims = [2, 3, 4, 5]
@@ -68,7 +68,7 @@ public:
     }
 
     /**
-     * @brief return defined shape or throw exception for dynamic case 
+     * @brief return defined shape or throw exception for dynamic case
      * @return return shape
      */
     const std::vector<size_t>& getStaticDims() const {
@@ -80,7 +80,7 @@ public:
     }
 
     /**
-     * @brief 
+     * @brief
      * for static shape
      * maxDims = [2, 3, 4, 5]
      * minDims = [2, 3, 4, 5]
@@ -156,4 +156,20 @@ private:
     std::vector<size_t> dims;
 };
 
+inline std::string dims2str(const std::vector<size_t>& dims) {
+    std::stringstream output;
+    output << "{";
+
+    auto itr = dims.begin();
+    do {
+        if (*itr == Shape::UNDEFINED_DIM) {
+            output << "?";
+        } else {
+            output << *itr;
+        }
+    } while (++itr != dims.end() && output << ", ");
+
+    output << "}";
+    return output.str();
+}
 }  // namespace MKLDNNPlugin

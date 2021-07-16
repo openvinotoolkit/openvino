@@ -92,7 +92,25 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 
 void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
     pMemDesc = desc.clone();
-    Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc)), data, pads_zeroing);
+    if (nullptr != data) {
+        useExternalStorage = true;
+    } else {
+        useExternalStorage = false;
+    }
+
+    if (desc.isDefined()) {
+        Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc)), data, pads_zeroing);
+    } else {
+        //delayed dynamic allocation
+        size_t maxMemSize = desc.getMaxMemSize();
+        int64_t dummySize = MemoryDesc::UNDEFINED_SIZE == maxMemSize ? 1 : maxMemSize;
+        MKLDNNMemoryDesc dummyDesc({dummySize}, mkldnn::memory::data_type::u8);
+        Create(mkldnn::memory::desc(dummyDesc), data, false);  // no pads zeroing
+    }
+    size_t newUpperBound = prim->get_desc().get_size();
+    if (newUpperBound > memUpperBound) {
+        memUpperBound = newUpperBound;
+    }
 }
 
 
@@ -283,6 +301,23 @@ MKLDNNMemoryDesc MKLDNNMemory::GetDescWithType<MKLDNNMemoryDesc, 0, 0>() const {
             default:
                 IE_THROW() << "Can not convert unsupported memory descriptor";
         }
+    }
+}
+
+void MKLDNNMemory::redefineDims(const std::vector<size_t>& dims) {
+    auto desc = pMemDesc->cloneWithNewDims(dims);
+    if (useExternalStorage) {
+        size_t descMaxSize = desc->getMaxMemSize();
+        if (MemoryDesc::UNDEFINED_SIZE == descMaxSize) {
+            IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
+        }
+        if (descMaxSize <= memUpperBound) {
+            this->Create(*desc, prim->get_data_handle(), false);
+        } else {
+            this->Create(*desc, nullptr, false);
+        }
+    } else {
+        this->Create(*desc, nullptr, false);
     }
 }
 
@@ -914,5 +949,14 @@ InferenceEngine::Precision MKLDNNMemoryDesc::getPrecision() const {
 
 void MKLDNNMemoryDesc::setPrecision(InferenceEngine::Precision prc) {
     desc.data.data_type = static_cast<dnnl_data_type_t>(MKLDNNExtensionUtils::IEPrecisionToDataType(prc));
+}
+
+std::unique_ptr<MemoryDesc> MKLDNNMemoryDesc::cloneWithNewDims(const std::vector<size_t> &dims) const {
+    IE_THROW(NotImplemented) << "[DS]: MKLDNNMemoryDesc::cloneWithNewDims is not implemented.";
+}
+
+size_t MKLDNNMemoryDesc::getMaxMemSize() const {
+    // TODO [DS]: write the correct implementation
+    return getMemSize();
 }
 }  // namespace MKLDNNPlugin

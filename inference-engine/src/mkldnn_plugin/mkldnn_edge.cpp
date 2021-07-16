@@ -140,8 +140,6 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
 
     auto& inputDesc = getInputDesc();
     auto& outputDesc = getOutputDesc();
-    if (!inputDesc.isDefined() || !outputDesc.isDefined())
-        IE_THROW() << "Cannot allocate memory for undefined descriptors.";
     if (!inputDesc.isCompatible(outputDesc))
         IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
 
@@ -295,14 +293,7 @@ const MemoryDesc& MKLDNNEdge::getDesc() const {
 }
 
 const MKLDNNMemory &MKLDNNEdge::getMemory() {
-    if (status == Status::NotAllocated) {
-        memoryPtr.reset(new MKLDNNMemory(getParent()->getEngine()));
-        memoryPtr->Create(getDesc(), getSharedEdge()->getMemoryPtr()->GetData());
-        memoryFromEdge.reset();
-        changeStatus(Status::Allocated);
-    }
-
-    return *memoryPtr;
+    return *getMemoryPtr();
 }
 
 MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {

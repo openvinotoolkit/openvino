@@ -224,7 +224,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
         { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
         { "ExtractImagePatches", ExtractImagePatches},
-        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
+        { "NonMaxSuppression", NonMaxSuppression}
 };
 
 Type TypeFromName(const std::string type) {
@@ -1068,6 +1068,7 @@ int MKLDNNNode::batchToProcess() {
     return dynBatchLim == 0 ? getMaxBatch() : std::min<int>(getMaxBatch(), dynBatchLim);
 }
 
+// TODO [DS]: rewrite with size_t return value and using .getMaxDims()
 int MKLDNNNode::getMaxBatch() {
     // FIXME: batch != 0 dims number
     if (!inputShapes.empty()) {
@@ -1267,11 +1268,11 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
     }
 
     const auto isBroadcastableToDataInput = [&]() {
-        const auto dataShape = getParentEdgeAt(fusingPort)->getShape().getStaticDims();
+        auto& dataShape = getParentEdgeAt(fusingPort)->getShape().getDims();
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (i == fusingPort)
                 continue;
-            auto weightShape = getParentEdgeAt(i)->getShape().getStaticDims();
+            auto& weightShape = getParentEdgeAt(i)->getShape().getDims();
             if (!isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
                 return false;
         }
