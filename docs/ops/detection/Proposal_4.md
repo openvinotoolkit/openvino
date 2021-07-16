@@ -152,7 +152,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 **Example**
 

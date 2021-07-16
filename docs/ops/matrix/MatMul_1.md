@@ -67,7 +67,7 @@ Two attributes, `transpose_a` and `transpose_b` specify embedded transposition f
 
 **Types**:
 
-* *T*: any supported floating point or integer type.
+* *T*: any supported floating-point or integer type.
 
 **Example**
 
