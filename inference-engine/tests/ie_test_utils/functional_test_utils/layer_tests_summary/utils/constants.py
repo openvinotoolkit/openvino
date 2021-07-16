@@ -42,6 +42,7 @@ VERIFIED_OP_REFERENCES = [
     'GatherElements-6',
     'GatherND-5',
     'Gelu-7',
+    'GRN-1',
     'GroupConvolution-1',
     'GroupConvolutionBackpropData-1',
     'GRUSequence-5',
