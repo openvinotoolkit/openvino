@@ -1235,20 +1235,15 @@ void MKLDNNGraph::EnforceBF16() {
         }
     };
 
-    auto getNodesToSkip = [&]() {
-        std::unordered_set<MKLDNNNodePtr> nodesToSkip;
-        // starting from output nodes
-        for (const auto& entry : outputNodesMap) {
-            const auto& node = entry.second;
-            searchForNodesToSkip(node, nodesToSkip);
-        }
-
-        return nodesToSkip;
-    };
     /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
      * Experiments show zero peformance impact on average */
-    std::unordered_set<MKLDNNNodePtr> nodesToSkip = getNodesToSkip();
+    std::unordered_set<MKLDNNNodePtr> nodesToSkip;
+    // starting from output nodes
+    for (const auto& entry : outputNodesMap) {
+        const auto& node = entry.second;
+        searchForNodesToSkip(node, nodesToSkip);
+    }
 
     for (const auto& node : graphNodes) {
         if (nodesToSkip.count(node))
