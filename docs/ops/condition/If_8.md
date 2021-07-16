@@ -5,7 +5,7 @@
 **Category**: Infrastructure
 
 **Short description**: *If* operation contains two internal networks(subgraphs) such as `then_body` and `else_body`, 
-and performs one of them depending on `cond` value. If `cond` is  `True`, `then_body` is executed.If cond` is  `False`, 
+and performs one of them depending on `cond` value. If `cond` is  `True`, `then_body` is executed. If `cond` is  `False`, 
 the operation executes the `else_body` subgraph. 
 
 **Detailed description**
