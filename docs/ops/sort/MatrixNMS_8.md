@@ -136,11 +136,11 @@ When there is no box selected, `selected_num` is filled with `0`. `selected_outp
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_MAX_BOXES*: integer type.
 
-* *T_THRESHOLDS*: floating point type.
+* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 
