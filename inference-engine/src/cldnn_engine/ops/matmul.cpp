@@ -62,6 +62,8 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
 
     bool is_fc = IsNodeOnConstPath(op->get_input_node_shared_ptr(1));
     is_fc &= std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) { return x != 1; }) <= 2;
+    // TODO: This conditions can be relaxed with proper handling in FC path
+    is_fc &= shape_b.size() > 1 && shape_a.size() > 1;
 
     if (is_fc) {
         ngraph::Shape shape_a_aligned, shape_b_aligned;
@@ -73,10 +75,10 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
 
         auto inputName = inputPrimitives[0];
         auto weightsName = inputPrimitives[1];
+
         // Weights normalization
         if (!op->get_transpose_b()) {
-            ngraph::Shape output_shape = shape_b;
-            std::vector<uint16_t> transpose_order(output_shape.size());
+            std::vector<uint16_t> transpose_order(shape_b.size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
@@ -95,8 +97,7 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
 
         // Input normalization
         if (op->get_transpose_a()) {
-            ngraph::Shape output_shape = shape_a;
-            std::vector<uint16_t> transpose_order(output_shape.size());
+            std::vector<uint16_t> transpose_order(shape_a.size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
@@ -131,16 +132,20 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
 
         if (reshape_fc) {
             inputName = reshape_to_2d(shape_a, inputName, shape_a.back(), "_cldnn_reshape_in");
+        }
+
+        if (shape_b.size() != 2) {
             weightsName = reshape_to_2d(shape_b, weightsName, K, "_cldnn_reshape_weights");
         }
 
+        auto input_rank = reshape_fc ? 2 : shape_a.size();
         auto fcPrim = cldnn::fully_connected(layerName,
                                              inputName,
                                              weightsName,
                                              "",
                                              DataTypeFromPrecision(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             op->get_output_shape(0).size());
+                                             input_rank);
 
         p.AddPrimitive(fcPrim);
 
@@ -196,7 +201,29 @@ void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& o
                 auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
                 // Extend input dimensions by prepending ones
-                inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
+                if (inputDimsN == 1) {
+                    // One-dimensional tensors unsqueezing is applied for each input independently.
+                    // The axes inserted in this step are not included in the output shape.
+                    // * If rank of the **first** input is equal to 1, it is always unsqueezed to 2D tensor **row vector** (regardless of `transpose_a`)
+                    // by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
+                    // * If rank of the **second** input is equal to 1, it is always unsqueezed to 2D tensor **column vector** (regardless of `transpose_b`)
+                    // by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
+                    bool transpose = false;
+                    if (i == 0) {
+                        transpose = op->get_transpose_a();
+                        inputDims.insert(inputDims.begin(), 1);
+                    } else {
+                        transpose = op->get_transpose_b();
+                        inputDims.insert(inputDims.end(), 1);
+                    }
+                    // Specs says that shapes must be unsqueezed regardless of tranpose flag, but primitive implementation always respects transposes
+                    // so we have to swap dimensions correspondingly to have consistent shapes.
+                    if (transpose) {
+                        std::swap(inputDims[0], inputDims[1]);
+                    }
+                }
+                if (inputDimsN < outDimsN)
+                    inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
 
                 auto targetShape = gemmSpecificTensor(inputDims);
 

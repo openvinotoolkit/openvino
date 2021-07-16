@@ -16,7 +16,27 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 };
 
 const std::vector<ShapeRelatedParams> shapeRelatedParams = {
-        { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } }
+        { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } },
+        { { {1, 16, 128}, false }, { {1, 64, 128}, true } },
+        { { {4, 5, 6}, false }, { {6, 3}, false } },
+        { { {9, 9, 9}, false }, { {9, 9}, false } },
+        { { {1, 2, 3}, false }, { {1, 1, 3, 2}, false } },
+        { { {1, 3, 2, 4}, false }, { {2, 1, 4, 2}, false } },
+        { { {2, 1, 2, 4}, false }, { {1, 3, 4, 2}, false } },
+        { { {3, 2, 4}, false }, { {2, 1, 4, 2}, false } },
+        { { {2, 1, 4, 2}, false }, { {3, 2, 4}, false } },
+        { { {2, 1, 2, 3}, true }, { {3, 2, 4}, false } },
+        { { {2, 1, 3, 2}, false }, { {3, 4, 2}, true } },
+        { { {2, 1, 2, 3}, true }, { {3, 4, 2}, true } },
+        { { {3}, false }, { {2, 2, 3, 1}, false } },
+        { { {2, 2, 1, 3}, false }, { {3}, false } },
+        { { {1, 5}, false }, { {5, 1}, false } },
+        { { {5, 1}, true }, { {5, 1}, false } },
+        { { {1, 5}, false }, { {1, 5}, true } },
+        { { {1, 5}, false }, { {5}, false } },
+        { { {5}, false }, { {5, 1}, false } },
+        { { {5}, false }, { {5}, false } },
+        { { {5}, true }, { {5}, true } }
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
