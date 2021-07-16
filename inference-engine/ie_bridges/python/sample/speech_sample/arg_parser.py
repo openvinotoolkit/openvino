@@ -35,8 +35,8 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-we_gen', '--embedded_gna_configuration', default='GNA1', type=str, help=argparse.SUPPRESS)
     args.add_argument('-pc', '--performance_counter', action='store_true', 
                         help='Optional. Enables performance report. (specify -a to ensure arch accurate results)')
-    args.add_argument('-a', '--arch', default="CORE", type=str, help='Optional. Specify architecture. CORE, ATOM'
-                        ' with combination of -pc')
+    args.add_argument('-a', '--arch', default="CORE", type=str.upper, choices=['CORE', 'ATOM'], 
+                      help='Optional. Specify architecture. CORE, ATOM with combination of -pc')
     args.add_argument('-iname', '--input_layers', type=str,
                       help='Optional. Layer names for input blobs. The names are separated with ",". '
                       'Allows to change the order of input layers for -i flag. Example: Input1,Input2')
