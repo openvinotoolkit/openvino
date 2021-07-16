@@ -339,13 +339,7 @@ max_matrix_to_scalar_zero_by_zero
 max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
-normalize_across_empty_axes_input
-normalize_l2_all_mode_add
-normalize_l2_none_mode_add
-normalize_l2_zero_mode_add
-normalize_l2_all_mode_max
-normalize_l2_none_mode_max
-normalize_l2_zero_mode_max
+
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -426,7 +420,6 @@ lrn_across_all_dims
 elu
 elu_negative_alpha
 max_pool_2d_1channel_1image_overpadded
-normalize_across_chw_4d_max_bias
 grn_2d_with_bias
 erf
 divide_adjoint_stability
@@ -676,10 +669,6 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
-normalize_across_1axis_5d
-normalize_across_123axes_5d
-
 # Unsupported operator detected in the graph.
 gemm
 gemm_C
@@ -917,6 +906,56 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
+# NormalizeL2 - output mismatch,
+# mkldnn_normalize_nchw applies eps after sqrt for across_spatial
+# Issue: 59586
+IE_CPU.normalize_l2_4D_axes_123_big_eps_max
+IE_CPU.normalize_l2_4D_axes_123_big_eps_add
+
+# NomalizeL2 - unsorted axes are not supported,
+# message: "Doesn't support reduction axes: (3.1.2)"
+# Issue: 59794
+IE_CPU.normalize_l2_4D_axes_unsorted_312_max
+IE_CPU.normalize_l2_4D_axes_unsorted_312_add
+
+# NormalizeL2 - Plugins support normalize over "channel" dimension
+# or "channel + all spatial" dimensions for 2D, 3D or 4D cases
+# Issue: 35627, 59791
+normalize_l2_1D_axes_empty_add
+normalize_l2_1D_axes_empty_max
+normalize_l2_1D_axes_0_add
+normalize_l2_1D_axes_0_max
+normalize_l2_2D_axes_0_add
+normalize_l2_2D_axes_0_max
+normalize_l2_2D_axes_01_add
+normalize_l2_2D_axes_01_max
+normalize_l2_3D_axes_2_add
+normalize_l2_3D_axes_2_max
+normalize_l2_4D_axes_0_max
+normalize_l2_4D_axes_0_add
+normalize_l2_4D_axes_2_max
+normalize_l2_4D_axes_2_add
+normalize_l2_4D_axes_3_max
+normalize_l2_4D_axes_3_add
+normalize_l2_4D_axes_23_max
+normalize_l2_4D_axes_23_add
+normalize_l2_4D_axes_0123_max
+normalize_l2_4D_axes_0123_add
+normalize_l2_5D_axes_empty_max
+normalize_l2_5D_axes_empty_add
+normalize_l2_5D_axes_1_max
+normalize_l2_5D_axes_1_add
+normalize_l2_5D_axes_2_max
+normalize_l2_5D_axes_2_add
+normalize_l2_5D_axes_3_max
+normalize_l2_5D_axes_3_add
+normalize_l2_5D_axes_4_max
+normalize_l2_5D_axes_4_add
+normalize_l2_5D_axes_34_max
+normalize_l2_5D_axes_34_add
+normalize_l2_5D_axes_234_max
+normalize_l2_5D_axes_234_add
+
 # (Constant W, R inputs are required) Ticket: 49207
 # W, R inputs as Parameter, default clip value
 # Operation has a form that is not supported.
@@ -938,90 +977,6 @@ roll_3d_input
 roll_3d_input_negative_shift
 roll_negative_axes
 
-# convert operation
-IE_CPU.convert_u8_to_boolean
-IE_CPU.convert_i32_to_boolean
-IE_CPU.convert_f32_to_boolean
-IE_CPU.convert_u8_to_f16
-IE_CPU.convert_u8_to_i16
-IE_CPU.convert_u8_to_i64
-IE_CPU.convert_u8_to_u16
-IE_CPU.convert_u8_to_u32
-IE_CPU.convert_u8_to_u64
-IE_CPU.convert_f16_to_f32
-IE_CPU.convert_u32_to_f32
-IE_CPU.convert_i4_to_f32
-IE_CPU.convert_u1_to_f32
-IE_CPU.convert_u4_to_f32
-
-IE_CPU.convert_u1_to_u1
-IE_CPU.convert_u4_to_u1
-IE_CPU.convert_u8_to_u1
-IE_CPU.convert_u16_to_u1
-IE_CPU.convert_u32_to_u1
-IE_CPU.convert_u64_to_u1
-IE_CPU.convert_i4_to_u1
-IE_CPU.convert_i8_to_u1
-IE_CPU.convert_i16_to_u1
-IE_CPU.convert_i32_to_u1
-IE_CPU.convert_i64_to_u1
-IE_CPU.convert_f16_to_u1
-IE_CPU.convert_bf16_to_u1
-IE_CPU.convert_f32_to_u1
-
-IE_CPU.convert_u1_to_i4
-IE_CPU.convert_u4_to_i4
-IE_CPU.convert_u8_to_i4
-IE_CPU.convert_u16_to_i4
-IE_CPU.convert_u32_to_i4
-IE_CPU.convert_u64_to_i4
-IE_CPU.convert_i8_to_i4
-IE_CPU.convert_i16_to_i4
-IE_CPU.convert_i32_to_i4
-IE_CPU.convert_i64_to_i4
-IE_CPU.convert_f16_to_i4
-IE_CPU.convert_bf16_to_i4
-IE_CPU.convert_f32_to_i4
-
-IE_CPU.convert_u1_to_u4
-IE_CPU.convert_u4_to_u4
-IE_CPU.convert_u8_to_u4
-IE_CPU.convert_u16_to_u4
-IE_CPU.convert_u32_to_u4
-IE_CPU.convert_u64_to_u4
-IE_CPU.convert_i4_to_u4
-IE_CPU.convert_i8_to_u4
-IE_CPU.convert_i16_to_u4
-IE_CPU.convert_i32_to_u4
-IE_CPU.convert_i64_to_u4
-IE_CPU.convert_f16_to_u4
-IE_CPU.convert_bf16_to_u4
-IE_CPU.convert_f32_to_u4
-
-IE_CPU.convert_u1_to_i8
-IE_CPU.convert_u4_to_i8
-IE_CPU.convert_i4_to_i8
-IE_CPU.convert_u1_to_i16
-IE_CPU.convert_u4_to_i16
-IE_CPU.convert_i4_to_i16
-IE_CPU.convert_u1_to_i32
-IE_CPU.convert_u4_to_i32
-IE_CPU.convert_i4_to_i32
-IE_CPU.convert_u1_to_i64
-IE_CPU.convert_u4_to_i64
-IE_CPU.convert_i4_to_i64
-IE_CPU.convert_u1_to_u8
-IE_CPU.convert_u4_to_u8
-IE_CPU.convert_i4_to_u8
-IE_CPU.convert_u1_to_u16
-IE_CPU.convert_u4_to_u16
-IE_CPU.convert_i4_to_u16
-IE_CPU.convert_u1_to_u32
-IE_CPU.convert_u4_to_u32
-IE_CPU.convert_i4_to_u32
-IE_CPU.convert_u1_to_u64
-IE_CPU.convert_u4_to_u64
-IE_CPU.convert_i4_to_u64
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine CPU plugin excludes
@@ -1104,6 +1059,41 @@ IE_CPU.nonmaxsuppression_two_classes
 IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
 IE_CPU.onnx_model_nonmaxsuppression_single_box
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
+
+# Unsupported dynamic op
+IE_CPU.multiclass_nms_by_score
+IE_CPU.multiclass_nms_by_class_id
+IE_CPU.multiclass_nms_output_type_i32
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id
+IE_CPU.multiclass_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.multiclass_nms_two_batches_two_classes_by_class_id_cross_batch
+IE_CPU.multiclass_nms_no_output
+IE_CPU.multiclass_nms_by_background
+IE_CPU.multiclass_nms_by_keep_top_k
+IE_CPU.multiclass_nms_by_nms_eta
+IE_CPU.multiclass_nms_flipped_coordinates
+IE_CPU.multiclass_nms_identical_boxes
+IE_CPU.multiclass_nms_limit_output_size
+IE_CPU.multiclass_nms_single_box
+IE_CPU.multiclass_nms_by_IOU
+IE_CPU.multiclass_nms_by_IOU_and_scores
+
+# Unsupported dynamic op
+IE_CPU.matrix_nms_output_type_i64
+IE_CPU.matrix_nms_output_type_i32
+IE_CPU.matrix_nms_gaussian
+IE_CPU.matrix_nms_two_batches_two_classes
+IE_CPU.matrix_nms_two_batches_two_classes_by_score_cross_batch
+IE_CPU.matrix_nms_two_batches_two_classes_by_classid_cross_batch
+IE_CPU.matrix_nms_by_keep_top_k
+IE_CPU.matrix_nms_background
+IE_CPU.matrix_nms_flipped_coordinates
+IE_CPU.matrix_nms_post_threshold
+IE_CPU.matrix_nms_identical_boxes
+IE_CPU.matrix_nms_nms_top_k
+IE_CPU.matrix_nms_single_box
+IE_CPU.matrix_nms_no_output
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs

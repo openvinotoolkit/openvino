@@ -17,14 +17,13 @@
 * *bias*
 
   * **Description**: *bias* is added to the variance.
-  * **Range of values**: a non-negative floating point value
+  * **Range of values**: a non-negative floating-point value
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
 
-* **1**: Input tensor with element of any floating point type and `2 <= rank <=4`. Required.
+* **1**: Input tensor with element of any floating-point type and `2 <= rank <=4`. **Required.**
 
 **Outputs**
 
