@@ -11,8 +11,16 @@
 #include <string>
 #include <vector>
 #include <thread>
+
+
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#else
 #include <unistd.h>
 #include <sys/wait.h>
+#endif
+
 
 enum TestStatus
 {

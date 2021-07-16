@@ -9,12 +9,15 @@
 #include <vector>
 #include <thread>
 #include <functional>
-#include <sys/unistd.h>
-#include <sys/wait.h>
 
 #ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
 #define OS_SEP std::string("\\")
 #else
+#include <sys/unistd.h>
+#include <sys/wait.h>
 #define OS_SEP std::string("/")
 #endif
 
@@ -41,6 +44,11 @@ size_t getThreadsNum();
 
 template<typename Function, typename ... Args>
 int run_in_processes(const int &numprocesses, Function const &function, Args ... args) {
+#ifdef _WIN32
+    // TODO: implement run in separate process by using WinAPI
+    function(args...);
+    return 0;
+#else
     std::vector<pid_t> child_pids(numprocesses);
 
     for (int i = 0; i < numprocesses; i++) {
@@ -61,6 +69,7 @@ int run_in_processes(const int &numprocesses, Function const &function, Args ...
         }
     }
     return status;
+#endif
 }
 
 template<typename Function, typename ... Args>
