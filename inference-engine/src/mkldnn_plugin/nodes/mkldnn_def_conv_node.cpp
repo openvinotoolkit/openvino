@@ -895,9 +895,10 @@ private:
 
 bool MKLDNNDeformableConvolutionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v8::DeformableConvolution>(op);
-        if (!defConvNode) {
-            errorMessage = "Node is not an instance of DeformableConvolution form the operation set v8.";
+        if (!one_of(op->get_type_info(),
+                ngraph::op::v1::DeformableConvolution::type_info,
+                ngraph::op::v8::DeformableConvolution::type_info)) {
+            errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
     } catch (...) {
@@ -913,22 +914,28 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    auto defConvNode = ngraph::as_type_ptr<const ngraph::op::v8::DeformableConvolution>(op);
+    auto defConvNodeBase = std::dynamic_pointer_cast<ngraph::op::util::DeformableConvolutionBase>(op);
 
-    group = defConvNode->get_group();
-    deformable_group = defConvNode->get_deformable_group();
-    with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
-    auto& strides = defConvNode->get_strides();
+    group = defConvNodeBase->get_group();
+    deformable_group = defConvNodeBase->get_deformable_group();
+    auto& strides = defConvNodeBase->get_strides();
     for (int i = 0; i < strides.size(); i++) {
         stride.push_back(strides[i]);
     }
 
-    auto& dilations = defConvNode->get_dilations();
+    auto& dilations = defConvNodeBase->get_dilations();
     for (int i = 1; i <= dilations.size(); i++) {
         dilation.push_back(dilations[dilations.size() - i] - 1);
     }
 
-    paddingL = defConvNode->get_pads_begin();
+    paddingL = defConvNodeBase->get_pads_begin();
+
+    if (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info) {
+        auto defConvNode = std::dynamic_pointer_cast<ngraph::op::v8::DeformableConvolution>(op);
+        with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
+    } else {
+        with_bilinear_pad = false;
+    }
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
@@ -1001,8 +1008,21 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
                                                                               memory::data_type::f32, dataFormat);
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(),
                                                                               memory::data_type::f32, offFormat);
-        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(),
-                                                                              memory::data_type::f32, weiFormat);
+
+        auto& wDims = getParentEdgeAt(2)->getShape().getStaticDims();
+        if (group > 1 && wDims.size() != 5) {
+            auto new_dims = InferenceEngine::SizeVector({group, div_up(wDims[0], group)});
+            for (int i = 1; i < wDims.size(); i++) {
+                new_dims.push_back(wDims[i]);
+            }
+            config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(),
+                                                                                 memory::data_type::f32, weiFormat);
+        } else {
+            config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(),
+                                                                                 memory::data_type::f32, weiFormat);
+        }
+
+
         if (inputsNumber > 3) {
             config.inConfs[3].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(3)->getShape().getStaticDims(),
                                                                                  memory::data_type::f32, memory::format_tag::nchw);
@@ -1252,6 +1272,11 @@ void MKLDNNDeformableConvolutionNode::execute(mkldnn::stream strm) {
     }
 
     float *dst = reinterpret_cast<float *>(dstMemory.GetPtr());
+
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU deformable convolution with name '" << getName() << "' doesn't have primitive descriptors.";
+    auto config = selectedPrimitiveDescriptor->getConfig();
 
     auto src_block_desc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> src_strides(src_block_desc.getStrides().size());
