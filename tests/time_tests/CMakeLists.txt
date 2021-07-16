@@ -10,16 +10,13 @@ project(time_tests)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
-# Search OpenVINO Inference Engine via InferenceEngine_DIR
-find_package(IEDevScripts REQUIRED
-             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
-             NO_CMAKE_FIND_ROOT_PATH
-             NO_DEFAULT_PATH)
-
 # Search OpenVINO Inference Engine installed
 find_package(InferenceEngine)
 
 if(NOT InferenceEngine_FOUND)
+    # Define directory where artifacts will be placed
+    set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
     # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
     # in order to provide backward compatibility with old OpenVINO packages
     find_package(InferenceEngineDeveloperPackage REQUIRED)
