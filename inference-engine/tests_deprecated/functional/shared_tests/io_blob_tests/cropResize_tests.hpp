@@ -126,9 +126,6 @@ protected:
         ie = PluginCache::get().ie();
     }
 
-    void TearDown() override {
-    }
-
 public:
     std::shared_ptr<ngraph::Function> createSubgraph(const SizeVector &dims, InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
         ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);

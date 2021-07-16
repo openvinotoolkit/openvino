@@ -12,10 +12,12 @@ addIeTargetTest(
         OBJECT_FILES
             $<TARGET_OBJECTS:MKLDNNPlugin_obj>
         LINK_LIBRARIES
-            unitTestUtils
+            gtest
+            gtest_main
             mkldnn
             inference_engine_transformations
             inference_engine_lp_transformations
+            inference_engine_s
         ADD_CPPLINT
         LABELS
             CPU

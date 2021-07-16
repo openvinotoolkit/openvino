@@ -6,14 +6,7 @@ if(ENABLE_MYRIAD)
     add_subdirectory(movidius)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unknown-warning-option -Wno-error=inconsistent-missing-override -Wno-error=pass-failed")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unknown-warning-option -Wno-error=inconsistent-missing-override -Wno-error=pass-failed")
-elseif(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.1)
-    # On g++ 9.3.0 (Ubuntu 20.04) the ADE library raises "redundant-move" warnings
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=redundant-move")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=redundant-move")
-elseif((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND (MSVC_VERSION VERSION_GREATER_EQUAL "1910"))
+if((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND (MSVC_VERSION VERSION_GREATER_EQUAL "1910"))
     # 1910 version of Visual Studio 2017
     # This flagis needed for enabling SIMD vectorization with command '#pragma omp simd'.
     # Compilation with '/openmp:experimental' key allow us to enable vectorizatikon capability in MSVC.
@@ -30,19 +23,12 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
-    if (WIN32)
-        set(CLDNN__ARCHITECTURE_TARGET "Windows64" CACHE STRING "" FORCE)
-    elseif (ANDROID)
-        set(CLDNN__ARCHITECTURE_TARGET "Android64" CACHE STRING "" FORCE)
-    else()
-        set(CLDNN__ARCHITECTURE_TARGET "Linux64" CACHE STRING "" FORCE)
-    endif()
     set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
     set(GPU_DEBUG_CONFIG OFF CACHE BOOL "Enable debug config feature")
     add_subdirectory(clDNN)
 endif()
 
-if(ENABLE_MKL_DNN)
+function(ie_add_mkldnn)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
     set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
@@ -56,6 +42,18 @@ if(ENABLE_MKL_DNN)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wno-undef)
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            # xbyak compilation fails
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+        endif()
+    endif()
+
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+endfunction()
+
+if(ENABLE_MKL_DNN)
+    ie_add_mkldnn()
 endif()

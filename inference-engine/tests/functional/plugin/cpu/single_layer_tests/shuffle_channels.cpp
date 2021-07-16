@@ -34,7 +34,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();

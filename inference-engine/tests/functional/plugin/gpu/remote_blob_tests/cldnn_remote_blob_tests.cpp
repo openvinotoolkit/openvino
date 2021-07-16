@@ -25,7 +25,7 @@ class RemoteBlob_Test : public CommonTestUtils::TestsCommon {
 protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 
-    virtual void SetUp() {
+    void SetUp() override {
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
 };

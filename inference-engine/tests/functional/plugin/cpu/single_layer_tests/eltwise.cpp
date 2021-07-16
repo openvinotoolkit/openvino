@@ -32,7 +32,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::EltwiseTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();

@@ -4,11 +4,6 @@
 
 set(TARGET_NAME subgraphsDumperTests)
 
-list(APPEND DEPENDENCIES
-        unitTestUtils
-        ngraph
-        )
-
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -18,7 +13,7 @@ addIeTargetTest(
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             PRIVATE
-                unitTestUtils
+                funcTestUtils
                 ngraph
                 pugixml::static
         ADD_CPPLINT

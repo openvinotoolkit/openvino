@@ -42,50 +42,6 @@ endforeach()
 # Build
 #
 
-function(build_ngraph)
-    function(ngraph_set option value)
-        if(NOT DEFINED ${option})
-            set(${option} ${value} CACHE BOOL "" FORCE)
-        endif()
-    endfunction()
-
-    if(ENABLE_TESTS AND NOT ANDROID)
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
-    endif()
-
-    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
-        ngraph_set(NGRAPH_PDPD_FRONTEND_ENABLE OFF)
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
-    elseif(UNIX)
-        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
-    endif()
-
-    # WA for GCC 7.0
-    if (UNIX)
-        ie_add_compiler_flags(-Wno-error=return-type -Wno-undef)
-    elseif(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
-    endif()
-
-    if(ENABLE_LTO)
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-    endif()
-
-    ie_cpack_add_component(ngraph REQUIRED)
-    ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
-
-    add_subdirectory(ngraph)
-endfunction()
-
 function(openvino_developer_export_targets)
     cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
 
@@ -118,9 +74,12 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
+ie_cpack_add_component(ngraph REQUIRED)
+ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
+
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
-build_ngraph()
+add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 
 # for Template plugin

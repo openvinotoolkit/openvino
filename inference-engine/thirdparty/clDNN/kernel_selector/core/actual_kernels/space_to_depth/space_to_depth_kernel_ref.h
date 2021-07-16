@@ -17,8 +17,6 @@ struct space_to_depth_params : public base_params {
     SpaceToDepthMode depth_mode;
 
     size_t block_size;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

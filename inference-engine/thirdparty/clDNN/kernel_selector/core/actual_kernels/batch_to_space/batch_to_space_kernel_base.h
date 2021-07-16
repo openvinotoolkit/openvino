@@ -17,7 +17,6 @@ struct batch_to_space_params : public base_params {
     DimTensor<uint32_t> block_shape;
     DimTensor<uint32_t> crops_begin;
     DimTensor<uint32_t> crops_end;
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +41,7 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    virtual bool Validate(const Params&, const optional_params&) const;
+    bool Validate(const Params&, const optional_params&) const override;
     virtual JitConstants GetJitConstants(const batch_to_space_params& params) const;
     virtual CommonDispatchData SetDefault(const batch_to_space_params& params, const optional_params&) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;

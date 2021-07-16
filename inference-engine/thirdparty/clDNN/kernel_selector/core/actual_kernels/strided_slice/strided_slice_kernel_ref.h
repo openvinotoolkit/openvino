@@ -20,8 +20,6 @@ struct strided_slice_params : public base_params {
     std::vector<uint8_t> ellipsis_mask;
     std::vector<uint8_t> new_axis_mask;
     std::vector<uint8_t> shrink_axis_mask;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

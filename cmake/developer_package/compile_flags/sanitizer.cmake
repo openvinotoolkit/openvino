@@ -6,7 +6,7 @@ include(CheckCXXCompilerFlag)
 
 if (ENABLE_SANITIZER)
     set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
-    CHECK_CXX_COMPILER_FLAG("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+    check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
     if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
     endif()
@@ -18,7 +18,7 @@ if (ENABLE_UB_SANITIZER)
     # TODO: Remove -fno-sanitize=null as thirdparty/ocl/clhpp_headers UBSAN compatibility resolved:
     # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
     set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null")
-    CHECK_CXX_COMPILER_FLAG("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
+    check_cxx_compiler_flag("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
     if (SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")
     endif()

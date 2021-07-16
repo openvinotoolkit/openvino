@@ -63,16 +63,18 @@ target_include_directories(${TARGET_NAME}
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
         PRIVATE
-            ${Protobuf_INCLUDE_DIRS}
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR})
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
+                                                         ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
                                      PRIVATE ngraph::builder)

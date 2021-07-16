@@ -846,7 +846,7 @@ public:
     {
     }
 
-    virtual void SetUp() override
+    void SetUp() override
     {
         max_ulps_diff_allowed = 6;
     }
@@ -872,7 +872,7 @@ public:
         return generic_test::generate_generic_test_params(all_generic_params);
     }
 
-    virtual bool is_format_supported(cldnn::format format) override
+    bool is_format_supported(cldnn::format format) override
     {
         return
             format == cldnn::format::yxfb ||

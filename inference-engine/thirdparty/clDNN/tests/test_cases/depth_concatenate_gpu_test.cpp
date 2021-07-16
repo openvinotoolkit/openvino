@@ -1175,11 +1175,11 @@ public:
         return res;
     }
 
-    virtual bool is_format_supported(cldnn::format format) override {
+    bool is_format_supported(cldnn::format format) override {
         return format == cldnn::format::bfyx;
     }
 
-    virtual cldnn::tensor get_expected_output_tensor() override {
+    cldnn::tensor get_expected_output_tensor() override {
         cldnn::tensor::value_type features = 0;
         for (const auto& t : generic_params->input_layouts) {
             features += t.size.feature[0];

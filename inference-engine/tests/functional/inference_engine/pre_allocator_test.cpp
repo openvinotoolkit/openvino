@@ -17,10 +17,7 @@ class PreallocatorTests: public ::testing::Test {
  protected:
     std::vector<float> mybuf;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mybuf.resize(10);
         allocator = details::make_pre_allocator(&*mybuf.begin(), mybuf.size());
     }

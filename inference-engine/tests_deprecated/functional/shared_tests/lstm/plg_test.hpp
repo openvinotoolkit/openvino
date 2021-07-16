@@ -32,7 +32,7 @@ template<typename P = std::nullptr_t>
 class PlgTest : public testing::TestWithParam<PlgTestParam<P>> {
 protected:
     std::map<std::string, std::string>  config;
-    virtual void SetUp() {
+    void SetUp() override {
         device_name = std::get<0>(this->GetParam());
         std::transform(device_name.begin(), device_name.end(), 
             device_name.begin(), [] (char v) { return v == '_' ? ':' : v; });
