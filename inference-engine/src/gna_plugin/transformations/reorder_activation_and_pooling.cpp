@@ -9,7 +9,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include <gna_plugin_log.hpp>
 
 using namespace GNAPluginNS;
@@ -63,6 +63,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         }
 
         ngraph::replace_output_update_name(pool_node->output(0), pool_node->input_value(0));
+        ngraph::copy_runtime_info(pool_node, new_pool);
         return true;
     };
 
