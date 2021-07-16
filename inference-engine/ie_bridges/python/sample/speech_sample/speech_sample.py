@@ -12,6 +12,9 @@ from arg_parser import parse_args
 from file_options import read_utterance_file, write_utterance_file
 from openvino.inference_engine import ExecutableNetwork, IECore
 
+# Operating Frequency for GNA HW devices for Core and Atom architecture
+GNA_CORE_FREQUENCY = 400
+GNA_ATOM_FREQUENCY = 200
 
 def get_scale_factor(matrix: np.ndarray) -> float:
     """Get scale factor for quantization using utterance matrix"""
@@ -138,7 +141,7 @@ def main():
             utterances = read_utterance_file(args.input.split(',')[0])
             key = sorted(utterances)[0]
             if args.scale_factor:
-                log.info('Using user defined scale factor of %s', str(args.scale_factor))
+                log.info(f'Using user defined scale factor of {args.scale_factor:.7f}.')
                 plugin_config['GNA_SCALE_FACTOR'] = str(args.scale_factor)
             else:
                 scale_factor = get_scale_factor(utterances[key])
@@ -194,10 +197,6 @@ def main():
         log.info(f'GNA embedded model export done for GNA generation {args.embedded_gna_configuration}')
         return 0
         
-    if args.arch:
-        if args.arch not in ("CORE", "ARCH"):
-            log.error('The architectuer argument only accepts CORE or ARCH')
-            sys.exit(-3)
 # ---------------------------Step 5. Create infer request--------------------------------------------------------------
 # load_network() method of the IECore class with a specified number of requests (default 1) returns an ExecutableNetwork
 # instance which stores infer requests. So you already created Infer requests in the previous step.
@@ -255,16 +254,16 @@ def main():
                 active_cycles = total_cycles - stall_cycles
                 frequency = 10**6
                 if args.arch == "CORE":
-                    frequency *= 400
+                    frequency *= GNA_CORE_FREQUENCY
                 else:
-                    frequency *= 200
+                    frequency *= GNA_ATOM_FREQUENCY
                 total_inference_time = total_cycles/frequency
                 active_time = active_cycles/frequency
                 stall_time = stall_cycles/frequency
-                print("\nPerformance Statistics of GNA Hardware")
-                print("   Total Inference Time: " + str(total_inference_time * 1000) + " ms")
-                print("   Active Time: " + str(active_time * 1000) + " ms") 
-                print("   Stall Time: " + str(stall_time * 1000) + " ms\n")
+                log.info(f"\nPerformance Statistics of GNA Hardware")
+                log.info(f"   Total Inference Time: " + str(total_inference_time * 1000) + " ms")
+                log.info(f"   Active Time: " + str(active_time * 1000) + " ms") 
+                log.info(f"   Stall Time: " + str(stall_time * 1000) + " ms\n")
 
             log.info('')
 
