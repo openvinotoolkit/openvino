@@ -40,7 +40,8 @@ foreach(INFILE ${proto_files})
             COMMAND ${PDPD_PROTOC_EXECUTABLE} ARGS --cpp_out ${CMAKE_CURRENT_BINARY_DIR} -I ${FILE_DIR} ${FILE_WE}.proto
             DEPENDS ${PDPD_PROTOC_EXECUTABLE} ${GENERATED_PROTO}
             COMMENT "Running C++ protocol buffer compiler (${PDPD_PROTOC_EXECUTABLE}) on ${GENERATED_PROTO}"
-            VERBATIM)
+            VERBATIM
+            COMMAND_EXPAND_LISTS)
     list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
     list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
 endforeach()
@@ -55,12 +56,7 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 # Create shared library
 add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 
-add_dependencies(${TARGET_NAME} libprotobuf paddlepaddle_ngraph_frontend_proto)
-
-if(NOT WIN32)
-    # Addition dependency on static libprotobuf for non-Windows
-    add_dependencies(${TARGET_NAME} libprotobuf_static)
-endif()
+add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -76,11 +72,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-if(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE libprotobuf)
-else()
-    target_link_libraries(${TARGET_NAME} PRIVATE ${PROTOBUF_STATIC_LIB_OUTPUT})
-endif()
+target_link_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
                                      PRIVATE ngraph::builder)
