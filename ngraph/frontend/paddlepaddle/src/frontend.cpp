@@ -123,6 +123,7 @@ namespace ngraph
                 const auto& type = inp_place->getElementType();
                 auto param = std::make_shared<Parameter>(type, shape);
                 param->set_friendly_name(var->name());
+                param->output(0).get_tensor().add_names({var->name()});
                 nodes_dict[var->name()] = param;
                 parameter_nodes.push_back(param);
             }
