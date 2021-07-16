@@ -5,19 +5,19 @@
 **Category**: Infrastructure
 
 **Short description**: *If* operation contains two internal networks(subgraphs) such as `then_body` and `else_body`, 
-and performs one of them depending on `cond` value. If `cond` is  `True` `then_body` will be executed. `else_body`
- will be executed if `cond` value is `False`. 
+and performs one of them depending on `cond` value. If `cond` is  `True`, `then_body` is executed.If cond` is  `False`, 
+the operation executes the `else_body` subgraph. 
 
 **Detailed description**
 
 *If* must not contain empty subgraphs. Each of them must have at least one operation `Result`. 
-Also the number outputs from *If* always must be greater than zero and equal to the number outputs from each subgraph.
+Also the number of outputs from *If* always must be greater than zero and equal to the number of outputs from each subgraph.
 
 **If attributes**:
 
 * **Subgraphs**:
 
-    `then_body`/`else_body` are subgraphs that will be executed depending on the `cond` value. 
+    `then_body`/`else_body` are subgraphs that are executed depending on the `cond` value. 
     The subgraph is described operation by operation as a typical IR network. 
     The subgraph has parameters (`Parameter` operations) and results (`Result` operations).
     
