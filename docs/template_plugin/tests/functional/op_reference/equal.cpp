@@ -15,6 +15,7 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 
+namespace {
 struct EqualParams {
     template <class IT, class OT>
     EqualParams(const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2 , const ngraph::element::Type& iType,
@@ -62,46 +63,50 @@ TEST_P(ReferenceEqualLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Equal_With_Hardcoded_Refs, ReferenceEqualLayerTest,
-    ::testing::Values(
-        // input f32
-        EqualParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {0, 12, 23, 0},
-                std::vector<float> {0, 12, 23, 0},
+template <element::Type_t IN_ET>
+std::vector<EqualParams> generateEqualParams(const ngraph::element::Type& type) {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    std::vector<EqualParams> equalParams {
+        // 1D // 2D // 3D // 4D
+        EqualParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, type, ngraph::element::boolean,
+                std::vector<T> {0, 12, 23, 0},
+                std::vector<T> {0, 12, 23, 0},
                 std::vector<char> {1, 1, 1, 1}),
-        EqualParams(ngraph::PartialShape {2, 3}, ngraph::PartialShape {2, 3}, ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {0, 6, 45, 1, 21, 21},
-                std::vector<float> {1, 18, 23, 1, 19, 21},
+        EqualParams(ngraph::PartialShape {2, 3}, ngraph::PartialShape {2, 3}, type, ngraph::element::boolean,
+                std::vector<T> {0, 6, 45, 1, 21, 21},
+                std::vector<T> {1, 18, 23, 1, 19, 21},
                 std::vector<char> {0, 0, 0, 1, 0, 1}),
-        EqualParams(ngraph::PartialShape {2, 1, 1}, ngraph::PartialShape {2, 1}, ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {-5, -1},
-                std::vector<float> {-5, 1},
-                std::vector<char> {1, 0, 0, 0}),
-        EqualParams(ngraph::PartialShape {1}, ngraph::PartialShape {1},  ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {53},
-                std::vector<float> {53},
+        EqualParams(ngraph::PartialShape {1}, ngraph::PartialShape {1},  type, ngraph::element::boolean,
+                std::vector<T> {53},
+                std::vector<T> {53},
                 std::vector<char> {1}),
-        EqualParams(ngraph::PartialShape {2, 4}, ngraph::PartialShape {2, 4}, ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {0, 12, 23, 0, 1, 5, 123, 76},
-                std::vector<float> {0, 12, 23, 0, 441, 5, 123, 53},
+        EqualParams(ngraph::PartialShape {2, 4}, ngraph::PartialShape {2, 4}, type, ngraph::element::boolean,
+                std::vector<T> {0, 12, 23, 0, 1, 5, 123, 76},
+                std::vector<T> {0, 12, 23, 0, 441, 5, 123, 53},
                 std::vector<char> {1, 1, 1, 1, 0, 1, 1, 0}),
-        EqualParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 2, 1}, ngraph::element::f32, ngraph::element::boolean,
-                std::vector<float> {2.0f, 1.0f, 4.0f, 1.0f},
-                std::vector<float> {1.0f, 1.0f},
-                std::vector<char> {0, 1, 0, 1}),
+        EqualParams(ngraph::PartialShape {3, 1, 2}, ngraph::PartialShape {1, 2, 1}, type, ngraph::element::boolean,
+                std::vector<T> {2, 1, 4, 1, 3, 1},
+                std::vector<T> {1, 1},
+                std::vector<char> {0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1}),
+        EqualParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 2, 1}, type, ngraph::element::boolean,
+                std::vector<T> {2, 1, 4, 1},
+                std::vector<T> {1, 1},
+                std::vector<char> {0, 1, 0, 1})};
+    return equalParams;
+}
 
-        // input i32
-        EqualParams(ngraph::PartialShape {2, 3}, ngraph::PartialShape {2, 3}, ngraph::element::i32, ngraph::element::boolean,
-                std::vector<float> {0, 6, 45, 1, 21, 21},
-                std::vector<float> {1, 18, 23, 1, 19, 21},
-                std::vector<char> {0, 0, 0, 1, 0, 1}),
-        EqualParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, ngraph::element::i32, ngraph::element::boolean,
-                std::vector<int32_t> {-5, -1, -127, -2},
-                std::vector<int32_t> {-5, -12, -23, -2},
-                std::vector<char> {1, 0, 0, 1}),
-        EqualParams(ngraph::PartialShape {1}, ngraph::PartialShape {1}, ngraph::element::i32, ngraph::element::boolean,
-                std::vector<int32_t> {53},
-                std::vector<int32_t> {53},
-                std::vector<char> {1})),
-    ReferenceEqualLayerTest::getTestCaseName);
+std::vector<EqualParams> generateEqualCombinedParams() {
+    const std::vector<std::vector<EqualParams>> equalTypeParams {generateEqualParams<element::Type_t::f32>(ngraph::element::f32),
+                                                                 generateEqualParams<element::Type_t::f16>(ngraph::element::f16),
+                                                                 generateEqualParams<element::Type_t::i32>(ngraph::element::i32),
+                                                                 generateEqualParams<element::Type_t::u32>(ngraph::element::u32)};
+    std::vector<EqualParams> combinedParams;
+    std::for_each(equalTypeParams.begin(), equalTypeParams.end(), [&](std::vector<EqualParams> params) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    });
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Equal_With_Hardcoded_Refs, ReferenceEqualLayerTest, ::testing::ValuesIn(generateEqualCombinedParams()),
+                                 ReferenceEqualLayerTest::getTestCaseName);
+}  // namespace
