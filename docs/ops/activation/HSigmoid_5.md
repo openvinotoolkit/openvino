@@ -27,7 +27,7 @@ The HSigmoid operation is introduced in the following [article](https://arxiv.or
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Examples**
 

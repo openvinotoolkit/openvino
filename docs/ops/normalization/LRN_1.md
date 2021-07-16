@@ -68,7 +68,7 @@ output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
 * **1**: Output tensor of type *T* and the same shape as the `data` input tensor.
 
 **Types**
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 * *T_IND*: any supported integer type.
 
 **Example**

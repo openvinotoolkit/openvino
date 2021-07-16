@@ -19,7 +19,7 @@ Decoding is done in two steps:
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor `sequence_length`.
 
-The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGreedyDecoderSeqLen is in the second input. CTCGreedyDecoder uses 2D input floating point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
+The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGreedyDecoderSeqLen is in the second input. CTCGreedyDecoder uses 2D input floating-point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
 
 **Attributes**
 
@@ -63,7 +63,7 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 
 **Types**
 
-* *T_F*: any supported floating point type.
+* *T_F*: any supported floating-point type.
 
 * *T_I*: `int32` or `int64`.
 

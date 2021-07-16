@@ -78,11 +78,11 @@ Plugins which do not support dynamic output tensors produce `selected_indices` a
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_MAX_BOXES*: integer type.
 
-* *T_THRESHOLDS*: floating point type.
+* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 

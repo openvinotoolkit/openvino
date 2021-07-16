@@ -48,7 +48,7 @@ o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
 
 **Inputs**
 
-* **1**: 4D or 5D input tensor of any floating point type. **Required.**
+* **1**: 4D or 5D input tensor of any floating-point type. **Required.**
 
 **Outputs**
 

@@ -11,7 +11,7 @@
 * *width (height)*
 
   * **Description**: *width (height)* specifies desired boxes widths (heights) in pixels.
-  * **Range of values**: floating point positive numbers
+  * **Range of values**: floating-point positive numbers
   * **Type**: float[]
   * **Default value**: 1.0
   * **Required**: *no*
@@ -29,7 +29,7 @@
 * *step (step_w, step_h)*
 
   * **Description**: *step (step_w, step_h)* is a distance between box centers. For example, *step* equal 85 means that the distance between neighborhood prior boxes centers is 85. If both *step_h* and *step_w* are 0 then they are updated with value of *step*. If after that they are still 0 then they are calculated as input image width(height) divided with first input width(height).
-  * **Range of values**: floating point positive number
+  * **Range of values**: floating-point positive number
   * **Type**: float
   * **Default value**: 0.0
   * **Required**: *no*
@@ -37,14 +37,14 @@
 * *offset*
 
   * **Description**: *offset* is a shift of box respectively to top left corner. For example, *offset* equal 85 means that the shift of neighborhood prior boxes centers is 85.
-  * **Range of values**: floating point positive number
+  * **Range of values**: floating-point positive number
   * **Type**: float
   * **Required**: *yes*
 
 * *variance*
 
   * **Description**: *variance* denotes a variance of adjusting bounding boxes.
-  * **Range of values**: floating point positive numbers
+  * **Range of values**: floating-point positive numbers
   * **Type**: float[]
   * **Default value**: []
   * **Required**: *no*
@@ -52,7 +52,7 @@
 * *img_h (img_w)*
 
   * **Description**: *img_h (img_w)* specifies height (width) of input image. These attributes are taken from the second input `image_size` height(width) unless provided explicitly as the value for this attributes.
-  * **Range of values**: floating point positive number
+  * **Range of values**: floating-point positive number
   * **Type**: float
   * **Default value**: 0
   * **Required**: *no*

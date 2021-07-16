@@ -86,7 +86,7 @@ must be the same as for 1 input: `[number_of_ROIs, 4]`.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

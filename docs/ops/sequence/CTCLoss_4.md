@@ -96,7 +96,7 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Types**
 
-* *T_F*: any supported floating point type.
+* *T_F*: any supported floating-point type.
 
 * *T1*, *T2*: `int32` or `int64`.
 

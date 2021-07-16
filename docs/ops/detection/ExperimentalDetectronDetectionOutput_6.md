@@ -58,7 +58,7 @@ tensor elements.
 
     * **Description**: The *score_threshold* attribute specifies a threshold to consider only detections whose score are
     larger than the threshold.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -66,7 +66,7 @@ tensor elements.
 * *nms_threshold*
 
     * **Description**: The *nms_threshold* attribute specifies a threshold to be used in the NMS stage.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -109,7 +109,7 @@ tensor elements.
 * *max_delta_log_wh*
 
     * **Description**: The *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height.
-    * **Range of values**: floating point number
+    * **Range of values**: floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -117,7 +117,7 @@ tensor elements.
 * *deltas_weights*
 
     * **Description**: The *deltas_weights* attribute specifies weights for bounding boxes sizes deltas.
-    * **Range of values**: a list of non-negative floating point numbers
+    * **Range of values**: a list of non-negative floating-point numbers
     * **Type**: float[]
     * **Default value**: None
     * **Required**: *yes*
@@ -146,7 +146,7 @@ should be the same. **Required.**
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 

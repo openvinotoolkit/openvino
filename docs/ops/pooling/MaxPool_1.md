@@ -70,7 +70,7 @@
 
 **Types**
 
-* *T*: floating point or integer type.
+* *T*: floating-point or integer type.
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:

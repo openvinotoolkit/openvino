@@ -23,7 +23,7 @@ is less than *post_nms_count* returns output tensors filled with zeroes.
 * *min_size*
 
     * **Description**: The *min_size* attribute specifies minimum box width and height.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -31,7 +31,7 @@ is less than *post_nms_count* returns output tensors filled with zeroes.
 * *nms_threshold*
 
     * **Description**: The *nms_threshold* attribute specifies threshold to be used in the NMS stage.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -73,7 +73,7 @@ Height and width for third and fourth inputs should be equal. **Required.**
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

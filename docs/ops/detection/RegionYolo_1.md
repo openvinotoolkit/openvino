@@ -13,7 +13,7 @@
 * *anchors*
 
   * **Description**: *anchors* codes a flattened list of pairs `[width, height]` that codes prior box sizes. This attribute is not used in output computation, but it is required for post-processing to restore real box coordinates.
-  * **Range of values**: list of any length of positive floating point number
+  * **Range of values**: list of any length of positive floating-point number
   * **Type**: `float[]`
   * **Default value**: None
   * **Required**: *no*
@@ -83,7 +83,7 @@
     `output.shape = [data.shape[0], ..., data.shape[axis-1], flat_dim, data.shape[end_axis + 1], ...]`
 
 **Types**
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

@@ -60,7 +60,7 @@ This is a scalar that specifies padding for each spatial dimension.
 
 **Inputs**
 
-*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type. **Required.**
+*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating-point type. **Required.**
 
 *   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in *axes* attribute, the order matches as well. **Required.**
 
