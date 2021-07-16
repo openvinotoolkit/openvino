@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/gather_elements.hpp"
+#include "cldnn/primitives/gather_elements.hpp"
 #include "primitive_inst.h"
 #include <string>
 

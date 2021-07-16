@@ -155,7 +155,7 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
     auto dispatchData = SetDefault(newParams, options);
     auto cldnn_jit = GetJitConstants(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));

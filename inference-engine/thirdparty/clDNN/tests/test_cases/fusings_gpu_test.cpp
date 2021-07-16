@@ -18,6 +18,7 @@
 #include <cldnn/primitives/permute.hpp>
 #include <cldnn/primitives/gather.hpp>
 #include <cldnn/primitives/gather_nd.hpp>
+#include <cldnn/primitives/gather_elements.hpp>
 #include <cldnn/primitives/scatter_update.hpp>
 #include <cldnn/primitives/scatter_nd_update.hpp>
 #include <cldnn/primitives/scatter_elements_update.hpp>
@@ -178,6 +179,7 @@ public:
             description << "  " << i.original_id << " " << i.kernel_id << std::endl;
         }
         SCOPED_TRACE(description.str());
+        // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
         ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
@@ -8411,11 +8413,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_nd_activation_scale_eltwise,
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_2, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_3, 2, 5 },
         gather_nd_test_params{ CASE_GATHER_ND_FP32_6D_4, 2, 5 },
-}), );
+}));
+
 
 
 /* ----------------------------------------------------------------------------------------------------- */
-/* ------------------------------------------ GatherElements cases ------------------------------------------- */
+/* ------------------------------------------ GatherElements cases ------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 struct gather_elements_test_params {
     data_types data_type;
@@ -8525,7 +8528,7 @@ TEST_P(gather_elements_quantize, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_quantize,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_elements_quantize,
     ::testing::ValuesIn(std::vector<gather_elements_test_params>{
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_1, 2, 3 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_2, 2, 3 },
@@ -8548,7 +8551,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_quantize,
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_1, 2, 3 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_2, 2, 3 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_3, 2, 3 },
-}), );
+}));
 
 
 class gather_elements_scale_activation : public GatherElementsPrimitiveFusingTest {};
@@ -8567,7 +8570,7 @@ TEST_P(gather_elements_scale_activation, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_scale_activation,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_elements_scale_activation,
     ::testing::ValuesIn(std::vector<gather_elements_test_params>{
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_1, 2, 4 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_2, 2, 4 },
@@ -8590,7 +8593,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_scale_activation,
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_1, 2, 4 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_2, 2, 4 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_3, 2, 4 },
-}), );
+}));
 
 
 class gather_elements_activation_scale_eltwise : public GatherElementsPrimitiveFusingTest {};
@@ -8612,7 +8615,7 @@ TEST_P(gather_elements_activation_scale_eltwise, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_activation_scale_eltwise,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_elements_activation_scale_eltwise,
     ::testing::ValuesIn(std::vector<gather_elements_test_params>{
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_1, 2, 5 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP16_4D_2, 2, 5 },
@@ -8635,4 +8638,4 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_elements_activation_scale_eltwise,
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_1, 2, 5 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_2, 2, 5 },
         gather_elements_test_params{ CASE_GATHER_ELEMENTS_FP32_6D_3, 2, 5 },
-}), );
+}));

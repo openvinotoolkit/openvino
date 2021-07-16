@@ -54,15 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_set3, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 INSTANTIATE_TEST_SUITE_P(smoke_set4, GatherElementsLayerTest,
-=======
-INSTANTIATE_TEST_CASE_P(yunji_set2, GatherElementsLayerTest,
->>>>>>> Add cldnn unit test implementation
-=======
-INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
->>>>>>> Add functional test implementation
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 8})),   // Data shape
                             ::testing::Values(std::vector<size_t>({2, 2, 3, 8})),   // Indices shape
@@ -72,19 +64,7 @@ INSTANTIATE_TEST_CASE_P(smoke_set4, GatherElementsLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherElementsLayerTest::getTestCaseName);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 INSTANTIATE_TEST_SUITE_P(smoke_set5, GatherElementsLayerTest,
-=======
-INSTANTIATE_TEST_CASE_P(yunji_set3, GatherElementsLayerTest,
->>>>>>> Add cldnn unit test implementation
-=======
-
-=======
->>>>>>> code clean up
-INSTANTIATE_TEST_CASE_P(smoke_set5, GatherElementsLayerTest,
->>>>>>> Add functional test implementation
                         ::testing::Combine(
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 4, 8})),   // Data shape
                             ::testing::Values(std::vector<size_t>({3, 2, 3, 5, 8})),   // Indices shape
