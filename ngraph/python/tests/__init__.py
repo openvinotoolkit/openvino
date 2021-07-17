@@ -146,4 +146,4 @@ xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for compl
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
-xfail_issue_59935 = xfail_test(reason="AdaptivePool is not implemented in CPU plugin.")
+xfail_issue_59935 = xfail_test(reason="AdaptivePool is not implemented in CPU plugin.", strict=False)
