@@ -13,15 +13,6 @@
 #include <thread>
 
 
-#ifdef _WIN32
-#include <windows.h>
-#include <psapi.h>
-#else
-#include <unistd.h>
-#include <sys/wait.h>
-#endif
-
-
 enum TestStatus
 {
     TEST_NOT_STARTED = 0,
