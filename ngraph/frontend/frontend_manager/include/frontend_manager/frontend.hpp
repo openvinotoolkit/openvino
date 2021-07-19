@@ -10,6 +10,7 @@
 #include "frontend_manager_defs.hpp"
 #include "input_model.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -26,43 +27,31 @@ namespace ngraph
 
             virtual ~FrontEnd();
 
-            /// \brief Loads an input model by specified model file path
-            /// If model is stored in several files (e.g. model topology and model weights) -
-            /// frontend implementation is responsible to handle this case, generally frontend may
-            /// retrieve other file names from main file
-            /// \param path Main model file path
-            /// \return Loaded input model
-            virtual InputModel::Ptr load_from_file(const std::string& path) const;
+            /// \brief Validates if FrontEnd can recognize model with parameters specified.
+            /// Same parameters should be used to load model.
+            /// \param vars Any number of parameters of any type. What kind of parameters
+            /// are accepted is determined by each FrontEnd individually, typically it is
+            /// std::string containing path to the model file. For more information please
+            /// refer to specific FrontEnd documentation.
+            /// \return true if model recognized, false - otherwise.
+            template <typename... Types>
+            inline bool supported(const Types&... vars) const
+            {
+                return supported_impl({make_variant(vars)...});
+            }
 
-            /// \brief Loads an input model by specified number of model files
-            /// This shall be used for cases when client knows all model files (model, weights, etc)
-            /// \param paths Array of model files
-            /// \return Loaded input model
-            virtual InputModel::Ptr load_from_files(const std::vector<std::string>& paths) const;
-
-            /// \brief Loads an input model by already loaded memory buffer
-            /// Memory structure is frontend-defined and is not specified in generic API
-            /// \param model Model memory buffer
-            /// \return Loaded input model
-            virtual InputModel::Ptr load_from_memory(const void* model) const;
-
-            /// \brief Loads an input model from set of memory buffers
-            /// Memory structure is frontend-defined and is not specified in generic API
-            /// \param modelParts Array of model memory buffers
-            /// \return Loaded input model
-            virtual InputModel::Ptr
-                load_from_memory_fragments(const std::vector<const void*>& modelParts) const;
-
-            /// \brief Loads an input model by input stream representing main model file
-            /// \param stream Input stream of main model
-            /// \return Loaded input model
-            virtual InputModel::Ptr load_from_stream(std::istream& stream) const;
-
-            /// \brief Loads an input model by input streams representing all model files
-            /// \param streams Array of input streams for model
-            /// \return Loaded input model
-            virtual InputModel::Ptr
-                load_from_streams(const std::vector<std::istream*>& streams) const;
+            /// \brief Loads an input model by any specified arguments. Each FrontEnd separately
+            /// defines what arguments it can accept.
+            /// \param vars Any number of parameters of any type. What kind of parameters
+            /// are accepted is determined by each FrontEnd individually, typically it is
+            /// std::string containing path to the model file. For more information please
+            /// refer to specific FrontEnd documentation.
+            /// \return Loaded input model.
+            template <typename... Types>
+            inline InputModel::Ptr load(const Types&... vars) const
+            {
+                return load_impl({make_variant(vars)...});
+            }
 
             /// \brief Completely convert and normalize entire function, throws if it is not
             /// possible
@@ -95,7 +84,19 @@ namespace ngraph
             /// \brief Runs normalization passes on function that was loaded with partial conversion
             /// \param function partially converted nGraph function
             virtual void normalize(std::shared_ptr<ngraph::Function> function) const;
+
+        protected:
+            virtual bool
+                supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
+            virtual InputModel::Ptr
+                load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
         };
+
+        template <>
+        inline bool FrontEnd::supported(const std::vector<std::shared_ptr<Variant>>& variants) const
+        {
+            return supported_impl(variants);
+        }
 
     } // namespace frontend
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/basic_api.hpp"
+#include "basic_api.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;

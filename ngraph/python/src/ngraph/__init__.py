@@ -17,7 +17,6 @@ from ngraph.impl import Function
 from ngraph.impl import Node
 from ngraph.impl import PartialShape
 from ngraph.frontend import FrontEnd
-from ngraph.frontend import FrontEndCapabilities
 from ngraph.frontend import FrontEndManager
 from ngraph.frontend import GeneralFailure
 from ngraph.frontend import NotImplementedFailure

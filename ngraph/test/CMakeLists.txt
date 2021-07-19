@@ -631,6 +631,7 @@ install(TARGETS unit-test
         EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
 target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)

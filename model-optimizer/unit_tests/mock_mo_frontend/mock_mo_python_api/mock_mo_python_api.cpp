@@ -17,7 +17,6 @@ static void register_mock_frontend_stat(py::module m)
     m.def("clear_frontend_statistic", &FrontEndMockPy::clear_stat);
 
     py::class_<FeStat> feStat(m, "FeStat", py::dynamic_attr());
-    feStat.def_property_readonly("load_flags", &FeStat::load_flags);
     feStat.def_property_readonly("load_paths", &FeStat::load_paths);
     feStat.def_property_readonly("convert_model", &FeStat::convert_model);
 }

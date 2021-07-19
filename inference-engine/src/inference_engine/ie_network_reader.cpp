@@ -9,6 +9,7 @@
 #include <file_utils.h>
 #include <ie_reader.hpp>
 #include <ie_ir_version.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 
 #include <fstream>
 #include <istream>
@@ -225,6 +226,26 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             // read model without weights
             return reader->read(modelStream, exts);
         }
+    }
+    // Try to load with FrontEndManager
+    static ngraph::frontend::FrontEndManager manager;
+    ngraph::frontend::FrontEnd::Ptr FE;
+    ngraph::frontend::InputModel::Ptr inputModel;
+    if (!binPath.empty()) {
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        std::wstring weights_path = FileUtils::multiByteCharToWString(binPath.c_str());
+#else
+        std::string weights_path = binPath;
+#endif
+        FE = manager.load_by_model(model_path, weights_path);
+        if (FE) inputModel = FE->load(model_path, weights_path);
+    } else {
+        FE = manager.load_by_model(model_path);
+        if (FE) inputModel = FE->load(model_path);
+    }
+    if (inputModel) {
+        auto ngFunc = FE->convert(inputModel);
+        return CNNNetwork(ngFunc);
     }
     IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
                ". Please check that reader library exists in your PATH.";
