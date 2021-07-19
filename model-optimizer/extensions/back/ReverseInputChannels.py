@@ -105,24 +105,26 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
           previous_op
               |
-        ReverseChannels begin end       previous_op begin end
-                     \    /   /                   \   /  /
-                        Pad                         Pad
+        ReverseChannels  previous_op     previous_op  previous_op
+                     \     /                      \     /
+                       Node                         Node
                                                      |
                                               ReverseChannels
 
         returns boolean value whatever we should continue propagating current ReverseChannels operation down or not
         """
         # detaching reverse_channels node from the graph
-        reverse_channels.out_port(0).get_connection().set_source(
-            reverse_channels.in_port(0).get_connection().get_source())
-        reverse_channels.in_port(0).disconnect()
+        if reverse_channels.is_in_port_connected(0) and reverse_channels.is_out_port_connected(0)\
+                and node.is_out_port_connected(0):
+            reverse_channels.out_port(0).get_connection().set_source(
+                reverse_channels.in_port(0).get_connection().get_source())
+            reverse_channels.in_port(0).disconnect()
 
-        node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
-        node.out_port(0).disconnect()
-        node.out_port(0).connect(reverse_channels.in_port(0))
-
-        return True
+            node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+            node.out_port(0).disconnect()
+            node.out_port(0).connect(reverse_channels.in_port(0))
+            return True
+        return False
 
     @staticmethod
     def pass_rc_through_conv(node, reverse_channels):
@@ -304,10 +306,10 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
 
                                      previous_op
                                           \
-        previous_op  begin end       ReverseChannels   begin end
-                 \     /  /                        \    /   /
-                   Pad                               Pad
-                    |                                 |
+        previous_op  previous_op       ReverseChannels  previous_op
+                 \     /                           \     /
+                   Node                             Node
+                    |                                |
               ReverseChannels                      next_op
                     |
                  next_op
@@ -315,16 +317,14 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         returns boolean value whatever we should continue propagating current ReverseChannels operation up or not
         """
         if node.is_in_port_connected(0):
-            port = node.in_port(0)
-            axis = reverse_channels.axis
-            reverse_channels_copy = reverse_channels.copy_node({'axis': np.array(axis)})
-            src = port.get_connection().get_source()
-            port.get_connection().set_source(reverse_channels_copy.out_port(0))
-            src.connect(reverse_channels_copy.in_port(0))
+            node_input_port_0 = node.in_port(0)
+            reverse_channels_out_npde = reverse_channels.out_port(0).get_connection().get_destination().node
+            reverse_channels.out_port(0).disconnect()
 
-            reverse_channels.out_port(0).get_connection().set_source(
-                reverse_channels.in_port(0).get_connection().get_source())
-            reverse_channels.in_port(0).disconnect()
+            src = node_input_port_0.get_connection().get_source()
+            node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
+            src.connect(reverse_channels.in_port(0))
+            node.out_port(0).get_connection().set_destination(reverse_channels_out_npde.in_port(0))
             return True
         return False
 
