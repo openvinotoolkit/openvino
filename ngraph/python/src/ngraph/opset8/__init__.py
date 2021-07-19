@@ -5,6 +5,8 @@ from ngraph.opset1.ops import absolute
 from ngraph.opset1.ops import absolute as abs
 from ngraph.opset1.ops import acos
 from ngraph.opset4.ops import acosh
+from ngraph.opset8.ops import adaptive_avg_pool
+from ngraph.opset8.ops import adaptive_max_pool
 from ngraph.opset1.ops import add
 from ngraph.opset1.ops import asin
 from ngraph.opset4.ops import asinh
@@ -33,7 +35,7 @@ from ngraph.opset6.ops import ctc_greedy_decoder_seq_len
 from ngraph.opset4.ops import ctc_loss
 from ngraph.opset3.ops import cum_sum
 from ngraph.opset3.ops import cum_sum as cumsum
-from ngraph.opset1.ops import deformable_convolution
+from ngraph.opset8.ops import deformable_convolution
 from ngraph.opset1.ops import deformable_psroi_pooling
 from ngraph.opset1.ops import depth_to_space
 from ngraph.opset1.ops import detection_output
@@ -81,11 +83,13 @@ from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
+from ngraph.opset8.ops import matrix_nms
 from ngraph.opset1.ops import max_pool
 from ngraph.opset1.ops import maximum
 from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
+from ngraph.opset8.ops import multiclass_nms
 from ngraph.opset1.ops import multiply
 from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative

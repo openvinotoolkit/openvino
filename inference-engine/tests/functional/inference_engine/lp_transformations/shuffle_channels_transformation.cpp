@@ -39,7 +39,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     std::int64_t axis;
     std::int64_t group;
     Actual actual;
@@ -62,11 +62,10 @@ public:
             testValues.actual.dequantization,
             testValues.axis,
             testValues.group);
-        ngraph::pass::VisualizeTree("C://models//test.actual").run_on_function(actualFunction);
+
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ngraph::opset1::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
-        ngraph::pass::VisualizeTree("C://models//test.transformed").run_on_function(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(
             testValues.expected.inputPrecision,
@@ -76,7 +75,6 @@ public:
             testValues.group,
             testValues.expected.preicsionAfterOperation,
             testValues.expected.dequantizationAfter);
-        ngraph::pass::VisualizeTree("C://models//test.reference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
