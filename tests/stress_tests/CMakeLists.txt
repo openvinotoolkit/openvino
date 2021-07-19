@@ -9,25 +9,12 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+# Define directory where artifacts will be placed
+set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
-
-if(EXISTS "${OpenVINO_SOURCE_DIR}/thirdparty/gflags")
-    function(add_gflags)
-        set(GFLAGS_IS_SUBPROJECT TRUE)
-        set(HAVE_SYS_STAT_H 1)
-        set(HAVE_INTTYPES_H 1)
-        set(INTTYPES_FORMAT C99)
-        set(BUILD_TESTING OFF)
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
-                         ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
-                         EXCLUDE_FROM_ALL)
-        set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
-    endfunction()
-    add_gflags()
-endif()
 
 add_subdirectory(common)
 add_subdirectory(unittests)

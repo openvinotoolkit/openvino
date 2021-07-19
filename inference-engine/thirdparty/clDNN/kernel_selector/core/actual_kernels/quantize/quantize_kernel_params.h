@@ -53,7 +53,7 @@ struct quantize_params : public base_params {
     float out_scale;
     float out_shift;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         if (packed_binary_output)
             k.EnableQuantizePackedBinaryOutput();

@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# TODO: fix in tests
+if(SUGGEST_OVERRIDE_SUPPORTED)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 # ========================================= Name / Output settings =====================================
 
 set(CLDNN_BUILD__PROJ             "clDNN_unit_tests64")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
 # ========================================= Source/Header files ========================================
 
@@ -96,10 +100,10 @@ if(COMMAND set_ie_threading_interface_for)
 endif()
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 # Set library dependencies
-target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE "${CLDNN_BUILD__PROJ__clDNN}" OpenCL gtest gmock)
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
+  "${CLDNN_BUILD__PROJ__clDNN}" OpenCL gtest gtest_main gmock)
 
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)

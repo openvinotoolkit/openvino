@@ -16,6 +16,10 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
+#include "rt_info/shared_value_attribute.hpp"
+#include "rt_info/precisions_attribute.hpp"
+#include "rt_info/per_tensor_quantization_attribute.hpp"
+#include "rt_info/intervals_alignment_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
@@ -30,7 +34,7 @@ namespace low_precision {
 /**
 * @brief NetworkHelper class encapsulates manipulations with nGraph function.
 */
-class TRANSFORMATIONS_API NetworkHelper {
+class LP_TRANSFORMATIONS_API NetworkHelper {
 public:
     // Return true if `type` can be castable to at least one of `type`
     static bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);
@@ -76,6 +80,10 @@ public:
 
     static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
 
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::vector<std::shared_ptr<Node>>& targets);
+
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target);
+
     static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
 
     static void cleanRunTimeInfo(const std::shared_ptr<Node>& layer);
@@ -116,7 +124,8 @@ public:
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
         float min,
-        float max);
+        float max,
+        const bool replace = true);
 
     static FakeQuantizeDequantization makeDequantization(
         const float dequantizationMul,
@@ -124,7 +133,8 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::PartialShape dataNodeOutputShape,
         element::Type precision,
-        const element::Type deqPrecision = element::f32);
+        const element::Type deqPrecision = element::f32,
+        std::shared_ptr<ngraph::Node> input = nullptr);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -143,7 +153,7 @@ public:
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
-    static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node);
+    static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
@@ -199,6 +209,115 @@ public:
     static bool isFQByDynamicDimension(const std::shared_ptr<opset1::FakeQuantize>& fq);
 
     static bool isDQByDynamicDimension(const std::shared_ptr<Node>& layer, size_t inputIdx = 0);
+
+    static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
+
+    static void replaceAttributeInNodes(
+        std::shared_ptr<ngraph::Function> f,
+        const std::string& name,
+        const std::shared_ptr<ngraph::Variant> newAttribute,
+        const std::shared_ptr<ngraph::Variant> oldAttribute,
+        const std::shared_ptr<ngraph::Node>& initialNode) {
+        std::set<std::shared_ptr<Node>> visited;
+        std::deque<std::shared_ptr<Node>> nodes;
+        nodes.emplace_back(initialNode);
+
+        while (!nodes.empty()) {
+            auto node = nodes.front();
+            nodes.pop_front();
+
+            if (visited.count(node) || is_type<op::Constant>(node)) {
+                continue;
+            }
+
+            visited.insert(node);
+
+            bool handleConnectedNodes = false;
+            if (NetworkHelper::isPrecisionPreserved(node) || is_type<opset1::FakeQuantize>(node)) {
+                auto& rt = node->get_rt_info();
+
+                if (node == initialNode) {
+                    rt[name] = newAttribute;
+                    handleConnectedNodes = true;
+                } else {
+                    auto it = rt.find(name);
+                    if (it != rt.end()) {
+                        const auto currentAttribute = it->second;
+                        if (oldAttribute.get() == currentAttribute.get()) {
+                            rt[name] = newAttribute;
+                        }
+                        handleConnectedNodes = true;
+                    }
+                }
+            }
+
+            if (!handleConnectedNodes) {
+                continue;
+            }
+
+            if (!is_type<opset1::FakeQuantize>(node)) {
+                for (size_t index = 0ul; index < node->get_input_size(); ++index) {
+                    auto getInput = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+                        const auto dequantization = NetworkHelper::getDequantization(node, index);
+                        if (!dequantization.empty() &&
+                            (is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                            is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+                            const auto input = dequantization.data.get_node()->input(0);
+                            return input;
+                        }
+                        return node->input(index);
+                    };
+
+                    const auto& input = getInput(node, index);
+                    const auto& input_node = input.get_source_output().get_node_shared_ptr();
+
+                    //const auto& input_node = input.get_source_output().get_node_shared_ptr();
+                    if (visited.count(input_node) || is_type<op::Constant>(input_node)) {
+                        continue;
+                    }
+
+                    nodes.push_front(input_node);
+                }
+            }
+
+            for (auto& output : node->outputs()) {
+                for (auto& input_value : output.get_target_inputs()) {
+                    const auto& output_node = input_value.get_node()->shared_from_this();
+                    if (visited.count(output_node) || is_type<op::Constant>(output_node)) {
+                        continue;
+                    }
+
+                    nodes.push_front(output_node);
+                }
+            }
+        }
+    }
+
+    template <typename SharedValueType, typename SharedAttributeType>
+    static void reassign(
+        const std::shared_ptr<SharedValueType>& sharedValue,
+        const std::vector<std::weak_ptr<SharedAttributeType>>& attributes) {
+        for (const auto attributeWeakPtr : attributes) {
+            auto attribute = attributeWeakPtr.lock();
+            if (attribute == nullptr) {
+                continue;
+            }
+            attribute->sharedValue = sharedValue;
+            sharedValue->attributes.push_back(attribute);
+        }
+    }
+
+    static size_t calculateLevels(
+        const float dataPrecisionMin,
+        const float dataPrecisionMax,
+        const float combinedIntervalLow,
+        const float combinedIntervalHigh,
+        const float minIntervalLow,
+        const float minIntervalHigh,
+        float& dequantizationMul,
+        float& dequantizationSub,
+        float& updatedOutputLowValue,
+        float& updatedOutputHighValue);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
@@ -290,6 +409,54 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
         }
     }
     return node;
+}
+
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const std::shared_ptr<Node>& inputNode) {
+    auto& rt = inputNode->get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+}
+
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttribute(const Input<Node>& input) {
+    auto& rt = input.get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+}
+
+template <typename T>
+std::shared_ptr<ngraph::VariantWrapper<T>> getAttributeFromOutput(const Output<Node>& output) {
+    auto& rt = output.get_rt_info();
+    auto it = rt.find(ngraph::VariantWrapper<T>::type_info.name);
+    if (it == rt.end()) {
+        return nullptr;
+    }
+
+    auto attribute = std::dynamic_pointer_cast<ngraph::VariantWrapper<T>>(it->second);
+    assert(attribute != nullptr);
+    return attribute;
+}
+
+bool isDisabled(const std::shared_ptr<Node>& node);
+
+template <typename T, typename ... Args>
+std::shared_ptr<T> make_shared_attribute(Args&& ... args) {
+    std::shared_ptr<T> attribute = std::make_shared<T>(std::forward<Args>(args)...);
+    attribute->sharedValue->attributes.push_back(attribute);
+    return attribute;
 }
 
 }  // namespace low_precision

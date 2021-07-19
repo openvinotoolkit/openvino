@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/set_element_type.hpp"
+#include "set_element_type.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -21,6 +21,6 @@ static SetTypeFEParam getTestData_relu()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndElementTypeTest,
-                        ::testing::Values(getTestData_relu()),
-                        FrontEndElementTypeTest::getTestCaseName);
+                         FrontEndElementTypeTest,
+                         ::testing::Values(getTestData_relu()),
+                         FrontEndElementTypeTest::getTestCaseName);
