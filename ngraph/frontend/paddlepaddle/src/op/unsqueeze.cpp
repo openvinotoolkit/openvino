@@ -15,15 +15,26 @@ namespace ngraph
             {
                 NamedOutputs unsqueeze(const NodeContext& node)
                 {
-                    // TODO to support data type other than int32_t #55168
                     auto data = node.get_ng_input("X");
-                    auto axes = node.get_attribute<std::vector<int32_t>>("axes");
-                    auto axesNode =
-                        ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
+                    Output<Node> axesNode;
+                    if (node.has_ng_input("AxesTensor"))
+                    {
+                        axesNode = node.get_ng_input("AxesTensor");
+                    }
+                    else if (node.has_ng_input("AxesTensorList"))
+                    {
+                        auto inputs = node.get_ng_inputs("AxesTensorList");
+                        axesNode = std::make_shared<ngraph::opset6::Concat>(inputs, 0);
+                    }
+                    else
+                    {
+                        auto axes = node.get_attribute<std::vector<int32_t>>("axes");
+                        axesNode = ngraph::opset6::Constant::create(
+                            ngraph::element::i32, {axes.size()}, axes);
+                    }
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Unsqueeze>(data, axesNode)}, {"Out"});
                 }
-
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
