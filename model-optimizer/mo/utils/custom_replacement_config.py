@@ -6,11 +6,12 @@ import logging as log
 import os
 from re import compile, match
 
+import fastjsonschema as json_validate
+
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
-from mo.utils.utils import refer_to_faq_msg
-from mo.utils.utils import validate_json_config
+from mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 
 
 class CustomReplacementDescriptor(object):
@@ -343,14 +344,8 @@ def parse_custom_replacement_config_file(file_name: str):
     if not os.path.exists(file_name):
         raise Error("Custom replacements configuration file '{}' does not exist. ".format(file_name) +
                     refer_to_faq_msg(69))
-    try:
-        with open(file_name, 'r') as f:
-            data = json.load(f)
-            validate_json_config(data, file_name)
-    except Exception as exc:
-        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(file_name, exc) +
-                    refer_to_faq_msg(70)) from exc
 
+    data = load_and_validate_json_config(file_name)
     result = list()
     validation_errors = list()
     for attrs in data:
@@ -396,3 +391,30 @@ def generate_pattern_for_node(graph: Graph, sub_graph_pattern: str, node_name: s
 
     raise RuntimeError('The pattern that uniquely identifies node "{}" using sub-graph pattern "{}" has not been found'.
                        format(node_name, sub_graph_pattern))
+
+
+def load_and_validate_json_config(config_file_name: str):
+    """
+    Reads and validate custom replacement configuration file config_file_name.
+    :param config_file_name: name of the file to read from.
+    :return: The dictionary which was serialize from json config file.
+    """
+    try:
+        with open(config_file_name, 'r') as f:
+            json_config = json.load(f)
+    except Exception as exc:
+        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
+                    refer_to_faq_msg(70)) from exc
+
+    try:
+        base_dir = get_mo_root_dir()
+        schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
+        with open(schema_file, 'r') as f:
+            schema = json.load(f)
+            validator = json_validate.compile(schema)
+            data = validator(json_config)
+    except Exception as exc:
+        raise Error("Failed to validate custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
+                    refer_to_faq_msg(70)) from exc
+
+    return data
