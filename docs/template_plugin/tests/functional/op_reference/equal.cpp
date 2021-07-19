@@ -81,9 +81,9 @@ std::vector<EqualParams> generateEqualParams(const ngraph::element::Type& type) 
                 std::vector<T> {53},
                 std::vector<char> {1}),
         EqualParams(ngraph::PartialShape {2, 4}, ngraph::PartialShape {2, 4}, type, ngraph::element::boolean,
-                std::vector<T> {0, 12, 23, 0, 1, 5, 123, 76},
-                std::vector<T> {0, 12, 23, 0, 441, 5, 123, 53},
-                std::vector<char> {1, 1, 1, 1, 0, 1, 1, 0}),
+                std::vector<T> {0, 12, 23, 0, 1, 5, 11, 8},
+                std::vector<T> {0, 12, 23, 0, 10, 5, 11, 8},
+                std::vector<char> {1, 1, 1, 1, 0, 1, 1, 1}),
         EqualParams(ngraph::PartialShape {3, 1, 2}, ngraph::PartialShape {1, 2, 1}, type, ngraph::element::boolean,
                 std::vector<T> {2, 1, 4, 1, 3, 1},
                 std::vector<T> {1, 1},
@@ -99,7 +99,8 @@ std::vector<EqualParams> generateEqualCombinedParams() {
     const std::vector<std::vector<EqualParams>> equalTypeParams {generateEqualParams<element::Type_t::f32>(ngraph::element::f32),
                                                                  generateEqualParams<element::Type_t::f16>(ngraph::element::f16),
                                                                  generateEqualParams<element::Type_t::i32>(ngraph::element::i32),
-                                                                 generateEqualParams<element::Type_t::u32>(ngraph::element::u32)};
+                                                                 generateEqualParams<element::Type_t::u32>(ngraph::element::u32),
+                                                                 generateEqualParams<element::Type_t::u8>(ngraph::element::boolean)};
     std::vector<EqualParams> combinedParams;
     std::for_each(equalTypeParams.begin(), equalTypeParams.end(), [&](std::vector<EqualParams> params) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());

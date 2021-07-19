@@ -21,8 +21,9 @@ o_{i} = a_{i} == b_{i}
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
+    * *none* - no auto-broadcasting is allowed, all input shapes should match,
     * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -42,7 +43,7 @@ o_{i} = a_{i} == b_{i}
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="Equal">
@@ -66,7 +67,7 @@ o_{i} = a_{i} == b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="Equal">
     <data auto_broadcast="numpy"/>
