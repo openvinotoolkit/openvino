@@ -81,7 +81,7 @@ public:
     ngraph::PartialShape inputShape;
     ngraph::Shape outputShape;
     ngraph::Shape scalesShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     interpAttributes interpAttrs;
     interp4Attributes interp4Attrs;
     int opset_version;

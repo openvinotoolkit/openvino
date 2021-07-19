@@ -37,32 +37,14 @@ void GemmTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
-    const float low = params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
-    const float high = params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
+    const float low = 0.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
+    const float high = 255.f; // params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,
         inputShape,
         low,
         high);
-
-    validate();
-}
-
-void GemmTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    EXPECT_EQ(1ul, transformed->get_output_size());
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {

@@ -13,11 +13,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API FakeQuantizeDecompositionTransformation : public LayerTransformation {
 public:
-    FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    NGRAPH_RTTI_DECLARATION;
+    FakeQuantizeDecompositionTransformation(const Params& params = Params());
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 

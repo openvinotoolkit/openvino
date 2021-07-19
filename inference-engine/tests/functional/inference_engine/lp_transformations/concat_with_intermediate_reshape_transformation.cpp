@@ -11,8 +11,9 @@
 #include <gtest/gtest.h>
 
 #include <transformations/utils/utils.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/reshape.hpp>
-#include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/concat.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
@@ -49,7 +50,7 @@ class TestValues {
 public:
     ngraph::Shape inputShape;
     ngraph::Shape reshapeOutputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ActualValues actual;
     ResultValues result;
 };
@@ -77,7 +78,8 @@ public:
             testValues.actual.fakeQuantize2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
         transform.transform(actualFunction);
 

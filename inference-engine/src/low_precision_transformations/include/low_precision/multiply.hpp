@@ -11,12 +11,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
+class LP_TRANSFORMATIONS_API MultiplyTransformation : public EltwiseBaseTransformation {
 public:
-    MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {}
-    ~MultiplyTransformation() override {}
-    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    NGRAPH_RTTI_DECLARATION;
+    MultiplyTransformation(const Params& params = Params());
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
 };
 
 } // namespace low_precision

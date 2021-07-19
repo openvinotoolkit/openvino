@@ -4,10 +4,11 @@
 
 /**
  * @brief Defines openvino domains for tracing
- * @file lpt_itt.h
+ * @file lpt_itt.hpp
  */
 
 #pragma once
+
 
 #include <openvino/itt.hpp>
 

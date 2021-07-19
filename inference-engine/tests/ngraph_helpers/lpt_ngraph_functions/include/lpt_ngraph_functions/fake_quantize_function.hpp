@@ -19,9 +19,11 @@ namespace subgraph {
 class FakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
-        const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData);
+        const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
+        const bool addNotPrecisionPreservedOperation);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithMaxPool(
             const ngraph::element::Type precision,
@@ -29,12 +31,14 @@ public:
             const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
         const bool updatePrecisions,
         const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
         const ngraph::element::Type fakeQuantizeOutputPrecision,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const bool addNotPrecisionPreservedOperation);
 };
 
 }  // namespace subgraph

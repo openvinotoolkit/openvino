@@ -13,7 +13,7 @@
 #include <ngraph/check.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-#include "transformations_visibility.hpp"
+#include "low_precision/lpt_visibility.hpp"
 #include "transformations/rt_info/dequantization_attribute.hpp"
 
 namespace ngraph {
@@ -21,7 +21,7 @@ namespace pass {
 namespace low_precision {
 
 // template<typename BaseOp2>
-// class TRANSFORMATIONS_API DequantizationOp : public BaseOp2 {
+// class LP_TRANSFORMATIONS_API DequantizationOp : public BaseOp2 {
 // public:
 //    template <typename ... Args>
 //    DequantizationOp(Args&&... args) : BaseOp2(std::forward<Args>(args)...) {
@@ -63,7 +63,7 @@ void copyRuntimeInfo(const ngraph::Node& from, ngraph::Node& to) {
 
 } // namespace
 
-class TRANSFORMATIONS_API DequantizationConvert : public ngraph::opset1::Convert {
+class LP_TRANSFORMATIONS_API DequantizationConvert : public ngraph::opset1::Convert {
 public:
     DequantizationConvert(const ngraph::Output<Node>& arg, const ngraph::element::Type& destination_type) :
         ngraph::opset1::Convert(arg, destination_type) {
@@ -77,7 +77,7 @@ public:
     }
 };
 
-class TRANSFORMATIONS_API DequantizationSubtract : public ngraph::opset1::Subtract {
+class LP_TRANSFORMATIONS_API DequantizationSubtract : public ngraph::opset1::Subtract {
 public:
     DequantizationSubtract(
         const ngraph::Output<Node>& arg0,
@@ -94,7 +94,7 @@ public:
     }
 };
 
-class TRANSFORMATIONS_API DequantizationMultiply : public ngraph::opset1::Multiply {
+class LP_TRANSFORMATIONS_API DequantizationMultiply : public ngraph::opset1::Multiply {
 public:
     DequantizationMultiply(
         const Output<Node>& arg0,
@@ -116,7 +116,7 @@ public:
     }
 };
 
-class TRANSFORMATIONS_API DequantizationAdd : public ngraph::opset1::Add {
+class LP_TRANSFORMATIONS_API DequantizationAdd : public ngraph::opset1::Add {
 public:
     DequantizationAdd(
         const ngraph::Output<Node>& arg0,

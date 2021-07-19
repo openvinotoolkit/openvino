@@ -7,7 +7,7 @@
 #include <exception>
 #include <string>
 #include <ngraph/node.hpp>
-#include <transformations_visibility.hpp>
+#include <low_precision/lpt_visibility.hpp>
 
 /**
 * @def THROW_TRANSFORMATION_EXCEPTION_LPT
@@ -19,7 +19,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API Exception : std::exception {
+class LP_TRANSFORMATIONS_API Exception : std::exception {
     std::shared_ptr<std::ostringstream> buffer;
     mutable std::string buffer_str;
 public:
@@ -42,7 +42,7 @@ public:
 #define THROW_TRANSFORMATION_EXCEPTION throw ::ngraph::pass::low_precision::Exception() << __FILE__ << ":" << __LINE__ << " "
 
 
-class TRANSFORMATIONS_API InferenceEngineLptException : public Exception {
+class LP_TRANSFORMATIONS_API InferenceEngineLptException : public Exception {
 public:
     InferenceEngineLptException(const std::string& filename, const size_t line, const Node& node) {
         *this

@@ -15,11 +15,11 @@ using namespace ngraph::pass::low_precision;
 
 class PrecisionDetailsTests : public ::testing::Test {
 protected:
-    const QuantizationDetails i8levels255WithoutZeroPoint = QuantizationDetails(255ul, { -1.27f }, { 1.27f }, { -1.27f }, { 1.27f }, 1ul, 1ul, 1ul);
-    const QuantizationDetails i8levels255WithZeroPoint = QuantizationDetails(255ul, { -1.27f / 2.f }, { 1.27f }, { -1.27f / 2.f }, { 1.27f }, 1ul, 1ul, 1ul);
-    const QuantizationDetails i8levels256WithoutZeroPoint = QuantizationDetails(256ul, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f }, 1ul, 1ul, 1ul);
-    const QuantizationDetails u8levels256WithoutZeroPoint = QuantizationDetails(256ul, { 0.f }, { 1.23f }, { 0.f }, { 1.23f }, 1ul, 1ul, 1ul);
-    const QuantizationDetails u8levels256WithZeroPoint = QuantizationDetails(256ul, { 0.12f }, { 1.23f }, { 0.12f }, { 1.23f }, 1ul, 1ul, 1ul);
+    const QuantizationDetails i8levels255WithoutZeroPoint = QuantizationDetails(255ul, { -1.27f }, { 1.27f }, { -1.27f }, { 1.27f });
+    const QuantizationDetails i8levels255WithZeroPoint = QuantizationDetails(255ul, { -1.27f / 2.f }, { 1.27f }, { -1.27f / 2.f }, { 1.27f });
+    const QuantizationDetails i8levels256WithoutZeroPoint = QuantizationDetails(256ul, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f });
+    const QuantizationDetails u8levels256WithoutZeroPoint = QuantizationDetails(256ul, { 0.f }, { 1.23f }, { 0.f }, { 1.23f });
+    const QuantizationDetails u8levels256WithZeroPoint = QuantizationDetails(256ul, { 0.12f }, { 1.23f }, { 0.12f }, { 1.23f });
 };
 
 TEST_F(PrecisionDetailsTests, getPrecisionDetailsI8levels255WithoutZeroPoint) {

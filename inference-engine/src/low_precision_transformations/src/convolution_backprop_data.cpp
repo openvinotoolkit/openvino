@@ -10,6 +10,8 @@
 #include <vector>
 #include <cassert>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -18,41 +20,48 @@ namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
-}
+    auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
+        pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+        ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>({
+            pattern::wrap_type<opset1::Multiply>(),
+            pattern::wrap_type<opset1::FakeQuantize>(),
+            pattern::wrap_type<opset1::Constant>()
+        }),
+    });
 
-void ConvolutionBackpropDataTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
-    addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::ConvolutionBackpropData>(
-                    { make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>(), make_op_label<opset1::Constant>() }));
-}
-
-bool ConvolutionBackpropDataTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = layer->get_input_shape(0)[1];
-        size_t outputChannels = layer->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
             return false;
         }
-    }
-    return WeightableLayerTransformation::isQuantized(layer, false);
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionBackpropDataTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
+}
+
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+    return WeightableLayerTransformation::isQuantizedStatic(layer, false);
+}
+
+bool ConvolutionBackpropDataTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolutionBackpropData = m.get_match_root();
 
     if (!canBeTransformed(context, convolutionBackpropData)) {
@@ -198,18 +207,11 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
     }
 
+
     return true;
 }
 
 bool ConvolutionBackpropDataTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (deconvolutionSpecificChannelsRatio) {
-        size_t inputChannels = op->get_input_shape(0)[1];
-        size_t outputChannels = op->get_output_shape(0)[1];
-        if (inputChannels % 4 != 0 || outputChannels % 16 != 0) {
-            return false;
-        }
-    }
-
     return canConvolutionBeTransformed(context, op);
 }
 

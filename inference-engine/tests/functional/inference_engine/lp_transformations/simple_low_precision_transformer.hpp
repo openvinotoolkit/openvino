@@ -8,57 +8,32 @@
 
 #include <ngraph/ngraph.hpp>
 
+#include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/transformation_context.hpp"
-#include <low_precision/transformer.hpp>
-#include <low_precision/iparams_manager.hpp>
-#include <low_precision/ilayer_transformations_manager.hpp>
+#include "low_precision/common/operation_precision_restriction.hpp"
+#include "low_precision/common/operation_per_tensor_quantization_restriction.hpp"
 
-class SimpleLowPrecisionTransformer : public
-    ngraph::pass::IParamsManager,
-    ngraph::pass::ILayerTransformationsManager {
+class SimpleLowPrecisionTransformer {
 public:
-    SimpleLowPrecisionTransformer();
-
-    // IParamsManager interface implementation
-    std::vector<ngraph::element::Type> getPrecisionsOnActivations(const ngraph::Node& op) const noexcept override;
-
-    // ILayerTransformationsManager interface implementation
-    bool isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
-    bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
+    SimpleLowPrecisionTransformer(
+        const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions = {},
+        const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {});
 
     template <class T, class Operation>
-    ngraph::pass::low_precision::LayerTransformationPtr addBranchSpecific(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
-
-        const auto it = branchSpecificTransformations.find(typeName);
-        if (it != branchSpecificTransformations.end()) {
-            branchSpecificTransformations.erase(it);
-        }
-
-        auto transformation = std::make_shared<T>(params);
-        branchSpecificTransformations.emplace(typeName, transformation);
-        return transformation;
+    void add(const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
-    template <class T, class Operation>
-    ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
-
-        const auto it = transformations.find(typeName);
-        if (it != transformations.end()) {
-            transformations.erase(it);
-        }
-
-        auto transformation = std::make_shared<T>(params);
-        transformations.emplace(typeName, transformation);
-        return transformation;
+    template <class T>
+    void set_callback(const std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>& callback) {
+        common->get_pass_config()->set_callback<T>(callback);
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
 
-private:
-    std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr> branchSpecificTransformations;
-    std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr> transformations;
+    std::shared_ptr<ngraph::pass::Manager> markup;
+    std::shared_ptr<ngraph::pass::Manager> common;
+    std::shared_ptr<ngraph::pass::GraphRewrite> commonGraphRewrite;
+    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup;
 };

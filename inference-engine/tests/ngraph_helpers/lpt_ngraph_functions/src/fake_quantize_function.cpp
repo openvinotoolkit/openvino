@@ -46,9 +46,11 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginalWithMaxPool(
 }
 
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
+    const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
-    const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData) {
+    const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
+    const bool addNotPrecisionPreservedOperation) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
@@ -57,24 +59,52 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
     auto& rtInfo = fakeQuantize->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fakeQuantize) };
+    std::shared_ptr<Node> lastOperation = fakeQuantize;
+    if (addNotPrecisionPreservedOperation) {
+        lastOperation = std::make_shared<opset1::AvgPool>(
+            fakeQuantize,
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 2, 2 },
+            true,
+            op::RoundingType::FLOOR);
+    }
+    lastOperation->set_friendly_name("lastOperation");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastOperation) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
 }
 
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
+    const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::element::Type precision,
     const ngraph::PartialShape& inputShape,
     const bool updatePrecisions,
     const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
     const ngraph::element::Type fakeQuantizeOutputPrecision,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const bool addNotPrecisionPreservedOperation) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
     auto fakeQuantize = makeFakeQuantizeTypeRelaxed(input, ngraph::element::f32, fakeQuantizeOnData);
-    std::shared_ptr<Node> parent = fakeQuantize;
+
     auto& rtInfo = fakeQuantize->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("fakeQuantize");
+
+    std::shared_ptr<Node> lastOperation = fakeQuantize;
+    if (addNotPrecisionPreservedOperation) {
+        lastOperation = std::make_shared<op::TypeRelaxed<opset1::AvgPool>>(
+            std::vector<element::Type>{element::f32}, std::vector<element::Type>{element::f32},
+            ngraph::op::TemporaryReplaceOutputType(fakeQuantize, element::f32).get(),
+            Strides{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 1, 1 },
+            Shape{ 2, 2 },
+            true,
+            op::RoundingType::FLOOR);
+    }
 
     auto updateDequantization = dequantization;
     if (!updateDequantization.subtract.empty()) {
@@ -87,17 +117,18 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     updateDequantization.multiply.outPrecision = precision;
     std::shared_ptr<Node> deq;
     if (updatePrecisions) {
-        deq = makeDequantization(fakeQuantize, updateDequantization);
+        deq = makeDequantization(lastOperation, updateDequantization);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, fakeQuantizeOutputPrecision);
     } else {
         if (precision == element::f32) {
             updateDequantization.convert = {};
         }
-        deq = makeDequantization(fakeQuantize, updateDequantization);
+        deq = makeDequantization(lastOperation, updateDequantization);
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, precision);
     }
 
-    deq->set_friendly_name("fakeQuantize");
+    deq->set_friendly_name("lastOperation");
+
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deq) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
 }

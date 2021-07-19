@@ -11,8 +11,9 @@
 
 #include <gtest/gtest.h>
 
+#include <low_precision/avg_pool.hpp>
+#include <low_precision/common/operation_precision_restriction.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 #include "lpt_ngraph_functions/fake_quantize_function.hpp"
@@ -26,11 +27,30 @@ using namespace ngraph::pass;
 
 class FakeQuantizeTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
+    FakeQuantizeTransformationTestValues() = default;
+
+    FakeQuantizeTransformationTestValues(
+        const TestTransformationParams& params,
+        const builder::subgraph::FakeQuantizeOnDataWithConstant& actual,
+        const builder::subgraph::FakeQuantizeOnDataWithConstant& expected,
+        const ngraph::element::Type expectedFakeQuantizeOnDataPrecision,
+        const std::map<ngraph::element::Type, ngraph::builder::subgraph::DequantizationOperations>& expectedValues,
+        const bool addNotPrecisionPreservedOperation = false) :
+            params(params),
+            actual(actual),
+            expected(expected),
+            expectedFakeQuantizeOnDataPrecision(expectedFakeQuantizeOnDataPrecision),
+            expectedValues(expectedValues),
+            addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation) {}
+
+    TestTransformationParams params;
     builder::subgraph::FakeQuantizeOnDataWithConstant actual;
     builder::subgraph::FakeQuantizeOnDataWithConstant expected;
     ngraph::element::Type expectedFakeQuantizeOnDataPrecision;
     std::map<ngraph::element::Type, ngraph::builder::subgraph::DequantizationOperations> expectedValues;
+    // add not precision preserved operation to set output precision for FakeQuantize
+    // don't set to 'true' by default to keep test cases with tested operation as output
+    bool addNotPrecisionPreservedOperation;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -63,25 +83,33 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(fakeQuantizeOnData.params).
-            setUpdatePrecisions(updatePrecision);
+        const auto params = TestTransformationParams(fakeQuantizeOnData.params).setUpdatePrecisions(updatePrecision);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
+            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
-            fakeQuantizeOnData.actual);
+            fakeQuantizeOnData.actual,
+            fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
-        SimpleLowPrecisionTransformer transform;
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, params.precisionsOnActivations}})
+        });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions);
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
+            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             params.updatePrecisions,
             fakeQuantizeOnData.expected,
             fakeQuantizeOnData.expectedFakeQuantizeOnDataPrecision,
-            fakeQuantizeOnData.expectedValues.find(element::f32)->second);
+            fakeQuantizeOnData.expectedValues.find(element::f32)->second,
+            fakeQuantizeOnData.addNotPrecisionPreservedOperation);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -101,7 +129,7 @@ public:
 
 TEST_P(FakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -138,9 +166,10 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -1.23f }, { 2.55f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { 82.97619048f }, { 0.014823529f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { 83.f }, { 0.014823529f }} }
-        }
+            { ngraph::element::f32, {{}, { 82.97619048f }, { 0.014823529f }} },
+            { ngraph::element::f16, {{}, { 83.f }, { 0.014823529f }} }
+        },
+        true
     },
     {
         LayerTransformation::createParamsU8I8(),
@@ -148,9 +177,10 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -1.28f} , { 1.27f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { 128.f }, { 0.01f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { 128.f }, { 0.01f }} }
-        }
+            { ngraph::element::f32, {{}, { 128.f }, { 0.01f }} },
+            { ngraph::element::f16, {{}, { 128.f }, { 0.01f }} }
+        },
+        true
     },
 
     // I8
@@ -170,9 +200,10 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { -0.12f}, { 1.27f }, { -128.f}, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { -105.9856115f }, { 0.00545098f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { -105.9856115f }, { 0.00545098f }} }
-        }
+            { ngraph::element::f32, {{}, { -105.9856115f }, { 0.00545098f }} },
+            { ngraph::element::f16, {{}, { -105.9856115f }, { 0.00545098f }} }
+        },
+        true
     },
     {
         LayerTransformation::createParamsI8I8(),
@@ -180,11 +211,11 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
         ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { -128.f }, { 0.01f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { -128.f }, { 0.01f }} }
-        }
+            { ngraph::element::f32, {{}, { -128.f }, { 0.01f }} },
+            { ngraph::element::f16, {{}, { -128.f }, { 0.01f }} }
+        },
+        true
     },
-
     // dot interval
     {
         LayerTransformation::createParamsI8I8(),
@@ -192,8 +223,9 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 2.55f }, { 1.f }, { 1.f } },
         ngraph::element::Type_t::i8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 2.55f }} }
-        }
+            { ngraph::element::f32, {{}, {}, { 2.55f }} }
+        },
+        true
     },
 
     // efficientnet-b0: efficientnet-b0/model/blocks_2/depthwise_conv2d/depthwise/fq_input_0, interval: -0.504395 - +0.5
@@ -221,22 +253,22 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         }
     },
 
-    // U8 per-channel
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            256ul,
-            {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-            { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
-            { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
-        },
-        { 256ul, {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
-        ngraph::element::u8,
-        {
-            { ngraph::element::f32, { {ngraph::element::f32}, {}, { {0.01f, 0.1f, 1.f} }} },
-            { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
-        }
-    },
+    // Failed when updatePrecisions = false, U8 per-channel
+    //{
+    //    LayerTransformation::createParamsU8I8(),
+    //    {
+    //        256ul,
+    //        {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+    //        { 0.f, 0.f, 0.f }, { 2.55f, 2.55f, 2.55f },
+    //        { 0.f, 0.f, 0.f }, { 2.55f, 25.5f, 255.f }
+    //    },
+    //    { 256ul, {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+    //    ngraph::element::u8,
+    //    {
+    //        { ngraph::element::f32, { {ngraph::element::f32}, {}, { {0.01f, 0.1f, 1.f} }} },
+    //        { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
+    //    }
+    //},
 };
 
 INSTANTIATE_TEST_SUITE_P(

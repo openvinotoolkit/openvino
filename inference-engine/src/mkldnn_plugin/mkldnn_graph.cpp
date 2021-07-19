@@ -45,7 +45,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/low_precision.hpp>
 
 /*****************************************************
  * Debug capability
@@ -94,7 +94,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->reuse_io_tensors = false;
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(subgraph);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
@@ -192,7 +192,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     }
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     auto orderedOps = func->get_ordered_ops();
 

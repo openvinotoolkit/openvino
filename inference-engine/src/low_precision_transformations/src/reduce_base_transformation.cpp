@@ -13,7 +13,7 @@ namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }

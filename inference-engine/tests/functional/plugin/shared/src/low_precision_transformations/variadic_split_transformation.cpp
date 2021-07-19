@@ -65,30 +65,6 @@ void VariadicSplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.splitLengths);
-
-    validate();
-}
-
-void VariadicSplitTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    VariadicSplitTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
-
-    ngraph::pass::low_precision::LowPrecisionTransformations transformations = getLowPrecisionTransformationsNGraph(params);
-    transformations.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::opset1::VariadicSplit>(params);
-    const auto transformed = transformNGraph(params, transformations);
-
-    ASSERT_EQ(param.splitLengths.size(), transformed->get_output_size());
-
-    for (size_t i = 0; i < param.splitLengths.size(); ++i) {
-        const auto output = transformed->get_output_op(0);
-        const auto scaleShift = output->get_input_node_shared_ptr(0);
-        const std::string typeName = scaleShift->get_type_name();
-        ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
-    }
 }
 
 TEST_P(VariadicSplitTransformation, CompareWithRefImpl) {
