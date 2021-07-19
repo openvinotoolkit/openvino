@@ -43,14 +43,14 @@ else()
 endif()
 
 if(ENABLE_CONDA_FOLDER)
-    set(CPACK_PREFIX "conda_")
+    set(PYTHON_COMPONENT conda_${PYTHON_VERSION})
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/Conda/${PYTHON_VERSION}/openvino)
     else()
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/Conda/${PYTHON_VERSION}/openvino)
     endif()
 else()
-    set(CPACK_PREFIX "")
+    set(PYTHON_COMPONENT ${PYTHON_VERSION})
     if(WIN32)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/openvino)
     else()
@@ -76,19 +76,19 @@ endif()
 
 # install
 
-ie_cpack_add_component(${CPACK_PREFIX}${PYTHON_VERSION})
+ie_cpack_add_component(${PYTHON_COMPONENT})
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
-        COMPONENT ${CPACK_PREFIX}${PYTHON_VERSION})
+        COMPONENT ${PYTHON_COMPONENT})
 
 install(FILES requirements.txt
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
-        COMPONENT ${CPACK_PREFIX}${PYTHON_VERSION})
+        COMPONENT ${PYTHON_COMPONENT})
 
 install(PROGRAMS src/openvino/__init__.py
         DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
-        COMPONENT ${CPACK_PREFIX}${PYTHON_VERSION})
+        COMPONENT ${PYTHON_COMPONENT})
 
 # install Python samples
 
@@ -98,4 +98,4 @@ install(DIRECTORY sample/
         DESTINATION ${IE_CPACK_IE_DIR}/samples/python
         COMPONENT python_samples)
 
-ie_cpack(${CPACK_PREFIX}${PYTHON_VERSION} python_samples)
+ie_cpack(${PYTHON_COMPONENT} python_samples)
