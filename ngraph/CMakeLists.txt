@@ -21,7 +21,7 @@ option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" ON)
 option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" OFF)
-option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" OFF)
+option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON)
 option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" OFF)
 option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF)
 
