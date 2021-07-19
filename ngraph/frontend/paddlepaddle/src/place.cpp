@@ -81,32 +81,42 @@ void OpPlacePDPD::add_in_port(const std::shared_ptr<InPortPlacePDPD>& input,
 
 Place::Ptr OpPlacePDPD::get_output_port(const std::string& name) const
 {
-    FRONT_END_GENERAL_CHECK(
-        m_output_ports.at(name).size() == 1,
-        "There are multiple OutputPort Places with the same name, please specify index.");
+    FRONT_END_GENERAL_CHECK(m_output_ports.at(name).size() == 1,
+                            "Only one output port should exist.");
     return m_output_ports.at(name)[0];
 }
 
 Place::Ptr OpPlacePDPD::get_input_port(const std::string& name) const
 {
-    FRONT_END_GENERAL_CHECK(
-        m_input_ports.at(name).size() == 1,
-        "There are multiple InputPort Places with the same name, please specify index.");
+    FRONT_END_GENERAL_CHECK(m_input_ports.at(name).size() == 1,
+                            "Only one input port should exist.");
     return m_input_ports.at(name)[0];
+}
+
+Place::Ptr OpPlacePDPD::get_input_port(int outputPortIndex) const
+{
+    FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1, "Only one named input port should exist.");
+    return m_input_ports.begin()->second[outputPortIndex];
+}
+
+Place::Ptr OpPlacePDPD::get_output_port(int outputPortIndex) const
+{
+    FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1, "Only one named output port should exist.");
+    return m_output_ports.begin()->second[outputPortIndex];
 }
 
 Place::Ptr OpPlacePDPD::get_output_port() const
 {
     FRONT_END_GENERAL_CHECK(m_output_ports.size() == 1 &&
                                 m_output_ports.begin()->second.size() == 1,
-                            "There are multiple OutputPort Places, please specify index.");
+                            "Only one output port should exist.");
     return m_output_ports.begin()->second[0];
 }
 
 Place::Ptr OpPlacePDPD::get_input_port() const
 {
     FRONT_END_GENERAL_CHECK(m_input_ports.size() == 1 && m_input_ports.begin()->second.size() == 1,
-                            "There are multiple InputPort Places, please specify name and index.");
+                            "Only one input port should exist.");
     return m_input_ports.begin()->second[0];
 }
 
@@ -129,6 +139,11 @@ std::vector<Place::Ptr> OpPlacePDPD::get_consuming_operations(const std::string&
                                                               int outputPortIndex) const
 {
     return get_output_port(outputPortName, outputPortIndex)->get_consuming_operations();
+}
+
+std::vector<Place::Ptr> OpPlacePDPD::get_consuming_operations(int outputPortIndex) const
+{
+    return get_output_port(outputPortIndex)->get_consuming_operations();
 }
 
 std::vector<Place::Ptr>
@@ -172,6 +187,11 @@ Place::Ptr OpPlacePDPD::get_source_tensor(const std::string& inputName) const
     return get_input_port(inputName)->get_source_tensor();
 }
 
+Place::Ptr OpPlacePDPD::get_source_tensor(int inputPortIndex) const
+{
+    return get_input_port(inputPortIndex)->get_source_tensor();
+}
+
 Place::Ptr OpPlacePDPD::get_source_tensor(const std::string& inputName, int inputPortIndex) const
 {
     return get_input_port(inputName, inputPortIndex)->get_source_tensor();
@@ -206,6 +226,16 @@ Place::Ptr OpPlacePDPD::get_producing_operation(const std::string& inputName,
 Place::Ptr OpPlacePDPD::get_producing_operation() const
 {
     return get_input_port()->get_producing_operation();
+}
+
+Place::Ptr OpPlacePDPD::get_producing_operation(int inputPortIndex) const
+{
+    return get_input_port(inputPortIndex)->get_producing_operation();
+}
+
+Place::Ptr OpPlacePDPD::get_target_tensor(int outputPortIndex) const
+{
+    return Place::get_target_tensor(outputPortIndex);
 }
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,

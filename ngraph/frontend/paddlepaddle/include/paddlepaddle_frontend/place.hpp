@@ -136,35 +136,40 @@ namespace ngraph
             // External API methods
             std::vector<Place::Ptr> get_consuming_ports() const override;
 
+            Ptr get_output_port() const override;
+            Ptr get_output_port(int outputPortIndex) const override;
+            Ptr get_output_port(const std::string& outputPortName) const override;
             Ptr get_output_port(const std::string& outputPortName,
                                 int outputPortIndex) const override;
-            Ptr get_output_port(const std::string& outputPortName) const override;
-            Ptr get_output_port() const override;
 
-            Ptr get_input_port(const std::string& inputName, int inputPortIndex) const override;
-            Ptr get_input_port(const std::string& inputName) const override;
             Ptr get_input_port() const override;
+            Ptr get_input_port(int inputPortIndex) const override;
+            Ptr get_input_port(const std::string& inputName) const override;
+            Ptr get_input_port(const std::string& inputName, int inputPortIndex) const override;
 
-            std::vector<Place::Ptr> get_consuming_operations() const override;
-            std::vector<Place::Ptr>
+            std::vector<Ptr> get_consuming_operations() const override;
+            std::vector<Ptr> get_consuming_operations(int outputPortIndex) const override;
+            std::vector<Ptr>
                 get_consuming_operations(const std::string& outputPortName) const override;
-            std::vector<Place::Ptr> get_consuming_operations(const std::string& outputPortName,
-                                                             int outputPortIndex) const override;
+            std::vector<Ptr> get_consuming_operations(const std::string& outputPortName,
+                                                      int outputPortIndex) const override;
 
-            Place::Ptr get_producing_operation() const override;
-            Place::Ptr get_producing_operation(const std::string& inputName) const override;
-            Place::Ptr get_producing_operation(const std::string& inputName,
-                                               int inputPortIndex) const override;
+            Ptr get_producing_operation() const override;
+            Ptr get_producing_operation(int inputPortIndex) const override;
+            Ptr get_producing_operation(const std::string& inputName) const override;
+            Ptr get_producing_operation(const std::string& inputName,
+                                        int inputPortIndex) const override;
 
-            Place::Ptr get_source_tensor() const override;
-            Place::Ptr get_source_tensor(const std::string& inputName) const override;
-            Place::Ptr get_source_tensor(const std::string& inputName,
-                                         int inputPortIndex) const override;
+            Ptr get_source_tensor() const override;
+            Ptr get_source_tensor(int inputPortIndex) const override;
+            Ptr get_source_tensor(const std::string& inputName) const override;
+            Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const override;
 
-            Place::Ptr get_target_tensor() const override;
-            Place::Ptr get_target_tensor(const std::string& outputName) const override;
-            Place::Ptr get_target_tensor(const std::string& outputName,
-                                         int outputPortIndex) const override;
+            Ptr get_target_tensor() const override;
+            Ptr get_target_tensor(int outputPortIndex) const override;
+            Ptr get_target_tensor(const std::string& outputName) const override;
+            Ptr get_target_tensor(const std::string& outputName,
+                                  int outputPortIndex) const override;
 
         private:
             const paddle::framework::proto::OpDesc& m_op_desc;
