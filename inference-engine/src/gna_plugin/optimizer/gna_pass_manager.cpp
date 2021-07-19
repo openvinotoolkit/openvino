@@ -1018,6 +1018,8 @@ void FlattenTrivialConcatPass::run() {
     }
 }
 
+auto InsertConcatAligningFilterPassLimit = 128;
+
 void InsertConcatAligningFilterPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertConcatAligningFilterPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
@@ -1032,6 +1034,29 @@ void InsertConcatAligningFilterPass::run() {
         size_t offset = 0;
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
+
+        auto minSize = std::numeric_limits<size_t>::max();
+
+        for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
+            auto getLayerByIndex = [&concatLayer](int idx) {
+                auto input = concatLayer->insData[idx];
+                auto lockedInput = input.lock();
+                if (!lockedInput) {
+                    THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
+                }
+                return lockedInput;
+            };
+
+            auto concatInput = getLayerByIndex(input_idx);
+            auto dims = concatInput->getDims();
+            auto outputSize = details::product(++dims.begin(), dims.end()) * bytesPerConcatElement;
+            if (outputSize < minSize) {
+                minSize = outputSize;
+            }
+        }
+
+        if (minSize > InsertConcatAligningFilterPassLimit) continue;
+        concatLayer->params["InsertConcatAligningFilterPassLimit"] = "true";
 
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
@@ -1151,6 +1176,9 @@ void InsertConcatAligningConvolutionFilterPass::run() {
         auto concatLayer = info.as<ConcatLayer*>();
         IE_ASSERT(concatLayer != nullptr);
 
+        const auto processed = concatLayer->GetParamAsBool("InsertConcatAligningFilterPassLimit", false);
+        if (processed) continue;
+
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
             auto getLayerByIndex = [&concatLayer](int idx) {
                 auto input = concatLayer->insData[idx];
@@ -1168,9 +1196,9 @@ void InsertConcatAligningConvolutionFilterPass::run() {
             auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
                 if (concatLayer->insData.size() <= concat_input_idx) return false;
 
-                auto nextInput = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
+                auto sourceLayer = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
 
-                if (LayerInfo(nextInput).isInput()) return false;
+                if (LayerInfo(sourceLayer).isInput()) return false;
 
                 return true;
             };
@@ -1325,100 +1353,6 @@ void InsertConcatAligningConvolutionFilterPass::run() {
 }
 
 void ReorderConcatInputsPass::run() {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
-    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
-    int numOfLinkLayers = 0;
-
-    for (auto& l : *pLayers) {
-        // 1st stage locate concat
-        LayerInfo info(l);
-        if (!info.isConcat()) {
-            continue;
-        }
-
-        // 2nd stage locate first input in concat
-        if (l->insData.size() < 2) {
-            THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers: " << l->name;
-        }
-
-        auto concatLayer = info.as<ConcatLayer*>();
-        auto getLayerByIndex = [&concatLayer](int idx) {
-            auto input = concatLayer->insData[idx];
-            auto lockedInput = input.lock();
-            if (!lockedInput) {
-                THROW_GNA_EXCEPTION << "cannot get insdata : " << idx << " for layer: " << concatLayer->name;
-            }
-            return lockedInput;
-        };
-
-        for (auto input_idx = 1; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto concatInput = getLayerByIndex(input_idx);
-            auto currConcatLayer = getCreatorLayer(concatInput).lock();
-
-            LayerInfo infoConcatInput(currConcatLayer);
-            if (!infoConcatInput.isConcatAlignFilter() && !infoConcatInput.isConcatAlignConvolutionFilter()) {
-                continue;
-            }
-
-            auto inputsToConcatPrev = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin) {
-                return !LayerInfo(origin).isNonFunctional() && !LayerInfo(origin).isSplit();
-                }, input_idx - 1);
-
-            if (inputsToConcatPrev.empty()) {
-                THROW_GNA_EXCEPTION << "cannot locate first input into concat layer: " << currConcatLayer;
-            }
-
-            auto prevInputToConcat = inputsToConcatPrev.front().first;
-
-            // concat has first input of concat align filter - dont need to reorder it
-            if (prevInputToConcat == currConcatLayer) {
-                continue;
-            }
-
-            bool bFinish = false;
-            // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
-            // using ufs - upper first search
-            gnalog() << "[UFS] searching for: " << prevInputToConcat->name << "\n";
-
-            CNNNetDFS(currConcatLayer, [&currConcatLayer, &prevInputToConcat, &bFinish](CNNLayerPtr layer) {
-                gnalog() << "[UFS] from : " << currConcatLayer->name << " reached: " << layer->name << "\n";
-                // found that direct input to concat is a indirect parent of align filter - so no link required
-                if (layer.get() == prevInputToConcat.get() || LayerInfo(prevInputToConcat).isInput()) {
-                    gnalog() << "[UFS] copy layer insertion needed\n";
-                    bFinish = true;
-                }
-                }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
-                    // aborting UFS once link not needed
-                    return make_upstream_order(!bFinish ? from : nullptr);
-                });
-
-            auto linkName = std::string("link_") + std::to_string(numOfLinkLayers++);
-
-            auto linkWithoutQuant = std::make_shared<CNNLayer>(LayerParams({ linkName, "link", Precision::FP32 }));
-
-            auto link = quantized ?
-                InferenceEngine::injectData<QuantizedLayerParams>(linkWithoutQuant) :
-                linkWithoutQuant;
-
-
-            auto linkOutData = std::make_shared<Data>(linkName,
-                TensorDesc(Precision::FP32,
-                    SizeVector({ 1 }),
-                    Layout::C));
-            getCreatorLayer(linkOutData) = link;
-
-            link->outData.push_back(linkOutData);
-            link->insData.push_back(currConcatLayer->outData.front());
-
-            getInputTo(linkOutData)[prevInputToConcat->name + ".via.link"] = prevInputToConcat;
-            prevInputToConcat->insData.push_back(linkOutData);
-
-            getInputTo(currConcatLayer->outData.front())[linkName] = link;
-        }
-    }
-}
-
-void ReorderConcatInputsConvolutionPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ReorderConcatInputsPass");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     int numOfLinkLayers = 0;
