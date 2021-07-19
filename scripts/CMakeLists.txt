@@ -47,6 +47,12 @@ if(UNIX)
             COMPONENT install_dependencies)
 endif()
 
+# install DeploymentManager
+ie_cpack_add_component(deployment_manager REQUIRED)
+install(DIRECTORY deployment_manager/
+        DESTINATION deployment_tools/tools/deployment_manager
+        COMPONENT deployment_manager)
+
 # install files for demo
 
 ie_cpack_add_component(demo_scripts DEPENDS core)
