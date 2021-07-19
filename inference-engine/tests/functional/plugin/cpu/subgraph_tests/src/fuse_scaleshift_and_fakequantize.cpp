@@ -46,7 +46,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         threshold = 0.1f;
 
         Shape inputShape;

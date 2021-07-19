@@ -15,7 +15,7 @@ namespace CPULayerTestsDefinitions {
 class InputNoReorderEltwiseBF16 : virtual public LayerTestsUtils::LayerTestsCommon,
                                   public CPUTestsBase {
 protected:
-    void SetUp() {
+    void SetUp() override {
         auto netPrecision = inPrc = Precision::FP32;
         outPrc = Precision::BF16;
         targetDevice = CommonTestUtils::DEVICE_CPU;

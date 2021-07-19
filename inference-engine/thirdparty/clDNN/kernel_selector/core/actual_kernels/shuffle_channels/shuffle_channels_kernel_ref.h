@@ -15,8 +15,6 @@ struct shuffle_channels_params : public base_params {
 
     int32_t group;
     int32_t axis;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

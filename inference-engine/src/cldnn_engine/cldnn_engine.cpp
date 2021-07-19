@@ -83,6 +83,7 @@
 #include "gpu/gpu_config.hpp"
 
 #include "cldnn/runtime/device_query.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -192,7 +193,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
             manager.register_pass<ngraph::pass::ConvertGather0D>();
-            manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
 
             static const precisions_array convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},
@@ -436,6 +436,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
             manager.run_passes(nGraphFunc);
         }
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        clonedNetwork.serialize(debug_config->dump_graphs + "/transformed_func.xml");
     }
     return clonedNetwork;
 }

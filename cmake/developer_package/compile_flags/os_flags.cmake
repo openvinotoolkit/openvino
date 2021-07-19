@@ -3,6 +3,7 @@
 #
 
 include(ProcessorCount)
+include(CheckCXXCompilerFlag)
 
 #
 # Disables deprecated warnings generation
@@ -292,9 +293,14 @@ else()
     elseif(UNIX)
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            ie_add_compiler_flags(-Wno-error=switch)
+            ie_add_compiler_flags(-Wno-error=switch
+                                  -Winconsistent-missing-override)
         else()
             ie_add_compiler_flags(-Wmaybe-uninitialized)
+            check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+            if(SUGGEST_OVERRIDE_SUPPORTED)
+                set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+            endif()
         endif()
     endif()
 
@@ -313,5 +319,30 @@ else()
     elseif(LINUX)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
     endif()
 endif()
+
+# Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
+function(link_system_libraries TARGET_NAME)
+    set(MODE PRIVATE)
+
+    foreach(arg IN LISTS ARGN)
+        if(arg MATCHES "(PRIVATE|PUBLIC|INTERFACE)")
+            set(MODE ${arg})
+        else()
+            if(TARGET "${arg}")
+                target_include_directories(${TARGET_NAME}
+                    SYSTEM ${MODE}
+                        $<TARGET_PROPERTY:${arg},INTERFACE_INCLUDE_DIRECTORIES>
+                        $<TARGET_PROPERTY:${arg},INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+                )
+            endif()
+
+            target_link_libraries(${TARGET_NAME}
+                ${MODE}
+                    ${arg}
+            )
+        endif()
+    endforeach()
+endfunction()

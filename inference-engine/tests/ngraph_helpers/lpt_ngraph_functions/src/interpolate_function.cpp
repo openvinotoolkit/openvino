@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> InterpolateFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::Shape& outputShape,
     const ngraph::op::InterpolateAttrs& interpAttrs) {
     float k = 50.f;
