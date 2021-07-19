@@ -49,9 +49,9 @@ void convert_gather_indices_to_unsigned(const NodeVector& gather_nodes) {
     }
 }
 
-NodeVector get_NmsGather_destinations(const shared_ptr<Node>& nms_node) {
+NodeVector get_NmsGather_destinations(const shared_ptr<Node> &nms_node) {
     NodeVector res;
-    set<string> skip_node_types = {
+    static const set<string> skip_node_types = {
             opset8::Squeeze::type_info.name,
             opset8::Unsqueeze::type_info.name,
             opset8::Reshape::type_info.name,
