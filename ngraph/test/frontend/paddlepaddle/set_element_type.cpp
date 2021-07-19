@@ -21,6 +21,6 @@ static SetTypeFEParam getTestData_relu()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndElementTypeTest,
-                        ::testing::Values(getTestData_relu()),
-                        FrontEndElementTypeTest::getTestCaseName);
+                         FrontEndElementTypeTest,
+                         ::testing::Values(getTestData_relu()),
+                         FrontEndElementTypeTest::getTestCaseName);
