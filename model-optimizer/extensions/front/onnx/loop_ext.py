@@ -35,7 +35,7 @@ class LoopExtractor(FrontExtractorOp):
                 main_graph_attrs_copy[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
         body_graph.graph.update(main_graph_attrs_copy)
         loop_node['body'] = body_graph
-        # save graph for nested loops
+        # save parent node for nested loops to know which node contains body (and which graph is on upper level)
         body_graph.graph['parent_node'] = loop_node
 
         # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
@@ -45,6 +45,7 @@ class LoopExtractor(FrontExtractorOp):
         body_parameters = add_initializers_and_inputs_to_graph(body_graph, body_graph_proto, data_nodes_map)
 
         external_edges = []  # (src_node, src_out_port), dest_body_parameter_node
+        # save additional edeges information for graph on each level, the first one is the deepest
         additional_params = []  # (src_node, src_out_port) -> parameter_node (for manually added Parameters)
         # Go through all nodes in the original model order because data nodes are defined on-the-fly and order matters
         for pb_node in body_graph_proto.node:
@@ -66,13 +67,17 @@ class LoopExtractor(FrontExtractorOp):
                         counter = 0
                         is_finished = False
                         transit_parameter = None
+                        # go through all levels of nested graphs starting from the deepest
                         while not is_finished and 'parent_node' in cur_graph.graph:
                             parent_graph = cur_graph.graph['parent_node'].graph
                             external_edges.append([])
                             additional_params.append({})
+                            # if parent graph contains input node, create edge from outer to inner graph
                             if inp in parent_graph.graph['tensor_mapping']:
                                 log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
+                                # if parameter in inner graph already created, use it. Otherwise - create new one
                                 if parent_graph.graph['tensor_mapping'][inp] not in additional_params[counter-1]:
+                                    # possibly we create edge through several levels and have created transit parameter
                                     if transit_parameter is None:
                                         # create new Parameter body node and connect the body node with the outer graph using it
                                         param_id = str(inp)
@@ -92,15 +97,23 @@ class LoopExtractor(FrontExtractorOp):
                                     src_id, src_port = additional_params[counter-1][parent_graph.graph['tensor_mapping'][inp][0]].id, 0
                                 is_finished = True
                             else:
-                                # create new Parameter in hope that we will find node later
-                                param_id = str(inp).split(':')[0]
-                                cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None,
-                                                   shape=None)
-                                parameter_node = Node(cur_graph, param_id)
-                                # need to manually update necessary attrs for the node because extractor will not be called
-                                # for it because the node does not have .pb attribute
-                                Parameter.update_node_stat(parameter_node, {})
+                                # check that we are not in process of creating edge through several borders
+                                # if we have transit node, it becomes destination of edge
+                                # otherwise create new Parameter
+                                if transit_parameter is None:
+                                    # create new Parameter in inner graph in hope that we will find node later
+                                    param_id = str(inp).split(':')[0]
+                                    cur_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None,
+                                                       shape=None)
+                                    parameter_node = Node(cur_graph, param_id)
+                                    # need to manually update necessary attrs for the node because extractor will not be called
+                                    # for it because the node does not have .pb attribute
+                                    Parameter.update_node_stat(parameter_node, {})
+                                else:
+                                    parameter_node = transit_parameter
+                                    param_id = transit_parameter.id
 
+                                # create transit parameter in outer graph in hope that real input will be found later
                                 parent_param_id = str(inp).split(':')[0]+"_transit"
                                 parent_graph.add_node(parent_param_id, kind='op', op='Parameter', name=parent_param_id,
                                                       pb=None, shape=None)
