@@ -29,7 +29,7 @@ is recommended to use clang compiler.
 ```bash
 (\
 mkdir -p build && cd build && \
-CC=clang-10 CXX=clang++-10 cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF && \
+CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF && \
 cmake --build . \
 )
 ```
@@ -42,7 +42,7 @@ You should use the same compiler as was used for the openvino build.
 ```bash
 (\
 mkdir -p tests/fuzz/build && cd tests/fuzz/build && \
-CC=clang-10 CXX=clang++-10 cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF -DInferenceEngine_DIR=$(pwd)/../../../build && \
+CC=clang CXX=clang++ cmake .. -DENABLE_FUZZING=ON -DENABLE_SANITIZER=ON -DTREAT_WARNING_AS_ERROR=OFF -DInferenceEngine_DIR=$(pwd)/../../../build && \
 cmake --build . \
 )
 ```
@@ -52,12 +52,16 @@ cmake --build . \
 1. Prepare fuzzing corpus
 
 Fuzzing engine needs a set of valid inputs to start fuzzing from. Those files
-are called a fuzzing corpus. Use tests/fuzz/scripts/init_corpus.py script to
-prepare fuzzing corpus.
+are called a fuzzing corpus. Place valid inputs for the fuzzing test into
+directory.
+
+Intel employees can get the corpus as described here
+https://wiki.ith.intel.com/x/2N42bg. 
+
+2. Run fuzzing
 
 ```bash
-tests/fuzz/scripts/init_corpus.py ./pdpd_layer_models/**/*.pdmodel --join pdiparams && \
-mkdir -p import_pdpd-corpus && find ./pdpd_layer_models/ -name "*.fuzz" -exec cp \{\} ./import_pdpd-corpus \;
+./read_network-fuzzer -max_total_time=600 ./read_network-corpus
 ```
 Consider adding those useful command line options:
 - `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel.
@@ -65,22 +69,21 @@ Consider adding those useful command line options:
 
 ## Analyzing fuzzing quality
 
-2. Run fuzzing
+### Explore code coverage
 
-```bash
-OV_FRONTEND_PATH=$(pwd)/lib ./import_pdpd-fuzzer -max_total_time=600 ./import_pdpd-corpus
+To build coverage report after fuzz test execution run:
+
 ```
-Consider adding those useful command line options:
-- `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel.
-- `-rss_limit_mb=0` to ignore out-of-memory issues.
+llvm-profdata merge -sparse *.profraw -o default.profdata && \
+llvm-cov show ./read_network-fuzzer -instr-profile=default.profdata -format=html -output-dir=read_network-coverage
+```
 
-## Debugging failures
+## Reproducing findings
 
 Fuzzing run halts on the first issue identified, prints issue details to stdout and save data to reproduce the issue as a file in the current folder. To debug the issue pass reproducer as command line argument to fuzz test
 
 ```bash
-OV_FRONTEND_PATH=$(pwd)/lib ./import_pdpd-fuzzer crash-409b5eeed46a8445b7f7b7a2ce5b60a9ad895e3b
+./read_network-fuzzer crash-409b5eeed46a8445b7f7b7a2ce5b60a9ad895e3b
 ```
 
 It is recommended but not required to use binaries built for fuzzing to debug the issues. A binaries built without `ENABLE_FUZZING` options can also be used to reproduce and debug the issues.
-    
