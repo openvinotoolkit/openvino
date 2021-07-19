@@ -54,10 +54,8 @@ static std::string NameFromType(Type type) {
             return "Lrn";
         case Pooling:
             return "Pooling";
-        case AdaptiveAvgPooling:
-            return "AdaptiveAvgPooling";
-        case AdaptiveMaxPooling:
-            return "AdaptiveMaxPooling";
+        case AdaptivePooling:
+            return "AdaptivePooling";
         case FullyConnected:
             return "FullyConnected";
         case MatMul:

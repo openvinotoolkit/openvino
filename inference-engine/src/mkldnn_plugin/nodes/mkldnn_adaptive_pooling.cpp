@@ -57,8 +57,6 @@ MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngrap
         algorithm = Algorithm::AdaptivePoolingAvg;
     } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::type_info)) {
         algorithm = Algorithm::AdaptivePoolingMax;
-    } else {
-        errorMessage = "Unsupported Adaptive pooling mode";
     }
 }
 
@@ -68,8 +66,6 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
 
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
     if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
@@ -77,7 +73,7 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     auto childDims = getChildEdgeAt(0)->getDims();
 
     spatialDimsCount = parentDims.ndims() - 2;
-    if (spatialDimsCount != 1 && spatialDimsCount != 2 && spatialDimsCount != 3) {
+    if (!one_of(spatialDimsCount, 1, 2, 3)) {
         IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
     }
 
@@ -121,7 +117,7 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
                     indexFmt = memory::format_tag::ncdhw;
                     break;
                 default:
-                    IE_THROW() << "Incorrect spatial dims count(" << spatialDimsCount << ")";
+                    IE_THROW() << errorPrefix << "has incorrect spatial dims count(" << spatialDimsCount << ")";
             }
             config.outConfs[1].desc = MKLDNNMemoryDesc(getChildEdgeAt(1)->getDims(), memory::data_type::s32, indexFmt);
         }
@@ -170,7 +166,7 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
     if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
-        IE_THROW() <<"Adaptive Pooling doesn't support demanded precisions";
+        IE_THROW() << errorPrefix << "doesn't support demanded precisions";
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -191,8 +187,8 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto *dst = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     if (srcMemory1.GetElementsCount() != spatialDimsCount)
-        IE_THROW() << "Adaptive pooling input spatial dimension (" << srcMemory1.GetElementsCount()
-                   << ") isn't equal to pooling vector size (" << spatialDimsCount << ")";
+        IE_THROW() << errorPrefix << "has input spatial dimension (" << srcMemory1.GetElementsCount()
+                   << ") inconsistent with pooling vector size (" << spatialDimsCount << ")";
 
     auto inputDimVector = srcMemory0.GetDims();
     const int N = static_cast<int>(inputDimVector[0]);
@@ -212,7 +208,7 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     const int blockCount = chPadding / blockSize;
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU Adaptive Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
+        IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
     auto srcStrides = config.inConfs[0].desc.getBlockingDesc().getStrides();
     auto dstStrides = config.outConfs[0].desc.getBlockingDesc().getStrides();
@@ -238,12 +234,12 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
-        float res = srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];        // initial max value
+        float res = srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];  // initial max value
         int resIndex = dStart * iHW + hStart * IW + wStart;  // initial max index
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                 for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                  float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                    float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
                     resIndex = (res < curr ? pixD * iHW + pixH * IW + pixW : resIndex);
                     res = std::max(res, curr);
                 }
@@ -259,7 +255,7 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
         auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
         if (binSize == 0)
-            THROW_IE_EXCEPTION << "Bin of adaptive pooling must be non empty";
+            IE_THROW() << errorPrefix << "has empty bin";
         float sum = 0;
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
@@ -269,7 +265,7 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
                 }
             }
         }
-        *dstData = sum / binSize;;
+        *dstData = sum / binSize;
     };
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
@@ -304,15 +300,14 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
 }
 
 bool MKLDNNAdaptivePoolingNode::created() const {
-    return getType() == (algorithm == Algorithm::AdaptivePoolingAvg ? AdaptiveAvgPooling : AdaptiveMaxPooling);
+    return getType() == AdaptivePooling;
 }
 
 void MKLDNNAdaptivePoolingNode::createPrimitive() {}
 
 inline void MKLDNNAdaptivePoolingNode::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;
-    *(endPtr) = ceil(static_cast<double>((idx + 1) * inputLength) / outputLength);
+    *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNAdaptivePoolingNode, AdaptiveAvgPooling)
-REG_MKLDNN_PRIM_FOR(MKLDNNAdaptivePoolingNode, AdaptiveMaxPooling)
+REG_MKLDNN_PRIM_FOR(MKLDNNAdaptivePoolingNode, AdaptivePooling)

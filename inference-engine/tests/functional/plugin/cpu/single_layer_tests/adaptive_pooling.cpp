@@ -87,11 +87,7 @@ protected:
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
-    if (mode == "avg") {
-        CheckPluginRelatedResults(executableNetwork, "AdaptiveAvgPooling");
-    } else {
-        CheckPluginRelatedResults(executableNetwork, "AdaptiveMaxPooling");
-    }
+    CheckPluginRelatedResults(executableNetwork, "AdaptivePooling");
 }
 
 namespace {
