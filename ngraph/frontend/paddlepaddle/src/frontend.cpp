@@ -63,7 +63,7 @@ namespace ngraph
 
                 try
                 {
-                    return CREATORS_MAP.at(op->type())(
+                    return CREATORS_MAP.at(op.type())(
                         NodeContext(DecoderPDPDProto(op_place), named_inputs));
                 }
                 catch (...)
@@ -121,9 +121,9 @@ namespace ngraph
                 const auto& shape = inp_place->get_partial_shape();
                 const auto& type = inp_place->get_element_type();
                 auto param = std::make_shared<Parameter>(type, shape);
-                param->set_friendly_name(var->name());
-                param->output(0).get_tensor().add_names({var->name()});
-                nodes_dict[var->name()] = param;
+                param->set_friendly_name(var.name());
+                param->output(0).get_tensor().add_names({var.name()});
+                nodes_dict[var.name()] = param;
                 parameter_nodes.push_back(param);
             }
 
