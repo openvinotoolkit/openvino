@@ -752,12 +752,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
+        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+        passes->registerPass<BroadcastConstPass>();
+
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 
-        passes->registerPass<BroadcastConstPass>();
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
@@ -775,7 +777,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         passes->registerPass<ForbidActivationFusingPass>();
 #endif
-        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passIdx = passes->run(passIdx);
     };
