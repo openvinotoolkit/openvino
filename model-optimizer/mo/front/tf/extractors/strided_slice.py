@@ -31,6 +31,7 @@ class StridedSliceFrontExtractor(FrontExtractorOp):
             'ellipsis_mask': int_to_array_bit_mask(pb.attr["ellipsis_mask"].i),
             'new_axis_mask': int_to_array_bit_mask(pb.attr["new_axis_mask"].i),
             'shrink_axis_mask': int_to_array_bit_mask(pb.attr["shrink_axis_mask"].i),
+            'reinterp_shape': True,
         }
 
         StridedSlice.update_node_stat(node, attrs)
