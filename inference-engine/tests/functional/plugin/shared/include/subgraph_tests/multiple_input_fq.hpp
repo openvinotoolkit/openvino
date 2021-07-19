@@ -5,7 +5,7 @@
 #ifndef MULTIPLE_INPUT_HPP
 #define MULTIPLE_INPUT_HPP
 
-#include "shared_test_classes/subgraph/multiple_input.hpp"
+#include "shared_test_classes/subgraph/multiple_input_fq.hpp"
 
 namespace SubgraphTestsDefinitions {
 
