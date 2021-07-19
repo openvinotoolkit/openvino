@@ -46,6 +46,7 @@ protected:
     void SetUp() override;
     void GenerateInputs() override;
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
+    ngraph::PartialShape vec2partialshape(std::vector<std::vector<size_t>> inputShape);
 };
 // ! [test_convolution:definition]
 

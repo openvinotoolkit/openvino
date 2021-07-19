@@ -47,13 +47,7 @@ void ConvolutionLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetStaticShape, targetDevice) =
         this->GetParam();
-    // TODO: Can go to vec2partialshape()
-    std::vector<ngraph::Dimension> dimensions;
-    for (auto i : inputShape) {
-        dimensions.push_back(ngraph::Dimension(i[0], i[1]));
-    }
-    inputDynamicShape = ngraph::PartialShape(dimensions);
-    //
+    inputDynamicShape = vec2partialshape(inputShape);
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -94,5 +88,19 @@ InferenceEngine::Blob::Ptr ConvolutionLayerTest::GenerateInput(const InferenceEn
     return FuncTestUtils::createAndFillBlob(
         InferenceEngine::TensorDesc(info.getPrecision(), targetStaticShape,
                                     const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
+}
+
+ngraph::PartialShape ConvolutionLayerTest::vec2partialshape(std::vector<std::vector<size_t>> inputShape) {
+    if (inputShape.empty()) {
+        for (auto&& item : targetStaticShape) {
+            inputShape.push_back({item, item});
+        }
+    }
+    std::vector<ngraph::Dimension> dimensions;
+    dimensions.reserve(inputShape.size());
+    for (auto&& item : inputShape) {
+        dimensions.emplace_back(item[0], item[1]);
+    }
+    return ngraph::PartialShape(dimensions);
 }
 }  // namespace LayerTestsDefinitions
