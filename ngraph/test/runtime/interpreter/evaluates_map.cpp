@@ -346,6 +346,60 @@ namespace
     }
 
     template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v8::DeformableConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs) {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
+        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto& out_shape = outputs[0]->get_shape();
+        const auto& in_shape = inputs[0]->get_shape();
+        const auto& offset_shape = inputs[1]->get_shape();
+        const auto& filter_shape = inputs[2]->get_shape();
+        if (inputs.size() == 3) {
+            runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+                    in_data_ptr,
+                    offset_data_ptr,
+                    filter_data_ptr,
+                    out_data_ptr,
+                    in_shape,
+                    offset_shape,
+                    filter_shape,
+                    out_shape,
+                    op->get_strides(),
+                    op->get_dilations(),
+                    op->get_pads_begin(),
+                    op->get_pads_end(),
+                    op->get_group(),
+                    op->get_deformable_group(),
+                    op->get_bilinear_interpolation_pad());
+        } else {
+            const auto mask_data_ptr = inputs[3]->get_data_ptr<ET>();
+            const auto& mask_shape = inputs[3]->get_shape();
+            runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+                    in_data_ptr,
+                    offset_data_ptr,
+                    filter_data_ptr,
+                    mask_data_ptr,
+                    out_data_ptr,
+                    in_shape,
+                    offset_shape,
+                    filter_shape,
+                    mask_shape,
+                    out_shape,
+                    op->get_strides(),
+                    op->get_dilations(),
+                    op->get_pads_begin(),
+                    op->get_pads_end(),
+                    op->get_group(),
+                    op->get_deformable_group(),
+                    op->get_bilinear_interpolation_pad());
+        }
+        return true;
+    }
+
+    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -1173,7 +1227,7 @@ namespace
                                                 info.selected_outputs_shape,
                                                 selected_indices.data(),
                                                 info.selected_indices_shape,
-                                                valid_outputs.data());                                                  
+                                                valid_outputs.data());
 
         void* pscores = nullptr;
         void* pselected_num = nullptr;
@@ -2383,18 +2437,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
-                                             inputs[1]->get_data_ptr<const T>(),
-                                             inputs[2]->get_data_ptr<const T>(),
-                                             inputs[3]->get_data_ptr<const T>(),
-                                             inputs[4]->get_data_ptr<const T>(),
-                                             outputs[0]->get_data_ptr<T>(),
-                                             op->get_input_shape(0),
-                                             op->get_input_shape(1),
-                                             op->get_input_shape(2),
-                                             op->get_input_shape(3),
-                                             op->get_input_shape(4),
-                                             op->get_levels());
+        runtime::reference::v0::fake_quantize<T>(inputs[0]->get_data_ptr<const T>(),
+                                                 inputs[1]->get_data_ptr<const T>(),
+                                                 inputs[2]->get_data_ptr<const T>(),
+                                                 inputs[3]->get_data_ptr<const T>(),
+                                                 inputs[4]->get_data_ptr<const T>(),
+                                                 outputs[0]->get_data_ptr<T>(),
+                                                 op->get_input_shape(0),
+                                                 op->get_input_shape(1),
+                                                 op->get_input_shape(2),
+                                                 op->get_input_shape(3),
+                                                 op->get_input_shape(4),
+                                                 op->get_levels(),
+                                                 op->get_auto_broadcast());
         return true;
     }
 
@@ -2469,7 +2524,7 @@ namespace
                     op->get_merge_repeated());
             }
         }
-    }
+    } // ctc_greedy_decoder_v6
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
                   const HostTensorVector& outputs,
@@ -2727,7 +2782,7 @@ namespace
     {
         using T = typename element_type_traits<ET>::value_type;
         NGRAPH_CHECK(inputs.size() > 1 && inputs[1]->get_shape().size() == 2,
-                        "2D tensor must be provided as second input. ");
+                     "2D tensor must be provided as second input. ");
         outputs[0]->set_shape({inputs[1]->get_shape()[0],
                                static_cast<size_t>(op->get_output_dim()),
                                static_cast<size_t>(op->get_group_size()),

@@ -977,17 +977,16 @@ void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
     }
 }
 
-void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
+void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
+    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
+        if ((*it) == edge) {
+            graphEdges.erase(it);
+            return;
         }
-    };
+    }
+}
 
+void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1009,14 +1008,14 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1026,16 +1025,6 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1062,14 +1051,14 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1088,7 +1077,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (remEdge) {
             inNum = remEdge->getInputNum();
             remEdge->drop();
-            removeEdge(*this, remEdge);
+            RemoveEdge(remEdge);
         }
         int outNum = parentConv->parentEdges.size();
 
