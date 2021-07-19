@@ -1,13 +1,12 @@
-# OpenVINO™ Python* openvino.tools package
+# OpenVINO™ Python* development tools
 
 ## General
-`openvino.tools` package includes:
+OpenVINO includes following tools:
 * openvino.tools.benchmark
 
 Please, refer to https://docs.openvinotoolkit.org for details.
 
 ## Installation
-Choose necessary Python\* version and define `PYTHONPATH` environment variable.
 
 ### Prerequisites
 
@@ -15,11 +14,12 @@ Install prerequisites first:
 
 #### 1. Python
 
-**openvino.tools** is **Python 3** library. Install it first:
+Install **Python** prerequisites:
 
 - [Python3][python3]
 - [setuptools][setuptools]
 
+Run following command to install these prerequisites on Ubuntu*:
 ```bash
 sudo apt-get install python3 python3-dev python3-setuptools python3-pip
 ```
@@ -49,13 +49,17 @@ Virtual environment can be deactivated using command
 deactivate
 ```
 
-#### 2. Install package prerequisites
+#### 2. Install packages
 
-The next step is installing package prerequisites.
+You can install tools by specifying path to tool with `setup.py` in `pip install` command:
 
 ```bash
-python3 -m pip install -r benchmark/requirements.txt
+python3 -m pip install <tools_folder>/
 ```
+For example, to install Benchmark Tool, use the following command:  
+```bash
+python3 -m pip install benchmark_tool/
+  ```
 
 ### Configuration
 

@@ -839,6 +839,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
         }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
+
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
