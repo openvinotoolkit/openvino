@@ -33,49 +33,23 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
-        auto ins = in[0];
-        auto outs = in[1];
+        auto tile_rank = in[0]; // count of tile dimensions
+        auto nparams = in[1];
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 param    { dnnl::impl::cpu::x64::abi_param1 }; // RDI
-        Xbyak::Reg64 shedule  { dnnl::impl::cpu::x64::abi_param2 }; // RSI
+        Xbyak::Reg64 param   { dnnl::impl::cpu::x64::abi_param1 }; // RDI
+        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param3 }; // RDX
 
         h->preamble();
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start+ins+outs);
 
-        std::vector<Xbyak::Reg64> regs(ins+outs);
-        for (auto i = 0; i < regs.size(); i++) {
-            regs[i] = Xbyak::Reg64(reg64_tmp_start+i);
+        std::vector<Xbyak::Reg64> regs(nparams);
+        for (auto i = 0; i < nparams; i++) {
+            regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
+            h->mov(regs[i], h->ptr[param + i * sizeof(int64_t)]);
         }
 
-        for (auto i = 0; i < ins; i++) {
-            h->mov(regs[i], h->ptr[param + i*sizeof(size_t)]);
-        }
-
-        for (auto i = 0; i < outs; i++) {
-            h->mov(regs[ins+i], h->ptr[param + (ins+i)*sizeof(size_t)]);
-        }
-
-        // the rest of parameters is going through the stack.
-
-        h->mov(amount, h->ptr[shedule/* + sizeof(size_t)*(ins+outs)*/]);
-
-        /// update parameters with offsets.
-        // for (size_t i = 0; i < n; i++) {
-        //     ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] + d2*offsets_in[i][2] + d3*offsets_in[i][3] + d4*offsets_in[i][4]);
-        // }
-        // for (size_t i = 0; i < m; i++) {
-        //     ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
-        // }
-        // ca.push(static_cast<size_t>(*dom.rbegin()));
-        // in case of dynamic dimension from parameters/extended parameters on stack
-
-        // for (auto i = 0; i < ins; i++) {
-        //     h->add(regs[i], imm);
-        // }
-
-        // for (auto i = 0; i < outs; i++) {
-        //     h->add(regs[ins+i], imm);
-        // }
+        // external amount
+        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + nparams);
+        h->mov(amount, h->ptr[schedule + (tile_rank - 1) * sizeof(int64_t)]);
 
         for (auto& c : code) {
             c.first->emit_code(c.second.first, c.second.second);
@@ -108,21 +82,43 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
+        const size_t inc = in[0];
         auto nparams = in[1];
-        int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start+nparams);
-        size_t inc   = in[0];
+        auto dim = in[2]; // number of tile dimension
+        const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
+        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + nparams); // amount
+        Xbyak::Reg64 offsets { dnnl::impl::cpu::x64::abi_param2 }; // RSI
+        Xbyak::Reg64 shedule { dnnl::impl::cpu::x64::abi_param3 }; // RDX
+
+        std::vector<Xbyak::Reg64> regs(nparams);
+        if (dim > 0) {
+            for (auto i = 0; i < nparams; i++) {
+                regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
+            }
+        }
 
         std::array<Xbyak::Label, 2> for_body;
         // loop_entry()
+        if (dim == 0 && inc != 1)
+            h->mov(amount, h->ptr[shedule + dim * sizeof(int64_t)]);
+
         h->cmp(amount, inc);
         h->jl(for_body[1], Xbyak::CodeGenerator::T_NEAR);
 
         // loop_body()
         h->L(for_body[0]); {
+            h->push(amount);
             for (auto& c : code) {
                 c.first->emit_code(c.second.first, c.second.second);
             }
+            h->pop(amount);
+
+            if (dim > 0) {
+                for (auto i = 0; i < nparams; i++) {
+                    h->add(regs[i], h->ptr[offsets + i * sizeof(int64_t)]);
+                }
+            }
+
             // loop_advance()
             h->sub(amount, inc);
             h->cmp(amount, inc);

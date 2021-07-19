@@ -43,7 +43,9 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
 
     auto params = f->get_parameters();
     auto results = f->get_results();
-    auto nptrs = results.size() + params.size();
+    auto in = params.size();
+    auto out = results.size();
+    auto nptrs = in + out;
 
     if (nptrs > 7) {
         throw ngraph_error("snippet signature should not exceed 7 arguments. got " + std::to_string(nptrs));
@@ -67,16 +69,23 @@ ngraph::snippets::code ngraph::snippets::Generator::generate(std::shared_ptr<ngr
         scalar_lowered.push_back(std::make_pair(target->get(n->get_type_info())(n), ngraph::snippets::getRegisters(n)));
     }
 
-    // wrapping into tiles
-    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles;
-    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(lowered)),
-                                   std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs}), std::vector<size_t>{})));
-    tiles.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered)),
-                    std::make_pair(std::vector<size_t>{{1, nptrs}}, std::vector<size_t>{})));
+    // max tile rank - 2
+    const size_t tile_rank = 2;
 
+    // wrapping into tiles1D
+    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles1D;
+    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(lowered)),
+                                   std::make_pair(std::vector<size_t>({target->get_lanes(), nptrs, 0}), std::vector<size_t>{})));
+    tiles1D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(scalar_lowered)),
+                    std::make_pair(std::vector<size_t>{{1, nptrs, 0}}, std::vector<size_t>{})));
+
+    // wrapping into tiles2D
+    std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>> tiles2D;
+    tiles2D.push_back(std::make_pair(target->get(ngraph::snippets::op::Tile::type_info)(std::make_shared<ngraph::snippets::op::Tile>(tiles1D)),
+                                     std::make_pair(std::vector<size_t>({1, nptrs, 1}), std::vector<size_t>{})));
     // emission
-    std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::type_info)(std::make_shared<ngraph::snippets::op::Kernel>(tiles));
-    kernel->emit_code({params.size(), results.size()}, {});
+    std::shared_ptr<Emitter> kernel = target->get(ngraph::snippets::op::Kernel::type_info)(std::make_shared<ngraph::snippets::op::Kernel>(tiles2D));
+    kernel->emit_code({tile_rank, nptrs}, {});
 
     lowered.insert(lowered.end(), scalar_lowered.begin(), scalar_lowered.end());
     for (auto& op : lowered) {
