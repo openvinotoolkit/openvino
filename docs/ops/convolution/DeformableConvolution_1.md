@@ -8,15 +8,15 @@
 
 **Detailed description**: *Deformable Convolution* is similar to regular *Convolution* but its receptive field is deformed because of additional spatial offsets used during input sampling. More thorough explanation can be found in [Deformable Convolutions Demystified](https://towardsdatascience.com/deformable-convolutions-demystified-2a77498699e8) and [Deformable Convolutional Networks](https://arxiv.org/abs/1703.06211).
 
-Output is calculated using the following formula: 
+Output is calculated using the following formula:
 
   \f[
 
   y(p) = \sum_{k = 1}^{K}w_{k}x(p + p_{k} + {\Delta}p_{k})
-  
+
   \f]
 
-Where 
+Where
 * K is a number of sampling locations, e.g. for kernel 3x3 and dilation = 1, K = 9
 
 * \f$x(p)\f$ and \f$y(p)\f$ denote the features at location p from the input feature maps x and output feature maps y
@@ -35,7 +35,6 @@ Where
   * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(y,x)` axes. For example, *strides* equal `2,1` means sliding the filter 2 pixel at a time over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -43,7 +42,6 @@ Where
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -52,7 +50,6 @@ Where
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -61,7 +58,6 @@ Where
   * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: integer value starting from `0`
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -95,11 +91,11 @@ Where
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
+*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). **Required.**
 
-*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). Required.
+*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). **Required.**
 
-*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
+*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). **Required.**
 
 
 **Outputs**:
@@ -109,7 +105,7 @@ Where
 **Types**:
 
 * *T*: Any numeric type.
- 
+
 **Example**
 
 2D DeformableConvolution (deformable_group=1)

@@ -16,7 +16,6 @@ namespace ngraph
         public:
             InputModelONNX(const std::string& path);
 
-
             std::vector<Place::Ptr> get_inputs() const override;
             Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const override;
             void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override;
