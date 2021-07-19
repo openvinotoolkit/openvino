@@ -102,9 +102,8 @@ class LayoutChangeForEinsumTests(unittest.TestCase):
                                            'correct_in_data_layout': [0, 1, 2],
                                            'correct_out_data_layout': [0]},
                                 # [2, 7, 8, 10, 12] - NHWC
-                                # the output is in NCHW layout but its shape will be re-inferred since
-                                # the output stays in NHWC layout due to ellipsis in the end
-                                # and additional transpose to NCHW will be inserted
+                                # this output does not require additional transpose
+                                # since the corresponding layout is correct
                                 'einsum_d': {'shape': np.array([2, 7, 8, 10, 12])},
                             }, nodes_with_edges_only=True)
         graph.graph['layout'] = 'NHWC'
