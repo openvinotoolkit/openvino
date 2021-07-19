@@ -8,28 +8,19 @@
 
 **Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in [Convolutional Neural Networks](http://cs231n.github.io/convolutional-networks/#conv) and [Convolution operation](https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c).  
 
-For the convolutional layer, the number of output features in each dimension is calculated using the formula:  
-\f[
-n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
-\f] 
+For the convolutional layer, the number of output features in each dimension is calculated using the formula:
+
+![n_{out}=\left(\frac{n_{in}+2p-k}{s}\right)+1](https://latex.codecogs.com/svg.image?n_{out}=\left(\frac{n_{in}&plus;2p-k}{s}\right)&plus;1)
 
 The receptive field in each layer is calculated using the formulas:  
 *   Jump in the output feature map:  
-  \f[
-  j_{out} = j_{in} * s
-  \f]
+  ![j_{out}=j_{in}*s](https://latex.codecogs.com/svg.image?\inline&space;j_{out}=j_{in}*s)
 *   Size of the receptive field of output feature:  
-  \f[
-  r_{out} = r_{in} + ( k - 1 ) * j_{in}
-  \f]
+  ![r_{out}=r_{in}+(k-1)*j_{in}](https://latex.codecogs.com/svg.image?\inline&space;r_{out}=r_{in}&plus;(k-1)*j_{in})
 *   Center position of the receptive field of the first output feature:  
-  \f[
-  start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
-  \f]
-*   Output is calculated using the following formula: 
-  \f[
-  out = \sum_{i = 0}^{n}w_{i}x_{i} + b
-  \f]
+  ![start_{out}=start_{in}+(\frac{k-1}{2}-p)*j_{in}](https://latex.codecogs.com/svg.image?\inline&space;start_{out}=start_{in}&plus;(\frac{k-1}{2}-p)*j_{in})
+*   Output is calculated using the following formula:  
+  ![out=\sum_{i=0}^{n}w_{i}x_{i}+b](https://latex.codecogs.com/svg.image?\inline&space;out=\sum_{i=0}^{n}w_{i}x_{i}&plus;b)
 
 **Attributes**:
 
