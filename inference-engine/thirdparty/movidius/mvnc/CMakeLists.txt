@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+project(mvnc LANGUAGES C)
+
 set(TARGET_NAME "mvnc")
 
 include(${XLINK_DIR}/XLink.cmake)
@@ -71,7 +73,6 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
-# TODO: remove once all options are migrated
 openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
 if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)

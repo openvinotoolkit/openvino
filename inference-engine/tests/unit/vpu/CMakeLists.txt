@@ -13,17 +13,14 @@ addIeTargetTest(
             # because ngraphFunctions sources need to be compiled with LTO as well
             "${IE_TESTS_ROOT}/ngraph_helpers/ngraph_functions/src"
         INCLUDES
-            "${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin"
             "${XLINK_INCLUDE}"
             "${XLINK_PLATFORM_INCLUDE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/base"
             $<TARGET_PROPERTY:ngraphFunctions,INTERFACE_INCLUDE_DIRECTORIES>
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
-            unitTestUtils
             mvnc
-            ${NGRAPH_LIBRARIES}
-            ngraph_backend
+            ngraph
             interpreter_backend
             inference_engine_lp_transformations # for ngraphFunctions
         ADD_CPPLINT
@@ -31,3 +28,5 @@ addIeTargetTest(
             VPU
             MYRIAD
 )
+
+link_system_libraries(${TARGET_NAME} PRIVATE unitTestUtils)

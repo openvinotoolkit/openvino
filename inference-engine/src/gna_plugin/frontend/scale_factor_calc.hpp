@@ -1138,7 +1138,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
-            if (conv) {
+            if (conv && !LayerInfo(conv).isConvolutionFilter()) {
                 const auto inDepth = GetDataDimSize(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
                 weights_reducer = GNAConvolutionLayer::getWeightsReducer(*conv);
                 weights_reducer *= MAX_VAL_2B_FEAT * scaleRange * inDepth / std::numeric_limits<int32_t>::max();

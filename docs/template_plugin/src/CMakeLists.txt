@@ -31,16 +31,13 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
 target_link_libraries(${TARGET_NAME} PRIVATE
-    IE::ngraph_backend
     IE::interpreter_backend)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-if(ENABLE_TEMPLATE_PLUGIN)
-    ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                        POSSIBLE_PLUGINS ${TARGET_NAME})
-endif()
+# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+#                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
 
 # ATTENTION: uncomment to install component

@@ -18,6 +18,7 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
+    pugixml::static
 )
 
 set(DEPENDENCIES
@@ -70,6 +71,11 @@ file(GLOB_RECURSE legacy_tests
 
 set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 include(CMakeParseArguments)
 
@@ -149,12 +155,12 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml, openvino::itt, inference_engine_preproc headers
+        # ngraph, pugixml::static, openvino::itt, inference_engine_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
-            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any

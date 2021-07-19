@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
@@ -14,6 +18,25 @@ add_subdirectory(ocl EXCLUDE_FROM_ALL)
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+
+#
+# Pugixml
+#
+
+if(ENABLE_SYSTEM_PUGIXML)
+    find_package(PugiXML REQUIRED)
+    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    add_library(pugixml::static ALIAS pugixml)
+else()
+    function(ie_build_pugixml)
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+    endfunction()
+
+    ie_build_pugixml()
+endif()
 
 #
 # Fluid, G-API, OpenCV HAL
@@ -61,7 +84,7 @@ function(add_gtest_libraries)
     endif()
 
     set(BUILD_SHARED_LIBS OFF)
-    set(INSTALL_GTEST OFF)
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     get_target_property(gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
@@ -88,10 +111,38 @@ function(add_gtest_libraries)
     endif()
     set_target_properties(gtest gtest_main gmock gmock_main
                           PROPERTIES FOLDER thirdparty)
+    
+    openvino_developer_export_targets(COMPONENT inference_engine_tests
+                                      TARGETS gmock gmock_main gtest gtest_main)
 endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_gtest_libraries()
+endif()
+
+#
+# Protobuf
+#
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        find_package(Protobuf REQUIRED)
+    else()
+        add_subdirectory(protobuf)
+    endif()
+
+    # forward variables used in the other places
+    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+endif()
+
+#
+# ONNX
+#
+
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    add_subdirectory(onnx)
 endif()
 
 #

@@ -8,8 +8,8 @@
 
 **Detailed description**: [Reference](https://arxiv.org/pdf/1703.06211.pdf).
 
-*PSROIPooling* operation takes two input blobs: with feature maps and with regions of interests (box coordinates). 
-The latter is specified as five element tuples: *[batch_id, x_1, y_1, x_2, y_2]*. 
+*PSROIPooling* operation takes two input blobs: with feature maps and with regions of interests (box coordinates).
+The latter is specified as five element tuples: *[batch_id, x_1, y_1, x_2, y_2]*.
 ROIs coordinates are specified in absolute values for the average mode and in normalized values (to *[0,1]* interval) for bilinear interpolation.
 
 **Attributes**
@@ -19,7 +19,6 @@ ROIs coordinates are specified in absolute values for the average mode and in no
   * **Description**: *output_dim* is a pooled output channel number.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *group_size*
@@ -35,7 +34,6 @@ ROIs coordinates are specified in absolute values for the average mode and in no
   * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input scale to the scale used when pooling.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *mode*
@@ -63,9 +61,9 @@ ROIs coordinates are specified in absolute values for the average mode and in no
 
 **Inputs**:
 
-*   **1**: 4D input tensor with shape `[N, C, H, W]` and type *T*  with feature maps. Required.
+*   **1**: 4D input tensor with shape `[N, C, H, W]` and type *T*  with feature maps. **Required.**
 
-*   **2**: 2D input tensor with shape `[num_boxes, 5]`. It contains a list of five element tuples that describe a region of interest: `[batch_id, x_1, y_1, x_2, y_2]`. Required.
+*   **2**: 2D input tensor with shape `[num_boxes, 5]`. It contains a list of five element tuples that describe a region of interest: `[batch_id, x_1, y_1, x_2, y_2]`. **Required.**
 Batch indices must be in the range of `[0, N-1]`.
 
 **Outputs**:
@@ -74,7 +72,7 @@ Batch indices must be in the range of `[0, N-1]`.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 
