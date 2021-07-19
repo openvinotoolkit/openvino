@@ -228,11 +228,11 @@ output  = [[65 70 56]
         <port id="2" precision="FP16"/> <!-- max value -->
     </input>
     <output>
-      <port id="3" precision="FP16" names="RandomUniform:0">
-          <dim>2</dim>
-          <dim>3</dim>
-          <dim>10</dim>
-      </port>
+        <port id="3" precision="FP16" names="RandomUniform:0">
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>10</dim>
+        </port>
     </output>
 </layer>
 ```
