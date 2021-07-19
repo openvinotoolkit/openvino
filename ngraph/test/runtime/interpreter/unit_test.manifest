@@ -1,5 +1,3 @@
-fake_quantize_pdpd
-
 INTERPRETER.onnx_model_quant_conv_linear
 INTERPRETER.onnx_top_k_opset_10
 

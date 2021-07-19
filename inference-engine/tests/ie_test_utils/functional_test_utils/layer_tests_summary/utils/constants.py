@@ -35,6 +35,7 @@ VERIFIED_OP_REFERENCES = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FakeQuantize-1',
     'Floor-1'
     'FloorMod-1'
     'GRUSequence-5',

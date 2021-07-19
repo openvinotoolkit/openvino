@@ -255,10 +255,11 @@ numeric_float_nan
 numeric_float_inf
 numeric_double_nan
 numeric_double_inf
-fake_quantize
-fake_quantize_with_clip
-fake_quantize_with_clip_across_channels
+
 fake_quantize_pdpd
+IE_GPU.fake_quantize
+IE_GPU.fake_quantize_with_clip
+IE_GPU.fake_quantize_with_clip_across_channels
 
 # <op name> has zero dimension that is not allowable
 zero_sized_abs

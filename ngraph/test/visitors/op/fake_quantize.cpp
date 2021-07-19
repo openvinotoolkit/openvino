@@ -35,6 +35,10 @@ TEST(attributes, fake_quantize_op)
     NodeBuilder builder(fake_quantize);
     auto g_fake_quantize = as_type_ptr<opset1::FakeQuantize>(builder.create());
 
+    // attribute count
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     EXPECT_EQ(g_fake_quantize->get_levels(), fake_quantize->get_levels());
     EXPECT_EQ(g_fake_quantize->get_auto_broadcast(), fake_quantize->get_auto_broadcast());
 }
