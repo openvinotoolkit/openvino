@@ -1,8 +1,8 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <ngraph/validation_util.hpp>
 
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/op/random_uniform.hpp"
 
@@ -11,8 +11,16 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v8::RandomUniform, "RandomUniform", 8);
 
-op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape, const Output<Node>& min_val, const Output<Node>& max_val, ngraph::element::Type output_type, int64_t seed, int64_t seed2)
-        : Op({out_shape, min_val, max_val}), m_output_type(output_type), m_seed(seed), m_seed2(seed2)
+vector<int64_t> get_min_max_int(ngraph::element::Type elem_type, const char* min_val, const char* max_val);
+
+op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
+                                     const Output<Node>& min_val,
+                                     const Output<Node>& max_val,
+                                     ngraph::element::Type initial_type,
+                                     ngraph::element::Type out_type,
+                                     int64_t seed,
+                                     int64_t seed2)
+        : Op({out_shape, min_val, max_val}), m_initial_type(initial_type), m_output_type(out_type), m_seed(seed), m_seed2(seed2)
 {
     constructor_validate_and_infer_types();
 }
@@ -28,7 +36,7 @@ void op::v8::RandomUniform::validate_and_infer_types()
     const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
     {
-        NGRAPH_CHECK(input_shape.rank() == 1, "The rank of the tensor defining output shape must be equal to 1");
+        NODE_VALIDATION_CHECK(this, input_shape.rank() == 1, "The rank of the tensor defining output shape must be equal to 1.");
         if (const auto& const_shape = get_constant_from_source(input_value(0)))
         {
             output_shape = PartialShape(const_shape->cast_vector<int64_t>());
@@ -36,9 +44,48 @@ void op::v8::RandomUniform::validate_and_infer_types()
     }
 
     NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(1).compatible(Shape{}), "'min_val' input is not a scalar");
+            this, get_input_partial_shape(1).compatible(Shape{}), "'min_val' input is not a scalar.");
     NODE_VALIDATION_CHECK(
-            this, get_input_partial_shape(2).compatible(Shape{}), "'max_val' input is not a scalar");
+            this, get_input_partial_shape(2).compatible(Shape{}), "'max_val' input is not a scalar.");
+
+    element::Type min_element_type = get_input_element_type(1);
+    element::Type max_element_type = get_input_element_type(2);
+    NODE_VALIDATION_CHECK(
+            this, min_element_type == max_element_type, "'min_val' should have the same type as 'max_val'.");
+    NODE_VALIDATION_CHECK(
+            this, min_element_type == get_out_type(), "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
+
+    if (const auto& const_min = get_constant_from_source(input_value(1)))
+    {
+        if (const auto& const_max = get_constant_from_source(input_value(2)))
+        {
+            if (get_out_type() == ngraph::element::Type_t::i64 || get_out_type() == ngraph::element::Type_t::i32) {
+                int64_t min_val = const_min->cast_vector<int64_t>()[0];
+                int64_t max_val = const_max->cast_vector<int64_t>()[0];
+
+                NODE_VALIDATION_CHECK(this,
+                                      min_val < max_val,
+                                      "Min value must be less than max value. Got "
+                                      "min value: ",
+                                      min_val,
+                                      ", max value: ",
+                                      max_val);
+            }
+            else
+            {
+                double min_val = const_min->cast_vector<double>()[0];
+                double max_val = const_max->cast_vector<double>()[0];
+
+                NODE_VALIDATION_CHECK(this,
+                                      min_val < max_val,
+                                      "Min value must be less than max value. Got "
+                                      "min value: ",
+                                      min_val,
+                                      ", max value: ",
+                                      max_val);
+            }
+        }
+    }
 
     set_output_type(0, get_out_type(), output_shape);
 }
@@ -46,6 +93,7 @@ void op::v8::RandomUniform::validate_and_infer_types()
 bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_RandomUniform_visit_attributes);
+    visitor.on_attribute("initial_type", m_initial_type);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("seed", m_seed);
     visitor.on_attribute("seed2", m_seed2);
@@ -56,7 +104,7 @@ shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector
 {
     NGRAPH_OP_SCOPE(v8_Roll_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_output_type, m_seed, m_seed2);
+    return make_shared<v8::RandomUniform>(new_args[0], new_args[1], new_args[2], m_initial_type, m_output_type, m_seed, m_seed2);
 }
 
 std::pair<uint32_t, uint32_t> split_high_low(uint64_t value)
@@ -113,15 +161,6 @@ float16 uint32_to_float16(uint32_t x) {
     return x_float16 - static_cast<float16>(1);
 }
 
-bfloat16 uint32_to_bfloat16(uint32_t x) {
-    uint16_t x_uint16 = static_cast<uint16_t>(x);
-    x_uint16 = (static_cast<uint16_t>(127) << 7) | x_uint16 & 0x7fu;
-
-    bfloat16 x_bfloat16;
-    memcpy(&x_bfloat16, &x_uint16, sizeof(x_uint16));
-    return x_bfloat16 - static_cast<bfloat16>(1);
-}
-
 double uint32_to_double(uint32_t x1, uint32_t x2) {
     uint64_t mantissa = ((static_cast<uint64_t>(x1) & 0xfffffu) << 32) | static_cast<uint64_t>(x2);
     uint64_t x_uint64 = ((static_cast<uint64_t>(1023) << 52) | mantissa);
@@ -135,30 +174,168 @@ uint64_t uint32_to_uint64(uint32_t x1, uint32_t x2) {
     return (static_cast<uint64_t>(x2) << 32) | static_cast<uint64_t>(x1);
 }
 
-// Helper function to convert an 16-bit integer to a bfloat16 between [0..1).
-// This can create a uniform distribution of values between [0..1).
-bfloat16 Uint16ToGfloat16(uint16_t x) {
-// bfloat are formatted as follows (MSB first):
-//    sign(1) exponent(8) mantissa(7)
-// Conceptually construct the following:
-//    sign == 0
-//    exponent == 127  -- an excess 127 representation of a zero exponent
-//    mantissa == 7 random bits
-    uint16_t man = x & 0x7fu;  // 7 bit mantissa
-    uint16_t exp = static_cast<uint16_t>(127);
-    uint16_t val = (exp << 7) | man;
+vector<double> generate_float(const vector<uint32_t>& rnd_values, const vector<double>& min_max, ngraph::element::Type initial_type)
+{
+    vector<double> res(4);
+    switch (initial_type) {
+        case ngraph::element::Type_t::f32: {
+            auto min_val = static_cast<float>(min_max[0]);
+            auto max_val = static_cast<float>(min_max[1]);
+            std::transform(rnd_values.begin(),
+                           rnd_values.end(),
+                           res.begin(),
+                           [&min_val, &max_val](const uint32_t &elem) {
+                               return uint32_to_float(elem) * (max_val - min_val) + min_val;
+                           });
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            auto min_val = static_cast<float16>(min_max[0]);
+            auto max_val = static_cast<float16>(min_max[1]);
+            std::transform(rnd_values.begin(),
+                           rnd_values.end(),
+                           res.begin(),
+                           [&min_val, &max_val](const uint32_t &elem) {
+                               return uint32_to_float16(elem) * (max_val - min_val) + min_val;
+                           });
+            break;
+        }
+        case ngraph::element::Type_t::f64: {
+            res[0] = uint32_to_double(rnd_values[0], rnd_values[1]) * (min_max[1] - min_max[0]) + min_max[0];
+            res[1] = uint32_to_double(rnd_values[2], rnd_values[3]) * (min_max[1] - min_max[0]) + min_max[0];
+            break;
+        }
+        default:
+            throw ngraph_error("Unsupported type of RandomUniform: " + initial_type.get_type_name());
+    }
 
-bfloat16 result;
-memcpy(&result, &val, sizeof(val));
-// The mantissa has an implicit leading 1, so the above code creates a value
-// in [1, 2). The minus will not cause a rounding that makes the result 1.
-// Instead it will just be close to 1.
-return result - bfloat16(1.0);
+    return res;
 }
 
-void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, uint32_t* res)
+vector<double> get_min_max_float(ngraph::element::Type elem_type, const char* min_val, const char* max_val)
 {
-    for (int i = 0; i < n_rounds; i++) {
+    if (elem_type == ngraph::element::Type_t::i32 || elem_type == ngraph::element::Type_t::i64)
+    {
+        vector<int64_t> min_max = get_min_max_int(elem_type, min_val, max_val);
+        vector<double> min_max_double(2);
+        min_max_double[0] = static_cast<double>(min_max[0]);
+        min_max_double[1] = static_cast<double>(min_max[1]);
+        return min_max_double;
+    }
+
+    vector<double> res(2);
+    switch (elem_type) {
+        case ngraph::element::Type_t::f32: {
+            float mn[1];
+            float mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            float16 mn[1];
+            float16 mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        case ngraph::element::Type_t::bf16: {
+            bfloat16 mn[1];
+            bfloat16 mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        case ngraph::element::Type_t::f64: {
+            double mn[1];
+            double mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        default:
+            throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
+    }
+    return res;
+}
+
+
+vector<int64_t> get_min_max_int(ngraph::element::Type elem_type, const char* min_val, const char* max_val)
+{
+    if (elem_type != ngraph::element::Type_t::i32 && elem_type != ngraph::element::Type_t::i64)
+    {
+        vector<double> min_max = get_min_max_float(elem_type, min_val, max_val);
+        vector<int64_t> min_max_int64(2);
+        min_max_int64[0] = static_cast<int64_t>(min_max[0]);
+        min_max_int64[1] = static_cast<int64_t>(min_max[1]);
+        return min_max_int64;
+    }
+
+    vector<int64_t> res(2);
+    switch (elem_type) {
+        case ngraph::element::Type_t::i32: {
+            int32_t mn[1];
+            int32_t mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        case ngraph::element::Type_t::i64: {
+            int64_t mn[1];
+            int64_t mx[1];
+            memcpy(mn, min_val, elem_type.size());
+            memcpy(mx, max_val, elem_type.size());
+            res[0] = mn[0];
+            res[1] = mx[0];
+            break;
+        }
+        default:
+            throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
+    }
+    return res;
+}
+
+vector<int64_t> generate_int(const vector<uint32_t>& rnd_values, const vector<int64_t>& min_max, ngraph::element::Type initial_type)
+{
+    vector<int64_t> res(4);
+    switch (initial_type) {
+        case ngraph::element::Type_t::i32: {
+            auto min_val = static_cast<int32_t>(min_max[0]);
+            auto max_val = static_cast<int32_t>(min_max[1]);
+            std::transform(rnd_values.begin(),
+                           rnd_values.end(),
+                           res.begin(),
+                           [&min_val, &max_val](const uint32_t &elem) {
+                               return static_cast<int64_t>(elem) % (max_val - min_val) + min_val;
+                           });
+            break;
+        }
+        case ngraph::element::Type_t::i64: {
+            res[0] = uint32_to_uint64(rnd_values[0], rnd_values[1]) % (min_max[1] - min_max[0]) +
+                     min_max[0];
+            res[1] = uint32_to_uint64(rnd_values[2], rnd_values[3]) % (min_max[1] - min_max[0]) +
+                     min_max[0];
+            break;
+            default:
+                throw ngraph_error("Unsupported type of RandomUniform: " + initial_type.get_type_name());
+        }
+    }
+    return res;
+}
+
+void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, vector<uint32_t>& res)
+{
+    for (size_t i = 0; i < n_rounds; i++) {
         calculate_round(key, counter, n);
         if (i < n_rounds-1)
             raise_key(key);
@@ -171,11 +348,150 @@ void run_philox(uint64_t key, uint64_t counter, uint64_t n, size_t n_rounds, uin
     res[3] = res2.second;
 }
 
+void cast_float_to_elem_type(const vector<double>& values, size_t idx, size_t step, size_t elem_count, ngraph::element::Type elem_type, char* out)
+{
+    if (elem_type == ngraph::element::Type_t::f64)
+    {
+        memcpy(out + idx * elem_type.size(), values.data(),
+                       std::min(size_t(step), elem_count - idx) * elem_type.size());
+        return;
+    }
+    switch (elem_type) {
+        case ngraph::element::Type_t::bf16: {
+            bfloat16 res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                               res,
+                               [](const double & elem) { return static_cast<bfloat16>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            float16 res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const double & elem) { return static_cast<float16>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+            break;
+        }
+        case ngraph::element::Type_t::f32: {
+            float res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const double & elem) { return static_cast<float>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        case ngraph::element::Type_t::i32: {
+            int32_t res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const double & elem) { return static_cast<int32_t>(std::round(elem)); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        case ngraph::element::Type_t::i64: {
+            int64_t res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const double & elem) { return static_cast<int64_t>(std::round(elem)); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        default:
+            throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
+    }
+
+}
+
+void cast_int_to_elem_type(const vector<int64_t>& values, size_t idx, size_t step, size_t elem_count, ngraph::element::Type elem_type, char* out)
+{
+    if (elem_type == ngraph::element::Type_t::i64)
+    {
+        memcpy(out + idx * elem_type.size(), values.data(),
+               std::min(size_t(step), elem_count - idx) * elem_type.size());
+        return;
+    }
+
+    switch (elem_type) {
+        case ngraph::element::Type_t::bf16: {
+            bfloat16 res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const int64_t &elem) { return static_cast<bfloat16>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            float16 res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const int64_t &elem) { return static_cast<float16>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        case ngraph::element::Type_t::f32: {
+            float res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const int64_t &elem) { return static_cast<float>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        case ngraph::element::Type_t::i32: {
+            int32_t res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const int64_t &elem) { return static_cast<int32_t>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        case ngraph::element::Type_t::f64: {
+            double res[4];
+            std::transform(values.data(),
+                           values.data() + step,
+                           res,
+                           [](const int64_t &elem) { return static_cast<double>(elem); });
+            memcpy(out + idx * elem_type.size(), res,
+                   std::min(size_t(step), elem_count - idx) * elem_type.size());
+
+            break;
+        }
+        default:
+            throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
+    }
+
+}
+
 void random_uniform(const uint64_t* out_shape,
                     const char* min_val,
                     const char* max_val,
                     char* out,
                     const Shape& out_shape_shape,
+                    ngraph::element::Type initial_type,
                     ngraph::element::Type elem_type,
                     uint64_t seed,
                     uint64_t seed2)
@@ -193,113 +509,31 @@ void random_uniform(const uint64_t* out_shape,
     for (size_t i = 0; i < shape_count; i++) {
         elem_count *= out_shape[i];
     }
-    size_t step = elem_type.size() > 4 ? 2 : 4;
+    size_t step = initial_type.size() > 4 ? 2 : 4;
 
     for (size_t k = 0; k < elem_count; k+=step) {
-        uint32_t res[4];
+        vector<uint32_t> res(4);
         run_philox(key, counter, n, 10, res);
-
-        switch (elem_type) {
-            case ngraph::element::Type_t::f32: {
-                float res_float[4];
-                float mn[1];
-                float mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-                std::transform(res,
-                               res + 4,
-                               res_float,
-                               [&mn, &mx](const uint32_t& elem) { return uint32_to_float(elem) * (mx[0] - mn[0]) + mn[0]; });
-
-                memcpy(out + k * elem_type.size(), res_float, std::min((size_t) 4, elem_count - k) * elem_type.size());
+        switch (initial_type) {
+            case ngraph::element::Type_t::f16:
+            case ngraph::element::Type_t::f32:
+            case ngraph::element::Type_t::f64:
+            {
+                vector<double> min_max = get_min_max_float(elem_type, min_val, max_val);
+                vector<double> res_double = generate_float(res, min_max, initial_type);
+                cast_float_to_elem_type(res_double, k, step, elem_count, elem_type, out);
                 break;
             }
-            case ngraph::element::Type_t::f16: {
-                float16 res_float16[4];
-                float16 mn[1];
-                float16 mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-                std::transform(res,
-                               res + 4,
-                               res_float16,
-                               [&mn, &mx](const uint32_t& elem) { return uint32_to_float16(elem) * (mx[0] - mn[0]) + mn[0]; });
-                memcpy(out + k * elem_type.size(), res_float16,
-                       std::min((size_t) 4, elem_count - k) * elem_type.size());
-                break;
-            }
-            case ngraph::element::Type_t::bf16: {
-                bfloat16 res_bfloat16[4];
-                bfloat16 mn[1];
-                bfloat16 mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-//                bfloat16 range = mx[0] - mn[0];
-//                bfloat16 val3 =Uint16ToGfloat16(res[3]);
-//                float v1 = static_cast<float>(val3);
-//                float v2 = static_cast<float>(range);
-//                float mul_f = v1 * v2;
-//                bfloat16 =
-//
-//                uint32_t input = {mul_f};
-//                uint32_t lsb = (input >> 16) & 1;
-//                uint32_t rounding_bias = 0x7fff + lsb;
-//                input += rounding_bias;
-//                output.value = static_cast<uint16_t>(input >> 16);
-//
-//                bfloat16 mul_bf = {mul_f};
-//
-//                bfloat16 mul = val3 * range;
-
-
-                std::transform(res,
-                               res + 4,
-                               res_bfloat16,
-                               [&mn, &mx](const uint32_t& elem) { return Uint16ToGfloat16(elem) * (mx[0] - mn[0]) + mn[0]; });
-                memcpy(out + k * elem_type.size(), res_bfloat16,
-                       std::min((size_t) 4, elem_count - k) * elem_type.size());
-                break;
-            }
-            case ngraph::element::Type_t::f64: {
-                double res_double[2];
-                double mn[1];
-                double mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-                res_double[0] = uint32_to_double(res[0], res[1]) * (mx[0] - mn[0]) + mn[0];
-                res_double[1] = uint32_to_double(res[2], res[3]) * (mx[0] - mn[0]) + mn[0];
-                memcpy(out + k * elem_type.size(), res_double,
-                       std::min((size_t) 2, elem_count - k) * elem_type.size());
-                break;
-            }
-            case ngraph::element::Type_t::i32: {
-                int res_int[4];
-                int mn[1];
-                int mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-                std::transform(res,
-                               res + 4,
-                               res_int,
-                               [&mn, &mx](const uint32_t& elem) { return elem % (mx[0] - mn[0]) + mn[0]; });
-                memcpy(out + k * elem_type.size(), res_int, std::min((size_t) 4, elem_count - k) * elem_type.size());
-                break;
-            }
-            case ngraph::element::Type_t::i64: {
-                int64_t res_int64[2];
-                int64_t mn[1];
-                int64_t mx[1];
-                memcpy(mn, min_val, elem_type.size());
-                memcpy(mx, max_val, elem_type.size());
-                res_int64[0] = uint32_to_uint64(res[0], res[1]) % (mx[0] - mn[0]) + mn[0];
-                res_int64[1] = uint32_to_uint64(res[2], res[3]) % (mx[0] - mn[0]) + mn[0];
-                memcpy(out + k * elem_type.size(), res_int64,
-                       std::min((size_t) 2, elem_count - k) * elem_type.size());
+            case ngraph::element::Type_t::i32:
+            case ngraph::element::Type_t::i64:
+            {
+                vector<int64_t> min_max = get_min_max_int(elem_type, min_val, max_val);
+                vector<int64_t> res_int = generate_int(res, min_max, initial_type);
+                cast_int_to_elem_type(res_int, k, step, elem_count, elem_type, out);
                 break;
             }
             default:
-                throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
-
+                throw ngraph_error("Unsupported type of RandomUniform: " + initial_type.get_type_name());
         }
 
         if (++n == 0)
@@ -310,7 +544,8 @@ void random_uniform(const uint64_t* out_shape,
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
               const HostTensorVector& inputs) const
 {
-    uint64_t* out_shape;
+    NGRAPH_OP_SCOPE(v8_Roll_evaluate);
+    const uint64_t* out_shape;
     std::vector<uint64_t> out_shape_uint64;
     out_shape_uint64.resize(shape_size(inputs[0]->get_shape()));
 
@@ -367,6 +602,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
                    inputs[2]->get_data_ptr<const char>(),
                    out,
                    inputs[0]->get_shape(),
+                                       get_initial_type(),
                                        get_out_type(),
                                        get_seed(),
                                        get_seed2());

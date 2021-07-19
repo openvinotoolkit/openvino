@@ -280,6 +280,7 @@ set(SRC
     visitors/op/prior_box.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/random_uniform.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp

@@ -138,7 +138,6 @@ extensions/front/CTCGreedyDecoderReplacement.py
 extensions/front/CTCLossReplacement.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
-extensions/front/DropoutWithRandomUniformReplacer.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py

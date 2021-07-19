@@ -24,11 +24,20 @@ namespace ngraph
             ///
             /// \brief      Constructs a RandomUniform operation.
             ///
-            /// \param      output_shape         Node producing the tensor with output shape.
+            /// \param      out_shape         Node producing the tensor with output shape.
+            /// \param      min_val           Node producing the tensor with minimum value.
+            /// \param      max_val           Node producing the tensor with maximum value.
+            /// \param      initial_type      Initial type of the tensor in original model.
+            /// \param      out_type          Output type of the tensor.
+            /// \param      seed              Global seed value.
+            /// \param      seed2             Operational seed value.
             RandomUniform(const Output<Node>& out_shape,
                           const Output<Node>& min_val,
                           const Output<Node>& max_val,
-                          ngraph::element::Type dtype, int64_t seed, int64_t seed2);
+                          ngraph::element::Type initial_type,
+                          ngraph::element::Type out_type,
+                          int64_t seed,
+                          int64_t seed2);
 
             void validate_and_infer_types() override;
 
@@ -44,6 +53,13 @@ namespace ngraph
             }
             void set_out_type(const ngraph::element::Type& output_type) { m_output_type = output_type; }
 
+            /// \return The tensor type from original model.
+            const ngraph::element::Type& get_initial_type() const
+            {
+                return m_initial_type;
+            }
+            void set_initial_type(const ngraph::element::Type& initial_type) { m_initial_type = initial_type; }
+
             /// \return The global seed value.
             const uint64_t& get_seed() const { return m_seed; }
             void set_seed(const uint64_t& seed) { m_seed = seed; }
@@ -56,6 +72,7 @@ namespace ngraph
                           const HostTensorVector& inputs) const override;
 
             protected:
+            ngraph::element::Type m_initial_type;
             ngraph::element::Type m_output_type;
             uint64_t m_seed;
             uint64_t m_seed2;

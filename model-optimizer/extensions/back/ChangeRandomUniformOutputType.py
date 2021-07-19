@@ -12,6 +12,7 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 class ChangeRandomUniformOutputType(BackReplacementPattern):
     """
+    Change the RandomUniform output_type from fp32 to fp16 when generating IR for fp16.
     """
     enabled = True
     force_shape_inference = True

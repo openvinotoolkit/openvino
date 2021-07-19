@@ -20,19 +20,26 @@ class RandomUniform(Op):
             'op': self.op,
             'version': 'opset8',
             'infer': self.infer,
-            'in_ports_count': 1,
+            'in_ports_count': 3,
             'out_ports_count': 1,
             'type_infer': self.type_infer,
             'seed': 0,
             'seed2': 0,
-            'output_type': np.float32
+            'output_type': np.float32,
+            'initial_type': np.float32
         }, attrs)
 
     def backend_attrs(self):
-        return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)), 'seed', 'seed2']
+        return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
+                ('initial_type', lambda node: np_data_type_to_destination_type(node.initial_type)),
+                'seed',
+                'seed2']
 
     def supported_attrs(self):
-        return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)), 'seed', 'seed2']
+        return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
+                ('initial_type', lambda node: np_data_type_to_destination_type(node.initial_type)),
+                'seed',
+                'seed2']
 
     @staticmethod
     def type_infer(node: Node):
@@ -45,7 +52,9 @@ class RandomUniform(Op):
 
 
 class AttributedRandomUniform(Op):
-    """
+    """ RandomUniform operation that generates a sequence of random values from uniform distribution.
+        This operation uses the same semantics as RandomUniform but output shape is specified as attribute.
+        Shape is specified as attribute in ONNX.
     """
     op = 'AttributedRandomUniform'
     enabled = False
@@ -55,7 +64,12 @@ class AttributedRandomUniform(Op):
             'type': None,
             'op': self.op,
             'infer': None,
-            'in_ports_count': 1,
+            'in_ports_count': 3,
             'out_ports_count': 1,
-            'shape': None,
+            'min_val': 0.0,
+            'max_val': 1.0,
+            'seed': 0,
+            'seed2': 0,
+            'output_type': np.float32,
+            'initial_type': np.float32
         }, attrs)
