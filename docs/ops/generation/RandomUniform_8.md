@@ -168,13 +168,21 @@ output  = [[65 70 56]
 
 **Attributes**:
 
+* *initial_type*
+
+    * **Description**: the type of the output in original model.
+    * **Range of values**: "i32", "i64", "f16", "f32", "f64".
+    * **Type**: string
+    * **Default value**: None
+    * **Required**: *Yes*
+  
 * *output_type*
 
     * **Description**: the type of the output.
     * **Range of values**: "i32", "i64", "f16", "f32", "f64".
     * **Type**: string
-    * **Default value**: "f32"
-    * **Required**: *No*
+    * **Default value**: None
+    * **Required**: *Yes*
 
 * *seed*
 
