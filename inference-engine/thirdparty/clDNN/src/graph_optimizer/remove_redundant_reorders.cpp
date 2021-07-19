@@ -397,6 +397,16 @@ void remove_redundant_reorders::run(program& p) {
                 }
                 input.set_output_padding(node.get_output_layout().data_padding);
 
+                // Add fused current reorder node to fused_primitive_desc of conv
+                fused_primitive_desc local_desc;
+                local_desc.node = p.get_node_ptr(node.id());
+                local_desc.dep_start_idx = input.get_fused_primitives().size();
+                local_desc.output_layout = output_layout;
+                local_desc.input_layout = input.get_dependency(0).get_output_layout();  // original convolution's output layout
+                local_desc.activation = activation_func::none;
+                input.add_fused_primitive(local_desc);
+                node.record_input_layout(local_desc.input_layout);
+
                 p.replace_all_usages(node, input);
                 p.get_processing_order().erase(&node);
                 p.add_optimized_primitive_info(node.id());

@@ -469,6 +469,8 @@ struct FusedOpsConfiguration {
     bool allow_for_partial_preload;
     // Load index for shuffle fused op
     std::string shuffle_var_name;
+    // Keep original output layout before fusing conv+reorder
+    DataLayout orig_output_layout;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -481,7 +483,8 @@ struct FusedOpsConfiguration {
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
                           std::vector<Tensor::DataChannelName> loop_axes = {},
                           bool allow_for_partial_preload = false,
-                          std::string shuffle_var_name = "")
+                          std::string shuffle_var_name = "",
+                          DataLayout orig_output_layout = DataLayout::DataLayoutCount)
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -493,7 +496,8 @@ struct FusedOpsConfiguration {
       , index_type(index_type)
       , loop_axes(loop_axes)
       , allow_for_partial_preload(allow_for_partial_preload)
-      , shuffle_var_name(shuffle_var_name) { }
+      , shuffle_var_name(shuffle_var_name)
+      , orig_output_layout(orig_output_layout) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
@@ -505,6 +509,7 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
+    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
 };
 
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
@@ -560,6 +565,7 @@ struct fused_operation_desc {
     DataTensor output_tensor;
     size_t op_id;
     std::vector<std::pair<size_t, Datatype>> fused_op_ids;
+    DataLayout orig_output_layout;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }
@@ -583,6 +589,7 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     DataTensor output;
+    DataTensor orig_output;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
@@ -614,6 +621,7 @@ struct optional_params {
 
     std::vector<DataLayout> inputLayouts;
     std::vector<DataLayout> outputLayouts;
+    DataLayout origOutputLayouts;   // output layout before fusing conv+reorder
 
     bool meaningfulKernelsNames = false;  // use layer name instead of internal kernel name
     bool allowStaticInputReordering =

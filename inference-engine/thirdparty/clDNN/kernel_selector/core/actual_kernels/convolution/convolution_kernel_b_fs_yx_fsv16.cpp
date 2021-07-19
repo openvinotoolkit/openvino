@@ -4,6 +4,7 @@
 
 #include "convolution_kernel_b_fs_yx_fsv16.h"
 #include "kernel_selector_utils.h"
+#include "reorder/reorder_kernel_base.h"
 #include <vector>
 #include <algorithm>
 
@@ -205,6 +206,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
+        DataLayout orig_output_layout = output.GetLayout();
+        if (params.fused_ops.back().GetType() == KernelType::REORDER) {
+            orig_output_layout = params.fused_ops.back().GetOpParams<reorder_fuse_params>()->input_layout;
+        }
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC",
                                            {"b", "(feature_block * 16)", "y", "x"},
@@ -214,7 +219,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
                                            LoadType::LT_ALIGNED_READ,
                                            BoundaryCheck::ENABLED,
                                            IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::X };
+                                           Tensor::DataChannelName::X,
+                                           {}, false, "", orig_output_layout };
         FusedOpsConfiguration conf_scalar = { "_SCALAR",
                                               {"b", "(feature_block * 16)", "y", "(x + i)"},
                                               "dst[i]",
@@ -223,7 +229,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
                                               LoadType::LT_ALIGNED_READ,
                                               BoundaryCheck::ENABLED,
                                               IndexType::TENSOR_COORD,
-                                              Tensor::DataChannelName::X };
+                                              Tensor::DataChannelName::X,
+                                              {}, false, "", orig_output_layout };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 
