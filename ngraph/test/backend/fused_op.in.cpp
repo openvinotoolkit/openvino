@@ -221,62 +221,6 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_c
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, grn_4d)
-{
-    const Shape data_shape{1, 2, 3, 4};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    float bias{1e-6f};
-
-    const auto grn = make_shared<op::GRN>(data, bias);
-    const auto function = make_shared<Function>(NodeVector{grn}, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    vector<float> input_data(shape_size(data_shape));
-    iota(begin(input_data), end(input_data), 1);
-
-    test_case.add_input<float>(input_data);
-
-    test_case.add_expected_output<float>(
-        data_shape, {0.0766965f,  0.14142136f, 0.19611613f, 0.24253564f, 0.28216633f, 0.31622776f,
-                     0.34570536f, 0.37139067f, 0.39391932f, 0.41380295f, 0.4314555f,  0.4472136f,
-                     0.9970545f,  0.98994946f, 0.9805807f,  0.97014254f, 0.9593655f,  0.9486833f,
-                     0.9383431f,  0.9284767f,  0.91914505f, 0.9103665f,  0.9021342f,  0.8944272f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_grn_2d_with_bias)
-{
-    const Shape data_shape{3, 4};
-    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
-    float bias{2.25f};
-
-    const auto grn = make_shared<op::GRN>(data, bias);
-    const auto function = make_shared<Function>(NodeVector{grn}, ParameterVector{data});
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    vector<float> input_data(shape_size(data_shape));
-    iota(begin(input_data), end(input_data), 1);
-
-    test_case.add_input<float>(input_data);
-
-    test_case.add_expected_output<float>(data_shape,
-                                         {0.5547002f,
-                                          0.8f,
-                                          0.8944272f,
-                                          0.9363292f,
-                                          0.95782626f,
-                                          0.9701425f,
-                                          0.9778024f,
-                                          0.98287225f,
-                                          0.9863939f,
-                                          0.9889363f,
-                                          0.9908301f,
-                                          0.99227786f});
-    test_case.run();
-}
-
 // TODO: Issue: 37534
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference)
 {
