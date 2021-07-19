@@ -304,3 +304,13 @@ ngraph::HostTensorPtr make_host_tensor(const ngraph::Shape& shape)
     random_init(host_tensor.get(), engine);
     return host_tensor;
 }
+
+template<typename T = int32_t>
+std::vector<T> gen_range(const size_t elements, const T start = T{0})
+{
+    std::vector<T> range;
+    range.reserve(elements);
+    std::iota(range.begin(), range.end(), start);
+
+    return range;
+}
