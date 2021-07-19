@@ -749,7 +749,7 @@ protected:
             PortConfig portConfig;
             portConfig.inPlace = portConfigurator.inPlace;
             portConfig.constant = portConfigurator.constant;
-            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape.getStaticDims());
+            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape);
 
             port.push_back(std::move(portConfig));
 

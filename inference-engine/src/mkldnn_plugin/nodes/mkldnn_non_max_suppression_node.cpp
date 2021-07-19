@@ -43,7 +43,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
             IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-        if (getOriginalOutputsNumber() < 1 || getOriginalOutputsNumber() > 3)
+        if (getOriginalOutputsNumber() != 3)
             IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
         boxEncodingType = static_cast<boxEncoding>(nms->get_box_encoding());
@@ -72,11 +72,11 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         for (auto & i : numFiltBox)
             i.resize(num_classes);
 
-        inputShape_MAXOUTPUTBOXESPERCLASS = op->get_input_partial_shape(NMS_MAXOUTPUTBOXESPERCLASS).get_shape();
-        inputShape_IOUTHRESHOLD = op->get_input_partial_shape(NMS_IOUTHRESHOLD).get_shape();
-        inputShape_SCORETHRESHOLD = op->get_input_partial_shape(NMS_SCORETHRESHOLD).get_shape();
+        inputShape_MAXOUTPUTBOXESPERCLASS = Shape(op->get_input_partial_shape(NMS_MAXOUTPUTBOXESPERCLASS));
+        inputShape_IOUTHRESHOLD = Shape(op->get_input_partial_shape(NMS_IOUTHRESHOLD));
+        inputShape_SCORETHRESHOLD = Shape(op->get_input_partial_shape(NMS_SCORETHRESHOLD));
         if (getOriginalInputsNumber() > NMS_SOFTNMSSIGMA) {
-            inputShape_SOFTNMSSIGMA = op->get_input_partial_shape(NMS_SOFTNMSSIGMA).get_shape();
+            inputShape_SOFTNMSSIGMA = Shape(op->get_input_partial_shape(NMS_SOFTNMSSIGMA));
         }
 
         outputShape_SELECTEDINDICES = Shape(op->get_output_partial_shape(NMS_SELECTEDINDICES));
@@ -111,8 +111,8 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
         check1DInput(inputShape_SOFTNMSSIGMA, supportedFloatPrecision, "soft_nms_sigma", NMS_SOFTNMSSIGMA);
     }
 
-    checkOutput(outputShape_SELECTEDINDICES.getDims(), supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
-    checkOutput(outputShape_SELECTEDSCORES.getDims(), supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
+    checkOutput(outputShape_SELECTEDINDICES, supportedIntOutputPrecision, "selected_indices", NMS_SELECTEDINDICES);
+    checkOutput(outputShape_SELECTEDSCORES, supportedFloatPrecision, "selected_scores", NMS_SELECTEDSCORES);
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
@@ -203,17 +203,12 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     SizeVector newDims = {validOutputs, maxOutputDims[1]};
 
     outputMemPtr->redefineDims(newDims);
-
-    if (outputShapes.size() > NMS_SELECTEDSCORES)
-        getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDims(newDims);
+    getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->redefineDims(newDims);
 
     int selectedIndicesStride = outputMemPtr->GetDescWithType<BlockedMemoryDesc>().getStrides()[0];
 
     int *selectedIndicesPtr = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
-
-    float *selectedScoresPtr = nullptr;
-    if (outputShapes.size() > NMS_SELECTEDSCORES)
-        selectedScoresPtr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->GetPtr());
+    float *selectedScoresPtr = reinterpret_cast<float *>(getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr()->GetPtr());
 
     size_t idx = 0lu;
     for (; idx < validOutputs; idx++) {
@@ -221,18 +216,15 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         selectedIndicesPtr[1] = filtBoxes[idx].class_index;
         selectedIndicesPtr[2] = filtBoxes[idx].box_index;
         selectedIndicesPtr += selectedIndicesStride;
-        if (outputShapes.size() > NMS_SELECTEDSCORES) {
-            selectedScoresPtr[0] = static_cast<float>(filtBoxes[idx].batch_index);
-            selectedScoresPtr[1] = static_cast<float>(filtBoxes[idx].class_index);
-            selectedScoresPtr[2] = static_cast<float>(filtBoxes[idx].score);
-            selectedScoresPtr += selectedIndicesStride;
-        }
+
+        selectedScoresPtr[0] = static_cast<float>(filtBoxes[idx].batch_index);
+        selectedScoresPtr[1] = static_cast<float>(filtBoxes[idx].class_index);
+        selectedScoresPtr[2] = static_cast<float>(filtBoxes[idx].score);
+        selectedScoresPtr += selectedIndicesStride;
     }
 
-    if (outputShapes.size() > NMS_VALIDOUTPUTS) {
-        int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
-        *valid_outputs = static_cast<int>(validOutputs);
-    }
+    int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    *valid_outputs = static_cast<int>(validOutputs);
 }
 
 bool MKLDNNNonMaxSuppressionNode::created() const {
@@ -377,31 +369,33 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
     });
 }
 
-void MKLDNNNonMaxSuppressionNode::checkPrecision(const Precision prec, const std::vector<Precision> precList,
-                                                           const std::string name, const std::string type) {
+void MKLDNNNonMaxSuppressionNode::checkPrecision(const Precision& prec, const std::vector<Precision>& precList,
+                                                           const std::string& name, const std::string& type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
 
-void MKLDNNNonMaxSuppressionNode::check1DInput(const SizeVector& dims, const std::vector<Precision> precList,
-                                                         const std::string name, const size_t port) {
+void MKLDNNNonMaxSuppressionNode::check1DInput(const Shape& shape, const std::vector<Precision>& precList,
+                                                         const std::string& name, const size_t port) {
     checkPrecision(getOriginalInputPrecisionAtPort(port), precList, name, inType);
 
-    if (dims.size() != 0 && dims.size() != 1)
-        IE_THROW() << errorPrefix << "has unsupported '" << name << "' input rank: " << dims.size();
-    if (dims.size() == 1)
-        if (dims[0] != 1)
-            IE_THROW() << errorPrefix << "has unsupported '" << name << "' input 1st dimension size: " << dims[0];
+    if (shape.getRank() != 0 && shape.getRank() != 1)
+        IE_THROW() << errorPrefix << "has unsupported '" << name << "' input rank: " << shape.getRank();
+    if (shape.getRank() == 1)
+        if (shape.getDims()[0] != 1)
+            IE_THROW() << errorPrefix << "has unsupported '" << name << "' input 1st dimension size: " <<
+            (shape.getDims()[0] == Shape::UNDEFINED_DIM ? "undef" : std::to_string(shape.getDims()[0]));
 }
 
-void MKLDNNNonMaxSuppressionNode::checkOutput(const SizeVector& dims, const std::vector<Precision> precList,
-                                                        const std::string name, const size_t port) {
+void MKLDNNNonMaxSuppressionNode::checkOutput(const Shape& shape, const std::vector<Precision>& precList,
+                                                        const std::string& name, const size_t port) {
     checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name, outType);
 
-    if (dims.size() != 2)
-        IE_THROW() << errorPrefix << "has unsupported '" << name << "' output rank: " << dims.size();
-    if (dims[1] != 3)
-        IE_THROW() << errorPrefix << "has unsupported '" << name << "' output 2nd dimension size: " << dims[1];
+    if (shape.getRank() != 2)
+        IE_THROW() << errorPrefix << "has unsupported '" << name << "' output rank: " << shape.getRank();
+    if (shape.getDims()[1] != 3)
+        IE_THROW() << errorPrefix << "has unsupported '" << name << "' output 2nd dimension size: " <<
+        (shape.getDims()[1] == Shape::UNDEFINED_DIM ? "undef" : std::to_string(shape.getDims()[1]));
 }
 
 
