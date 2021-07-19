@@ -10,12 +10,21 @@
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp, "MultiSubGraphOp", 0);
-
-constexpr DiscreteTypeInfo op::util::SubGraphOp::SliceInputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::SubGraphOp::MergedInputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::InvariantInputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::MultiSubGraphOp::BodyOutputDescription::type_info;
-constexpr DiscreteTypeInfo op::util::SubGraphOp::ConcatOutputDescription::type_info;
+NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::SliceInputDescription,
+                       "SliceInputDescription",
+                       0);
+NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::MergedInputDescription,
+                       "MergedInputDescription",
+                       0);
+NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::InvariantInputDescription,
+                       "InvariantInputDescription",
+                       0);
+NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::BodyOutputDescription,
+                       "BodyOutputDescription",
+                       0);
+NGRAPH_RTTI_DEFINITION(op::util::MultiSubGraphOp::ConcatOutputDescription,
+                       "ConcatOutputDescription",
+                       0);
 
 op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index,
                                                               uint64_t body_parameter_index)
@@ -31,13 +40,14 @@ op::util::MultiSubGraphOp::OutputDescription::OutputDescription(uint64_t body_va
 {
 }
 
-op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t input_index,
-                                                                   uint64_t body_parameter_index,
-                                                                   int64_t start,
-                                                                   int64_t stride,
-                                                                   int64_t part_size,
-                                                                   int64_t end,
-                                                                   int64_t axis)
+op::util::MultiSubGraphOp::SliceInputDescription::SliceInputDescription(
+    uint64_t input_index,
+    uint64_t body_parameter_index,
+    int64_t start,
+    int64_t stride,
+    int64_t part_size,
+    int64_t end,
+    int64_t axis)
     : InputDescription(input_index, body_parameter_index)
     , m_start(start)
     , m_stride(stride)
@@ -48,34 +58,34 @@ op::util::SubGraphOp::SliceInputDescription::SliceInputDescription(uint64_t inpu
 }
 
 std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
-    op::util::SubGraphOp::SliceInputDescription::copy() const
+    op::util::MultiSubGraphOp::SliceInputDescription::copy() const
 {
     return std::make_shared<SliceInputDescription>(
         m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
 }
 
-op::util::SubGraphOp::MergedInputDescription::MergedInputDescription(uint64_t input_index,
-                                                                     uint64_t body_parameter_index,
-                                                                     uint64_t body_value_index)
+op::util::MultiSubGraphOp::MergedInputDescription::MergedInputDescription(
+    uint64_t input_index, uint64_t body_parameter_index, uint64_t body_value_index)
     : InputDescription(input_index, body_parameter_index)
     , m_body_value_index(body_value_index)
 {
 }
 
 std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
-    op::util::SubGraphOp::MergedInputDescription::copy() const
+    op::util::MultiSubGraphOp::MergedInputDescription::copy() const
 {
     return std::make_shared<MergedInputDescription>(
         m_input_index, m_body_parameter_index, m_body_value_index);
 }
 
-op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
-                                                                       uint64_t output_index,
-                                                                       int64_t start,
-                                                                       int64_t stride,
-                                                                       int64_t part_size,
-                                                                       int64_t end,
-                                                                       int64_t axis)
+op::util::MultiSubGraphOp::ConcatOutputDescription::ConcatOutputDescription(
+    uint64_t body_value_index,
+    uint64_t output_index,
+    int64_t start,
+    int64_t stride,
+    int64_t part_size,
+    int64_t end,
+    int64_t axis)
     : OutputDescription(body_value_index, output_index)
     , m_start(start)
     , m_stride(stride)
@@ -86,7 +96,7 @@ op::util::SubGraphOp::ConcatOutputDescription::ConcatOutputDescription(uint64_t 
 }
 
 std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>
-    op::util::SubGraphOp::ConcatOutputDescription::copy() const
+    op::util::MultiSubGraphOp::ConcatOutputDescription::copy() const
 {
     return std::make_shared<ConcatOutputDescription>(
         m_body_value_index, m_output_index, m_start, m_stride, m_part_size, m_end, m_axis);
@@ -104,9 +114,9 @@ std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>
                                                                         m_body_parameter_index);
 }
 
-op::util::SubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
-                                                                   uint64_t output_index,
-                                                                   int64_t iteration)
+op::util::MultiSubGraphOp::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
+                                                                        uint64_t output_index,
+                                                                        int64_t iteration)
     : OutputDescription(body_value_index, output_index)
     , m_iteration(iteration)
 {
@@ -146,7 +156,7 @@ Input<Node> op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value
 }
 
 void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
-                                                     const ParameterVector bodies_parameters)
+                                                     const ParameterVector& bodies_parameters)
 {
     auto input_index = input_for_value(value).get_index();
     for (auto& param : bodies_parameters)
@@ -164,7 +174,7 @@ void op::util::MultiSubGraphOp::set_invariant_inputs(const Output<Node>& value,
     }
 }
 
-Output<Node> op::util::MultiSubGraphOp::set_body_outputs(ResultVector bodies_results)
+Output<Node> op::util::MultiSubGraphOp::set_body_outputs(const ResultVector& bodies_results)
 {
     auto output_index = get_output_size();
     for (auto& body_result : bodies_results)
@@ -185,9 +195,16 @@ Output<Node> op::util::MultiSubGraphOp::set_body_outputs(ResultVector bodies_res
 
 namespace ngraph
 {
-    constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>::type_info;
+    NGRAPH_RTTI_DEFINITION(
+        AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>,
+        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+        "MultiSubGraphOp::InputDescription>>>",
+        0);
 
-    constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>::type_info;
+    NGRAPH_RTTI_DEFINITION(
+        AttributeAdapter<
+            std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>,
+        "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::"
+        "MultiSubGraphOp::OutputDescription>>>",
+        0);
 } // namespace ngraph

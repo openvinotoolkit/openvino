@@ -76,8 +76,7 @@ namespace ngraph
                 class NGRAPH_API SliceInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr type_info_t type_info{"SliceInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
+                    NGRAPH_RTTI_DECLARATION;
                     ///
                     /// \brief      Constructs a new instance.
                     ///
@@ -112,8 +111,7 @@ namespace ngraph
                 class NGRAPH_API MergedInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr type_info_t type_info{"MergedInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
+                    NGRAPH_RTTI_DECLARATION;
                     ///
                     /// \brief      Constructs a new instance.
                     ///
@@ -137,8 +135,7 @@ namespace ngraph
                 class NGRAPH_API ConcatOutputDescription : public OutputDescription
                 {
                 public:
-                    static constexpr type_info_t type_info{"ConcatOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
+                    NGRAPH_RTTI_DECLARATION;
                     ///
                     /// \brief      Constructs a new instance.
                     ///
@@ -171,8 +168,7 @@ namespace ngraph
                 class NGRAPH_API InvariantInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr type_info_t type_info{"InvariantInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
+                    NGRAPH_RTTI_DECLARATION;
                     ///
                     /// \brief      Constructs a new instance.
                     ///
@@ -184,13 +180,11 @@ namespace ngraph
                     std::shared_ptr<InputDescription> copy() const override;
                 };
 
-                /// \brief Produces an output
                 /// \brief Produces an output from a specific iteration
                 class NGRAPH_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription
                 {
                 public:
-                    static constexpr type_info_t type_info{"BodyOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
+                    NGRAPH_RTTI_DECLARATION;
                     ///
                     /// \brief      Constructs a new instance.
                     ///
@@ -227,17 +221,11 @@ namespace ngraph
                 ///
                 /// \param     index sub-graph's index in op
                 /// \return pointer to ngraph::Function with sub-graph
-                virtual std::shared_ptr<const Function> get_function(int index) const
+                virtual const std::shared_ptr<const Function>& get_function(int index) const
                 {
                     return m_bodies[index];
                 };
-                /// \brief     Adds sub-graph to MultiSubGraphOp
-                ///
-                /// \param     func new sub_graph as ngraph::Function
-                virtual void add_function(const std::shared_ptr<Function>& func)
-                {
-                    m_bodies.push_back(func);
-                }
+
                 /// \brief     Adds sub-graph to MultiSubGraphOp
                 ///
                 /// \param index   index of new sub-graph
@@ -288,7 +276,8 @@ namespace ngraph
                 ///
                 /// \param index   index of internal sub-graph
                 /// \param inputs  vector of input descriptions
-                void set_input_descriptions(int index, MultiSubgraphInputDescriptionVector inputs)
+                void set_input_descriptions(int index,
+                                            const MultiSubgraphInputDescriptionVector& inputs)
                 {
                     m_input_descriptions[index] = inputs;
                 }
@@ -299,7 +288,7 @@ namespace ngraph
                 /// \param index   index of internal sub-graph
                 /// \param outputs vector of input descriptions
                 void set_output_descriptions(int index,
-                                             MultiSubgraphOutputDescriptionVector outputs)
+                                             const MultiSubgraphOutputDescriptionVector& outputs)
                 {
                     m_output_descriptions[index] = outputs;
                 }
@@ -310,13 +299,13 @@ namespace ngraph
                 /// \param      value              The value supplied as an input to the block.
                 /// \param      bodies_parameters  vector of bodies parameters.
                 virtual void set_invariant_inputs(const Output<Node>& value,
-                                                  const ParameterVector bodies_parameters);
+                                                  const ParameterVector& bodies_parameters);
                 ///
                 /// \brief     Set output decriptions for MultiSubGraphOp output.
                 ///
                 /// \param      bodies_results  vector of bodies results for one output.
                 /// \return     value           Output node for bodies_results.
-                virtual Output<Node> set_body_outputs(ResultVector bodies_results);
+                virtual Output<Node> set_body_outputs(const ResultVector& bodies_results);
 
                 MultiSubGraphOp(const MultiSubGraphOp&) = delete;
                 MultiSubGraphOp(MultiSubGraphOp&&) = default;
@@ -364,11 +353,7 @@ namespace ngraph
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::"
-            "InputDescription>>>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        NGRAPH_RTTI_DECLARATION;
     };
 
     template <>
@@ -386,10 +371,6 @@ namespace ngraph
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::"
-            "OutputDescription>>>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        NGRAPH_RTTI_DECLARATION;
     };
 } // namespace ngraph
