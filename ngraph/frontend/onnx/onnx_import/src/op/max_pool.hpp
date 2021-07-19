@@ -27,6 +27,20 @@ namespace ngraph
 
             } // namespace set_1
 
+            namespace set_8
+            {
+                ///
+                /// \brief Convert ONNX MaxPool operation to an nGraph node.
+                ///
+                /// \param node   The ONNX node object representing this operation.
+                ///
+                /// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
+                ///         operation.
+                ///
+                OutputVector max_pool(const Node& node);
+
+            } // namespace set_1
+
         } // namespace op
 
     } // namespace onnx_import

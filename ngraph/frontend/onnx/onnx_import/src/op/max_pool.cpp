@@ -13,6 +13,8 @@ namespace ngraph
 {
     namespace onnx_import
     {
+        using namespace pooling;
+
         namespace op
         {
             namespace set_1
@@ -23,12 +25,20 @@ namespace ngraph
                     {
                         NGRAPH_WARN << "MaxPool: Indices output is not supported and was ignored";
                     }
-                    auto max_pool = pooling::PoolingFactory(node).make_max_pool();
+                    auto max_pool = PoolingFactory(node).make_max_pool();
                     max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
                     return max_pool;
                 }
 
             } // namespace set_1
+
+            namespace set_8
+            {
+                OutputVector max_pool(const Node& node)
+                {
+                    return PoolingFactory(node).make_max_pool_with_indices();
+                }
+            }
 
         } // namespace op
 

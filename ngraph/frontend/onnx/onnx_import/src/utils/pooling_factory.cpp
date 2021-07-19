@@ -30,6 +30,10 @@ namespace ngraph
                 const CoordinateDiff& padding_below{paddings.first};
                 m_padding_below = Shape{std::begin(padding_below), std::end(padding_below)};
                 m_padding_above = Shape{std::begin(padding_above), std::end(padding_above)};
+
+                NGRAPH_CHECK(
+                    node.get_attribute_value<int64_t>("storage_order", 0) == 0,
+                    "Only the row major(0) storage order is supported for pooling operations.");
             }
 
             OutputVector PoolingFactory::make_avg_pool() const
@@ -55,6 +59,18 @@ namespace ngraph
                                                                  m_kernel_shape,
                                                                  m_rounding_type,
                                                                  m_auto_pad)};
+            }
+
+            OutputVector PoolingFactory::make_max_pool_with_indices() const
+            {
+                return {std::make_shared<op::v8::MaxPool>(m_inputs.at(0),
+                                                          m_strides,
+                                                          m_dilations,
+                                                          m_padding_below,
+                                                          m_padding_above,
+                                                          m_kernel_shape,
+                                                          m_rounding_type,
+                                                          m_auto_pad)};
             }
         } // namespace pooling
     }     // namespace onnx_import
