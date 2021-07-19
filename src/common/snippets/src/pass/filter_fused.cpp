@@ -68,15 +68,26 @@ bool isSutableParentForFusingSimple(std::shared_ptr<Node> node) {
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
     return is_convolution && has_only_child;
 }
+int getNumNonConstInputs(std::shared_ptr<Node> node) {
+    int num_non_const_inputs = 0;
+    for (const auto &parent_out : node->input_values()) {
+        const auto parent = parent_out.get_node_shared_ptr();
+        if (!!as_type_ptr<ngraph::op::v1::Reshape>(parent)) {
+            for (const auto &grandparent_out : parent->input_values()) {
+                const auto grandparent = grandparent_out.get_node_shared_ptr();
+                if (!ngraph::op::is_constant(grandparent))
+                    num_non_const_inputs++;
+            }
+        } else if (!ngraph::op::is_constant(parent)) {
+            num_non_const_inputs++;
+        }
+    }
+    return num_non_const_inputs;
+}
 bool isSutableChildForFusingSimple(std::shared_ptr<Node> node) {
     if ( !SupportsFusingWithConvolution_Simple(node) )
         return false;
-    int num_non_const_inputs = 0;
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (!ngraph::op::is_constant(node->get_input_node_shared_ptr(i)))
-            num_non_const_inputs++;
-    }
-    return (num_non_const_inputs == 1);
+    return (getNumNonConstInputs(node) == 1);
 }
 bool isSutableChildForFusingSumActivation(std::shared_ptr<Node> node) {
     if (dynamic_cast<const ngraph::op::v1::Add *>(node.get()) == nullptr)
@@ -86,7 +97,7 @@ bool isSutableChildForFusingSumActivation(std::shared_ptr<Node> node) {
         if (!ngraph::op::is_constant(node->get_input_node_shared_ptr(i)))
             num_non_const_inputs++;
     }
-    return (num_non_const_inputs == 2);
+    return (getNumNonConstInputs(node) == 2);
 }
 } // namespace
 bool ngraph::snippets::pass::FilterFused::run_on_function(std::shared_ptr<Function> f) {
