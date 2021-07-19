@@ -173,7 +173,6 @@ output  = [[65 70 56]
     * **Description**: the type of the output in original model.
     * **Range of values**: "i32", "i64", "f16", "f32", "f64".
     * **Type**: string
-    * **Default value**: None
     * **Required**: *Yes*
   
 * *output_type*
@@ -181,7 +180,6 @@ output  = [[65 70 56]
     * **Description**: the type of the output.
     * **Range of values**: "i32", "i64", "f16", "f32", "f64".
     * **Type**: string
-    * **Default value**: None
     * **Required**: *Yes*
 
 * *seed*
@@ -189,7 +187,6 @@ output  = [[65 70 56]
     * **Description**: global seed value.
     * **Range of values**: positive integers
     * **Type**: `int`
-    * **Default value**: None
     * **Required**: *Yes*
 
 * *seed2*
@@ -197,7 +194,6 @@ output  = [[65 70 56]
     * **Description**: operational seed value.
     * **Range of values**: positive integers
     * **Type**: `int`
-    * **Default value**: None
     * **Required**: *Yes*
 
 **Inputs**:
@@ -219,49 +215,24 @@ output  = [[65 70 56]
 
 * *T_SHAPE*: any supported integer type.
 
-*Example 1: "minval" and "maxval" are not specified.*
+*Example 1: IR example with initial type "FP32" in original model and output type "FP16" specified during conversion.*
 
 ```xml
-<layer ... type="RandomUniform">
-    <data output_type="f32" seed="150" seed2="10"/>
+<layer ... name="RandomUniform" type="RandomUniform">
+    <data initial_type="f32" output_type="f16" seed="234" seed2="148"/>
     <input>
-        <port id="0">
-            <dim>3</dim>  <!-- shape value: [2 , 3, 10] -->
-        </port>
-     </input>
-    <output>
-        <port id="0">
+        <port id="0" precision="I32">  <!-- shape value: [2 , 3, 10] -->
             <dim>2</dim>
-            <dim>3</dim>
-            <dim>10</dim>
         </port>
-    </output>
-</layer>
-```
-
-*Example 2: "minval" and "maxval" are specified.*
-
-```xml
-<layer ... type="RandomUniform">
-    <data output_type="i32" seed="100" seed2="80"/>
-    <input>
-        <port id="0">
-            <dim>4</dim> <!-- shape value: [3 , 10, 100, 200] -->
-        </port>
-        <port id="1">
-            <dim>1</dim> <!-- minval -->
-        </port>
-        <port id="2">
-            <dim>1</dim> <!-- maxval -->
-        </port>
-     </input>
+        <port id="1" precision="FP16"/> <!-- min value -->
+        <port id="2" precision="FP16"/> <!-- max value -->
+    </input>
     <output>
-        <port id="0">
-            <dim>3</dim>
-            <dim>10</dim>
-            <dim>100</dim>
-            <dim>200</dim>
-        </port>
+      <port id="3" precision="FP16" names="RandomUniform:0">
+          <dim>2</dim>
+          <dim>3</dim>
+          <dim>10</dim>
+      </port>
     </output>
 </layer>
 ```
