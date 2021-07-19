@@ -113,7 +113,7 @@ class TestMainFrontend(unittest.TestCase):
     # Mock model has 'operation' and 'operation:0' op places, collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_op_collision_out(self):
-        with self.assertRaisesRegex(Error, 'Name\\ collision.*operation\\:0*'):
+        with self.assertRaisesRegex(Error, 'Name\\ collision(?!.*Tensor.*).*operation\\:0*'):
             decode_name_with_port(self.model, 'operation:0')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
@@ -127,7 +127,7 @@ class TestMainFrontend(unittest.TestCase):
     # Mock model has 'operation' and '0:operation' op places, collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_op_collision_in(self):
-        with self.assertRaisesRegex(Error, 'Name\\ collision.*0\\:operation*'):
+        with self.assertRaisesRegex(Error, 'Name\\ collision(?!.*Tensor.*).*0\\:operation*'):
             decode_name_with_port(self.model, '0:operation')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
