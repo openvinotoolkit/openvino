@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_static_shape_ie.hpp"
 
 namespace ngraph {
