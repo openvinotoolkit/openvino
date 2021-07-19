@@ -13,21 +13,30 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
+class LP_TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
 public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
-    bool isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
+    static bool checkPrecisionOnActivation(
+        const std::shared_ptr<const ngraph::Node>& node,
+        const std::vector<ngraph::element::Type>& supportedPrecisionsOnActivations) {
+        return true;
+    }
+
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept;
+
 protected:
-    void decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;
+    bool decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
 
-    std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) const;
-    DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const;
+public:
+    static std::shared_ptr<opset1::FakeQuantize> getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node);
+    static DataPrecision getDataPrecisionOnWeights(const std::shared_ptr<Node>& node);
+    static bool isAsymmetricOnWeights(const std::shared_ptr<const Node>& node);
 };
 
 } // namespace low_precision

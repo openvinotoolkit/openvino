@@ -54,24 +54,6 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
         shapes.second,
         param.fqOnData,
         param.fqOnWeights);
-
-    validate();
-}
-
-void MatMulWithOptimizedConstantFakeQuantizeTransformation::validate() {
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
-    std::tie(precision, shapes, targetDevice, param) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, CompareWithRefImpl) {

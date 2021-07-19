@@ -26,6 +26,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::builder::makeFakeQuantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
             fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
+    if (fakeQuantizeOnActivations != nullptr) {
+        fakeQuantizeOnActivations->set_friendly_name("fakeQuantizeOnActivations");
+    }
 
     const size_t inputChannelsCount = inputShape[1].get_length();
     const size_t outputChannelsCount = 2 * inputShape[1].get_length();
@@ -34,8 +37,17 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+    auto maxPool = std::make_shared<opset1::MaxPool>(
         fqOnData.empty() ? input : fakeQuantizeOnActivations,
+        Strides{ 1, 1 },
+        Shape{ 1, 1 },
+        Shape{ 0, 0 },
+        Shape{ 2, 2 },
+        op::RoundingType::FLOOR);
+    maxPool->set_friendly_name("maxPool");
+
+    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+        maxPool, //fqOnData.empty() ? input : fakeQuantizeOnActivations,
         fqOnWeights.empty() ? weights->output(0) :
         ngraph::builder::makeFakeQuantize(
             weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
@@ -44,7 +56,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
-    convolution->set_friendly_name("output");
+    convolution->set_friendly_name("convolution");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndConvolutionFunction");

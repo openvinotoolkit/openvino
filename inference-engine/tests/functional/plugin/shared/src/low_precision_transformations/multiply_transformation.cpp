@@ -25,13 +25,17 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
     MultiplyTestValues param;
     std::tie(precision, inputShapes, targetDevice, param) = obj.param;
 
-    if (!param.precisionOnActivations.empty()) {
-        params.precisionsOnActivations = param.precisionOnActivations;
-    }
-
     std::ostringstream result;
     result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) <<
         (param.broadcast ? "_broadcast" : "");
+    for (const auto& elem : param.precisionOnActivations) {
+        result << "_" << elem << "_";
+    }
+    result << "expected_precisions_";
+    for (const auto& elem : param.expectedPrecisions) {
+        result << "_" << elem << "_";
+    }
+
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
             param.fakeQuantize1.inputLowValues[0] << "_" <<
@@ -63,33 +67,6 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantize2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void MultiplyTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    MultiplyTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8().
-        setPrecisionsOnActivations(param.precisionOnActivations);
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-    const auto output = transformed->get_output_op(0);
-
-    if ((!param.fakeQuantize1.empty()) && (!param.fakeQuantize2.empty())) {
-        const auto mul = output->get_input_node_shared_ptr(0);
-        const std::string typeName = mul->get_type_name();
-        ASSERT_EQ("Eltwise", typeName);
-        const bool notTransformed = param.expectedPrecisions[0] == param.expectedPrecisions[1];
-        for (size_t i = 0; i < param.expectedPrecisions.size(); ++i) {
-            const auto curPrecision = mul->get_input_element_type(i);
-            const auto expectedPrecision = notTransformed ? precision : param.expectedPrecisions[i];
-            ASSERT_EQ(curPrecision, expectedPrecision);
-        }
-    }
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {

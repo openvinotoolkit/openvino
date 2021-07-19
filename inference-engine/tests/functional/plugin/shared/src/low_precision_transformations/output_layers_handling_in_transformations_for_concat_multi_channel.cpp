@@ -51,7 +51,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
     }
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
 
-    const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(params.precisionsOnActivations);
+    const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval({ ngraph::element::u8, ngraph::element::i8 });
     const float low = interval.first / k;
     const float hight = interval.second / k;
 

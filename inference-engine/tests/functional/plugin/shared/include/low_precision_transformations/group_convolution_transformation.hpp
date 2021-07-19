@@ -29,7 +29,8 @@ typedef std::tuple<
     ngraph::element::Type,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    GroupConvolutionTransformationParam
+    GroupConvolutionTransformationParam,
+    bool // add precision preserved operation
 > GroupConvolutionTransformationParams;
 
 class GroupConvolutionTransformation :
@@ -42,9 +43,6 @@ protected:
     void SetUp() override;
 
     void Run() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

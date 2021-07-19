@@ -39,7 +39,6 @@ std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<Fu
 void FuseConvertTransformation::SetUp() {
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
     std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();

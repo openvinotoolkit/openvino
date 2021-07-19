@@ -29,7 +29,7 @@ using namespace ngraph::builder::subgraph;
 
 class FoldConvertTransformationTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     ngraph::element::Type precision;
     ngraph::builder::subgraph::DequantizationOperations dequantizationActual;
     ngraph::builder::subgraph::DequantizationOperations dequantizationExpected;
@@ -61,8 +61,7 @@ public:
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FoldConvertTransformation, ngraph::opset1::Add>(
-            low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::FoldConvertTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationExpected);

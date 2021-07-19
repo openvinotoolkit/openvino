@@ -16,6 +16,8 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+    using namespace ngraph::pass::low_precision;
+
 std::shared_ptr<Node> makeDequantization(
     const Output<Node>& data,
     const DequantizationOperations& dequantizationOperations) {
@@ -25,7 +27,7 @@ std::shared_ptr<Node> makeDequantization(
         std::shared_ptr<ngraph::opset1::Convert> convert = dequantizationOperations.convert.addDequantizationAttribute ?
             std::make_shared<ngraph::pass::low_precision::DequantizationConvert>(data, dequantizationOperations.convert.outPrecision) :
             std::make_shared<ngraph::opset1::Convert>(data, dequantizationOperations.convert.outPrecision);
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), convert }, convert);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), convert }, convert);
         parent = convert;
     }
 
@@ -123,7 +125,7 @@ std::shared_ptr<Node> makeDequantization(
         if (!dequantizationOperations.subtract.addDequantizationAttribute) {
             ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(subtract);
         }
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), subtract }, subtract);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), subtract }, subtract);
 
         if (!dequantizationOperations.subtract.attributes.empty()) {
             auto& rt = subtract->get_rt_info();
@@ -137,7 +139,7 @@ std::shared_ptr<Node> makeDequantization(
 
     if (!dequantizationOperations.multiply.empty()) {
         auto const newMultiply = makeMultiply(parent, dequantizationOperations.multiply);
-        ngraph::copy_runtime_info({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
+        NetworkHelper::copyInfo({ data.get_node_shared_ptr(), newMultiply }, newMultiply);
         parent = newMultiply;
     }
 
@@ -233,11 +235,11 @@ std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& t
 }
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& input,
+    const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
     return as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
-        input,
+        output,
         precision,
         fqOnData.quantizationLevel,
         fqOnData.constantShape,
@@ -248,11 +250,13 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
 }
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const std::shared_ptr<ngraph::Node>& input,
+    const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
-    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, precision, fqOnData);
-    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(*fq, fqOnData.outputPrecision);
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData);
+    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
+        *fq,
+        fqOnData.outputPrecision == element::undefined ? precision : fqOnData.outputPrecision);
 }
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
@@ -319,6 +323,12 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.outputHighValues.empty());
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);
+
+    auto& rt = fq->get_rt_info();
+    for (auto& attribute : fqOnData.attributes) {
+        rt[attribute->get_type_info().name] = attribute;
+    }
+
     return fq;
 }
 
@@ -336,6 +346,54 @@ std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op
     auto& rtInfo = op->get_rt_info();
     rtInfo["DEQUANTIZATION"] = std::make_shared<VariantWrapper<DequantizationAttr>>(DequantizationAttr());
     return op;
+}
+
+void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<std::shared_ptr<Variant>> attributes) {
+    for (const auto& node : nodes) {
+        for (const auto& attribute : attributes) {
+            auto& rt = node->get_rt_info();
+            const std::string typeInfoName = attribute->get_type_info().name;
+            rt[typeInfoName] = attribute;
+        }
+    }
+}
+
+std::shared_ptr<Node> makeConvolution(
+    const std::shared_ptr<Node>& parent,
+    const element::Type precision,
+    const bool weightsWithoutFQ,
+    const element::Type weightsprecision) {
+    const size_t outputChannels = parent->get_output_partial_shape(0)[1].get_length() * 2;
+    const size_t inputChannels = parent->get_output_partial_shape(0)[1].get_length();
+    const auto shape = Shape{ outputChannels, inputChannels, 1, 1 };
+
+    std::shared_ptr<Node> weights;
+    if (weightsWithoutFQ) {
+        weights = std::make_shared<opset1::Constant>(weightsprecision, shape, std::vector<int>(ngraph::shape_size(shape), 100));
+    } else {
+        weights = ngraph::builder::makeFakeQuantize(
+            std::make_shared<opset1::Constant>(precision, shape, std::vector<float>(ngraph::shape_size(shape), 1.f)),
+            precision,
+            255,
+            { outputChannels, 1, 1, 1 },
+            std::vector<float>(outputChannels, -1.27f),
+            std::vector<float>(outputChannels, 1.27f),
+            std::vector<float>(outputChannels, -1.27f),
+            std::vector<float>(outputChannels, 1.27f));
+        weights->set_friendly_name("fakeQuantizeOnWeights");
+    }
+
+    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
+        ngraph::op::TemporaryReplaceOutputType(weights, precision).get(),
+        ngraph::Strides{ 1, 1 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::Strides{ 1, 1 });
+
+    convolution->set_friendly_name("convolution");
+
+    return convolution;
 }
 
 } // namespace subgraph

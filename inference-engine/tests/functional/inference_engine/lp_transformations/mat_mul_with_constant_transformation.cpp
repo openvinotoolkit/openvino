@@ -11,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -51,7 +50,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -105,6 +104,12 @@ public:
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        if (testValues.params.support3DTensorOnActivations == false) {
+            transformer.set_callback<ngraph::pass::low_precision::MatMulTransformation>(
+                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+                    return ngraph::pass::low_precision::MatMulTransformation::is3DTensorOnActivations(node);
+                });
+        }
         transformer.transform(actualFunction);
 
         referenceFunction = (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty()) ?
@@ -139,7 +144,7 @@ public:
 
 TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 

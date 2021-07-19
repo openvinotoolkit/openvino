@@ -24,13 +24,17 @@ std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransf
     AddTestValues param;
     std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
-    if (!param.precisionOnActivations.empty()) {
-        params.precisionsOnActivations = param.precisionOnActivations;
-    }
-
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
         (param.broadcast ? "_broadcast" : "");
+    for (const auto& elem : param.precisionOnActivations) {
+        result << "_" << elem << "_";
+    }
+    result << "expected_precisions_";
+    for (const auto& elem : param.expectedPrecisions) {
+        result << "_" << elem << "_";
+    }
+
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
             param.fakeQuantize1.inputLowValues[0] << "_" <<
@@ -59,25 +63,6 @@ void AddTransformation::SetUp() {
         param.fakeQuantize1, param.fakeQuantize2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void AddTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    AddTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    if ((!param.fakeQuantize1.empty()) && (!param.fakeQuantize2.empty())) {
-        const auto scaleShift = output->get_input_node_shared_ptr(0);
-        const std::string typeName = scaleShift->get_type_name();
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    }
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {

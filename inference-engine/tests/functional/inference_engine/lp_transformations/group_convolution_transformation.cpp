@@ -49,7 +49,7 @@ public:
         ngraph::element::Type precisionAfterDequantization;
     };
 
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     size_t group;
     int groupCalculationDimention;
     Actual actual;
@@ -83,6 +83,12 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(testValues.params);
+        if (testValues.params.supportAsymmetricQuantization == false) {
+            transform.set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
+                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+                    return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
+                });
+        }
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::GroupConvolutionFunction::get(
@@ -122,7 +128,7 @@ public:
 
 TEST_P(GroupConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -228,8 +234,8 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
         {
             ngraph::element::u8,
             {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
-            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -1.25f }),
-            {},
+            op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
             {},
             ngraph::element::f32,
             {}

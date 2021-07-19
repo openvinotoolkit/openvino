@@ -73,11 +73,11 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizePrecisionSelectionTransformationTestValues testValues = std::get<3>(GetParam());
 
-        low_precision::LayerTransformation::Params params = createParamsU8I8AndI8();
+        auto params = createParamsU8I8AndI8();
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 
-        low_precision::LayerTransformation::Params precisionLimitedOperationParams(params);
+        auto precisionLimitedOperationParams(params);
         precisionLimitedOperationParams.setPrecisionsOnActivations(testValues.precisionsOnActivationForLimitedOperation);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
@@ -88,8 +88,16 @@ public:
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.fakeQuantizeOnWeights
             });
-        SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::AvgPool>(params);
+
+        auto supportedPrecisions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+           ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+               {0, testValues.precisionsOnActivationForLimitedOperation},
+               {1, { element::i8 }}
+           })
+        });
+
+        SimpleLowPrecisionTransformer transform(supportedPrecisions);
+        transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::PRelu>(params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
@@ -113,7 +121,7 @@ public:
         FakeQuantizePrecisionSelectionTransformationTestValues testValues;
         std::tie(precision, shape, updatePrecision, testValues) = obj.param;
 
-        low_precision::LayerTransformation::Params params;
+        TestTransformationParams params;
         params.setUpdatePrecisions(updatePrecision);
         params.setPrecisionsOnActivations(testValues.precisionsOnActivations);
 

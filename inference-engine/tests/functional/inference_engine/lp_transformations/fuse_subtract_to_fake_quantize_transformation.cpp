@@ -42,7 +42,7 @@ public:
         DequantizationOperations dequantization2;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
@@ -56,9 +56,9 @@ class FuseSubtractToFakeQuantizeTransformation : public LayerTransformation,
     public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestParams> {
 public:
     void SetUp() override {
-        const size_t quantizationLevel = get<0>(GetParam());
-        const ngraph::PartialShape inputShape = get<1>(GetParam());
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<2>(GetParam());
+        const size_t quantizationLevel = std::get<0>(GetParam());
+        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
@@ -103,9 +103,9 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestParams> obj) {
-        const size_t quantizationLevel = get<0>(obj.param);
-        const ngraph::PartialShape inputShape = get<1>(obj.param);
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = get<2>(obj.param);
+        const size_t quantizationLevel = std::get<0>(obj.param);
+        const ngraph::PartialShape inputShape = std::get<1>(obj.param);
+        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
 
         if (!testValues.actual.fakeQuantizeOnData.empty()) {
             testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
