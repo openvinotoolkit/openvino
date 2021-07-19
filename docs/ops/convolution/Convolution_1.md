@@ -1,3 +1,6 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.css" integrity="sha384-Um5gpz1odJg5Z4HAmzPtgZKdTBHZdw8S29IecapCSB31ligYPhHQZMIlWLYQGVoc" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.11/dist/katex.min.js" integrity="sha384-YNHdsYkH6gMx9y3mRkmcJ2mFUjTd0qNQQvY9VYZgQd7DcN7env35GzlmFaZ23JGp" crossorigin="anonymous"></script>
+
 ## Convolution <a name="Convolution"></a> {#openvino_docs_ops_convolution_Convolution_1}
 
 **Versioned name**: *Convolution-1*
@@ -9,27 +12,27 @@
 **Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in [Convolutional Neural Networks](http://cs231n.github.io/convolutional-networks/#conv) and [Convolution operation](https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c).  
 
 For the convolutional layer, the number of output features in each dimension is calculated using the formula:  
-\f[
+$$
 n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
-\f] 
+$$
 
 The receptive field in each layer is calculated using the formulas:  
 *   Jump in the output feature map:  
-  \f[
+  $$
   j_{out} = j_{in} * s
-  \f]
+  $$
 *   Size of the receptive field of output feature:  
-  \f[
+  $$
   r_{out} = r_{in} + ( k - 1 ) * j_{in}
-  \f]
+  $$
 *   Center position of the receptive field of the first output feature:  
-  \f[
+  $$
   start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
-  \f]
+  $$
 *   Output is calculated using the following formula: 
-  \f[
+  $$
   out = \sum_{i = 0}^{n}w_{i}x_{i} + b
-  \f]
+  $$
 
 **Attributes**:
 
