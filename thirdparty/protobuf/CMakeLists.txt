@@ -7,9 +7,24 @@
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+set(BUILD_SHARED_LIBS OFF)
 
-if (MSVC)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+endif()
+
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+
+# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+# These two options can't be mixed, because they requires link two imcompatiable runtime.
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
+if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
@@ -19,8 +34,7 @@ if(CMAKE_CROSSCOMPILING)
         execute_process(
             COMMAND ${SYSTEM_PROTOC} --version
             OUTPUT_VARIABLE PROTOC_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
@@ -33,7 +47,7 @@ if(CMAKE_CROSSCOMPILING)
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 endif()
 
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs")
+set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
@@ -51,20 +65,17 @@ endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
+        list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
-
-        # required for protoc compiler
-        set_target_properties(libprotoc PROPERTIES
-            CXX_VISIBILITY_PRESET default
-            C_VISIBILITY_PRESET default
-            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
+    set_target_properties(${_proto_libs} PROPERTIES
+        CXX_VISIBILITY_PRESET default
+        C_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF)
     foreach(target libprotobuf libprotobuf-lite)
-        if(TARGET ${target})
-            target_compile_options(${target}
-                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
-                PUBLIC -Wno-undef)
-        endif()
+        target_compile_options(${target}
+            PRIVATE -Wno-all -Wno-unused-variable
+            PUBLIC -Wno-undef)
     endforeach()
 endif()
 
