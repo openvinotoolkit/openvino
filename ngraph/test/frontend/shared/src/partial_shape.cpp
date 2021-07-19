@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/partial_shape.hpp"
-#include "../include/utils.hpp"
+#include "partial_shape.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -42,7 +42,7 @@ void FrontEndPartialShapeTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_baseParam.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_partShape.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_partShape.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 

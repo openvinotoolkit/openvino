@@ -11,6 +11,12 @@
 #include "decoder.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
+#include "pdpd_utils.hpp"
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#include <codecvt>
+#include <locale>
+#endif
 
 namespace ngraph
 {
@@ -21,7 +27,8 @@ namespace ngraph
         class InputModelPDPD::InputModelPDPDImpl
         {
         public:
-            InputModelPDPDImpl(const std::string& path, const InputModel& input_model);
+            template <typename T>
+            InputModelPDPDImpl(const std::basic_string<T>& path, const InputModel& input_model);
             InputModelPDPDImpl(const std::vector<std::istream*>& streams,
                                const InputModel& input_model);
             std::vector<Place::Ptr> getInputs() const;
@@ -37,7 +44,6 @@ namespace ngraph
             void setElementType(Place::Ptr place, const ngraph::element::Type&);
             void setTensorValue(Place::Ptr place, const void* value);
 
-            std::vector<uint8_t> readWeight(const std::string& name, int64_t len);
             std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const { return m_op_places; }
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const
             {
@@ -50,7 +56,9 @@ namespace ngraph
 
         private:
             void loadPlaces();
-            void loadConsts(std::string folder_with_weights, std::istream* weight_stream);
+            template <typename T>
+            void loadConsts(const std::basic_string<T>& folder_with_weights,
+                            std::istream* weight_stream);
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -142,16 +150,6 @@ namespace ngraph
 
         namespace pdpd
         {
-            bool endsWith(const std::string& str, const std::string& suffix)
-            {
-                if (str.length() >= suffix.length())
-                {
-                    return (0 ==
-                            str.compare(str.length() - suffix.length(), suffix.length(), suffix));
-                }
-                return false;
-            }
-
             void read_tensor(std::istream& is, char* data, size_t len)
             {
                 std::vector<char> header(16);
@@ -163,16 +161,81 @@ namespace ngraph
                 is.read(data, len);
             }
 
+            template <typename T>
+            std::basic_string<T> get_const_path(const std::basic_string<T>& folder_with_weights,
+                                                const std::string& name)
+            {
+                return folder_with_weights + pdpd::get_path_sep<T>() + name;
+            }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            template <>
+            std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& folder,
+                                                      const std::string& name)
+            {
+                std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                std::wstring _name = converter.from_bytes(name);
+                return folder + pdpd::get_path_sep<wchar_t>() + _name;
+            }
+#endif
+
+            template <typename T>
+            std::basic_string<T> get_model_path(const std::basic_string<T>& path,
+                                                std::ifstream* weights_stream)
+            {
+                std::string model_file{path};
+                std::string ext = ".pdmodel";
+                if (pdpd::endsWith(model_file, ext))
+                {
+                    std::string params_ext = ".pdiparams";
+                    std::string weights_file{path};
+                    weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+                    weights_stream->open(weights_file, std::ios::binary);
+                    // Don't throw error if file isn't opened
+                    // It may mean that model don't have constants
+                }
+                else
+                {
+                    model_file += pdpd::get_path_sep<T>() + "__model__";
+                }
+                return model_file;
+            }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            template <>
+            std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path,
+                                                      std::ifstream* weights_stream)
+            {
+                std::wstring model_file{path};
+                std::wstring ext = L".pdmodel";
+                if (pdpd::endsWith(model_file, ext))
+                {
+                    std::wstring params_ext = L".pdiparams";
+                    std::wstring weights_file{path};
+                    weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+                    weights_stream->open(weights_file, std::ios::binary);
+                    // Don't throw error if file isn't opened
+                    // It may mean that model don't have constants
+                }
+                else
+                {
+                    model_file += pdpd::get_path_sep<wchar_t>() + L"__model__";
+                }
+                return model_file;
+            }
+#endif
         } // namespace pdpd
 
-        void InputModelPDPD::InputModelPDPDImpl::loadConsts(std::string folder_with_weights,
-                                                            std::istream* weight_stream)
+        template <typename T>
+        void InputModelPDPD::InputModelPDPDImpl::loadConsts(
+            const std::basic_string<T>& folder_with_weights, std::istream* weight_stream)
         {
             for (const auto& item : m_var_places)
             {
                 const auto& var_desc = item.second->getDesc();
                 const auto& name = item.first;
-                if (pdpd::endsWith(name, "feed") || pdpd::endsWith(name, "fetch"))
+                if (pdpd::endsWith(name, std::string{"feed"}) ||
+                    pdpd::endsWith(name, std::string{"fetch"}))
                     continue;
                 if (!var_desc->persistable())
                     continue;
@@ -192,7 +255,7 @@ namespace ngraph
                 }
                 else if (!folder_with_weights.empty())
                 {
-                    std::ifstream is(folder_with_weights + "/" + name,
+                    std::ifstream is(pdpd::get_const_path(folder_with_weights, name),
                                      std::ios::in | std::ifstream::binary);
                     FRONT_END_GENERAL_CHECK(is && is.is_open(),
                                             "Cannot open file for constant value.");
@@ -210,35 +273,24 @@ namespace ngraph
             }
         }
 
-        InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::string& path,
+        template <typename T>
+        InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T>& path,
                                                                const InputModel& input_model)
             : m_fw_ptr{std::make_shared<ProgramDesc>()}
             , m_input_model(input_model)
         {
-            std::string ext = ".pdmodel";
-            std::string model_file(path);
-            std::unique_ptr<std::ifstream> weights_stream;
-            if (model_file.length() >= ext.length() &&
-                (0 == model_file.compare(model_file.length() - ext.length(), ext.length(), ext)))
-            {
-                std::string weights_file(path);
-                weights_file.replace(weights_file.size() - ext.size(), ext.size(), ".pdiparams");
-                weights_stream = std::unique_ptr<std::ifstream>(
-                    new std::ifstream(weights_file, std::ios::binary));
-                // Don't throw error if file isn't opened
-                // It may mean that model don't have constants
-            }
-            else
-            {
-                model_file += "/__model__";
-            }
+            std::string empty_str = "";
+            std::ifstream weights_stream;
+            std::ifstream pb_stream(pdpd::get_model_path<T>(path, &weights_stream),
+                                    std::ios::in | std::ifstream::binary);
 
-            std::ifstream pb_stream(model_file, std::ios::binary);
+            FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
             FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream),
                                     "Model can't be parsed");
 
             loadPlaces();
-            loadConsts(weights_stream ? "" : path, weights_stream.get());
+            loadConsts(weights_stream && weights_stream.is_open() ? std::basic_string<T>{} : path,
+                       &weights_stream);
         }
 
         InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(
@@ -257,7 +309,7 @@ namespace ngraph
 
             loadPlaces();
             if (streams.size() > 1)
-                loadConsts("", streams[1]);
+                loadConsts(std::string{""}, streams[1]);
         }
 
         std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs() const
@@ -366,6 +418,13 @@ namespace ngraph
             : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
         {
         }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        InputModelPDPD::InputModelPDPD(const std::wstring& path)
+            : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
+        {
+        }
+#endif
 
         InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams)
             : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this)}

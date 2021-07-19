@@ -19,10 +19,11 @@ void regclass_pyngraph_FrontEnd(py::module m)
         m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("load_from_file",
-            &ngraph::frontend::FrontEnd::load_from_file,
-            py::arg("path"),
-            R"(
+    fem.def(
+        "load",
+        [](ngraph::frontend::FrontEnd& self, const std::string& s) { return self.load(s); },
+        py::arg("path"),
+        R"(
                 Loads an input model by specified model file path.
 
                 Parameters
@@ -32,7 +33,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
 
                 Returns
                 ----------
-                load_from_file : InputModel
+                load : InputModel
                     Loaded input model.
              )");
 

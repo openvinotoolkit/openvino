@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/cut_specific_model.hpp"
+#include "cut_specific_model.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
