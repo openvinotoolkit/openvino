@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <frontend_manager/frontend_exceptions.hpp>
 #include <onnx_frontend/input_model.hpp>
 #include <onnx_frontend/place.hpp>
-#include <frontend_manager/frontend_exceptions.hpp>
-
 
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-
-InputModelONNX::InputModelONNX(const std::string& path) : m_editor(path)
-{}
+InputModelONNX::InputModelONNX(const std::string& path)
+    : m_editor(path)
+{
+}
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const
 {

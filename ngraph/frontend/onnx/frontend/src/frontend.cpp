@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <onnx_import/onnx.hpp>
+#include <frontend_manager/frontend_exceptions.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_frontend/input_model.hpp>
-#include <frontend_manager/frontend_manager.hpp>
-#include <frontend_manager/frontend_exceptions.hpp>
-
+#include <onnx_import/onnx.hpp>
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-
 
 extern "C" FRONTEND_API FrontEndVersion GetAPIVersion()
 {
@@ -22,7 +20,7 @@ extern "C" FRONTEND_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "onnx";
-    res->m_creator = [] (FrontEndCapFlags) { return std::make_shared<FrontEndONNX>(); };
+    res->m_creator = [](FrontEndCapFlags) { return std::make_shared<FrontEndONNX>(); };
     return res;
 }
 
@@ -38,7 +36,8 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
     return model_onnx->convert();
 }
 
-std::shared_ptr<ngraph::Function> FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const
+std::shared_ptr<ngraph::Function>
+    FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const
 {
     return onnx_import::convert_decoded_function(partially_converted);
 }

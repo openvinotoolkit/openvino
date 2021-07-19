@@ -13,19 +13,22 @@ namespace ngraph
         class FRONTEND_API PlaceInputEdgeONNX : public Place
         {
         public:
-            PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge) : m_edge(edge)
-            {}
+            PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge)
+                : m_edge(edge)
+            {
+            }
 
         private:
             onnx_editor::InputEdge m_edge;
-
         };
 
         class FRONTEND_API PlaceOutputEdgeONNX : public Place
         {
         public:
-            PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge) : m_edge(edge)
-            {}
+            PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge)
+                : m_edge(edge)
+            {
+            }
 
         private:
             onnx_editor::OutputEdge m_edge;
@@ -35,15 +38,12 @@ namespace ngraph
         {
         public:
             PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor)
-                : m_name(name),
-                  m_editor(editor)
+                : m_name(name)
+                , m_editor(editor)
             {
             }
 
-            std::vector<std::string> get_names() const override
-            {
-                return {m_name};
-            }
+            std::vector<std::string> get_names() const override { return {m_name}; }
 
             Place::Ptr get_producing_port() const override
             {
@@ -54,18 +54,19 @@ namespace ngraph
             {
                 std::vector<Place::Ptr> ret;
                 auto edges = m_editor.find_output_consumers(m_name);
-                std::transform(edges.begin(), edges.end(), std::back_inserter(ret),
-                               [] (const onnx_editor::InputEdge& edge) {
+                std::transform(edges.begin(),
+                               edges.end(),
+                               std::back_inserter(ret),
+                               [](const onnx_editor::InputEdge& edge) {
                                    return std::make_shared<PlaceInputEdgeONNX>(edge);
-                               }); 
+                               });
                 return ret;
             }
 
             Ptr get_input_port(int input_port_index) const override
             {
-                return std::make_shared<PlaceInputEdgeONNX>(
-                        m_editor.find_input_edge(onnx_editor::EditorNode(m_name),
-                                                 onnx_editor::EditorInput(input_port_index))); 
+                return std::make_shared<PlaceInputEdgeONNX>(m_editor.find_input_edge(
+                    onnx_editor::EditorNode(m_name), onnx_editor::EditorInput(input_port_index)));
             }
 
         private:
