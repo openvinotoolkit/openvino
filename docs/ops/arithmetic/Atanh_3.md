@@ -20,7 +20,7 @@
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 *Atanh* does the following with the input tensor *a*:
 

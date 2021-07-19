@@ -58,7 +58,10 @@ std::map<program_node*, format::type> get_preferred_formats(program_impl& p, lay
             continue;
 
         auto ex = lo.get_preferred_format(*n);
+        auto impl = lo.get_preferred_impl_type(*n);
         fmt_map[n] = ex;
+
+        n->set_preferred_impl_type(impl);
     }
     return fmt_map;
 }

@@ -6,13 +6,13 @@
 
 **Short description**: Computes 2D convolution of binary input and binary kernel tensors.
 
-**Detailed description**: The operation behaves as regular *Convolution* but uses specialized algorithm for computations on binary data. More thorough explanation can be found in [Understanding Binary Neural Networks](https://sushscience.wordpress.com/2017/10/01/understanding-binary-neural-networks/) and [Bitwise Neural Networks](https://saige.sice.indiana.edu/wp-content/uploads/icml2015_mkim.pdf).  
+**Detailed description**: The operation behaves as regular *Convolution* but uses specialized algorithm for computations on binary data. More thorough explanation can be found in [Understanding Binary Neural Networks](https://sushscience.wordpress.com/2017/10/01/understanding-binary-neural-networks/) and [Bitwise Neural Networks](https://saige.sice.indiana.edu/wp-content/uploads/icml2015_mkim.pdf).
 
 
-Computation algorithm for mode *xnor-popcount*: 
+Computation algorithm for mode *xnor-popcount*:
 - `X = XNOR(input_patch, filter)`, where XNOR is bitwise operation on two bit streams
-- `P = popcount(X)`, where popcount is the number of `1` bits in the `X` bit stream  
-- `Output = 2 * P - B`, where `B` is the total number of bits in the `P` bit stream 
+- `P = popcount(X)`, where popcount is the number of `1` bits in the `X` bit stream
+- `Output = 2 * P - B`, where `B` is the total number of bits in the `P` bit stream
 
 **Attributes**:
 
@@ -21,7 +21,6 @@ Computation algorithm for mode *xnor-popcount*:
   * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(y, x)` axes for 2D convolutions. For example, *strides* equal `2,1` means sliding the filter 2 pixel at a time over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -29,7 +28,6 @@ Computation algorithm for mode *xnor-popcount*:
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -38,7 +36,6 @@ Computation algorithm for mode *xnor-popcount*:
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -47,7 +44,6 @@ Computation algorithm for mode *xnor-popcount*:
   * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: integer value starting from 0
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *mode*
@@ -56,16 +52,14 @@ Computation algorithm for mode *xnor-popcount*:
   * **Range of values**:
     * *xnor-popcount*
   * **Type**: `string`
-  * **Default value**: None
   * **Required**: *yes*
-  *  **Note**: value `0` in inputs is interpreted as `-1`, value `1` as `1`
+  * **Note**: value `0` in inputs is interpreted as `-1`, value `1` as `1`
 
 * *pad_value*
 
   * **Description**: *pad_value* is a floating-point value used to fill pad area.
   * **Range of values**: a floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -79,17 +73,17 @@ Computation algorithm for mode *xnor-popcount*:
   * **Default value**: explicit
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
-  
+
 **Inputs**:
 
-*   **1**: Input tensor of type *T1* and rank 4. Layout is `[N, C_IN, Y, X]` (number of batches, number of channels, spatial axes Y, X). Required.
-*   **2**: Kernel tensor of type *T2* and rank 4. Layout is `[C_OUT, C_IN, Y, X]` (number of output channels, number of input channels, spatial axes Y, X). Required.
+*   **1**: Input tensor of type *T1* and rank 4. Layout is `[N, C_IN, Y, X]` (number of batches, number of channels, spatial axes Y, X). **Required.**
+*   **2**: Kernel tensor of type *T2* and rank 4. Layout is `[C_OUT, C_IN, Y, X]` (number of output channels, number of input channels, spatial axes Y, X). **Required.**
 *   **Note**: Interpretation of tensor values is defined by *mode* attribute.
 
 **Outputs**:
 
 *   **1**: Output tensor of type *T3* and rank 4. Layout is `[N, C_OUT, Y, X]` (number of batches, number of kernel output channels, spatial axes Y, X).
-  
+
 **Types**:
 
 * *T1*: any numeric type with values `0` or `1`.
