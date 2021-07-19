@@ -14,11 +14,11 @@
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: Arbitrary input tensor of type *T*. Required.
+*   **1**: Arbitrary input tensor of type *T*. **Required.**
 
 **Outputs**:
 

@@ -11,8 +11,8 @@
 #pragma once
 
 /**
-* @brief Definitions required by Khronos headers
-*/
+ * @brief Definitions required by Khronos headers
+ */
 
 #ifndef CL_HPP_ENABLE_EXCEPTIONS
 # define CL_HPP_ENABLE_EXCEPTIONS
@@ -39,7 +39,7 @@
 # pragma GCC system_header
 #endif
 
-#include <CL/cl2.hpp>
+#include <CL/opencl.hpp>
 
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
