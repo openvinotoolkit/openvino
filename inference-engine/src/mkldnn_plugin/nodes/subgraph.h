@@ -18,7 +18,7 @@ namespace MKLDNNPlugin {
 
 /// MKLDNNSnippetNode represents subgraph node in MKLDNN plugin
 /// potentially, snippet can be placed as a postop to any support operation while it doesn't support postops itself
-/// presision: fp32
+/// precision: fp32
 class MKLDNNSnippetNode : public MKLDNNNode {
 public:
     MKLDNNSnippetNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
@@ -40,7 +40,7 @@ public:
 private:
     static const size_t rank6D {6};
 
-    typedef void (*kernel)(const void *, const void *);
+    typedef void (*kernel)(const void *, const void *, const void *);
 
     // Evaluates generated snippet in a single thread
     bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const;
@@ -74,22 +74,28 @@ private:
 
     /// scheduling info
     bool isDynBatchEnabled = false;
+    bool isCollapsing = false;
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;
     size_t fullWorkAmount = 0;
     size_t schedulerWorkAmount = 0;
+    const size_t maxTileRank = 2;
 
-    std::vector<std::vector<size_t>> dims_in = {};
-    std::vector<std::vector<size_t>> offsets_in = {};
+    std::vector<std::vector<int64_t>> dims_in = {};
+    std::vector<std::vector<int64_t>> offsets_in = {};
     std::vector<ptrdiff_t> start_offset_in = {};
 
-    std::vector<std::vector<size_t>> dims_out = {};
-    std::vector<std::vector<size_t>> offsets_out = {};
+    std::vector<std::vector<int64_t>> dims_out = {};
+    std::vector<std::vector<int64_t>> offsets_out = {};
     std::vector<ptrdiff_t>  start_offset_out = {};
+
+    std::vector<int64_t> sch_dims = {};
+    std::vector<int64_t> sch_offsets_in = {};
+    std::vector<int64_t> sch_offsets_out = {};
 
     // Minimalistic structure which encapsulates kernel arguments
     struct CallArgs {
-        void push(size_t arg) {
+        void push(int64_t arg) {
             args[nargs].i = arg;
             nargs++;
         }
@@ -103,7 +109,7 @@ private:
     private:
         union param {
             const uint8_t* ptr;
-            size_t i;
+            int64_t i;
         };
 
         std::array<param, 8> args = {};
