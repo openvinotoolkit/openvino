@@ -22,20 +22,20 @@ Also the number of outputs from *If* always must be greater than zero and equal 
     The subgraph has parameters (`Parameter` operations) and results (`Result` operations).
     
     * **Subgraph's parameters** - inputs to the subgraph which associated with *If* inputs via *port_map*. 
-    The number of parameters for the subgraph can be any (even zero).
+    The subgraph can have any number of parameters (even zero).
     
     * **Subgraph's results** - outputs from the subgraph which associated with *If* outputs via *port_map*.
     The subgraph must contain at least one result. Each *If* output is associated with one result from the subgraph. 
-    It follows that number of `then_body` results is the equal to the number of outputs from the *If* and 
+    Therefore the number of `then_body` results is equal to the number of outputs from *If* and 
     the number of `else_body` results. 
-    Type of the subgraph result and type of the associated output from *If* must be equal.
+    The type of the subgraph result and the type of the associated output from *If* must be equal.
     
 
 * **Port maps**:
     
     *port_map* is a set of rules to map input or output data tensors of *If* operation onto the subgraph data tensors. 
     The `port_map` entries can be `input` and `output`. Each entry describes a corresponding mapping rule. 
-    *If* has two *port_maps* - `then_port_map` for `then_body` and `else_port_map` for `else_body`.
+    *If* has two *port_maps*: `then_port_map` for `then_body` and `else_port_map` for `else_body`.
 
     * **Port map attributes**:
 
@@ -58,19 +58,19 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 **If Inputs**
 
 
-* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which an subgraph to execute. 
+* **cond**: A scalar or 1D tensor with 1 element of `boolean` type specifying which subgraph to execute. 
 `True` value means to execute the `then_body`, `False` - `else_body`. *Required*.
 
-* **Multiple other inputs**: tensors of different types and shapes. *Optional*.
+* **Multiple other inputs**: Tensors of different types and shapes. *Optional*.
 
 **If Outputs**
 
-* **Multiple outputs**: Results of execution of one of subgraph. Tensors of any type and shape.
+* **Multiple outputs**: Results of execution of one of the subgraph. Tensors of any type and shape.
 
 
 **Body Inputs**
 
-* **Multiple inputs**: tensors of different types and shapes. *Optional*.
+* **Multiple inputs**: Tensors of different types and shapes. *Optional*.
 
 
 **Body Outputs**
