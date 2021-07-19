@@ -235,7 +235,7 @@ Place::Ptr OpPlacePDPD::get_producing_operation(int inputPortIndex) const
 
 Place::Ptr OpPlacePDPD::get_target_tensor(int outputPortIndex) const
 {
-    return Place::get_target_tensor(outputPortIndex);
+    return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,

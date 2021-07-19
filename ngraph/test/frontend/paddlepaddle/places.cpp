@@ -413,3 +413,62 @@ TEST(PDPD_Places, check_producing_ops)
         }
     }
 }
+
+TEST(PDPD_Places, check_input_output_ports_dy_idx) {
+    FrontEndTestUtils::setupTestEnv();
+    auto m_fem = FrontEndManager();
+    auto frontend = m_fem.load_by_framework("pdpd");
+    auto input_model = frontend->load_from_file(TEST_PDPD_MODELS + model_file);
+
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
+                                             "save_infer_model/scale_1.tmp_1",
+                                             "save_infer_model/scale_2.tmp_1",
+                                             "save_infer_model/scale_3.tmp_1",
+                                             "save_infer_model/scale_4.tmp_1",
+                                             "save_infer_model/scale_5.tmp_1"};
+
+    for (const auto& tensor_name : output_names)
+    {
+        auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
+        EXPECT_NE(tensor_place, nullptr);
+
+        auto op = tensor_place->get_producing_operation();
+        auto input_port = op->get_input_port(0);
+        EXPECT_NE(input_port, nullptr);
+        auto out_port = op->get_output_port(0);
+        EXPECT_NE(out_port, nullptr);
+    }
+}
+
+TEST(PDPD_Places, check_ops_tensors_by_idx) {
+    FrontEndTestUtils::setupTestEnv();
+    auto m_fem = FrontEndManager();
+    auto frontend = m_fem.load_by_framework("pdpd");
+    auto input_model = frontend->load_from_file(TEST_PDPD_MODELS + model_file);
+
+    std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
+                                             "save_infer_model/scale_1.tmp_1",
+                                             "save_infer_model/scale_2.tmp_1",
+                                             "save_infer_model/scale_3.tmp_1",
+                                             "save_infer_model/scale_4.tmp_1",
+                                             "save_infer_model/scale_5.tmp_1"};
+
+    for (const auto& tensor_name : output_names)
+    {
+        auto tensor_place = input_model->get_place_by_tensor_name(tensor_name);
+        EXPECT_NE(tensor_place, nullptr);
+
+        auto op = tensor_place->get_producing_operation();
+        auto prod_op = op->get_producing_operation(0);
+        EXPECT_NE(prod_op, nullptr);
+
+        auto target_tensor = op->get_target_tensor(0);
+        EXPECT_EQ(tensor_place, target_tensor);
+
+        auto source_tensor = op->get_source_tensor(0);
+        EXPECT_NE(source_tensor, nullptr);
+
+        auto consum_op = op->get_consuming_operations(0);
+        EXPECT_EQ(consum_op.size(), 1);
+    }
+}
