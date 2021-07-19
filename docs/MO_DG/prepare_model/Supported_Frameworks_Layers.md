@@ -528,7 +528,7 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | Operator Name in PaddlePaddle\*| Limitations|
 | :----------| :----------|
 | adpative_pool2d | Only supports the NCHW data_layout |
-| arg_max | No |
+| arg_max | Only supports the 'Int64' output data_type |
 | assign_value | No |
 | batch_norm | No |
 | bilinear_interp | Only supports the NCHW data_layout |
@@ -568,7 +568,7 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | pad3d | Not supports the 'Circular' mode |
 | pow | No |
 | pool2d | Only supports the NCHW data_layout |
-| range | Only supports 'FP32' output data_type |
+| range | No |
 | relu | No |
 | relu6 | No |
 | reshape2 | No |
