@@ -43,10 +43,7 @@ public:
         return keys;
     }
 
-    FrontEnd::Ptr loadByModel(const std::string& path, FrontEndCapFlags fec)
-    {
-        return nullptr;
-    }
+    FrontEnd::Ptr loadByModel(const std::string& path, FrontEndCapFlags fec) { return nullptr; }
 
     void registerFrontEnd(const std::string& name, FrontEndFactory creator)
     {
