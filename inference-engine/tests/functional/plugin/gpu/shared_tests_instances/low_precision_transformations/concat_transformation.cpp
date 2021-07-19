@@ -42,7 +42,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
