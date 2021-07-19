@@ -29,7 +29,7 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const size_t groupCount,
         const int groupCalculationDimention,
@@ -38,8 +38,8 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::Shape& outputShape,
+        const ngraph::PartialShape& inputShape,
+        const ngraph::PartialShape& outputShape,
         const size_t groupCount,
         const int calculatedDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
