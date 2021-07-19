@@ -136,8 +136,8 @@ public:
                 actualWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.set_callback<low_precision::ConvolutionBackpropDataTransformation>(testValues.actual.callback);
         transform.add<low_precision::ConvolutionBackpropDataTransformation, opset1::ConvolutionBackpropData>(testValues.params);
+        transform.get_pass_config()->set_callback<low_precision::ConvolutionBackpropDataTransformation>(testValues.actual.callback);
         transform.transform(actualFunction);
 
         std::shared_ptr<Node> refWeights = low_precision::fold<opset1::Broadcast>(
