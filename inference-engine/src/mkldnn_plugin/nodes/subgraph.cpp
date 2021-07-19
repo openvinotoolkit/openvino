@@ -268,7 +268,7 @@ static auto argmax_rank(const std::vector<DataConfig>& conf) -> size_t {
     return max_rank_out_desc_idx;
 }
 
-static auto offset_in_calc(std::vector<size_t>& offset, const std::vector<size_t>& dims_in, const std::vector<size_t>& dims_out) -> void {
+static auto offset_in_calc(std::vector<int64_t>& offset, const std::vector<int64_t>& dims_in, const std::vector<int64_t>& dims_out) -> void {
     int k = 1;
     for (int i = offset.size() - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
@@ -276,7 +276,7 @@ static auto offset_in_calc(std::vector<size_t>& offset, const std::vector<size_t
     }
 }
 
-static auto offset_out_calc(std::vector<size_t>& offset, const std::vector<size_t>& dims) -> void {
+static auto offset_out_calc(std::vector<int64_t>& offset, const std::vector<int64_t>& dims) -> void {
     int k = 1;
     for (int i = offset.size() - 1; i >= 0; i--) {
         offset[i] = k;
@@ -284,7 +284,7 @@ static auto offset_out_calc(std::vector<size_t>& offset, const std::vector<size_
     }
 }
 
-static auto collapseLastDims(std::vector<size_t>& dims, int dimsToCollapse) -> void {
+static auto collapseLastDims(std::vector<int64_t>& dims, int dimsToCollapse) -> void {
     for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
         dims[dims.size() - 1] *= dims[i];
     }
@@ -299,7 +299,8 @@ static auto collapseLastDims(std::vector<size_t>& dims, int dimsToCollapse) -> v
 }
 
 void MKLDNNSnippetNode::define_shedule() {
-    auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    const auto dataSize = config.inConfs[0].desc.getPrecision().size();
 
     auto initDims = [this, config](size_t tensorRank) {
         // assume all input sizes are even
@@ -344,16 +345,9 @@ void MKLDNNSnippetNode::define_shedule() {
                 = config.outConfs[i].desc.getBlockingDesc().getBlockDims()[rank - 1 - j];
             }
         }
-
-        // for (int i = 0; i < dims_in.size(); i++) {
-        //     for (int j = 0; j < dims_in[i].size(); j++) {
-        //         if (dims_in[i][j] != dims_out[j] && dims_in[i][j] != 1)
-        //             IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input/output dims configuration.";
-        //     }
-        // }
     };
 
-    auto initOffsets = [this, config](size_t tensorRank) {
+    auto initOffsets = [this, config, dataSize](size_t tensorRank) {
         // inputs
         // find max rank input among all outputs
         size_t inputNum = getParentEdges().size();
@@ -362,15 +356,13 @@ void MKLDNNSnippetNode::define_shedule() {
             offsets_in[i].resize(tensorRank, 1);
             offset_in_calc(offsets_in[i], dims_in[i], dims_out[max_rank_out_desc_idx]);
             for (int j = 0; j < tensorRank; j++) {
-                offsets_in[i][j] *= config.inConfs[i].desc.getPrecision().size();
+                offsets_in[i][j] *= dataSize;
             }
         }
 
         start_offset_in.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
-            start_offset_in[i] = getParentEdgeAt(i)->getMemory().GetDescriptor().data.offset0 *
-                               MKLDNNExtensionUtils::sizeOfDataType(
-                                    dnnl::memory::data_type(getParentEdgeAt(i)->getMemory().GetDescriptor().data.data_type));
+            start_offset_in[i] = getParentEdgeAt(i)->getMemory().GetDescriptor().data.offset0 * dataSize;
         }
 
         // outputs
@@ -381,22 +373,20 @@ void MKLDNNSnippetNode::define_shedule() {
             //offset_out_calc(offsets_out[i], dims_out[i]);
             //Todo NB! Calc in and out offsets in a similar way for test purposes
             offset_in_calc(offsets_out[i], dims_out[i], dims_out[max_rank_out_desc_idx]);
-
             for (int j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= config.outConfs[i].desc.getPrecision().size();
+                offsets_out[i][j] *= dataSize;
             }
         }
 
         start_offset_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
-            start_offset_out[i] = getChildEdgeAt(i)->getMemory().GetDescriptor().data.offset0 *
-                            MKLDNNExtensionUtils::sizeOfDataType(dnnl::memory::data_type(getChildEdgeAt(i)->getMemory().GetDescriptor().data.data_type));
+            start_offset_out[i] = getChildEdgeAt(i)->getMemory().GetDescriptor().data.offset0 * dataSize;
         }
     };
 
     auto find_dims_to_collapse = [this, config]() -> int {
         int collapsedDims = 0;
-        // TODO: we support dim collapsion only for equal in and out dims without broadcasting now
+        // we support dim collapsing only for equal in and out dims without broadcasting otherwise we use tile2D
         for (int i = 0; i < dims_in.size(); i++) {
             for (int j = 0; j < dims_out.size(); j++) {
                 if (dims_in[i] != dims_out[j])
@@ -408,6 +398,7 @@ void MKLDNNSnippetNode::define_shedule() {
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
         bool hasDifferentDims = false;
+        isCollapsing = true;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!isDynBatchEnabled || (config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
@@ -458,6 +449,37 @@ void MKLDNNSnippetNode::define_shedule() {
         return collapsedDims;
     };
 
+    auto initSchedulingInfo = [this, dataSize](const size_t tensorRank) -> void {
+        // initialize scheduling information
+        sch_offsets_in.resize(offsets_in.size(), 0);
+        sch_offsets_out.resize(offsets_out.size(), 0);
+        sch_dims.resize(maxTileRank, 1);
+        sch_dims[0] = dims_out[max_rank_out_desc_idx].back();
+        if (!isCollapsing) {
+            sch_dims[1] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
+            dims_out[max_rank_out_desc_idx][tensorRank - 2] = 1;
+
+            // update offsets for tile 2D because loaders/stores make ptr shifts
+            for (auto i = 0; i < offsets_in.size(); i++) {
+                int64_t offset = offsets_in[i][tensorRank - 2];
+                if (offset > dataSize || offset == 0 && offsets_in[i].back() != 0) {
+                    sch_offsets_in[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
+                } else if (offset == dataSize) {
+                    sch_offsets_in[i] = offset;
+                }
+            }
+
+            for (auto i = 0; i < offsets_out.size(); i++) {
+                int64_t offset = offsets_out[i][tensorRank - 2];
+                if (offset > dataSize || offset == 0 && offsets_out[i].back() != 0) {
+                    sch_offsets_out[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
+                } else if (offset == dataSize) {
+                    sch_offsets_out[i] = offset;
+                }
+            }
+        }
+    };
+
     // store to use as an execution domain
     max_rank_out_desc_idx = argmax_rank(config.outConfs);
 
@@ -467,9 +489,9 @@ void MKLDNNSnippetNode::define_shedule() {
     initDims(tensorRank);
 
     fullWorkAmount = 1;
-     for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
-         fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
-     }
+    for (int i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
+        fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
+    }
 
     isDynBatchEnabled = config.dynBatchSupport;
 
@@ -478,6 +500,7 @@ void MKLDNNSnippetNode::define_shedule() {
     schedulerWorkAmount = fullWorkAmount / dims_out[max_rank_out_desc_idx].back();
 
     initOffsets(tensorRank);
+    initSchedulingInfo(tensorRank);
 }
 
 void MKLDNNSnippetNode::generate() {
@@ -523,10 +546,17 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
     size_t m = outputs.size();
     auto dom = dims_out[max_rank_out_desc_idx];
 
-    // std::cout << dom[0] << " "<< dom[1] << " "<< dom[2] << " "<< dom[3] << " "<< dom[4] << " "<< dom[5] << " " << std::endl;
+    // SchduleInfo/ Domen = d0 .. dN
+    CallArgs sch;
+    for (const auto& d : sch_dims)
+        sch.push(d);
 
-    // Add code to collapse inner dimensions.
-    // Callargs are scheduling invariant.
+    // OffsetInfo
+    CallArgs off;
+    for (const auto& offset : sch_offsets_in)
+        off.push(offset);
+    for (const auto& offset : sch_offsets_out)
+        off.push(offset);
 
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -540,12 +570,31 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
                 ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
             }
 
-            // SchduleInfo/ Domen = d0 .. dN
-            CallArgs sch;
-            sch.push(static_cast<size_t>(*dom.rbegin()));
-
-            schedule.get_callable<kernel>()(ca.raw(), sch.raw());
+            schedule.get_callable<kernel>()(ca.raw(), off.raw(), sch.raw());
         });
+
+  /*  for (int d0 = 0; d0 < dom[0]; d0++) {
+        for (int d1 = 0; d1 < dom[1]; d1++) {
+            for (int d2 = 0; d2 < dom[2]; d2++) {
+                for (int d3 = 0; d3 < dom[3]; d3++) {
+                    for (int d4 = 0; d4 < dom[4]; d4++) {
+                        CallArgs ca;
+                        // Benchmarking for overhead
+                        for (size_t i = 0; i < n; i++) {
+                            ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] +
+                                    d2*offsets_in[i][2] + d3*offsets_in[i][3] + d4*offsets_in[i][4]);
+                        }
+                        for (size_t i = 0; i < m; i++) {
+                            ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] +
+                                    d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
+                        }
+
+                        schedule.get_callable<kernel>()(ca.raw(), sch.raw());
+                    }
+                }
+            }
+        }
+    }*/
 
     // CallArgs ca; // fill
     // parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
