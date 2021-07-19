@@ -25,7 +25,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "nGraph ONNX frontend library")
 endif()
 
-target_link_libraries(onnx_ngraph_frontend PRIVATE onnx_editor onnx_importer frontend_manager)
+target_link_libraries(onnx_ngraph_frontend PRIVATE onnx_importer frontend_manager)
 
 target_include_directories(onnx_ngraph_frontend PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)

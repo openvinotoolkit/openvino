@@ -14,9 +14,9 @@
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. **Required**.
+*   **1**: Multidimensional input tensor of type *T*. **Required.**
 
-*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to squeeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the first input). **Optional**.
+*   **2**: Scalar or 1D tensor of type *T_INT* with indices of dimensions to squeeze. Values could be negative (have to be from range `[-R, R-1]`, where `R` is the rank of the first input). **Optional.**
 
 **Outputs**:
 
@@ -55,7 +55,7 @@
 </layer>
 ```
 
-*Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)* 
+*Example 2: squeeze 1D tensor with 1 element to a 0D tensor (constant)*
 ```xml
 <layer ... type="Squeeze">
     <input>

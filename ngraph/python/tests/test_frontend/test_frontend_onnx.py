@@ -5,6 +5,8 @@ import os
 import onnx
 import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
+from sys import platform
+import pytest
 
 from ngraph.frontend import FrontEndManager
 from tests.runtime import get_runtime
@@ -54,12 +56,32 @@ def teardown_module():
     os.remove(onnx_model_filename)
 
 
+def skip_if_onnx_frontend_is_disabled():
+    paths = os.environ["OV_FRONTEND_PATH"].split(":")
+    found = False
+    if platform == "linux":
+        libname = "libonnx_ngraph_frontend.so"
+    elif platform == "darwin":
+        libname = "libonnx_ngraph_frontend.dylib"
+    elif platform == "win32":
+        libname = "onnx_ngraph_frontend.dll"
+    for path in paths:
+        if os.path.exists(os.path.join(path, libname)):
+            found = True
+    if not found:
+        pytest.skip()
+
+
 def test_get_available_front_ends():
+    skip_if_onnx_frontend_is_disabled()
+
     front_ends = fem.get_available_front_ends()
     assert "onnx" in front_ends
 
 
 def test_convert():
+    skip_if_onnx_frontend_is_disabled()
+
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
@@ -76,6 +98,8 @@ def test_convert():
 
 
 def test_decode_and_convert():
+    skip_if_onnx_frontend_is_disabled()
+
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 

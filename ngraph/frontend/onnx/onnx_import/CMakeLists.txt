@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -54,6 +55,9 @@ target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_
 target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
+
+target_include_directories(onnx_importer PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>)
+target_include_directories(onnx_importer PRIVATE ${ONNX_EDITOR_SRC_DIR})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(onnx_importer PRIVATE NGRAPH_USE_PROTOBUF_LITE)
