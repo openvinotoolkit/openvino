@@ -360,7 +360,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
             pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
-            pass_config->disable<ngraph::pass::ConvertGather8ToGather7>();
+            pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
             if (!config.enable_loop_unrolling) {
                 pass_config->disable<ngraph::pass::ConvertTensorIteratorToRNNSequence>();
