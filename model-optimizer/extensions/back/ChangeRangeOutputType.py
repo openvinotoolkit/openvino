@@ -52,10 +52,10 @@ def assert_that_is_castable_to_fp16(node: Node):
     node_name = node.soft_get('name', node.id)
     start, limit, delta = [node.in_port(i).data.get_value() for i in range(3)]
     for val in [start, limit, delta]:
-        if val > np.finfo(np.float16).max:
+        if val > np.finfo(np.float16).max or val < np.finfo(np.float16).min:
             raise Error("This model can not be converted to FP16 precision, since "
-                        "Range node '{}' input values {} exceed FP16 max value {}"
-                        .format(node_name, val, np.finfo(np.float16).max))
+                        "Range node '{}' input value {} exceeds FP16 allowed limits: [{}, {}]"
+                        .format(node_name, val, np.finfo(np.float16).min, np.finfo(np.float16).max))
 
     start, limit, delta = [node.in_port(i).data.get_value().astype(np.float16) for i in range(3)]
     casted_output = np.arange(start, limit, delta, dtype=node['output_type'])

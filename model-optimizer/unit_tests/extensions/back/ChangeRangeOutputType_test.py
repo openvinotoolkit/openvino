@@ -16,7 +16,7 @@ from unit_tests.utils.graph import build_graph, result, regular_op_with_empty_da
 from unit_tests.utils.graph import valued_const_with_data
 
 
-class AttributedClampNormalizerTests(unittest.TestCase):
+class ChangeRangeOutputTypeTests(unittest.TestCase):
 
     def test_correct_case(self):
         graph, graph_ref = build_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16')
@@ -32,6 +32,10 @@ class AttributedClampNormalizerTests(unittest.TestCase):
 
     def test_range_out_of_fp16_max(self):
         graph, graph_ref = build_test_graphs(start=0, limit=100000, delta=1, dst_type_str='FP16')
+        self.assertRaises(Exception, ChangeRangeOutputType().find_and_replace_pattern, graph)
+
+    def test_range_out_of_fp16_min(self):
+        graph, graph_ref = build_test_graphs(start=0, limit=-100000, delta=-1, dst_type_str='FP16')
         self.assertRaises(Exception, ChangeRangeOutputType().find_and_replace_pattern, graph)
 
 
