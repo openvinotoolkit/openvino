@@ -19,8 +19,20 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
         for attr_random_uniform in graph.get_op_nodes(op='AttributedRandomUniform'):
             original_name = attr_random_uniform.soft_get('name', attr_random_uniform.id)
 
-            port_value_dict = {1: attr_random_uniform.min_val,
-                               2: attr_random_uniform.max_val}
+            if not attr_random_uniform.has_valid('output_type'):
+                raise Error('RandomUniform should have valid ''output_type'' attribute.')
+            output_type = attr_random_uniform.soft_get('output_type')
+
+            if attr_random_uniform.has_valid('min_val'):
+                min_val = attr_random_uniform['min_val']
+            else:
+                min_val = output_type(0)
+            if attr_random_uniform.has_valid('max_val'):
+                max_val = attr_random_uniform['max_val']
+            else:
+                max_val = output_type(1)
+
+            port_value_dict = {1: min_val, 2: max_val}
 
             if not attr_random_uniform.has_port('in', 0) or attr_random_uniform.in_port(0).disconnected():
                 if not attr_random_uniform.has_valid('shape'):

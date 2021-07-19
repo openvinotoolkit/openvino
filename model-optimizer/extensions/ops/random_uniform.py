@@ -66,8 +66,6 @@ class AttributedRandomUniform(Op):
             'infer': None,
             'in_ports_count': 3,
             'out_ports_count': 1,
-            'min_val': 0.0,
-            'max_val': 1.0,
             'seed': 0,
             'seed2': 0,
             'output_type': np.float32,
