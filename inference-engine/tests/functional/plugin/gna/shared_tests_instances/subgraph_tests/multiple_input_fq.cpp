@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <subgraph_tests/multiple_input.hpp>
+#include <subgraph_tests/multiple_input_fq.hpp>
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {

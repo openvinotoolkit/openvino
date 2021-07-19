@@ -3,7 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "shared_test_classes/subgraph/multiple_input.hpp"
+#include "shared_test_classes/subgraph/multiple_input_fq.hpp"
 
 namespace SubgraphTestsDefinitions {
 
