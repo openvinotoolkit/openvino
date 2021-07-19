@@ -409,8 +409,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
     bool enableInt8 = conf.lpTransformsMode == Config::LPTransformsMode::On
-                    && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
-
+                && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     if (conf.enforceBF16 == true || enableInt8) {
         // forse disable subgraph tokenization. SS doesn't support bf16 & int8 yet.
         tokenizeSubgraphs = Config::TokenizationMode::Disabled;
