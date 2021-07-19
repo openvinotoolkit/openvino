@@ -20,14 +20,14 @@
 #include <vector>
 #include <memory>
 
-#if defined(_WIN32)  defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 #include "cpusets_api_observer.hpp"
 #include <Windows.h>
 #endif
 
 namespace custom {
 
-#if defined(_WIN32)  defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 
 using numa_node_id = int;
 using core_type_id = BYTE;
