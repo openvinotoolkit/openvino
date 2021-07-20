@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::FloorMod::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::FloorMod, "FloorMod", 1);
 
 op::v1::FloorMod::FloorMod(const Output<Node>& arg0,
                            const Output<Node>& arg1,

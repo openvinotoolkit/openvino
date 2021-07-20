@@ -20,9 +20,34 @@ class BinaryOperatorVisitor : public testing::Test
 {
 };
 
+class BinaryOperatorTypeName
+{
+public:
+    template <typename T>
+    static std::string GetName(int)
+    {
+        using OP_Type = typename T::op_type;
+        constexpr ngraph::element::Type precision(T::element_type);
+        const ngraph::Node::type_info_t typeinfo = OP_Type::get_type_info_static();
+        std::string op_name{typeinfo.name};
+        op_name.append("_");
+        return (op_name.append(precision.get_type_name()));
+
+
+        // using OP_Type = typename T::op_type;
+        // constexpr ngraph::element::Type precision(T::element_type);
+        // const auto var = new OP_Type();
+        // const auto typeinfo = var->get_type_info();
+        // delete var;
+        // std::string op_name{typeinfo.name};
+        // op_name.append("_");
+        // return (op_name.append(precision.get_type_name()));
+    }
+};
+
 TYPED_TEST_SUITE_P(BinaryOperatorVisitor);
 
-TYPED_TEST_P(BinaryOperatorVisitor, No_Attribute_4D)
+TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
 {
     using OP_Type = typename TypeParam::op_type;
     const ngraph::element::Type_t element_type = TypeParam::element_type;
@@ -42,4 +67,4 @@ TYPED_TEST_P(BinaryOperatorVisitor, No_Attribute_4D)
     EXPECT_EQ(op_func->get_autob(), g_op_func->get_autob());
 }
 
-REGISTER_TYPED_TEST_SUITE_P(BinaryOperatorVisitor, No_Attribute_4D);
+REGISTER_TYPED_TEST_SUITE_P(BinaryOperatorVisitor, Auto_Broadcast);

@@ -9,4 +9,5 @@ using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::Mod, ngraph::el
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
                                BinaryOperatorVisitor,
-                               Type);
+                               Type,
+                               BinaryOperatorTypeName);
