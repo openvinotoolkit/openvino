@@ -170,15 +170,17 @@ output  = [[65 70 56]
 
 * *initial_type*
 
-    * **Description**: the type of the output in original model.
+    * **Description**: the type of the output in original model. Random values are generated in initial type
+      then are casted to output type. In case of different precisions this may lead to data loss.
     * **Range of values**: "i32", "i64", "f16", "f32", "f64".
     * **Type**: string
     * **Required**: *Yes*
   
 * *output_type*
 
-    * **Description**: the type of the output.
-    * **Range of values**: "i32", "i64", "f16", "f32", "f64".
+    * **Description**: the type of the output. Random values are generated in initial type then are casted to 
+      output type. In case of different precisions this may lead to data loss. 
+    * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
     * **Type**: string
     * **Required**: *Yes*
 
@@ -213,7 +215,7 @@ output  = [[65 70 56]
 
 **Types**
 
-* *T_SHAPE*: any supported integer type.
+* *T_SHAPE*: `int32` or `int64`.
 
 *Example 1: IR example with initial type "FP32" in original model and output type "FP16" specified during conversion.*
 
