@@ -53,7 +53,8 @@ class RandomUniform(Op):
 
 class AttributedRandomUniform(Op):
     """ RandomUniform operation that generates a sequence of random values from uniform distribution.
-        This operation uses the same semantics as RandomUniform but output shape is specified as attribute.
+        This operation uses the same semantics as RandomUniform but output shape, min value or max value
+        can be specified as attribute.
         Shape is specified as attribute in ONNX.
     """
     op = 'AttributedRandomUniform'
