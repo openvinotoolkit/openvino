@@ -32,16 +32,6 @@ public:
         std::string op_name{typeinfo.name};
         op_name.append("_");
         return (op_name.append(precision.get_type_name()));
-
-
-        // using OP_Type = typename T::op_type;
-        // constexpr ngraph::element::Type precision(T::element_type);
-        // const auto var = new OP_Type();
-        // const auto typeinfo = var->get_type_info();
-        // delete var;
-        // std::string op_name{typeinfo.name};
-        // op_name.append("_");
-        // return (op_name.append(precision.get_type_name()));
     }
 };
 
