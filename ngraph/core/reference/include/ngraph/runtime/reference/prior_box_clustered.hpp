@@ -27,6 +27,7 @@ namespace ngraph
                 size_t num_priors_ = attrs.widths.size();
 
                 auto variances = attrs.variances;
+                NGRAPH_CHECK(variances.size() == 1 || variances.size() == 4 || variances.empty());
                 if (variances.empty())
                     variances.push_back(0.1f);
 
@@ -37,17 +38,8 @@ namespace ngraph
                 int64_t img_width = img[1];
                 int64_t img_height = img[0];
 
-                // TODO: Uncomment after PriorBoxClustered is aligned with the specification.
-
-                //                int img_width = img_w_ == 0 ? img[1] : img_w_;
-                //                int img_height = img_h_ == 0 ? img[0] : img_h_;
-
-                //                float step_w = attrs.step_widths == 0 ? step_ : attrs.step_widths;
-                //                float step_h = attrs.step_heights == 0 ? step_ :
-                //                attrs.step_heights;
-
-                float step_w = attrs.step_widths;
-                float step_h = attrs.step_heights;
+                float step_w = attrs.step_widths == 0 ? attrs.step : attrs.step_widths;
+                float step_h = attrs.step_heights == 0 ? attrs.step : attrs.step_heights;
 
                 if (step_w == 0 && step_h == 0)
                 {
@@ -92,9 +84,21 @@ namespace ngraph
                             dst_data[idx + 2] = xmax;
                             dst_data[idx + 3] = ymax;
 
-                            idx = get_idx(var_size);
-                            for (size_t j = 0; j < var_size; j++)
-                                dst_data[idx + j + out_shape[1]] = variances[j];
+                            idx = get_idx(4);
+
+                            // At this point we have either:
+                            // 1. A single variance value (to be repeated 4 times for each prior)
+                            // 2. 4 variance values
+                            if (var_size == 1)
+                            {
+                                for (size_t j = 0; j < 4; j++)
+                                    dst_data[idx + j + out_shape[1]] = variances[0];
+                            }
+                            else
+                            {
+                                for (size_t j = 0; j < var_size; j++)
+                                    dst_data[idx + j + out_shape[1]] = variances[j];
+                            }
                         }
                     }
                 }

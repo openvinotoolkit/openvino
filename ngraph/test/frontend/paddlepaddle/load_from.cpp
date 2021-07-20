@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/load_from.hpp"
+#include "load_from.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -24,6 +24,6 @@ static LoadFromFEParam getTestData()
 }
 
 INSTANTIATE_TEST_SUITE_P(PDPDCutTest,
-                        FrontEndLoadFromTest,
-                        ::testing::Values(getTestData()),
-                        FrontEndLoadFromTest::getTestCaseName);
+                         FrontEndLoadFromTest,
+                         ::testing::Values(getTestData()),
+                         FrontEndLoadFromTest::getTestCaseName);

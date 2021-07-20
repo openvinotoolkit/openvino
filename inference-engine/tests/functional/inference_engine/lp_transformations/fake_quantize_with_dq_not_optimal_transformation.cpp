@@ -39,7 +39,7 @@ public:
         builder::subgraph::DequantizationOperations dequantizationOnWeights;
         builder::subgraph::DequantizationOperations dequantizationAfter;
     };
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Values actual;
     Values expected;
 };
@@ -66,8 +66,7 @@ public:
         const bool updatePrecision = std::get<2>(GetParam());
         const FakeQuantizeWithNotOptimalTransformationTestValues testValues = std::get<3>(GetParam());
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testValues.params).
-            setUpdatePrecisions(updatePrecision);
+        const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(updatePrecision);
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
             precision,
@@ -81,9 +80,20 @@ public:
             testValues.actual.dequantizationOnWeights,
             testValues.actual.dequantizationAfter);
 
-        SimpleLowPrecisionTransformer transformer;
+        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            })
+        });
+
+        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
+            ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
+        });
+
+        SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
         transformer.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
-            low_precision::LayerTransformation::Params(params).setPrecisionsOnActivations({ element::u8 }));
+            TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
         transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transformer.transform(actualFunction);
 
@@ -117,7 +127,7 @@ public:
 
 TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
