@@ -60,17 +60,21 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
 
 TEST(ExtensionTests, testNewExtension) {
     Core ie;
-    ExtensionContainer::Ptr extension = std::make_shared<SOExtension>(getExtensionPath());
+    ExtensionContainer::Ptr extension = std::make_shared<SOExtensionContainer>(getExtensionPath());
     ASSERT_EQ(2, extension->getExtensions().size());
     ie.AddExtension(extension);
 }
 
 TEST(ExtensionTests, testNewExtensionCast) {
     Core ie;
-    ExtensionContainer::Ptr extension = std::make_shared<SOExtension>(getExtensionPath());
-    std::vector<NewExtension::Ptr> extensions = *extension;
+    std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());
     ASSERT_EQ(2, extensions.size());
-    ie.AddExtension(extension);
+    ASSERT_NE(std::dynamic_pointer_cast<OpsetExtension>(extensions[0]), nullptr);
+    ASSERT_NE(std::dynamic_pointer_cast<SOExtension>(extensions[0]), nullptr);
+    ASSERT_NE(dynamic_cast<SOExtension*>(extensions[0].get()), nullptr);
+    // Cannot override dynamic_cast
+    ASSERT_EQ(dynamic_cast<OpsetExtension*>(extensions[0].get()), nullptr);
+    ie.AddExtension(extensions);
 }
 
 TEST(ExtensionTests, testNewExtensionFromVector) {

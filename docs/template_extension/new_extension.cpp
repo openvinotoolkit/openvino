@@ -20,3 +20,4 @@ Extension2::Extension2() {}
 //! [extension:ctor]
 
 IE_CREATE_DEFAULT_CONTAINER(std::vector<InferenceEngine::NewExtension::Ptr>({std::make_shared<Extension1>(), std::make_shared<Extension2>()}));
+IE_CREATE_EXTENSIONS(std::vector<InferenceEngine::NewExtension::Ptr>({std::make_shared<Extension1>(), std::make_shared<Extension2>()}));

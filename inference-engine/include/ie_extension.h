@@ -191,15 +191,35 @@ public:
 
 }  // namespace details
 
-class INFERENCE_ENGINE_API_CLASS(SOExtension) final: public ExtensionContainer {
+class INFERENCE_ENGINE_API_CLASS(SOExtension) final: public NewExtension {
+public:
+    SOExtension(const details::SharedObjectLoader& actual, const NewExtension::Ptr& ext): actual(actual), extension(ext) {}
+    const NewExtension::Ptr& getExtension() {
+        return extension;
+    }
+
+private:
+    const details::SharedObjectLoader& actual;
+    NewExtension::Ptr extension;
+};
+
+class INFERENCE_ENGINE_API_CLASS(SOExtensionContainer) final: public ExtensionContainer {
 public:
     template <typename C,
               typename = details::enableIfSupportedChar<C>>
-    explicit SOExtension(const std::basic_string<C>& name): actual(name) {}
+    explicit SOExtensionContainer(const std::basic_string<C>& name): actual(name) {}
 
     const std::vector<NewExtension::Ptr>& getExtensions() const override {
-        return actual->getExtensions();
+        const auto& ext = actual->getExtensions();
+        static std::vector<NewExtension::Ptr> extensions;
+        if (extensions.empty()) {
+            for (const auto& ex : ext) {
+                extensions.emplace_back(std::make_shared<SOExtension>(actual, ex));
+            }
+        }
+        return extensions;
     }
+
 private:
     details::SOPointer<ExtensionContainer> actual;
 };
@@ -210,6 +230,7 @@ private:
  * @param ext Extension interface
  */
 INFERENCE_EXTENSION_API(void) CreateExtensionContainer(ExtensionContainer::Ptr& ext);
+INFERENCE_EXTENSION_API(void) CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>&);
 
 /**
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
@@ -224,4 +245,43 @@ INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionContainer(std::sha
 INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionContainer(std::shared_ptr<InferenceEngine::ExtensionContainer>& ext) {    \
     ext = std::make_shared<DefaultExtensionContainer>(extensions);                                                                      \
 }
+
+#define IE_CREATE_EXTENSIONS(extensions)                                                                                                \
+INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>& ext) {                 \
+    ext = extensions;                                                                                                                   \
+}
+
+template <typename C,
+         typename = details::enableIfSupportedChar<C>>
+std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name) {
+    details::SharedObjectLoader so(name.c_str());
+    std::vector<NewExtension::Ptr> extensions;
+    try {
+        using CreateF = void(std::vector<InferenceEngine::NewExtension::Ptr>&);
+        std::vector<InferenceEngine::NewExtension::Ptr> ext;
+        reinterpret_cast<CreateF*>(so.get_symbol("CreateExtensions"))(ext);
+        for (const auto& ex : ext) {
+            extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
+        }
+    } catch(...) {details::Rethrow();}
+    return extensions;
+}
 }  // namespace InferenceEngine
+
+
+namespace std {
+template<class T>
+std::shared_ptr<T> dynamic_pointer_cast(const std::shared_ptr<InferenceEngine::NewExtension>& r) noexcept {
+    // Dynamic cast to shared_ptr<SOExtension> should work
+    if (auto p = dynamic_cast<typename std::shared_ptr<T>::element_type*>(r.get())) {
+        return std::shared_ptr<T>{r, p};
+    } else {
+        if (auto so = dynamic_cast<typename std::shared_ptr<InferenceEngine::SOExtension>::element_type*>(r.get())) {
+            if (auto p = dynamic_cast<typename std::shared_ptr<T>::element_type*>(so->getExtension().get())) {
+                return std::shared_ptr<T>{so->getExtension(), p};
+            }
+        }
+        return std::shared_ptr<T>{};
+    }
+}
+}  // namespace std

@@ -10,14 +10,20 @@
 //! [extension:header]
 namespace TemplateExtension {
 
-class Extension1 : public InferenceEngine::NewExtension {
+class Extension1 : public InferenceEngine::OpsetExtension {
 public:
     Extension1();
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        return {};
+    }
 };
 
-class Extension2 : public InferenceEngine::NewExtension {
+class Extension2 : public InferenceEngine::OpsetExtension {
 public:
     Extension2();
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        return {};
+    }
 };
 
 }  // namespace TemplateExtension
