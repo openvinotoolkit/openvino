@@ -16,6 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Abs,                   {}},
         {Sigmoid,               {}},
         {Tanh,                  {}},
         {Relu,                  {}},
