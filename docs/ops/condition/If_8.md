@@ -53,7 +53,7 @@ Also the number of outputs from *If* always must be greater than zero and equal 
             * **Range of values**: IDs of the `Parameter` or `Result` operations in the subgraph
             * **Type**: `unsigned int`
             * **Default value**: None
-            * **Required**: *yes*
+            * **Required**: *yes* 
 
 **If Inputs**
 
