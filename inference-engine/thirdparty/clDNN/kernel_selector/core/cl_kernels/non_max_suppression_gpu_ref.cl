@@ -106,7 +106,7 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
         return 0.0f;
 
     const COORD_TYPE intersection_area = max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f)) *
-                                    max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f));
+                                         max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f));
     const COORD_TYPE union_area = areaA + areaB - intersection_area;
     return convert_float(intersection_area / union_area);
 }

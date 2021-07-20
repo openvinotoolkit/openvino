@@ -40,52 +40,37 @@ struct non_max_suppression_params : public base_params {
     bool has_second_output;
     bool has_third_output;
 
-    virtual ParamsKey GetParamsKey() const {
-        auto k = base_params::GetParamsKey();
-        return k;
-    }
-
     uint32_t GetIndexNumSelectPerClass() const {
         uint32_t input_idx = 2;
         return input_idx;
     }
 
     uint32_t GetIndexIouThreshold() const {
-        uint32_t input_idx = 2;
+        uint32_t input_idx = GetIndexNumSelectPerClass();
         if (num_select_per_class_type == NmsArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexScoreThreshold() const {
-        uint32_t input_idx = 2;
-        if (num_select_per_class_type == NmsArgType::Input) input_idx++;
+        uint32_t input_idx = GetIndexIouThreshold();
         if (iou_threshold_type == NmsArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexSoftNmsSigma() const {
-        uint32_t input_idx = 2;
-        if (num_select_per_class_type == NmsArgType::Input) input_idx++;
-        if (iou_threshold_type == NmsArgType::Input) input_idx++;
+        uint32_t input_idx = GetIndexScoreThreshold();
         if (score_threshold_type == NmsArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexSecondOutput() const {
-        uint32_t input_idx = 2;
-        if (num_select_per_class_type == NmsArgType::Input) input_idx++;
-        if (iou_threshold_type == NmsArgType::Input) input_idx++;
-        if (score_threshold_type == NmsArgType::Input) input_idx++;
+        uint32_t input_idx = GetIndexSoftNmsSigma();
         if (soft_nms_sigma_type == NmsArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexThirdOutput() const {
-        uint32_t input_idx = 2;
-        if (num_select_per_class_type == NmsArgType::Input) input_idx++;
-        if (iou_threshold_type == NmsArgType::Input) input_idx++;
-        if (score_threshold_type == NmsArgType::Input) input_idx++;
-        if (soft_nms_sigma_type == NmsArgType::Input) input_idx++;
+        uint32_t input_idx = GetIndexSecondOutput();
         if (has_second_output) input_idx++;
         return input_idx;
     }
@@ -104,7 +89,6 @@ struct non_max_suppression_optional_params : optional_params {
 class NonMaxSuppressionKernelRef : public KernelBaseOpenCL {
 public:
     NonMaxSuppressionKernelRef() : KernelBaseOpenCL("non_max_suppression_gpu_ref") {}
-    virtual ~NonMaxSuppressionKernelRef() {}
 
     using DispatchData = CommonDispatchData;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;

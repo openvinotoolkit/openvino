@@ -63,7 +63,7 @@ void NmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, st
 
 void NmsLayerTest::CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                  const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
+    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
 

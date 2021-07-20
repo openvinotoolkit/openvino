@@ -16,8 +16,6 @@ public:
 
     non_max_suppression_kernel_selector();
 
-    virtual ~non_max_suppression_kernel_selector() {}
-
     KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
 };
 }  // namespace kernel_selector

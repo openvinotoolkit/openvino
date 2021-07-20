@@ -42,6 +42,14 @@ ParamsKey NonMaxSuppressionKernelRef::GetSupportedKey() const {
     return k;
 }
 
+inline std::string GetInputTypeStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_TYPE";
+}
+
+inline std::string GetToInputTypeStr(uint32_t idx) {
+    return "TO_" + GetInputTypeStr(idx);
+}
+
 JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppression_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -71,61 +79,47 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.output.Batch().v));
 
     if (params.num_select_per_class_type == NmsArgType::Input) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexNumSelectPerClass());
-        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", GetInputTypeStr(params.GetIndexNumSelectPerClass())));
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", "convert_int(num_select_per_class[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", params.num_select_per_class));
     }
 
     if (params.iou_threshold_type == NmsArgType::Input) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexIouThreshold());
-        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", GetInputTypeStr(params.GetIndexIouThreshold())));
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "convert_float(iou_threshold[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", params.iou_threshold));
     }
 
     if (params.score_threshold_type == NmsArgType::Input) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexScoreThreshold());
-        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", GetInputTypeStr(params.GetIndexScoreThreshold())));
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "convert_float(score_threshold[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", params.score_threshold));
     }
 
     if (params.soft_nms_sigma_type == NmsArgType::Input) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSoftNmsSigma());
-        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", GetInputTypeStr(params.GetIndexSoftNmsSigma())));
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", params.soft_nms_sigma));
     }
 
     if (params.has_second_output) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexSecondOutput());
-        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", std::string(inputTypeStr)));
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "TO_INPUT%d_TYPE", params.GetIndexSecondOutput());
-        jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexSecondOutput())));
+        jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexSecondOutput())));
     }
 
     if (params.has_third_output) {
-        char inputTypeStr[128];
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "INPUT%d_TYPE", params.GetIndexThirdOutput());
-        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", std::string(inputTypeStr)));
-        snprintf(inputTypeStr, sizeof(inputTypeStr), "TO_INPUT%d_TYPE", params.GetIndexThirdOutput());
-        jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", std::string(inputTypeStr)));
+        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexThirdOutput())));
+        jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexThirdOutput())));
     }
 
     return jit;
 }
 
-int GetPartitionStep(int localWorkItemNum) {
+static inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
         step_size++;
@@ -133,14 +127,16 @@ int GetPartitionStep(int localWorkItemNum) {
     return step_size;
 }
 
-size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
     const auto rest_lws = info.maxWorkGroupSize / splitNum;
     size_t lws_idx = 0;
-    while (rest_lws < optimal_values[lws_idx]) lws_idx++;
-    while (globalClassNum % optimal_values[lws_idx]) lws_idx++;
+    while (rest_lws < optimal_values[lws_idx])
+        lws_idx++;
+    while (globalClassNum % optimal_values[lws_idx])
+        lws_idx++;
 
     return optimal_values[lws_idx];
 }
@@ -150,8 +146,8 @@ NonMaxSuppressionKernelRef::DispatchData SetDefault(const non_max_suppression_pa
 
     const auto& input = params.inputs[1];
     if (idx == 0) {
-        dispatchData.gws = {input.Batch().v, input.Feature().v, 256};
-        dispatchData.lws = {1, 1, 256};
+        dispatchData.gws = {input.Batch().v, input.Feature().v, params.engineInfo.maxWorkGroupSize};
+        dispatchData.lws = {1, 1, params.engineInfo.maxWorkGroupSize};
     } else if (idx == 1) {
         const size_t kSplitNum = 16;
         dispatchData.gws = {input.Batch().v, input.Feature().v, kSplitNum};
@@ -271,10 +267,8 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
 
         if (i == 0) {
             size_t num_bit_mask = CeilDiv(boxes_num, 8);
-            size_t num_score_per_item = RoundUp(CeilDiv(boxes_num, 256), 8);
+            size_t num_score_per_item = RoundUp(CeilDiv(boxes_num, params.engineInfo.maxWorkGroupSize), 8);
             size_t num_score_block = CeilDiv(boxes_num, num_score_per_item);
-            // printf("num_score_per_item: %zd = RoundUp((%zd - 1)/256 + 1, 8), num_score_block: %zd, num_bit_mask: %zd\n"
-            //         , num_score_per_item, boxes_num, num_score_block, num_bit_mask);
             cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
                                    , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
                                    , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});

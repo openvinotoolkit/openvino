@@ -10,7 +10,6 @@
 #include "non_max_suppression/non_max_suppression_kernel_selector.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
 
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -23,8 +22,7 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<non_max_suppression>& instance,
-                                                        int32_t) const override {
+    kernel_arguments_data get_arguments(typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
         kernel_arguments_data args;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
@@ -68,7 +66,7 @@ public:
             cldnn::program_node& node = arg.num_select_per_class_node();
             if (node.is_constant()) {
                 params.num_select_per_class_type = kernel_selector::NmsArgType::Constant;
-                params.num_select_per_class = getValue<int>(node);
+                params.num_select_per_class = get_value<int>(node);
             } else {
                 params.num_select_per_class_type = kernel_selector::NmsArgType::Input;
                 params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
@@ -79,7 +77,7 @@ public:
             cldnn::program_node& node = arg.iou_threshold_node();
             if (node.is_constant()) {
                 params.iou_threshold_type = kernel_selector::NmsArgType::Constant;
-                params.iou_threshold = getValue<float>(node);
+                params.iou_threshold = get_value<float>(node);
             } else {
                 params.iou_threshold_type = kernel_selector::NmsArgType::Input;
                 params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
@@ -90,7 +88,7 @@ public:
             cldnn::program_node& node = arg.score_threshold_node();
             if (node.is_constant()) {
                 params.score_threshold_type = kernel_selector::NmsArgType::Constant;
-                params.score_threshold = getValue<float>(node);
+                params.score_threshold = get_value<float>(node);
             } else {
                 params.score_threshold_type = kernel_selector::NmsArgType::Input;
                 params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
@@ -101,7 +99,7 @@ public:
             cldnn::program_node& node = arg.soft_nms_sigma_node();
             if (node.is_constant()) {
                 params.soft_nms_sigma_type = kernel_selector::NmsArgType::Constant;
-                params.soft_nms_sigma = getValue<float>(node);
+                params.soft_nms_sigma = get_value<float>(node);
             } else {
                 params.soft_nms_sigma_type = kernel_selector::NmsArgType::Input;
                 params.inputs.push_back(convert_data_tensor(node.get_output_layout()));
@@ -113,7 +111,7 @@ public:
             params.has_second_output = true;
         }
 
-        if (arg.has_second_output()) {
+        if (arg.has_third_output()) {
             params.inputs.push_back(convert_data_tensor(arg.third_output_node().get_output_layout()));
             params.has_third_output = true;
         }
@@ -137,7 +135,7 @@ public:
 
 private:
     template <class T>
-    static T getValue(cldnn::program_node& node) {
+    static T get_value(cldnn::program_node& node) {
         T retValue;
         auto mem = node.as<data>().get_attached_memory_ptr();
         auto& stream = node.get_program().get_stream();
