@@ -74,9 +74,9 @@ private:
 
     /// scheduling info
     bool isDynBatchEnabled = false;
-    bool isCollapsing = false;
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;
+    size_t tileRank = 1;
     size_t fullWorkAmount = 0;
     size_t schedulerWorkAmount = 0;
     const size_t maxTileRank = 2;
