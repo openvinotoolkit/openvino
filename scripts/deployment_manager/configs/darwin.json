@@ -18,13 +18,14 @@
       "files": [
         "deployment_tools/inference_engine/version.txt",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine.dylib",
-        "deployment_tools/inference_engine/lib/intel64/libinference_engine_lp_transformations.dylib",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_transformations.dylib",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_preproc.so",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_ir_reader.so",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_onnx_reader.so",
         "deployment_tools/inference_engine/lib/intel64/libinference_engine_c_api.dylib",
         "deployment_tools/inference_engine/lib/intel64/libAutoPlugin.so",
+        "deployment_tools/inference_engine/lib/intel64/libHeteroPlugin.so",
+        "deployment_tools/inference_engine/lib/intel64/libMultiDevicePlugin.so",
         "deployment_tools/inference_engine/lib/intel64/plugins.xml",
         "deployment_tools/inference_engine/external/tbb",
         "deployment_tools/ngraph/lib"
@@ -35,6 +36,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
+        "deployment_tools/inference_engine/lib/intel64/libinference_engine_lp_transformations.dylib",
         "deployment_tools/inference_engine/lib/intel64/libMKLDNNPlugin.so"
       ]
     },
