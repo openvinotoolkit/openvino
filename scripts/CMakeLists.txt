@@ -48,10 +48,12 @@ if(UNIX)
 endif()
 
 # install DeploymentManager
+
 ie_cpack_add_component(deployment_manager REQUIRED)
 install(DIRECTORY deployment_manager/
         DESTINATION deployment_tools/tools/deployment_manager
-        COMPONENT deployment_manager)
+        COMPONENT deployment_manager
+        USE_SOURCE_PERMISSIONS)
 
 # install files for demo
 
