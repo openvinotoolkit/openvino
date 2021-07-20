@@ -73,6 +73,10 @@ function(_ie_target_no_deprecation_error)
         else()
             set(flags "-Wno-error=deprecated-declarations")
         endif()
+        if(CMAKE_CROSSCOMPILING)
+            set_target_properties(${ARGV} PROPERTIES
+                                  INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
 
         set_target_properties(${ARGV} PROPERTIES INTERFACE_COMPILE_OPTIONS ${flags})
     endif()

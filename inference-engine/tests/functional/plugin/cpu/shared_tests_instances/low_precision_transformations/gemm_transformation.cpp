@@ -21,10 +21,9 @@ const std::vector<ngraph::PartialShape> dimensions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setSupportAsymmetricQuantization(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setSupportAsymmetricQuantization(false),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GemmTransformation,
