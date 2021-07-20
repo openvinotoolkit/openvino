@@ -9,7 +9,7 @@
 #include <queue>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <transformations/common_optimizations/leaky_relu_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -25,10 +25,10 @@ using namespace ngraph;
 TEST(TransformationTests, LeakyReluFusionConstant) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = opset5::Constant::create(element::f32, Shape{1}, {0.1});
-        auto multiply = std::make_shared<opset5::Multiply>(data, alpha);
-        auto max = std::make_shared<opset5::Maximum>(data, multiply);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+        auto alpha = opset8::Constant::create(element::f32, Shape{1}, {0.1});
+        auto multiply = std::make_shared<opset8::Multiply>(data, alpha);
+        auto max = std::make_shared<opset8::Maximum>(data, multiply);
         f = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
         pass::Manager m;
@@ -40,8 +40,8 @@ TEST(TransformationTests, LeakyReluFusionConstant) {
 
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = opset5::Constant::create(element::f32, Shape{1}, {0.1});
-        auto leaky_relu = std::make_shared<opset5::PRelu>(data, alpha);
+        auto alpha = opset8::Constant::create(element::f32, Shape{1}, {0.1});
+        auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         f_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data});
     }
 
@@ -52,10 +52,10 @@ TEST(TransformationTests, LeakyReluFusionConstant) {
 TEST(TransformationTests, LeakyReluFusionScalar) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = opset5::Constant::create(element::f32, Shape{}, {0.1});
-        auto multiply = std::make_shared<opset5::Multiply>(data, alpha);
-        auto max = std::make_shared<opset5::Maximum>(data, multiply);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+        auto alpha = opset8::Constant::create(element::f32, Shape{}, {0.1});
+        auto multiply = std::make_shared<opset8::Multiply>(data, alpha);
+        auto max = std::make_shared<opset8::Maximum>(data, multiply);
         f = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
         pass::Manager m;
@@ -67,8 +67,8 @@ TEST(TransformationTests, LeakyReluFusionScalar) {
 
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = opset5::Constant::create(element::f32, Shape{}, {0.1});
-        auto leaky_relu = std::make_shared<opset5::PRelu>(data, alpha);
+        auto alpha = opset8::Constant::create(element::f32, Shape{}, {0.1});
+        auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         f_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data});
     }
 
@@ -79,10 +79,10 @@ TEST(TransformationTests, LeakyReluFusionScalar) {
 TEST(TransformationTests, LeakyReluFusionParameter) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = std::make_shared<opset5::Parameter>(element::f32, Shape{});
-        auto multiply = std::make_shared<opset5::Multiply>(data, alpha);
-        auto max = std::make_shared<opset5::Maximum>(data, multiply);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
+        auto alpha = std::make_shared<opset8::Parameter>(element::f32, Shape{});
+        auto multiply = std::make_shared<opset8::Multiply>(data, alpha);
+        auto max = std::make_shared<opset8::Maximum>(data, multiply);
         f = std::make_shared<Function>(NodeVector{max}, ParameterVector{data, alpha});
 
         pass::Manager m;
@@ -94,8 +94,8 @@ TEST(TransformationTests, LeakyReluFusionParameter) {
 
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
-        auto alpha = std::make_shared<opset5::Parameter>(element::f32, Shape{});
-        auto leaky_relu = std::make_shared<opset5::PRelu>(data, alpha);
+        auto alpha = std::make_shared<opset8::Parameter>(element::f32, Shape{});
+        auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         f_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data, alpha});
     }
 

@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
@@ -19,25 +19,24 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LeakyReluFusion, "LeakyReluFusion", 0);
 ngraph::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
     auto data_pattern = ngraph::pattern::any_input();
-    auto alpha_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto multiply_pattern = ngraph::pattern::wrap_type<opset5::Multiply>({data_pattern, alpha_const_pattern}, pattern::consumers_count(1));
-    auto max_pattern = ngraph::pattern::wrap_type<opset5::Maximum>({data_pattern, multiply_pattern}, pattern::consumers_count(1));
+    auto alpha_patter = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto multiply_pattern = ngraph::pattern::wrap_type<opset8::Multiply>({data_pattern, alpha_patter}, pattern::consumers_count(1));
+    auto max_pattern = ngraph::pattern::wrap_type<opset8::Maximum>({data_pattern, multiply_pattern}, pattern::consumers_count(1));
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map.at(data_pattern);
-        auto alpha_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_map.at(alpha_const_pattern).get_node_shared_ptr());
-        if (!alpha_const)
-            return false;
-        if (shape_size(alpha_const->get_shape()) != 1)
+        const auto & original_alpha_patter = pattern_map.at(alpha_patter);
+        
+        if (shape_size(original_alpha_patter.get_shape()) != 1)
             return false;
 
-        auto leaky_relu = register_new_node<ngraph::opset5::PRelu>(data, alpha_const);
+        auto leaky_relu = register_new_node<ngraph::opset8::PRelu>(data, original_alpha_patter);
         auto maximum = pattern_map.at(max_pattern);
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 
         copy_runtime_info({
-                            pattern_map.at(max_pattern).get_node_shared_ptr(),
+                            pattern_map.at(multiply_pattern).get_node_shared_ptr(),
                             maximum.get_node_shared_ptr()
                           },
                           leaky_relu);
