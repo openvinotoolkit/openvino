@@ -1025,7 +1025,8 @@ public:
         Logical_OR,
         Logical_XOR,
         Logical_NOT,
-        Mean
+        Mean,
+        Abs,
     };
 
     /**
