@@ -21,7 +21,7 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                virtual std::shared_ptr<Function> get_function() { return m_bodies[0]; };
+                virtual const std::shared_ptr<Function>& get_function() { return m_bodies[0]; };
                 virtual std::shared_ptr<const Function> get_function() const
                 {
                     return m_bodies[0];

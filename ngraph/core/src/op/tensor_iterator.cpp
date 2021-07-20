@@ -225,11 +225,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
                           "Number of outputs must be the same as number of output descriptions");
 }
 
-std::shared_ptr<Function> op::v0::TensorIterator::get_function()
-{
-    return get_body();
-}
-
 namespace
 {
     template <typename Desc>

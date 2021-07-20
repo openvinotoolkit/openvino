@@ -32,11 +32,9 @@ namespace ngraph
                 /// \return the body of the iteration
                 std::shared_ptr<Function> get_body() const { return m_bodies[0]; }
                 /// \param body set the body of the iteration
-                void set_body(const std::shared_ptr<Function>& body) { m_bodies[0] = body; }
+                void set_body(const std::shared_ptr<Function>& body) { set_function(body); }
                 void validate_and_infer_types() override;
                 void revalidate_and_infer_types_for_body_ops();
-                /// \return the body of the iteration
-                std::shared_ptr<Function> get_function() override;
 
             private:
                 void try_to_set_num_iterations_if_no_slice_inputs();
