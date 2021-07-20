@@ -32,5 +32,6 @@ class ChangeRandomUniformOutputType(BackReplacementPattern):
             assert node.has_valid('output_type')
 
             if node.output_type != ir_data_type and np.issubdtype(node.output_type, np.floating):
-                log.warning('Change data type from {} to {} for node {}'.format(node.output_type, ir_data_type, node.name))
+                log.warning(
+                    'Change data type from {} to {} for node {}'.format(node.output_type, ir_data_type, node.name))
                 node.output_type = ir_data_type

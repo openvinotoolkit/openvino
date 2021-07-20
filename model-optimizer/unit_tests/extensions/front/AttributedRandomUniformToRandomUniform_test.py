@@ -3,15 +3,17 @@
 
 import unittest
 
+import numpy as np
+
 from extensions.front.AttributedRandomUniformToRandomUniform import AttributedRandomUniformToRandomUniform
 from mo.front.common.partial_infer.utils import int64_array, float32_array
-from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const, result, regular_op
 
 nodes_attributes = {
     **regular_op('placeholder', {'type': 'Parameter'}),
     **regular_op('attr_random_uniform', {'type': 'AttributedRandomUniform', 'op': 'AttributedRandomUniform',
+                                         'output_type': np.float32, 'initial_type': np.float64,
                                          'min_val': float32_array([-1.5]), 'max_val': float32_array([10.7]),
                                          'shape': int64_array([5, 4, 3])}),
     **result('result'),

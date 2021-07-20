@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.graph.graph import Graph, Node
-from mo.ops.op import Op
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 import numpy as np
+
+from mo.graph.graph import Graph, Node
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from mo.ops.op import Op
 
 
 class RandomUniform(Op):
