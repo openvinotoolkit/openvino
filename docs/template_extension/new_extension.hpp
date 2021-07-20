@@ -30,4 +30,3 @@ public:
 
 }  // namespace TemplateExtension
 //! [extension:header]
-
