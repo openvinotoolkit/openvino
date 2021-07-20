@@ -88,10 +88,9 @@ public:
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
-    void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status,
-                        const char* className = nullptr);
+    void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status);
 
-    void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status, const char* className);
+    void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
 
     static Summary &getInstance();
 

@@ -70,10 +70,10 @@ namespace LayerTestsDefinitions {
         auto report_func = function;
 
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(report_func, PassRate::Statuses::SKIPPED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(report_func, PassRate::Statuses::CRASHED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::CRASHED);
         }
 
         try {
@@ -89,16 +89,16 @@ namespace LayerTestsDefinitions {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(report_func, PassRate::Statuses::PASSED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(report_func, PassRate::Statuses::FAILED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(report_func, PassRate::Statuses::FAILED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(report_func, PassRate::Statuses::FAILED, typeid(*this).name());
+            s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
