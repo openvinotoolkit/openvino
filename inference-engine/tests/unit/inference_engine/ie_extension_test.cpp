@@ -58,13 +58,6 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
             InferenceEngine::Exception);
 }
 
-TEST(ExtensionTests, testNewExtension) {
-    Core ie;
-    ExtensionContainer::Ptr extension = std::make_shared<SOExtensionContainer>(getExtensionPath());
-    ASSERT_EQ(2, extension->getExtensions().size());
-    ie.AddExtension(extension);
-}
-
 TEST(ExtensionTests, testNewExtensionCast) {
     Core ie;
     std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());

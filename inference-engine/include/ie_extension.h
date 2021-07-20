@@ -149,55 +149,6 @@ public:
     NGRAPH_RTTI_DECLARATION;
 };
 
-class INFERENCE_ENGINE_API_CLASS(ExtensionContainer) {
-public:
-    using Ptr = std::shared_ptr<ExtensionContainer>;
-    virtual ~ExtensionContainer() = default;
-    virtual const std::vector<NewExtension::Ptr>& getExtensions() const = 0;
-    operator const std::vector<NewExtension::Ptr>() const {
-        return getExtensions();
-    }
-};
-
-class INFERENCE_ENGINE_API_CLASS(DefaultExtensionContainer) final : public ExtensionContainer {
-public:
-    using Ptr = std::shared_ptr<ExtensionContainer>;
-    DefaultExtensionContainer(const std::vector<NewExtension::Ptr>& extensions): extensions(extensions) {} // NOLINT
-
-    const std::vector<NewExtension::Ptr>& getExtensions() const override {
-        return extensions;
-    }
-
-    void addExtension(const NewExtension::Ptr& extension) {
-        extensions.emplace_back(extension);
-    }
-
-    void addExtension(const std::vector<NewExtension::Ptr>& extensions) {
-        for (const auto& extension : extensions)
-            this->extensions.emplace_back(extension);
-    }
-
-private:
-    std::vector<NewExtension::Ptr> extensions;
-};
-
-namespace details {
-
-/**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
- * creating IExtension object in DLL
- */
-template <>
-class SOCreatorTrait<ExtensionContainer> {
-public:
-    /**
-     * @brief A name of the fabric method for creating an IExtension object in DLL
-     */
-    static constexpr auto name = "CreateExtensionContainer";
-};
-
-}  // namespace details
-
 class INFERENCE_ENGINE_API_CLASS(SOExtension) final: public NewExtension {
 public:
     SOExtension(const details::SharedObjectLoader& actual, const NewExtension::Ptr& ext): actual(actual), extension(ext) {}
@@ -213,49 +164,17 @@ private:
     NewExtension::Ptr extension;
 };
 
-class INFERENCE_ENGINE_API_CLASS(SOExtensionContainer) final: public ExtensionContainer {
-public:
-    template <typename C,
-              typename = details::enableIfSupportedChar<C>>
-    explicit SOExtensionContainer(const std::basic_string<C>& name): actual(name) {}
-
-    const std::vector<NewExtension::Ptr>& getExtensions() const override {
-        const auto& ext = actual->getExtensions();
-        static std::vector<NewExtension::Ptr> extensions;
-        if (extensions.empty()) {
-            for (const auto& ex : ext) {
-                extensions.emplace_back(std::make_shared<SOExtension>(actual, ex));
-            }
-        }
-        return extensions;
-    }
-
-private:
-    details::SOPointer<ExtensionContainer> actual;
-};
-
 /**
  * @brief Creates the default instance of the extension
  *
  * @param ext Extension interface
  */
-INFERENCE_EXTENSION_API(void) CreateExtensionContainer(ExtensionContainer::Ptr& ext);
 INFERENCE_EXTENSION_API(void) CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>&);
 
 /**
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_CREATE_CONTAINER(ContainerType)                                                                                              \
-INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionContainer(std::shared_ptr<InferenceEngine::ExtensionContainer>& ext) {    \
-    ext = std::make_shared<ContainerType>();                                                                                            \
-}
-
-#define IE_CREATE_DEFAULT_CONTAINER(extensions)                                                                                         \
-INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionContainer(std::shared_ptr<InferenceEngine::ExtensionContainer>& ext) {    \
-    ext = std::make_shared<DefaultExtensionContainer>(extensions);                                                                      \
-}
-
 #define IE_CREATE_EXTENSIONS(extensions)                                                                                                \
 INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>& ext) {                 \
     ext = extensions;                                                                                                                   \

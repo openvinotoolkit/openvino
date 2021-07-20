@@ -133,7 +133,6 @@ public:
      */
     void AddExtension(const IExtensionPtr& extension);
 
-    void AddExtension(const ExtensionContainer::Ptr& extension);
     void AddExtension(const std::vector<NewExtension::Ptr>& extensions);
     void AddExtension(const NewExtension::Ptr& extension);
 
