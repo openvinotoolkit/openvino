@@ -7,8 +7,9 @@
 """
 
 import os
-import sys
 from pathlib import Path
+
+from platform_utils import get_os_name
 
 
 def expand_env_vars(obj):
@@ -23,15 +24,6 @@ def expand_env_vars(obj):
     else:
         obj = os.path.expandvars(obj)
     return obj
-
-
-def get_os_name():
-    """Function for getting OS name"""
-    if sys.platform == "win32":
-        os_name = 'Windows'
-    else:
-        os_name = 'Linux'
-    return os_name
 
 
 def get_lib_path(lib_name):

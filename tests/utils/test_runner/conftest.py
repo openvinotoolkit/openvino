@@ -29,12 +29,13 @@ import yaml
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
-TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
-sys.path.append(TIME_TESTS_DIR)
+UTILS_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(UTILS_DIR))
 
-from scripts.run_timetest import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    get_cpu_info, DATABASE, DB_COLLECTIONS
+from scripts.run_test import check_positive_int
+from test_runner.utils import upload_timetest_data, metadata_from_manifest, DATABASE, DB_COLLECTIONS
+from path_utils import expand_env_vars
+from platform_utils import get_os_name, get_os_version, get_cpu_info
 
 
 # -------------------- CLI options --------------------
