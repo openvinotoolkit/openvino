@@ -22,6 +22,8 @@
 
 #include <snippets/op/subgraph.hpp>
 
+#include "common/tensor_desc_creator.h"
+
 #include "emitters/cpu_generator.hpp"
 
 
@@ -223,7 +225,7 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     }
 
     if (isDynBatchEnabled) {
-        if (!isCollapsing && batchDimIdx == tensorRank - maxTileRank)
+        if ((tileRank > 1) && batchDimIdx == tensorRank - maxTileRank)
             sch_dims[1] = static_cast<size_t>(batchToProcess());
         else
             dims_out[max_rank_out_desc_idx][batchDimIdx] = static_cast<size_t>(batchToProcess());
@@ -388,54 +390,48 @@ void MKLDNNSnippetNode::define_shedule() {
     auto find_dims_to_collapse = [this, config]() -> int {
         int collapsedDims = 0;
         // we support dim collapsing only for equal in and out dims without broadcasting otherwise we use tile2D
+        bool hasBroadcast = false;
         for (int i = 0; i < dims_in.size(); i++) {
             for (int j = 0; j < dims_out.size(); j++) {
-                if (dims_in[i] != dims_out[j])
-                    return collapsedDims;
+                if (dims_in[i] != dims_out[j]) {
+                    hasBroadcast = true;
+                    break;
+                }
+            }
+        }
+
+        bool canCollapse = true;
+        for (int i = 0; i < dims_in.size(); i++) {
+            if (dims_in[i][dims_in[i].size() - 2] != 1) {
+                if (dims_in[i][dims_in[i].size() - 1] == 1) {
+                    canCollapse = false;
+                    break;
+                }
             }
         }
 
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
-        bool hasDifferentDims = false;
-        isCollapsing = true;
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!isDynBatchEnabled || (config.outConfs[max_rank_out_desc_idx].desc.getBlockingDesc().getBlockDims().size() - collapsedDims > 2))) {
             if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
                 break;
 
-            for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j].back() != dims_in[0].back()) {
-                    hasDifferentDims = true;
-                }
-            }
-
-            bool canCollapse = true;
-            for (int i = 0; i < dims_in.size(); i++) {
-                if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                        canCollapse = false;
-                        break;
-                    }
-
-                    if (hasDifferentDims) {
-                        canCollapse = false;
-                        break;
-                    }
-                }
-            }
-
-            if (!canCollapse) {
-                break;
-            }
-
             size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[max_rank_out_desc_idx][dims_out[max_rank_out_desc_idx].size() - 2];
             if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
                 currentJitWorkAmount = nextJitWorkAmount;
-                collapsedDims++;
+                if (hasBroadcast || !canCollapse) {
+                    if (tileRank < maxTileRank) {
+                        tileRank++;
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
 
+                collapsedDims++;
                 for (int i = 0; i < dims_in.size(); i++) {
                     collapseLastDims(dims_in[i], 1);
                 }
@@ -456,7 +452,7 @@ void MKLDNNSnippetNode::define_shedule() {
         sch_offsets_out.resize(offsets_out.size(), 0);
         sch_dims.resize(maxTileRank, 1);
         sch_dims[0] = dims_out[max_rank_out_desc_idx].back();
-        if (!isCollapsing) {
+        if (tileRank > 1) {
             sch_dims[1] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
             dims_out[max_rank_out_desc_idx][tensorRank - 2] = 1;
 
