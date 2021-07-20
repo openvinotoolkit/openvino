@@ -549,7 +549,7 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | elementwise_sub | No |
 | equal | No |
 | expand_v2 | No |
-| fill_constant_batch_size_like | Only supports the 'FP32' data_type |
+| fill_constant_batch_size_like | No |
 | fill_constant | No |
 | flatten_contiguous_range | No |
 | greater_equal | No |
@@ -575,11 +575,11 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | rnn | Only supports the 'LSTM' Mode |
 | scale | No |
 | shape | No |
-| slice | Not supports the 'tensor' type of 'starts' and 'ends' |
+| slice | No |
 | softmax | No |
 | sigmoid | No |
 | split | No |
 | squeeze2 | No |
 | transpose2 | No |
-| unsqueeze2 | Only supports the 'int32_t' input data_type |
+| unsqueeze2 | No |
 | yolo_box | No |
