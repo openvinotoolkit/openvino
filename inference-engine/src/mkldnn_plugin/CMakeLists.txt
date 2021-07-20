@@ -34,7 +34,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 
 if(SELECTIVE_BUILD STREQUAL "ON")
     # After disabling a block of code, some variables might be unused.
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
     endif()
 endif()
