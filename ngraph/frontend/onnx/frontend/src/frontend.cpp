@@ -11,12 +11,12 @@
 using namespace ngraph;
 using namespace ngraph::frontend;
 
-extern "C" FRONTEND_API FrontEndVersion GetAPIVersion()
+extern "C" ONNX_FRONTEND_API FrontEndVersion GetAPIVersion()
 {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" FRONTEND_API void* GetFrontEndData()
+extern "C" ONNX_FRONTEND_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "onnx";

@@ -10,7 +10,7 @@ namespace ngraph
 {
     namespace frontend
     {
-        class FRONTEND_API PlaceInputEdgeONNX : public Place
+        class PlaceInputEdgeONNX : public Place
         {
         public:
             PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge)
@@ -22,7 +22,7 @@ namespace ngraph
             onnx_editor::InputEdge m_edge;
         };
 
-        class FRONTEND_API PlaceOutputEdgeONNX : public Place
+        class PlaceOutputEdgeONNX : public Place
         {
         public:
             PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge)
@@ -34,7 +34,7 @@ namespace ngraph
             onnx_editor::OutputEdge m_edge;
         };
 
-        class FRONTEND_API PlaceTensorONNX : public Place
+        class PlaceTensorONNX : public Place
         {
         public:
             PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor)

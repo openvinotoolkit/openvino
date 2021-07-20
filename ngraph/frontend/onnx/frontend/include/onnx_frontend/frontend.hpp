@@ -6,11 +6,17 @@
 
 #include <frontend_manager/frontend.hpp>
 
+#ifdef onnx_ngraph_frontend_EXPORTS
+#define ONNX_FRONTEND_API NGRAPH_HELPER_DLL_EXPORT
+#else
+#define ONNX_FRONTEND_API NGRAPH_HELPER_DLL_IMPORT
+#endif
+
 namespace ngraph
 {
     namespace frontend
     {
-        class FRONTEND_API FrontEndONNX : public FrontEnd
+        class ONNX_FRONTEND_API FrontEndONNX : public FrontEnd
         {
         public:
             std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
