@@ -633,6 +633,10 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
                        [](const int64_t& elem) { return static_cast<uint64_t>(elem); });
         out_shape = out_shape_uint64.data();
     }
+    else
+    {
+        throw ngraph_error("Unsupported type of out shape in RandomUniform operation: " + inputs[0]->get_element_type().get_type_name());
+    }
 
     element::Type_t t_out = get_out_type();
     char* out;
