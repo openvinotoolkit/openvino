@@ -35,7 +35,7 @@ static cldnn::gather_elements::gather_elements_axis GetGatherElementsAxis(int ax
         case 3: return cldnn::gather_elements::gather_elements_axis::along_y;
         case 4: return cldnn::gather_elements::gather_elements_axis::along_z;
         case 5: return cldnn::gather_elements::gather_elements_axis::along_w;
-        default: IE_THROW() << "Unsupported ScatterElementsUpdate axis: " << axis;
+        default: IE_THROW() << "Unsupported GatherElements axis: " << axis;
     }
     return cldnn::gather_elements::gather_elements_axis::along_f;  // shouldn't get here
 }
@@ -51,11 +51,11 @@ void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::Ga
     auto outLayout = DefaultFormatForDims(op->get_output_shape(0).size());
 
     auto primitive = cldnn::gather_elements(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           outLayout,
-                                           CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                           GetGatherElementsAxis(axis, rank));
+                                            inputPrimitives[0],
+                                            inputPrimitives[1],
+                                            outLayout,
+                                            CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                            GetGatherElementsAxis(axis, rank));
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

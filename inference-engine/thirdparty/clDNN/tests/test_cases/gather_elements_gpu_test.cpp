@@ -35,7 +35,6 @@ inline void DoTest(engine& engine,
     network.set_input_data("InputIndices", input1);
     auto outputs = network.execute();
     auto output = outputs.at("gather_elements").get_memory();
-    // auto output_ptr = output.pointer<uint16_t>();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {

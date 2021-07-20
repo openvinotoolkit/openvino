@@ -5,9 +5,9 @@
 #include "include/data_types.cl"
 #include "include/fetch_data.cl"
 
-#define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
+#define GET_OUTPUT_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 
-KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
+KERNEL(gather_elements_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -39,7 +39,7 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
     const uint f = dim2 % OUTPUT_FEATURE_NUM;
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
-    const int out_idx = GET_UPDATES_INDEX(INPUT1, ORDER);
+    const int out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
 
 #if INPUT1_DIMS == 4
     size_t data_shape[4] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X};
@@ -70,10 +70,7 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
 
     size_t outer_sum = (out_idx / outer_sum_inc_indices) * outer_sum_inc_data;
     size_t inner_sum = out_idx % max_inner_sum;
-    if (indices[out_idx] < 0 || indices[out_idx] >= data_shape[AXIS]) {
-        printf("indices values of GatherElement exceed data size.\n");
-        return;
-    }
+
     uint idx = outer_sum + max_inner_sum * indices[out_idx] + inner_sum;
     INPUT0_TYPE val = data[idx];
 
@@ -85,4 +82,4 @@ KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
 #endif
 }
 
-#undef GET_UPDATES_INDEX
+#undef GET_OUTPUT_INDEX
