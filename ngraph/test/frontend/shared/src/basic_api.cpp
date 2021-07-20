@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/basic_api.hpp"
-#include "../include/utils.hpp"
+#include "basic_api.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -17,13 +17,15 @@ std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<Basi
 
 void FrontEndBasicTest::SetUp()
 {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndBasicTest::initParamTest()
 {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
-    m_modelFile = std::string(TEST_FILES) + m_pathToModels + m_modelFile;
+    m_modelFile = m_pathToModels + m_modelFile;
 }
 
 void FrontEndBasicTest::doLoadFromFile()
@@ -32,7 +34,7 @@ void FrontEndBasicTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_modelFile));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
     ASSERT_NE(m_inputModel, nullptr);
 }
 

@@ -20,8 +20,6 @@ addIeTarget(
         /some/specific/path
    LINK_LIBRARIES
         ie::important_plugin
-   EXPORT_DEPENDENCIES
-        dependency_lib_to_export
    DEPENDENCIES
         dependencies
    OBJECT_FILES
@@ -51,7 +49,6 @@ function(addIeTarget)
         EXCLUDED_SOURCE_PATHS         # list of paths excluded from the global recursive search of source files
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
-        EXPORT_DEPENDENCIES           # list of the dependencies to be exported with the target through the developer package
         )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN} )
 
@@ -127,7 +124,7 @@ function(addIeTarget)
     if (ARG_DEVELOPER_PACKAGE)
         # developer package
         openvino_developer_export_targets(COMPONENT ${ARG_DEVELOPER_PACKAGE}
-                                          TARGETS ${ARG_NAME} ${ARG_EXPORT_DEPENDENCIES})
+                                          TARGETS ${ARG_NAME})
     endif()
     if(WIN32)
         # Provide default compile pdb name equal to target name
@@ -159,4 +156,9 @@ function(addIeTargetTest)
 
     add_test(NAME ${ARG_NAME} COMMAND ${ARG_NAME})
     set_property(TEST ${ARG_NAME} PROPERTY LABELS ${ARG_LABELS})
+
+    install(TARGETS ${ARG_NAME}
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endfunction()

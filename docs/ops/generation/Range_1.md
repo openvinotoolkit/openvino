@@ -12,13 +12,13 @@ No attributes available.
 
 **Inputs**:
 
-* **1**: "start" - A scalar of type T. **Required.**
-* **2**: "stop" - A scalar of type T. **Required.**
-* **3**: "step" - A scalar of type T. **Required.**
+* **1**: "start" - A scalar of type *T*. **Required.**
+* **2**: "stop" - A scalar of type *T*. **Required.**
+* **3**: "step" - A scalar of type *T*. **Required.**
 
 **Outputs**:
 
-* **1**: A tensor of type T.
+* **1**: A tensor of type *T*.
 
 **Types**
 
@@ -87,4 +87,3 @@ val[i]=start+i*step
     </output>
 </layer>
 ```
-

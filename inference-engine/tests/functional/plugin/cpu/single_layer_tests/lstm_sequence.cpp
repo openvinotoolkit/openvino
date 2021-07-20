@@ -42,7 +42,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::LSTMSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -149,7 +149,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -195,7 +195,7 @@ std::vector<float> clip{0.f};
 std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::RecurrentSequenceDirection::FORWARD};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPU,
                         LSTMSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -211,7 +211,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPU,
                                            ::testing::ValuesIn(additionalConfig)),
                         LSTMSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCPUbatchSizeOne,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCPUbatchSizeOne,
                         LSTMSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),

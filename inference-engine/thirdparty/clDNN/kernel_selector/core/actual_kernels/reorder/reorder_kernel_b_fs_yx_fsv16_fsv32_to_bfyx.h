@@ -16,7 +16,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    JitConstants GetJitConstants(const reorder_params& params) const;
-    CommonDispatchData SetDefault(const reorder_params& params) const;
+    JitConstants GetJitConstants(const reorder_params& params) const override;
+    CommonDispatchData SetDefault(const reorder_params& params) const override;
 };
 }  // namespace kernel_selector

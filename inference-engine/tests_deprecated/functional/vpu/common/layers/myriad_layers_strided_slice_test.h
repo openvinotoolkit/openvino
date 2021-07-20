@@ -252,7 +252,7 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     // Create InferRequest.
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = _exeNetwork.CreateInferRequest());
-    
+
     // Input Data.
     InferenceEngine::Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob("input"));
@@ -262,7 +262,7 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     InferenceEngine::Blob::Ptr outputBlob;
     ASSERT_NO_THROW(inferRequest.Infer());
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob("strided_slice"));
-    
+
     // Output Reference.
     Blob::Ptr refBlob = InferenceEngine::make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
     refBlob->allocate();

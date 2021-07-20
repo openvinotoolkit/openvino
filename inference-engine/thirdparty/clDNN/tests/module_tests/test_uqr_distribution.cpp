@@ -32,14 +32,10 @@ protected:
     using uqr_dist_param = typename uqr_dist::param_type;
     /// @brief Expected result_type of uniform_quantized_real_distribution.
     using expected_uqr_dist_rt = typename std::conditional<!std::is_same<RealType, void>::value, RealType, float>::type;
-
-    void SetUp() override {}
-
-    void TearDown() override {}
 };
 
 using uniform_quantized_real_distribution_test_types = ::testing::Types<void, float, double, long double>;
-TYPED_TEST_CASE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
+TYPED_TEST_SUITE(uniform_quantized_real_distribution_test, uniform_quantized_real_distribution_test_types);
 
 TYPED_TEST(uniform_quantized_real_distribution_test, param_construct_default)
 {

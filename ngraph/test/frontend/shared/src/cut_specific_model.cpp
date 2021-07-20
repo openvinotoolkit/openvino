@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/cut_specific_model.hpp"
-#include "../include/utils.hpp"
+#include "cut_specific_model.hpp"
+#include "utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
 
 using namespace ngraph;
@@ -26,14 +26,15 @@ std::string FrontEndCutModelTest::getTestCaseName(const testing::TestParamInfo<C
 
 void FrontEndCutModelTest::SetUp()
 {
+    FrontEndTestUtils::setupTestEnv();
+    m_fem = FrontEndManager(); // re-initialize after setting up environment
     initParamTest();
 }
 
 void FrontEndCutModelTest::initParamTest()
 {
     m_param = GetParam();
-    m_param.m_modelName = std::string(TEST_FILES) + m_param.m_modelsPath + m_param.m_modelName;
-    std::cout << "Model: " << m_param.m_modelName << std::endl;
+    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
 }
 
 void FrontEndCutModelTest::doLoadFromFile()
@@ -43,7 +44,7 @@ void FrontEndCutModelTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 

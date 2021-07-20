@@ -5,7 +5,7 @@
 #include <behavior_test_plugin.h>
 #include <XLink.h>
 #include <mvnc.h>
-#include <mvnc/include/ncPrivateTypes.h>
+#include <ncPrivateTypes.h>
 #include <watchdog.h>
 #include <watchdogPrivate.hpp>
 #include <thread>
@@ -261,4 +261,4 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADWatchdog, ValuesIn(vpuValues), getTestCaseName);

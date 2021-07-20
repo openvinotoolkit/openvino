@@ -63,6 +63,7 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
+#include "transformations/convert_padded2valid_conv.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -678,6 +679,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ConvertPadded2ValidConv>();
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
@@ -738,7 +740,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy, bool lowPrecision) {
-        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy, lowPrecision}, network);
+        auto passes = make_shared<PassManager>(PassManagerSettings{runBeforeCopy, lowPrecision}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -750,12 +752,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
+        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+        passes->registerPass<BroadcastConstPass>();
+
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 
-        passes->registerPass<BroadcastConstPass>();
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
@@ -765,13 +769,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
-        if (policy.PermutePolicy != Policy::Permute::DISABLED) {
-            passes->registerPass<ReversePermutationsPass>();
-        }
-        if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
-            passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
-        }
-
+        passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -779,7 +777,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         passes->registerPass<ForbidActivationFusingPass>();
 #endif
-        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<FuseMultipleIdentitiesPass>();
         passIdx = passes->run(passIdx);
     };
@@ -839,9 +836,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #endif
 
     auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
-
-    // passing policy to compiler
-    graphCompiler.setPolicy(policy);
 
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
@@ -993,7 +987,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj, config.gnaCompileTarget);
 #else
         dnn->InitGNAStruct(&std::get<0>(nnets.front())->obj);
 #endif
@@ -1004,7 +998,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #if GNA_LIB_VER == 2
         gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
         // this can be improved by just copy all structures, but we are too lazy
-        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj);
+        dnn->InitGNAStruct(&std::get<0>(gnaModels.back())->obj, config.gnaCompileTarget);
 #else
         nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
         dnn->InitGNAStruct(&std::get<0>(nnets.back())->obj);

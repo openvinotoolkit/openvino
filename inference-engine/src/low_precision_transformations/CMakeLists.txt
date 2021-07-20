@@ -28,8 +28,6 @@ ie_faster_build(${TARGET_NAME}
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine LP transformations library")
 
-target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
-
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
                                      PRIVATE openvino::itt)
 
@@ -45,7 +43,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
 
 # install
 

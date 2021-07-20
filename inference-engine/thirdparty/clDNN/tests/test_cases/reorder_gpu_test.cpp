@@ -2315,7 +2315,7 @@ public:
         return all_test_params;
     }
 
-    virtual bool is_format_supported(cldnn::format format)
+    bool is_format_supported(cldnn::format format) override
     {
         return (    (format == cldnn::format::yxfb) ||
                     (format == cldnn::format::byxf) ||
@@ -2348,7 +2348,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs)
+    memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {
@@ -2389,7 +2389,7 @@ TEST_P(reorder_test, REORDER)
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_REORDER,
+INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         reorder_test,
                         ::testing::ValuesIn(reorder_test::generate_specific_test_params()),
                         tests::generic_test::custom_param_name_functor());

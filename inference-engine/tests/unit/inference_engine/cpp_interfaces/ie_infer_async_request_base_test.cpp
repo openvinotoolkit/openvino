@@ -3,8 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include <gmock/gmock-generated-actions.h>
+#include <gmock/gmock.h>
 
 #include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
@@ -33,10 +32,7 @@ protected:
     shared_ptr<IInferRequest> request;
     ResponseDesc dsc;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mock_impl.reset(new MockIInferRequestInternal());
         request = std::make_shared<InferRequestBase>(mock_impl);
     }

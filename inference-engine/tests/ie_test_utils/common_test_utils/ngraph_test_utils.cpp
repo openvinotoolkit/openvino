@@ -779,6 +779,14 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     }
 }
 
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name) {
+    output.get_tensor_ptr()->set_names({name});
+}
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names) {
+    output.get_tensor_ptr()->set_names(names);
+}
+
 NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
 
 namespace attributes {

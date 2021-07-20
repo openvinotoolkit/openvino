@@ -32,7 +32,7 @@ template<typename P = std::nullptr_t>
 class PlgTest : public testing::TestWithParam<PlgTestParam<P>> {
 protected:
     std::map<std::string, std::string>  config;
-    virtual void SetUp() {
+    void SetUp() override {
         device_name = std::get<0>(this->GetParam());
         std::transform(device_name.begin(), device_name.end(), 
             device_name.begin(), [] (char v) { return v == '_' ? ':' : v; });
@@ -64,10 +64,10 @@ private:
  * @brief Macros to specify Per Plugin Run Test Case with parameters.
  */
 #define RUN_CASE_P_WITH_SUFFIX(_plugin, _suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_plugin##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_plugin), ::testing::ValuesIn(_params) ))
+    INSTANTIATE_TEST_SUITE_P(_plugin##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_plugin), ::testing::ValuesIn(_params) ))
 
 /**
  * @brief Macros to specify Per Plugin Run Test Case with Cartesian Product of parameters.
  */
 #define RUN_CASE_CP_WITH_SUFFIX(_plugin, _suffix, _test, _params, ...) \
-    INSTANTIATE_TEST_CASE_P(_plugin##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_plugin), _params), __VA_ARGS__ )
+    INSTANTIATE_TEST_SUITE_P(_plugin##_run##_suffix, _test, ::testing::Combine(::testing::Values(#_plugin), _params), __VA_ARGS__ )
