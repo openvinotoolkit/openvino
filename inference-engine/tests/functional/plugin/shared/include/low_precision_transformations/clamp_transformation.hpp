@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ClampTransformationParam
@@ -32,7 +32,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj);
 protected:
     void SetUp() override;
-private:
-    void validate();
 };
+
 }  // namespace LayerTestsDefinitions

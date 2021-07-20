@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 
 class MatMulWithConstantTransformationTestValues {
 public:
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
 
     ngraph::builder::subgraph::Constant weights;
@@ -46,9 +46,6 @@ protected:
     void SetUp() override;
 
     void Run() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

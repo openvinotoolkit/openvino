@@ -7,8 +7,6 @@
 #include <map>
 #include <fstream>
 
-#include <pugixml.hpp>
-
 #include "ngraph/ngraph.hpp"
 
 #include "common_test_utils/test_constants.hpp"

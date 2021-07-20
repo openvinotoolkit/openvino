@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::BroadcastBase, "BroadcastBase", 0);
+
 op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                        const Output<Node>& target_shape,
                                        const Output<Node>& axes_mapping,
