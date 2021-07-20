@@ -13,13 +13,12 @@ namespace ngraph
         namespace reference
         {
             void random_uniform(const char* out_shape,
-                      char* out,
-                      const Shape& out_shape_shape,
-                      size_t elem_size,
-                      int64_t seed,
-                      int64_t seed2)
+                                char* out,
+                                const Shape& out_shape_shape,
+                                size_t elem_size,
+                                int64_t seed,
+                                int64_t seed2)
             {
-
             }
         } // namespace reference
     }     // namespace runtime
