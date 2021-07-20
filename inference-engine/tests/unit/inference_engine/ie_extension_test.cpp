@@ -69,19 +69,10 @@ TEST(ExtensionTests, testNewExtensionCast) {
     Core ie;
     std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());
     ASSERT_EQ(2, extensions.size());
-    ASSERT_NE(std::dynamic_pointer_cast<OpsetExtension>(extensions[0]), nullptr);
-    ASSERT_NE(std::dynamic_pointer_cast<SOExtension>(extensions[0]), nullptr);
-    ASSERT_NE(dynamic_cast<SOExtension*>(extensions[0].get()), nullptr);
-    // Cannot override dynamic_cast
-    ASSERT_EQ(dynamic_cast<OpsetExtension*>(extensions[0].get()), nullptr);
-    ie.AddExtension(extensions);
-}
-
-TEST(ExtensionTests, testNewExtensionFromVector) {
-    Core ie;
-    std::vector<NewExtension::Ptr> extensions;
-    for (size_t i = 0; i < 10; i++)
-        extensions.emplace_back(std::make_shared<NewExtension>());
-    ASSERT_EQ(10, extensions.size());
+    ASSERT_TRUE(ngraph::is_type<OpsetExtension>(extensions[0]));
+    auto opsetExt = ngraph::as_type_ptr<OpsetExtension>(extensions[0]);
+    auto* opsetExtP = ngraph::as_type<OpsetExtension>(extensions[0].get());
+    ASSERT_NE(opsetExtP, nullptr);
+    ASSERT_NE(opsetExt, nullptr);
     ie.AddExtension(extensions);
 }

@@ -135,12 +135,18 @@ class INFERENCE_ENGINE_API_CLASS(NewExtension) {
 public:
     using Ptr = std::shared_ptr<NewExtension>;
 
+    using type_info_t = ngraph::Node::type_info_t;
+
     virtual ~NewExtension() = default;
+
+    virtual const type_info_t& get_type_info() const = 0;
 };
 
 class INFERENCE_ENGINE_API_CLASS(OpsetExtension): public NewExtension {
 public:
     virtual std::map<std::string, ngraph::OpSet> getOpSets() = 0;
+
+    NGRAPH_RTTI_DECLARATION;
 };
 
 class INFERENCE_ENGINE_API_CLASS(ExtensionContainer) {
@@ -197,6 +203,9 @@ public:
     SOExtension(const details::SharedObjectLoader& actual, const NewExtension::Ptr& ext): actual(actual), extension(ext) {}
     const NewExtension::Ptr& getExtension() {
         return extension;
+    }
+    const type_info_t& get_type_info() const override {
+        return extension->get_type_info();
     }
 
 private:
@@ -268,21 +277,3 @@ std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name)
     return extensions;
 }
 }  // namespace InferenceEngine
-
-
-namespace std {
-template<class T>
-std::shared_ptr<T> dynamic_pointer_cast(const std::shared_ptr<InferenceEngine::NewExtension>& r) noexcept {
-    // Dynamic cast to shared_ptr<SOExtension> should work
-    if (auto p = dynamic_cast<typename std::shared_ptr<T>::element_type*>(r.get())) {
-        return std::shared_ptr<T>{r, p};
-    } else {
-        if (auto so = dynamic_cast<typename std::shared_ptr<InferenceEngine::SOExtension>::element_type*>(r.get())) {
-            if (auto p = dynamic_cast<typename std::shared_ptr<T>::element_type*>(so->getExtension().get())) {
-                return std::shared_ptr<T>{so->getExtension(), p};
-            }
-        }
-        return std::shared_ptr<T>{};
-    }
-}
-}  // namespace std

@@ -12,6 +12,7 @@ namespace TemplateExtension {
 
 class Extension1 : public InferenceEngine::OpsetExtension {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Extension1();
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         return {};
@@ -20,6 +21,7 @@ public:
 
 class Extension2 : public InferenceEngine::OpsetExtension {
 public:
+    NGRAPH_RTTI_DECLARATION;
     Extension2();
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         return {};

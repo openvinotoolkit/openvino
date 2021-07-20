@@ -14,6 +14,8 @@
 
 using namespace TemplateExtension;
 
+NGRAPH_RTTI_DEFINITION(Extension1, "Extension1", 0, OpsetExtension);
+NGRAPH_RTTI_DEFINITION(Extension2, "Extension2", 0, OpsetExtension);
 //! [extension:ctor]
 Extension1::Extension1() {}
 Extension2::Extension2() {}
