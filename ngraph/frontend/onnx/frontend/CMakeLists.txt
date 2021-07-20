@@ -32,12 +32,6 @@ target_include_directories(onnx_ngraph_frontend PUBLIC $<BUILD_INTERFACE:${ONNX_
 
 target_include_directories(onnx_ngraph_frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    target_compile_options(onnx_ngraph_frontend PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
-            -Wno-invalid-offsetof -Wno-shorten-64-to-32 -Wno-unused-macros -Wno-missing-variable-declarations
-            -Wno-unused-private-field -Wno-shadow -Wno-deprecated PUBLIC -Wno-undefined-func-template)
-endif()
-
 install(TARGETS onnx_ngraph_frontend EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph

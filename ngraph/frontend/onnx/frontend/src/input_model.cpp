@@ -3,8 +3,8 @@
 //
 
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <onnx_frontend/input_model.hpp>
-#include <onnx_frontend/place.hpp>
+#include <input_model.hpp>
+#include <place.hpp>
 
 using namespace ngraph;
 using namespace ngraph::frontend;

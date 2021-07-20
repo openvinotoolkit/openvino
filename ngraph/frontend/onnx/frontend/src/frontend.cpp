@@ -5,7 +5,7 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <frontend_manager/frontend_manager.hpp>
 #include <onnx_frontend/frontend.hpp>
-#include <onnx_frontend/input_model.hpp>
+#include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
 
 using namespace ngraph;

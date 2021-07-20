@@ -36,19 +36,11 @@ def run_function(function, *inputs, expected):
         np.testing.assert_allclose(expected[i], actual[i], rtol=1e-3, atol=1e-6)
 
 
-fem = None
+fem = FrontEndManager()
 onnx_model_filename = "model.onnx"
 
 
 def setup_module():
-    if not os.environ.get("OV_FRONTEND_PATH"):
-        if os.environ.get("LD_LIBRARY_PATH"):
-            os.environ["OV_FRONTEND_PATH"] = os.environ["LD_LIBRARY_PATH"]
-    if not os.environ.get("OV_FRONTEND_PATH"):
-        raise RuntimeError("Please set OV_FRONTEND_PATH env variable to point "
-                           "to directory that has libonnx_ngraph_frontend.so")
-    global fem
-    fem = FrontEndManager()
     onnx.save_model(create_onnx_model(), onnx_model_filename)
 
 
@@ -57,26 +49,9 @@ def teardown_module():
 
 
 def skip_if_onnx_frontend_is_disabled():
-    paths = os.environ["OV_FRONTEND_PATH"].split(":")
-    found = False
-    if platform == "linux":
-        libname = "libonnx_ngraph_frontend.so"
-    elif platform == "darwin":
-        libname = "libonnx_ngraph_frontend.dylib"
-    elif platform == "win32":
-        libname = "onnx_ngraph_frontend.dll"
-    for path in paths:
-        if os.path.exists(os.path.join(path, libname)):
-            found = True
-    if not found:
-        pytest.skip()
-
-
-def test_get_available_front_ends():
-    skip_if_onnx_frontend_is_disabled()
-
     front_ends = fem.get_available_front_ends()
-    assert "onnx" in front_ends
+    if not "onnx" in front_ends:
+        pytest.skip()
 
 
 def test_convert():
