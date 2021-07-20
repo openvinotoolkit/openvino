@@ -206,34 +206,35 @@ void MKLDNNSnippetNode::createPrimitive() {
 void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr) {
         interpret();
-    } else {
-        std::vector<const uint8_t *> inputs(inDims.size(), nullptr);
-        for (size_t i = 0; i < inDims.size(); i++) {
-            auto & parents = getParentEdgesAtPort(i);
-            auto &mem = parents[0]->getMemory();
-            inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetData()) + start_offset_in[i];
-        }
-
-        std::vector<uint8_t *> outputs(outDims.size(), nullptr);
-        for (size_t i = 0; i < outDims.size(); i++) {
-            auto & child = getChildEdgesAtPort(i);
-            auto &mem = child[0]->getMemory();
-            outputs[i] = reinterpret_cast<uint8_t*>(mem.GetData()) + start_offset_out[i];
-        }
-
-        if (isDynBatchEnabled) {
-            for (int i = 0; i < outDims.size(); i++) {
-                // All supported layout assumes batch to be outermost dimension
-                dims_out[i][batchDimIdx] = static_cast<size_t>(batchToProcess());
-            }
-        }
-
-        if (tensorRank == rank6D) {
-            shedule_6d(outputs, inputs);
-        } else {
-            shedule_nt(outputs, inputs);
-        }
+        return;
     }
+    std::vector<const uint8_t *> inputs(inDims.size(), nullptr);
+    for (size_t i = 0; i < inDims.size(); i++) {
+        auto & parents = getParentEdgesAtPort(i);
+        auto &mem = parents[0]->getMemory();
+        inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetData()) + start_offset_in[i];
+    }
+
+    std::vector<uint8_t *> outputs(outDims.size(), nullptr);
+    for (size_t i = 0; i < outDims.size(); i++) {
+        auto & child = getChildEdgesAtPort(i);
+        auto &mem = child[0]->getMemory();
+        outputs[i] = reinterpret_cast<uint8_t*>(mem.GetData()) + start_offset_out[i];
+    }
+
+    if (isDynBatchEnabled) {
+        if (!isCollapsing && batchDimIdx == tensorRank - maxTileRank)
+            sch_dims[1] = static_cast<size_t>(batchToProcess());
+        else
+            dims_out[max_rank_out_desc_idx][batchDimIdx] = static_cast<size_t>(batchToProcess());
+    }
+
+    if (tensorRank == rank6D) {
+        shedule_6d(outputs, inputs);
+        return;
+    }
+
+    shedule_nt(outputs, inputs);
 }
 
 bool MKLDNNSnippetNode::created() const {
@@ -459,10 +460,10 @@ void MKLDNNSnippetNode::define_shedule() {
             sch_dims[1] = dims_out[max_rank_out_desc_idx][tensorRank - 2];
             dims_out[max_rank_out_desc_idx][tensorRank - 2] = 1;
 
-            // update offsets for tile 2D because loaders/stores make ptr shifts
+            // update offsets for tile 2D because loaders have ptr shifts in some cases and stores have always ptrs shifts
             for (auto i = 0; i < offsets_in.size(); i++) {
                 int64_t offset = offsets_in[i][tensorRank - 2];
-                if (offset > dataSize || offset == 0 && offsets_in[i].back() != 0) {
+                if (offset > dataSize || offset == 0 && dims_in[i].back() != 1) {
                     sch_offsets_in[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
                 } else if (offset == dataSize) {
                     sch_offsets_in[i] = offset;
@@ -471,11 +472,7 @@ void MKLDNNSnippetNode::define_shedule() {
 
             for (auto i = 0; i < offsets_out.size(); i++) {
                 int64_t offset = offsets_out[i][tensorRank - 2];
-                if (offset > dataSize || offset == 0 && offsets_out[i].back() != 0) {
-                    sch_offsets_out[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
-                } else if (offset == dataSize) {
-                    sch_offsets_out[i] = offset;
-                }
+                sch_offsets_out[i] = offset - dims_out[max_rank_out_desc_idx].back() * dataSize;
             }
         }
     };
@@ -572,49 +569,6 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
 
             schedule.get_callable<kernel>()(ca.raw(), off.raw(), sch.raw());
         });
-
-  /*  for (int d0 = 0; d0 < dom[0]; d0++) {
-        for (int d1 = 0; d1 < dom[1]; d1++) {
-            for (int d2 = 0; d2 < dom[2]; d2++) {
-                for (int d3 = 0; d3 < dom[3]; d3++) {
-                    for (int d4 = 0; d4 < dom[4]; d4++) {
-                        CallArgs ca;
-                        // Benchmarking for overhead
-                        for (size_t i = 0; i < n; i++) {
-                            ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] +
-                                    d2*offsets_in[i][2] + d3*offsets_in[i][3] + d4*offsets_in[i][4]);
-                        }
-                        for (size_t i = 0; i < m; i++) {
-                            ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] +
-                                    d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
-                        }
-
-                        schedule.get_callable<kernel>()(ca.raw(), sch.raw());
-                    }
-                }
-            }
-        }
-    }*/
-
-    // CallArgs ca; // fill
-    // parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-    //     [&](size_t d0, size_t d1, size_t d2, size_t d3, size_t d4) {
-    //         // CallArgs ca;
-    //         // // Benchmarking for overhead
-    //         // for (size_t i = 0; i < n; i++) {
-    //         //     ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] + d2*offsets_in[i][2] + d3*offsets_in[i][3] + d4*offsets_in[i][4]);
-    //         // }
-    //         // for (size_t i = 0; i < m; i++) {
-    //         //     ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
-    //         // }
-
-    //         Domen sch;
-
-    //         // SchduleInfo/ Domen = d0 .. dN
-    //         // ca.push(static_cast<size_t>(*dom.rbegin()));
-
-    //         schedule.get_callable<kernel>()(ca.raw(), sch.raw());
-    //     });
 }
 
 void MKLDNNSnippetNode::shedule_nt(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
