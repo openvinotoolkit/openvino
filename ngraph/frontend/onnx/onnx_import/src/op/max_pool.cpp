@@ -38,7 +38,7 @@ namespace ngraph
                 {
                     return PoolingFactory(node).make_max_pool_with_indices();
                 }
-            }
+            } // namespace set_8
 
         } // namespace op
 
