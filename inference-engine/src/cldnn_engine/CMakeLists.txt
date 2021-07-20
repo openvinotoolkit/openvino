@@ -12,6 +12,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
+if(GPU_DEBUG_CONFIG)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
+endif()
+
 file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -22,18 +26,16 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
+target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
                                              inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
-                                             ${NGRAPH_LIBRARIES})
+                                             ngraph)
 
-set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CLDNN__OCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER})
+        ${clDNN_SOURCE_DIR}/api)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -404,6 +404,7 @@ public:
     std::string layerID;
     std::string forceImplementation;
     EngineInfo engineInfo;
+    std::string uniqueID;
 
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;

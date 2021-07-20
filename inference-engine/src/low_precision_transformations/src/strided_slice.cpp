@@ -7,34 +7,37 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::StridedSliceTransformation, "StridedSliceTransformation", 0);
+
 std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
-    // issue #48857: constant is mistakenly recognized as a scalar. Uncomment after fix
-    //if (NetworkHelper::isScalarLike(constant)) {
-    //    return NetworkHelper::toScalar(constant);
-    //}
-
-    const auto stridedSliceShape = strSlice->get_input_shape(0);
     auto constantShape = constant->get_shape();
-    if (stridedSliceShape.size() != constantShape.size()) {
+    if (shape_size(constantShape) == 1ul) {
+        return NetworkHelper::toScalar(constant);
+    }
+
+    const auto stridedSlicePShape = strSlice->get_input_partial_shape(0);
+    const size_t rank = stridedSlicePShape.rank().get_length();
+    if (rank != constantShape.size()) {
         ngraph::Shape newConstantShape;
         if (ngraph::shape_size(constantShape) == 1) {
-            newConstantShape = ngraph::Shape(stridedSliceShape.size(), 1);
+            newConstantShape = ngraph::Shape(rank, 1);
         } else {
             newConstantShape = constantShape;
 
             // case when constShape without batch
             if ((constantShape.size() > 1) &&
-                (constantShape.size() < stridedSliceShape.size())) {
-                newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
+                (constantShape.size() < rank)) {
+                newConstantShape.insert(newConstantShape.begin(), 1);
             }
         }
         constantShape = newConstantShape;
@@ -71,19 +74,22 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     return NetworkHelper::toScalarIfPossible(result);
 }
 
-StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {}
+StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();
 
-void StridedSliceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(pass,
-        context,
-        make_op_pattern<opset1::StridedSlice>({
-            make_op_label<opset1::Multiply>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>() }));
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "StridedSliceTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+bool StridedSliceTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     if (!StridedSliceTransformation::canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -110,7 +116,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
 }
 
 bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!is_type<ngraph::opset1::StridedSlice>(operation)) {
+    if (!is_type<ngraph::opset1::StridedSlice>(operation) || NetworkHelper::isDQByDynamicDimension(operation)) {
         return false;
     }
 

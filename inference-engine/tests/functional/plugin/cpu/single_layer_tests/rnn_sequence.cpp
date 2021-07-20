@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::RNNSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
@@ -119,7 +119,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -167,7 +167,7 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction{ngraph::op::Recurr
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCPU,
                         RNNSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -183,7 +183,7 @@ INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPU,
                                            ::testing::ValuesIn(additionalConfig)),
                         RNNSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_RNNSequenceCPUBatchSizeOne,
+INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCPUBatchSizeOne,
                         RNNSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),

@@ -19,15 +19,15 @@ erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise operation. A tensor of type T.
+* **1**: The result of element-wise operation. A tensor of type *T*.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Examples**
 

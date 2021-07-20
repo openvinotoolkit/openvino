@@ -1238,25 +1238,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_as_input)
         file_util::path_join(SERIALIZED_ZOO, "onnx/reduce_sum_13_axes_as_input.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
-    test_case.add_input<float>({1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f,
-                                1.0f});
-    test_case.add_input<int64_t>({0, 1, 2, 3});
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_input<int64_t>({1});
 
-    test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
+    test_case.add_expected_output<float>(Shape{2, 1}, {3.0f, 7.0f});
     test_case.run();
 }
 
@@ -1412,6 +1397,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_13_axes_empty_without_noop)
     test_case.add_expected_output<float>(Shape{1, 1, 1, 1}, {16.0f});
     test_case.run();
 }
+
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_asymertic_last_dim)
+{
+    const auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_last_dim.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+    Shape{1,1,1,19},{1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f, 5.0f, 5.0f, 6.0f, 6.0f, 7.0f, 7.0f, 8.0f, 8.0f, 9.0f, 9.0f, 10.0f});
+    test_case.run();
+
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_asymertic_dim_in_the_middle)
+{
+    const auto function = onnx_import::import_onnx_model(
+    file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_asymertic_dim_in_the_middle.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> input_data{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+    Shape{1,1,19,1},{1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f, 5.0f, 5.0f, 6.0f, 6.0f, 7.0f, 7.0f, 8.0f, 8.0f, 9.0f, 9.0f, 10.0f});
+    test_case.run();
+
+}
+
+
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_empty_constant_as_input)
 {
@@ -3123,7 +3139,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign)
 
     test_case.add_input<int32_t>({-4, 7, 5, 4, -7, 8});
     test_case.add_input<int32_t>({2, -3, 8, -2, 3, 5});
-    test_case.add_expected_output<int32_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
+    test_case.add_expected_output<int32_t>(Shape{6}, {0, -2, 5, 0, 2, 3});
 
     test_case.run();
 }
@@ -3136,7 +3152,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_i64)
 
     test_case.add_input<int64_t>({-4, 7, 5, 4, -7, 8});
     test_case.add_input<int64_t>({2, -3, 8, -2, 3, 5});
-    test_case.add_expected_output<int64_t>(Shape{6}, {0, -2,  5,  0,  2,  3});
+    test_case.add_expected_output<int64_t>(Shape{6}, {0, -2, 5, 0, 2, 3});
 
     test_case.run();
 }
@@ -3159,13 +3175,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_f32)
     try
     {
         const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.prototxt"));
+            file_util::path_join(SERIALIZED_ZOO, "onnx/mod_sign_f32.prototxt"));
         FAIL() << "Expected exception was not thrown";
     }
     catch (const ngraph::ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(),
-                             std::string("If the input type is floating point, then `fmod` attribute must be set to 1."));
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "If the input type is floating point, then `fmod` attribute must be set to 1."));
     }
     catch (...)
     {
@@ -3207,7 +3225,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32)
 
     test_case.add_input<float>({-4.3, 7.2, 5.0, 4.3, -7.2, 8.0});
     test_case.add_input<float>({2.1, -3.4, 8.0, -2.1, 3.4, 5.0});
-    test_case.add_expected_output<float>(Shape{6}, {-0.10000038, 0.39999962, 5. , 0.10000038, -0.39999962, 3.});
+    test_case.add_expected_output<float>(
+        Shape{6}, {-0.10000038, 0.39999962, 5., 0.10000038, -0.39999962, 3.});
 
     test_case.run();
 }
@@ -3217,13 +3236,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_incorrect_fmod)
     try
     {
         const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.prototxt"));
+            file_util::path_join(SERIALIZED_ZOO, "onnx/mod_incorrect_fmod.prototxt"));
         FAIL() << "Expected exception was not thrown";
     }
     catch (const ngraph::ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(),
-                             std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
+        EXPECT_HAS_SUBSTRING(
+            e.what(), std::string("Unsupported value of 'fmod' attribute (should be: 0 or 1)"));
     }
     catch (...)
     {
@@ -4315,6 +4334,17 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_slice_const_axes_source)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/slice_const_axes_source.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {2.f, 3.f, 6.f, 7.f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean)
 {
     auto function = onnx_import::import_onnx_model(
@@ -4364,8 +4394,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_fill_input_as_shape_default_value)
 {
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_default_value.prototxt"));
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/constant_fill_input_as_shape_default_value.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<float>(Shape{1, 2, 3}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
@@ -4421,7 +4451,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_bfloat_tensor)
     test_case.add_expected_output<bfloat16>(Shape{2, 3}, {0.f, 5.f, 10.f, 15.f, 20.f, 25.f});
     test_case.run();
 }
-
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_float_scalar)
 {
@@ -4628,18 +4657,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_8x17)
                                                         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
                                                         0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
     test_case.run();
-}    
-                                                
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x3x4)
 {
     auto function = onnx_import::import_onnx_model(
     file_util::path_join(SERIALIZED_ZOO, "onnx/constant_sparse_tensor_float_2x3x4.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+    test_case.add_expected_output<float>(Shape{2, 3, 4}, {1.f, 0.f, 0.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 3.f, 0.f,
                                                           0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 3.f, 0.f});
     test_case.run();
-}   
+}
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4)
 {
@@ -4649,7 +4678,53 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_constant_sparse_tensor_float_2x2x3x4)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_expected_output<float>(Shape{2, 2, 3, 4}, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 2.f, 3.f,
                                                              0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
-                                                             0.f, 0.f, 0.f, 8.f, 0.f, 1.f, 2.f, 0.f, 0.f, 0.f, 3.f, 0.f, 
+                                                             0.f, 0.f, 0.f, 8.f, 0.f, 1.f, 2.f, 0.f, 0.f, 0.f, 3.f, 0.f,
                                                              1.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_einsum_sum)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/einsum_sum.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>(Shape{3, 4},
+                               {1.764052345967664,
+                                0.4001572083672233,
+                                0.9787379841057392,
+                                2.240893199201458,
+                                1.8675579901499675,
+                                -0.977277879876411,
+                                0.9500884175255894,
+                                -0.1513572082976979,
+                                -0.10321885179355784,
+                                0.41059850193837233,
+                                0.144043571160878,
+                                1.454273506962975});
+    test_case.add_expected_output<float>(
+        Shape{3}, {5.3838407376420845, 1.689011319501448, 1.9056967282686674});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_float16_tensor_as_int32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/conv_fp16_W_as_int32.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // clang-format off
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 4, 4},
+            {   0,  1,  2,  3,
+                4,  5,  6,  7,
+                8,  9,  10, 11,
+                12, 13, 14, 15  });
+    /* filters
+            [[[[0.25, 0.5, 0.25],
+               [0.5,  1.0, 0.5],
+               [0.25, 0.5, 0.25]]]] */
+    test_case.add_expected_output<ngraph::float16>(Shape{1, 1, 2, 2},
+            {   20, 24,
+                36, 40  });
+    // clang-format on
     test_case.run();
 }

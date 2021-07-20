@@ -33,7 +33,6 @@ TEST_P(GnaConvolutionReluSequenceTest, CompareWithRefs) {
     Run();
 }
 
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16
@@ -190,7 +189,7 @@ const std::vector<std::map<std::string, std::string> > configs = {
 };
 
 // Enable when using GNA 2.1 library
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSequenceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSequenceTest,
     ::testing::Combine(
         ::testing::ValuesIn(convReluSpecificParamsAllAll),
         ::testing::ValuesIn(netPrecisions),
@@ -200,4 +199,149 @@ INSTANTIATE_TEST_CASE_P(smoke_ConvolutionReluSequenceTest, GnaConvolutionReluSeq
         ::testing::ValuesIn(configs)),
     GnaConvolutionReluSequenceTest::getTestCaseName);
 
+const InferenceEngine::SizeVector inputShape1Even = {
+    {1, 1, 48, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DOneAbove = {
+    {1, 1, 41, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DOneBelow = {
+    {1, 1, 47, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel4 = {
+    {1, 4, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel5 = {
+    {1, 5, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel6 = {
+    {1, 6, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel7 = {
+    {1, 7, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel8 = {
+    {1, 8, 49, 1},
+};
+
+const InferenceEngine::SizeVector inputShape1DMultichannel9 = {
+    {1, 9, 49, 1},
+};
+
+const std::vector<convReluSpecificParams> poolingStrideBelowWindow = {
+    {
+        {3, 1},     // Kernel size
+        {2, 1},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        4,          // Num out channels
+        {4, 1},     //Pooling window
+        {2, 1}      //Pooling stride
+    },
+};
+
+const std::vector<convReluSpecificParams> poolingStrideAboveWindow = {
+    {
+        {3, 1},     // Kernel size
+        {2, 1},     // Stride
+        {0, 0},     // Pad begin
+        {0, 0},     // Pad end
+        4,          // Num out channels
+        {2, 1},     //Pooling window
+        {4, 1}      //Pooling stride
+    },
+};
+
+const std::vector<convReluSpecificParamsAll> poolingStrideNotEqualWindowAll = {
+    {
+        inputShape1Even,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DOneAbove,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DOneBelow,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1Even,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DOneAbove,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DOneBelow,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel4,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel4,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel5,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel5,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel6,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel6,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel7,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel7,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel8,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel8,
+        poolingStrideAboveWindow
+    },
+    {
+        inputShape1DMultichannel9,
+        poolingStrideBelowWindow
+    },
+    {
+        inputShape1DMultichannel9,
+        poolingStrideAboveWindow
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionPoolingStrideNotEqualWindowTest, ConvolutionReluSequenceTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(poolingStrideNotEqualWindowAll),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs)),
+
+    ConvolutionReluSequenceTest::getTestCaseName);
 } // namespace

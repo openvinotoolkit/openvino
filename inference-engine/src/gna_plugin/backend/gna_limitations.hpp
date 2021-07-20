@@ -6,16 +6,23 @@
 
 #include "dnn_types.h"
 #include <cstdint>
+#include <cpp/ie_cnn_network.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
 
+constexpr uint32_t bufferMaxSize = 65528;
+
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFilterSizeDivider = 8;
+constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
+
+constexpr uint32_t affineMaxBatchSize = 8;
 
 namespace Cnn2D {
 struct RangeLimit {
@@ -89,5 +96,8 @@ public:
         const uint32_t strideH, const uint32_t strideW) const;
 };
 } // namespace Cnn2D
+
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+
 } // namespace GNALimitations
 } // namespace GNAPluginNS

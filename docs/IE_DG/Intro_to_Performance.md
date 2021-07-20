@@ -22,13 +22,20 @@ $ benchmark_app -m <model.xml> -enforcebf16=false
 Notice that for quantized (e.g. INT8) models the bfloat16 calculations (of the layers that remain in FP32) is disabled by default.
 Refer to the [CPU Plugin documentation](supported_plugins/CPU.md) for more details.
 
-Similarly, the GPU device has a dedicated config key to enable FP16 execution of the layers that remain in FP32 in the quantized models (as the quantization is typically performed on the FP32 models), refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/GPU.md)
+Similarly, the GPU device automatically executes FP16 for the layers that remain in FP16 in the quantized models (assuming that the FP16 model was quantized).
+Refer to the ENABLE_FP16_FOR_QUANTIZED_MODELS key in the [GPU Plugin documentation](supported_plugins/GPU.md).
 
 ## Latency vs. Throughput
 One way to increase computational efficiency is batching, which combines many (potentially tens) of
 input images to achieve optimal throughput. However, high batch size also comes with a
 latency penalty. So, for more real-time oriented usages, lower batch sizes (as low as a single input) are used.
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
+
+## Using Caching API for first inference latency optimization
+Since with the 2021.4 release, Inference Engine provides an ability to enable internal caching of loaded networks.
+This can significantly reduce load network latency for some devices at application startup.
+Internally caching uses plugin's Export/ImportNetwork flow, like it is done for [Compile tool](../../inference-engine/tools/compile_tool/README.md), using the regular ReadNetwork/LoadNetwork API.
+Refer to the [Model Caching Overview](Model_caching_overview.md) for more detailed explanation.
 
 ## Using Async API
 To gain better performance on accelerators, such as VPU, the Inference Engine uses the asynchronous approach (see

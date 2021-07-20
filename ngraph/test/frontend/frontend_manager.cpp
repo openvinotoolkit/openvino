@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <frontend_manager/frontend_exceptions.hpp>
 #include <frontend_manager/frontend_manager.hpp>
 #include <memory>
 
@@ -34,7 +35,7 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
     ASSERT_NO_THROW(fem.register_front_end(
-        "mock", [](FrontEndCapFlags fec) { return std::make_shared<FrontEnd>(); }));
+        "mock", []() { return std::make_shared<FrontEnd>(); }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
@@ -47,26 +48,6 @@ TEST(FrontEndManagerTest, testAvailableFrontEnds)
     fem2 = FrontEndManager();
     frontends = fem2.get_available_front_ends();
     ASSERT_EQ(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
-}
-
-TEST(FrontEndManagerTest, testLoadWithFlags)
-{
-    int expFlags = FrontEndCapabilities::FEC_CUT | FrontEndCapabilities::FEC_WILDCARDS |
-                   FrontEndCapabilities::FEC_NAMES;
-    int actualFlags = FrontEndCapabilities::FEC_DEFAULT;
-    FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end("mock", [&actualFlags](int fec) {
-        actualFlags = fec;
-        return std::make_shared<FrontEnd>();
-    }));
-    auto frontends = fem.get_available_front_ends();
-    ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
-    FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_framework("mock", expFlags));
-    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_CUT);
-    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_WILDCARDS);
-    ASSERT_TRUE(actualFlags & FrontEndCapabilities::FEC_NAMES);
-    ASSERT_EQ(expFlags, actualFlags);
 }
 
 TEST(FrontEndManagerTest, testMockPluginFrontEnd)
@@ -85,17 +66,13 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd)
 TEST(FrontEndManagerTest, testDefaultFrontEnd)
 {
     FrontEndManager fem;
-    ASSERT_ANY_THROW(fem.load_by_model(""));
+    FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(fe = fem.load_by_model(""));
+    ASSERT_FALSE(fe);
 
     std::unique_ptr<FrontEnd> fePtr(new FrontEnd()); // to verify base destructor
-    FrontEnd::Ptr fe = std::make_shared<FrontEnd>();
-    ASSERT_ANY_THROW(fe->load_from_file(""));
-    ASSERT_ANY_THROW(fe->load_from_files({"", ""}));
-    ASSERT_ANY_THROW(fe->load_from_memory(nullptr));
-    ASSERT_ANY_THROW(fe->load_from_memory_fragments({nullptr, nullptr}));
-    std::stringstream str;
-    ASSERT_ANY_THROW(fe->load_from_stream(str));
-    ASSERT_ANY_THROW(fe->load_from_streams({&str, &str}));
+    fe = std::make_shared<FrontEnd>();
+    ASSERT_ANY_THROW(fe->load(""));
     ASSERT_ANY_THROW(fe->convert(std::shared_ptr<Function>(nullptr)));
     ASSERT_ANY_THROW(fe->convert(InputModel::Ptr(nullptr)));
     ASSERT_ANY_THROW(fe->convert_partially(nullptr));
@@ -160,4 +137,151 @@ TEST(FrontEndManagerTest, testDefaultPlace)
     ASSERT_ANY_THROW(place->is_output());
     ASSERT_ANY_THROW(place->is_equal(nullptr));
     ASSERT_ANY_THROW(place->is_equal_data(nullptr));
+}
+
+TEST(FrontEndExceptionTest, frontend_general_error_no_throw)
+{
+    EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true));
+}
+
+TEST(FrontEndExceptionTest, frontend_general_error_no_throw_info)
+{
+    EXPECT_NO_THROW(FRONT_END_GENERAL_CHECK(true, "msg example"));
+}
+
+TEST(FrontEndExceptionTest, frontend_general_error_throw_no_info)
+{
+    EXPECT_THROW(FRONT_END_GENERAL_CHECK(false), ngraph::frontend::GeneralFailure);
+}
+
+TEST(FrontEndExceptionTest, frontend_initialization_error_no_throw)
+{
+    EXPECT_NO_THROW(FRONT_END_INITIALIZATION_CHECK(true));
+}
+
+TEST(FrontEndExceptionTest, frontend_initialization_error_no_throw_info)
+{
+    EXPECT_NO_THROW(FRONT_END_INITIALIZATION_CHECK(true, "msg example"));
+}
+
+TEST(FrontEndExceptionTest, frontend_initialization_error_throw_no_info)
+{
+    EXPECT_THROW(FRONT_END_INITIALIZATION_CHECK(false), ngraph::frontend::InitializationFailure);
+}
+
+TEST(FrontEndExceptionTest, frontend_op_conversion_error_no_throw)
+{
+    EXPECT_NO_THROW(FRONT_END_OP_CONVERSION_CHECK(true));
+}
+
+TEST(FrontEndExceptionTest, frontend_op_conversion_error_no_throw_info)
+{
+    EXPECT_NO_THROW(FRONT_END_OP_CONVERSION_CHECK(true, "msg example"));
+}
+
+TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_no_info)
+{
+    EXPECT_THROW(FRONT_END_OP_CONVERSION_CHECK(false), ngraph::frontend::OpConversionFailure);
+}
+
+TEST(FrontEndExceptionTest, frontend_assert_throw_check_info)
+{
+    std::string msg("msg example");
+    try
+    {
+        FRONT_END_THROW(msg);
+    }
+    catch (const ngraph::frontend::GeneralFailure& ex)
+    {
+        std::string caught_msg(ex.what());
+        EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
+    }
+    catch (...)
+    {
+        FAIL() << "Not expected exception type.";
+    }
+    FAIL() << "Test is expected to throw an exception.";
+}
+
+TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info)
+{
+    struct TestClass
+    {
+    };
+    try
+    {
+        FRONT_END_NOT_IMPLEMENTED(TestClass);
+    }
+    catch (const ngraph::frontend::NotImplementedFailure& ex)
+    {
+        std::string caught_msg(ex.what());
+        EXPECT_NE(caught_msg.find("TestClass"), std::string::npos);
+        return;
+    }
+    catch (...)
+    {
+        FAIL() << "Not expected exception type.";
+    }
+    FAIL() << "Test is expected to throw an exception.";
+}
+
+TEST(FrontEndExceptionTest, frontend_general_error_throw_info)
+{
+    std::string msg("msg example");
+    try
+    {
+        FRONT_END_GENERAL_CHECK(false, msg);
+    }
+    catch (const ngraph::frontend::GeneralFailure& ex)
+    {
+        std::string caught_msg(ex.what());
+        EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
+    }
+    catch (...)
+    {
+        FAIL() << "Not expected exception type.";
+    }
+    FAIL() << "Test is expected to throw an exception.";
+}
+
+TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info)
+{
+    std::string msg("msg example");
+    try
+    {
+        FRONT_END_OP_CONVERSION_CHECK(false, msg);
+    }
+    catch (const ngraph::frontend::OpConversionFailure& ex)
+    {
+        std::string caught_msg(ex.what());
+        EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
+    }
+    catch (...)
+    {
+        FAIL() << "Not expected exception type.";
+    }
+    FAIL() << "Test is expected to throw an exception.";
+}
+
+TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info)
+{
+    std::string msg("msg example");
+    try
+    {
+        FRONT_END_INITIALIZATION_CHECK(false, msg);
+    }
+    catch (const ngraph::frontend::InitializationFailure& ex)
+    {
+        std::string caught_msg(ex.what());
+        EXPECT_NE(caught_msg.find(msg), std::string::npos);
+        return;
+    }
+    catch (...)
+    {
+        FAIL() << "Not expected exception type.";
+    }
+    FAIL() << "Test is expected to throw an exception.";
 }

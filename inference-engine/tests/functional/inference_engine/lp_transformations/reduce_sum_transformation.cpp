@@ -33,21 +33,22 @@ class ReduceSumTransformation : public ReduceTransformation<opset1::ReduceSum> {
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(transformationParams);
         transform.transform(actualFunction);
     }
 };
 
 TEST_P(ReduceSumTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {
+namespace testValues1 {
+const std::vector<ngraph::PartialShape> inputShapes = {
     {1, 3, 16, 16},
-    {4, 3, 16, 16}
+    {4, 3, 16, 16},
+    {Dimension::dynamic(), 3, 16, 16}
 };
 
 const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestValues = {
@@ -293,11 +294,106 @@ const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestVal
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     ReduceSumTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(reduceSumTransformationTestValues)),
     ReduceSumTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
+    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+};
+
+const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {2, 3},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {}, {0.1f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {2, 3},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 1.f, 10.f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceSumTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(reduceSumTransformationTestValues)),
+    ReduceSumTransformation::getTestCaseName);
+} // namespace testValues2
+
+namespace testValues3 {
+const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+    PartialShape::dynamic()
+};
+
+const std::vector<ReduceTransformationTestValues> reduceSumTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {-2},
+        false,
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ReduceSumTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapesWithDynamicRank),
+        ::testing::ValuesIn(reduceSumTransformationTestValues)),
+    ReduceSumTransformation::getTestCaseName);
+} // namespace testValues3
 } // namespace

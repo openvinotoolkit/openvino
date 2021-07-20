@@ -18,16 +18,16 @@ const Params paramsStreams[] = {
 };
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(CPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
                      testing::Values(50),
                      testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CPU_Streams, CoreThreadingTestsWithIterations,
+INSTANTIATE_TEST_SUITE_P(CPU_Streams, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(paramsStreams),
                      testing::Values(4),
                      testing::Values(50),

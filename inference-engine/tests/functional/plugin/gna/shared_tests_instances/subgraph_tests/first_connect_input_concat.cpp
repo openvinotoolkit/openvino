@@ -27,7 +27,7 @@ std::map<std::string, std::string> additional_config = {
         {"GNA_COMPACT_MODE", "NO"},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_concat_first_input, ConcatFirstInputTest,
+INSTANTIATE_TEST_SUITE_P(smoke_concat_first_input, ConcatFirstInputTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(netPrecisions),

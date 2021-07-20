@@ -17,13 +17,13 @@ namespace subgraph {
 class FuseConvertFunction {
 public:
     static std::shared_ptr<ngraph::Function> get(
-            const ngraph::Shape& inputShape,
+            const ngraph::PartialShape& inputShape,
             const ngraph::element::Type inputPrecision,
             const ngraph::builder::subgraph::DequantizationOperations& dequantization,
             const bool constInput);
 
     static std::shared_ptr<ngraph::Function> getWithFQ(
-            const ngraph::Shape& inputShape,
+            const ngraph::PartialShape& inputShape,
             const ngraph::element::Type inputPrecision,
             const ngraph::builder::subgraph::DequantizationOperations& dequantization,
             const bool constInput);
