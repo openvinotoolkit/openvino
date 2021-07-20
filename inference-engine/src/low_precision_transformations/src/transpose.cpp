@@ -7,6 +7,8 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -14,11 +16,21 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void TransposeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Transpose>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TransposeTransformation, "TransposeTransformation", 0);
+
+TransposeTransformation::TransposeTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = pattern::wrap_type<opset1::Transpose>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "TransposeTransformation");
+    this->register_matcher(m, callback);
 }
 
 void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
@@ -74,7 +86,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     }
 }
 
-bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();
     if (!canBeTransformed(context, transpose)) {
         return false;
