@@ -142,16 +142,18 @@ public:
     virtual const type_info_t& get_type_info() const = 0;
 };
 
-class INFERENCE_ENGINE_API_CLASS(OpsetExtension): public NewExtension {
+class INFERENCE_ENGINE_API_CLASS(OpsetExtension) : public NewExtension {
 public:
     virtual std::map<std::string, ngraph::OpSet> getOpSets() = 0;
 
     NGRAPH_RTTI_DECLARATION;
 };
 
-class INFERENCE_ENGINE_API_CLASS(SOExtension) final: public NewExtension {
+class INFERENCE_ENGINE_API_CLASS(SOExtension) final : public NewExtension {
 public:
-    SOExtension(const details::SharedObjectLoader& actual, const NewExtension::Ptr& ext): actual(actual), extension(ext) {}
+    SOExtension(const details::SharedObjectLoader& actual, const NewExtension::Ptr& ext) : so(actual), extension(ext) {
+        IE_ASSERT(extension);
+    }
     const NewExtension::Ptr& getExtension() {
         return extension;
     }
@@ -160,7 +162,7 @@ public:
     }
 
 private:
-    const details::SharedObjectLoader& actual;
+    details::SharedObjectLoader so;
     NewExtension::Ptr extension;
 };
 
@@ -175,13 +177,13 @@ INFERENCE_EXTENSION_API(void) CreateExtensions(std::vector<InferenceEngine::NewE
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_CREATE_EXTENSIONS(extensions)                                                                                                \
-INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>& ext) {                 \
-    ext = extensions;                                                                                                                   \
-}
+#define IE_CREATE_EXTENSIONS(extensions)                                                      \
+    INFERENCE_EXTENSION_API(void)                                                             \
+    InferenceEngine::CreateExtensions(std::vector<InferenceEngine::NewExtension::Ptr>& ext) { \
+        ext = extensions;                                                                     \
+    }
 
-template <typename C,
-         typename = details::enableIfSupportedChar<C>>
+template <typename C, typename = details::enableIfSupportedChar<C>>
 std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name) {
     details::SharedObjectLoader so(name.c_str());
     std::vector<NewExtension::Ptr> extensions;
@@ -192,7 +194,9 @@ std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name)
         for (const auto& ex : ext) {
             extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
         }
-    } catch(...) {details::Rethrow();}
+    } catch (...) {
+        details::Rethrow();
+    }
     return extensions;
 }
 }  // namespace InferenceEngine

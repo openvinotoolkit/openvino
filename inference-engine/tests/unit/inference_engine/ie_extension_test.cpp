@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <string>
-#include <memory>
-
-#include <ie_extension.h>
 #include <file_utils.h>
-#include <ie_core.hpp>
+#include <gtest/gtest.h>
+#include <ie_extension.h>
 
+#include <ie_core.hpp>
+#include <memory>
 #include <ngraph/opsets/opset.hpp>
+#include <string>
 
 #include "common_test_utils/test_common.hpp"
 
@@ -21,8 +20,7 @@ using namespace InferenceEngine;
 using ExtensionTests = ::testing::Test;
 
 std::string getExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>({},
-            std::string("template_extension") + IE_BUILD_POSTFIX);
+    return FileUtils::makePluginLibraryName<char>({}, std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 TEST(ExtensionTests, testGetOpSets) {
@@ -41,8 +39,7 @@ TEST(ExtensionTests, testGetImplTypes) {
 
 TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
-    ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node> ()),
-            InferenceEngine::Exception);
+    ASSERT_THROW(extension->getImplTypes(std::shared_ptr<ngraph::Node>()), InferenceEngine::Exception);
 }
 
 TEST(ExtensionTests, testGetImplementation) {
@@ -54,8 +51,7 @@ TEST(ExtensionTests, testGetImplementation) {
 
 TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
-    ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
-            InferenceEngine::Exception);
+    ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node>(), ""), InferenceEngine::Exception);
 }
 
 TEST(ExtensionTests, testNewExtensionCast) {
@@ -63,8 +59,9 @@ TEST(ExtensionTests, testNewExtensionCast) {
     std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());
     ASSERT_EQ(2, extensions.size());
     ASSERT_TRUE(ngraph::is_type<OpsetExtension>(extensions[0]));
+    ASSERT_TRUE(ngraph::is_type<OpsetExtension>(extensions[1]));
     auto opsetExt = ngraph::as_type_ptr<OpsetExtension>(extensions[0]);
-    auto* opsetExtP = ngraph::as_type<OpsetExtension>(extensions[0].get());
+    auto* opsetExtP = ngraph::as_type<OpsetExtension>(extensions[1].get());
     ASSERT_NE(opsetExtP, nullptr);
     ASSERT_NE(opsetExt, nullptr);
     ie.AddExtension(extensions);
