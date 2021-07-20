@@ -184,7 +184,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(detectOutParams, i);
         auto cldnnJit = GetJitConstants(detectOutParams);
-        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options);
+        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
         if (i == 0) {
             if (detectOutParams.detectOutParams.decrease_label_id) {

@@ -43,7 +43,7 @@ struct detection_output_params : public base_params {
 
     DedicatedParams detectOutParams;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         return k;
     }

@@ -3,22 +3,23 @@
 //
 
 #include "detection_output_inst.h"
-#include "primitive_gpu_base.h"
-#include "implementation_map.h"
+#include "primitive_base.hpp"
+#include "impls/implementation_map.hpp"
 #include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
+#include <vector>
 
 namespace cldnn {
-namespace gpu {
+namespace ocl {
 
-struct detection_output_gpu : typed_primitive_gpu_impl<detection_output> {
-    using parent = typed_primitive_gpu_impl<detection_output>;
+struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
+    using parent = typed_primitive_impl_ocl<detection_output>;
     using parent::parent;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<detection_output_gpu>(*this);
+        return make_unique<detection_output_impl>(*this);
     }
 
 private:
@@ -67,7 +68,7 @@ public:
                          best_kernels.empty(),
                          "Cannot find a proper kernel with this arguments");
 
-        auto detection_output = new detection_output_gpu(arg, best_kernels[0]);
+        auto detection_output = new detection_output_impl(arg, best_kernels[0]);
 
         return detection_output;
     }
@@ -75,10 +76,13 @@ public:
 
 namespace detail {
 
-primitive_impl* create_detection_output_gpu(const detection_output_node& arg) {
-    return detection_output_gpu::create(arg);
+attach_detection_output_impl::attach_detection_output_impl() {
+    implementation_map<detection_output>::add(impl_types::ocl, detection_output_impl::create, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx)
+    });
 }
 
 }  // namespace detail
-}  // namespace gpu
+}  // namespace ocl
 }  // namespace cldnn
