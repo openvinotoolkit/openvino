@@ -54,6 +54,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
 }
 
 NGRAPH_RTTI_DEFINITION(OpsetExtension, "OpsetExtension", 0);
+NGRAPH_RTTI_DEFINITION(SOExtension, "SOExtension", 0);
 namespace details {
 
 void Rethrow() {
