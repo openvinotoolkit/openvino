@@ -39,7 +39,7 @@ struct condition_gpu : typed_primitive_impl<condition> {
         mem_lock<float> inp_ptr{memory_to_copy, instance.get_network().get_stream()};
         mem_lock<float> out_ptr{instance.output_memory_ptr(), instance.get_network().get_stream()};
         std::copy(inp_ptr.begin(), inp_ptr.end(), out_ptr.begin());
-        dynamic_cast<cldnn::user_event*>(ev.get())->set();  // set as complete
+        ev->set();
         return ev;
     }
 

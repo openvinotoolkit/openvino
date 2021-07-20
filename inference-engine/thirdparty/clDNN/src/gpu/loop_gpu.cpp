@@ -99,6 +99,8 @@ struct loop_gpu : typed_primitive_impl<loop> {
 
         auto body_network = instance.get_body_network();
 
+        auto ev = stream.create_user_event(false);
+
         if (!instance.preproc_memories_done) {
             instance.preprocess_output_memory();
             instance.preprocess_input_memory();
@@ -211,7 +213,8 @@ struct loop_gpu : typed_primitive_impl<loop> {
         memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
         write_scalar_value(num_actual_iterations_mem, stream, current_iteration);
 
-        return stream.create_user_event(true);
+        ev->set();
+        return ev;
     }
 
     static primitive_impl* create(const loop_node& arg) { return new loop_gpu(arg); }
