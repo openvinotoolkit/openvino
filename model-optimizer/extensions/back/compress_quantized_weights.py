@@ -278,7 +278,7 @@ class ZeroPointOptimizer(BackReplacementPattern):
         original = weights.astype(dst_type) - zero_point
         transformed = (weights - int8_zero_point).astype(np.int8) - adj_zero_point
 
-        if not np.allclose(original, transformed) or not np.allclose(adj_zero_point, 0):
+        if not np.allclose(original, transformed) or not np.allclose(adj_zero_point, 0, atol=1.e-04):
             return
 
         match['const_d']['value'] = (weights - int8_zero_point).astype(np.int8)
