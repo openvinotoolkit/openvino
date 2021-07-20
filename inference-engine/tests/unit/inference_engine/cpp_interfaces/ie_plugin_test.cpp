@@ -35,14 +35,14 @@ protected:
     ResponseDesc dsc;
     StatusCode sts;
 
-    virtual void TearDown() {
+    void TearDown() override {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mock_plugin_impl.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockIExeNetworkInternal.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockExeNetworkTS.get()));
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(mockInferRequestInternal.get()));
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         pluginId = "TEST";
         mock_plugin_impl.reset(new MockInferencePluginInternal());
         mock_plugin_impl->SetName(pluginId);
