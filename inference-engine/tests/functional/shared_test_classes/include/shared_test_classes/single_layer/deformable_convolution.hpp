@@ -26,7 +26,9 @@ typedef std::tuple<
         size_t,                         // Groups
         size_t,                         // Deformable groups
         size_t,                         // Num out channels
-        ngraph::op::PadType             // Padding type
+        ngraph::op::PadType,            // Padding type
+        bool,                           // Bilinear interpolation pad
+        bool                            // Modulation
 > deformableConvSpecificParams;
 typedef std::tuple<
         deformableConvSpecificParams,

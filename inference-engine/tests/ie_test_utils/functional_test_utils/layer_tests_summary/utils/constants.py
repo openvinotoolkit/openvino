@@ -27,6 +27,7 @@ VERIFIED_OP_REFERENCES = [
     'Cosh-1',
     'DeformableConvolution-1',
     'DeformablePSROIPooling-1',
+    'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
     'ExperimentalDetectronDetectionOutput-6',
@@ -34,6 +35,7 @@ VERIFIED_OP_REFERENCES = [
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FakeQuantize-1',
     'Floor-1'
     'FloorMod-1'
     'GRUSequence-5',
@@ -41,6 +43,7 @@ VERIFIED_OP_REFERENCES = [
     'GatherElements-6',
     'GatherND-5',
     'Gelu-7',
+    'GRN-1',
     'GroupConvolution-1',
     'GroupConvolutionBackpropData-1',
     'GRUSequence-5',
@@ -64,6 +67,7 @@ VERIFIED_OP_REFERENCES = [
     'NonZero-3',
     'NormalizeL2-1',
     'PriorBox-1',
+    'PriorBoxClustered-1',
     'Proposal-1',
     'Proposal-4',
     'PSROIPooling-1',
@@ -91,7 +95,9 @@ VERIFIED_OP_REFERENCES = [
     'ScatterNDUpdate-4',
     'ShapeOf-1',
     'ShapeOf-3',
+    'ShuffleChannels-1',
     'Sigmoid-1',
+    'Sign-1',
     'Sin-1',
     'Sinh-1'
     'SoftPlus-4',

@@ -4,10 +4,10 @@
 
 #include <cnpy.h>
 
+#include "op_fuzzy.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "op_fuzzy.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
@@ -44,7 +44,7 @@ void FrontEndFuzzyOpTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_modelFile));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
     ASSERT_NE(m_inputModel, nullptr);
 }
 

@@ -51,7 +51,7 @@ void add_required_reorders::run(program_impl& p) {
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
-        if (usr->type()->does_an_implementation_exist(p.get_engine(), *usr))
+        if (usr->type()->does_an_implementation_exist(*usr))
             continue;
 
         bool correct_layout_selected = false;
@@ -71,7 +71,7 @@ void add_required_reorders::run(program_impl& p) {
                                           node->get_output_layout().format,
                                           original_layout.size);
                     usr->set_output_layout(current_layout, false);
-                    if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                         break;
                     } else if (original_layout.data_type == data_types::i64) {
@@ -80,14 +80,14 @@ void add_required_reorders::run(program_impl& p) {
                         current_layout = original_layout;
                         current_layout.data_type = data_types::i32;
                         usr->set_output_layout(current_layout, false);
-                        if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                        if (usr->type()->does_possible_implementation_exist(*usr)) {
                             correct_layout_selected = true;
                         } else {
                             current_layout = original_layout;
                             current_layout.data_type = data_types::i32;
                             current_layout.format = node->get_output_layout().format;
                             usr->set_output_layout(current_layout, false);
-                            if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                            if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;
                             }
                         }
@@ -148,7 +148,7 @@ void add_required_reorders::run(program_impl& p) {
                                       new_layout_format,
                                       original_layout.size);
                 usr->set_output_layout(current_layout, false);
-                if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                if (usr->type()->does_possible_implementation_exist(*usr)) {
                     correct_layout_selected = true;
                     break;
                 }
@@ -164,7 +164,7 @@ void add_required_reorders::run(program_impl& p) {
 
                     usr->set_output_layout(original_layout_i32, false);
 
-                    if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                    if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                     }
 
@@ -174,7 +174,7 @@ void add_required_reorders::run(program_impl& p) {
                                                   new_layout_format,
                                                   original_layout_i32.size);
                             usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                            if (usr->type()->does_possible_implementation_exist(*usr)) {
                                 correct_layout_selected = true;
                                 break;
                             }
