@@ -411,9 +411,9 @@ def load_and_validate_json_config(config_file_name: str):
         with open(schema_file, 'r') as f:
             schema = json.load(f)
             validator = json_validate.compile(schema)
-            data = validator(json_config)
+            validator(json_config)
     except Exception as exc:
         raise Error("Failed to validate custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
                     refer_to_faq_msg(70)) from exc
 
-    return data
+    return json_config
