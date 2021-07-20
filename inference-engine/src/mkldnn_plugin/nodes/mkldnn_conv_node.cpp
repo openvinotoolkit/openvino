@@ -710,17 +710,17 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1)) : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
-    if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
-        auto old_dims = getParentEdgeAt(idx)->getShape().getDims();
-        auto new_dims = InferenceEngine::SizeVector({groupNum, div_up(old_dims[0], groupNum)});
-        for (int i = 1; i < old_dims.size(); i++) {
-            new_dims.push_back(old_dims[i]);
-        }
+    // if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
+    //     auto old_dims = getParentEdgeAt(idx)->getShape().getDims();
+    //     auto new_dims = InferenceEngine::SizeVector({groupNum, div_up(old_dims[0], groupNum)});
+    //     for (int i = 1; i < old_dims.size(); i++) {
+    //         new_dims.push_back(old_dims[i]);
+    //     }
 
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims(new_dims), desc.getDataType(), desc.getFormat());
-    } else {
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
-    }
+    //     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims(new_dims), desc.getDataType(), desc.getFormat());
+    // } else {
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    // }
 }
 
 bool MKLDNNConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {

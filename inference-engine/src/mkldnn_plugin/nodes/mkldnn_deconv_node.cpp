@@ -410,11 +410,11 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn:
     MKLDNNMemoryDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1))
             : isInt8 ? MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx)) : MKLDNNMemoryDesc(primitive_desc_it.diff_dst_desc(idx));
 
-    if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims(weightDims), desc.getDataType(), desc.getFormat());
-    } else {
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
-    }
+    // if (getParentEdgeAt(idx)->getShape().getRank() != desc.getShape().getRank()) {
+    //     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims(weightDims), desc.getDataType(), desc.getFormat());
+    // } else {
+    return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
+    // }
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
