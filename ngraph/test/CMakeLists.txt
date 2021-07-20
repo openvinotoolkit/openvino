@@ -156,7 +156,7 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
-    type_prop/matrix_nms.cpp    
+    type_prop/matrix_nms.cpp
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
@@ -207,6 +207,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
     type_prop/softmax.cpp
@@ -302,6 +303,7 @@ set(SRC
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sign.cpp
     visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
@@ -490,7 +492,6 @@ set(MULTI_TEST_SRC
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
@@ -631,6 +632,7 @@ install(TARGETS unit-test
         EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
 target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)
