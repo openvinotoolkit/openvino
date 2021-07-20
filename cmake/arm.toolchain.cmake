@@ -8,12 +8,6 @@ set(CMAKE_SYSTEM_PROCESSOR arm)
 set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
 set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
 
-  set(CMAKE_CXX_FLAGS           "" CACHE INTERNAL "")
-  set(CMAKE_C_FLAGS             "" CACHE INTERNAL "")
-  set(CMAKE_SHARED_LINKER_FLAGS "" CACHE INTERNAL "")
-  set(CMAKE_MODULE_LINKER_FLAGS "" CACHE INTERNAL "")
-  set(CMAKE_EXE_LINKER_FLAGS    "" CACHE INTERNAL "")
-
   set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS} -fdata-sections -Wa,--noexecstack -fsigned-char -Wno-psabi")
   set(CMAKE_C_FLAGS             "${CMAKE_C_FLAGS} -fdata-sections -Wa,--noexecstack -fsigned-char -Wno-psabi")
     set(CMAKE_CXX_FLAGS           "-mthumb ${CMAKE_CXX_FLAGS}")
