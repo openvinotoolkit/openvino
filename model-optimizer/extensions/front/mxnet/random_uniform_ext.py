@@ -1,7 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.roll import AttributedRoll
+import numpy as np
+
+from extensions.ops.random_uniform import AttributedRandomUniform
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
@@ -14,15 +16,9 @@ class RandomUniformExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         shape = list(attrs.tuple("shape", int, None))
-        new_attrs = {'shape': shape}
-        if attrs.has("high"):
-            high = attrs.tuple("high", float, 1.0)
-            new_attrs.update({'max_val': high})
-        if attrs.has("low"):
-            low = attrs.tuple("low", float, 0.0)
-            new_attrs.update({'min_val': low})
-        if attrs.has("dtype"):
-            low = attrs.tuple("dtype", str, 'float32')
-            new_attrs.update({'min_val': low})
-        AttributedRoll.update_node_stat(node, new_attrs)
+        high = attrs.float("high", 1.0)
+        low = attrs.float("low", 0.0)
+        out_type = attrs.dtype("dtype", np.float32)
+        new_attrs = {'shape': shape, 'min_val': low, 'max_val': high, 'output_type': out_type, 'initial_type': out_type}
+        AttributedRandomUniform.update_node_stat(node, new_attrs)
         return cls.enabled
