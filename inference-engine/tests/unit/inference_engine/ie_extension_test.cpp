@@ -64,5 +64,7 @@ TEST(ExtensionTests, testNewExtensionCast) {
     auto* opsetExtP = ngraph::as_type<OpsetExtension>(extensions[1].get());
     ASSERT_NE(opsetExtP, nullptr);
     ASSERT_NE(opsetExt, nullptr);
-    ie.AddExtension(extensions);
+    ASSERT_NE(opsetExt.get(), extensions[0]);
+    ASSERT_NE(opsetExtP, extensions[1]);
+    ie.AddExtension(getExtensionPath());
 }

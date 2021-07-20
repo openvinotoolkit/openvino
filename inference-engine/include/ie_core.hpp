@@ -133,6 +133,10 @@ public:
      */
     void AddExtension(const IExtensionPtr& extension);
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    void AddExtension(const std::wstring& library_path);
+#endif
+    void AddExtension(const std::string& library_path);
     void AddExtension(const std::vector<NewExtension::Ptr>& extensions);
     void AddExtension(const NewExtension::Ptr& extension);
 

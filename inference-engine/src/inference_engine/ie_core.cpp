@@ -876,6 +876,20 @@ public:
         AddExtension(std::make_shared<ExtensionWrapper>(extension));
     }
 
+    void AddExtension(const std::string& library_path) {
+        details::SharedObjectLoader so(library_path.c_str());
+        try {
+            using CreateF = void(std::vector<InferenceEngine::NewExtension::Ptr>&);
+            std::vector<InferenceEngine::NewExtension::Ptr> ext;
+            reinterpret_cast<CreateF*>(so.get_symbol("CreateExtensions"))(ext);
+            for (const auto& ex : ext) {
+                new_extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
+            }
+        } catch (...) {
+            details::Rethrow();
+        }
+    }
+
     void AddExtension(const std::vector<NewExtension::Ptr>& extensions) {
         for (const auto& extension : extensions)
             AddExtension(extension);
@@ -1027,6 +1041,16 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
     }
 
     _impl->AddExtension(extension);
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+void Core::AddExtension(const std::wstring& library_path) {
+    AddExtension(FileUtils::wStringtoMBCSstringChar(library_path));
+}
+#endif
+
+void Core::AddExtension(const std::string& library_path) {
+    _impl->AddExtension(library_path);
 }
 
 void Core::AddExtension(const IExtensionPtr& extension) {
