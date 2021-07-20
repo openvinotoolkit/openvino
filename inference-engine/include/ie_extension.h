@@ -142,11 +142,36 @@ public:
     virtual const type_info_t& get_type_info() const = 0;
 };
 
-class INFERENCE_ENGINE_API_CLASS(OpsetExtension) : public NewExtension {
+class INFERENCE_ENGINE_API_CLASS(IRExtension): public NewExtension {
+    std::string m_opset;
 public:
-    virtual std::map<std::string, ngraph::OpSet> getOpSets() = 0;
-
     NGRAPH_RTTI_DECLARATION;
+    IRExtension(const std::string& opsetVersion): m_opset(opsetVersion) {}
+
+    const std::string& get_opset() {
+        return m_opset;
+    }
+
+    virtual const ngraph::Node::type_info_t get_type() = 0;
+    virtual ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) = 0;
+};
+
+template<class T>
+class DefaultIRExtension: public IRExtension {
+public:
+    DefaultIRExtension(const std::string opsetVersion): IRExtension(opsetVersion) {}
+    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
+        std::shared_ptr<ngraph::Node> node = std::make_shared<T>();
+
+        node->set_arguments(inputs);
+        if (node->visit_attributes(visitor)) {
+            node->constructor_validate_and_infer_types();
+        }
+        return node->outputs();
+    }
+    const ngraph::Node::type_info_t get_type() override {
+        return T::type_info;
+    }
 };
 
 class INFERENCE_ENGINE_API_CLASS(SOExtension) final : public NewExtension {

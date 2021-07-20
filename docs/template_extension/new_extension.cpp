@@ -10,15 +10,15 @@
 #include <vector>
 
 #include "cpu_kernel.hpp"
+#include "fft_op.hpp"
 #include "op.hpp"
 
 using namespace TemplateExtension;
 
-NGRAPH_RTTI_DEFINITION(Extension1, "Extension1", 0, OpsetExtension);
-NGRAPH_RTTI_DEFINITION(Extension2, "Extension2", 0, OpsetExtension);
 //! [extension:ctor]
-Extension1::Extension1() {}
-Extension2::Extension2() {}
+// Extension1::Extension1() {}
+// Extension2::Extension2() {}
 //! [extension:ctor]
 
-IE_CREATE_EXTENSIONS(std::vector<InferenceEngine::NewExtension::Ptr>({std::make_shared<Extension1>(), std::make_shared<Extension2>()}));
+IE_CREATE_EXTENSIONS(std::vector<InferenceEngine::NewExtension::Ptr>({std::make_shared<DefaultIRExtension<Operation>>("custom_opset"),
+                                                                      std::make_shared<DefaultIRExtension<FFTOp>>("custom_opset")}));

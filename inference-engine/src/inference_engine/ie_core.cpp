@@ -41,17 +41,17 @@ struct Parsed {
     std::map<std::string, T> _config;
 };
 
-class ExtensionWrapper: public OpsetExtension {
-public:
-    ExtensionWrapper(const IExtensionPtr& ext): extension(ext) {}
-
-    std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return extension->getOpSets();
-    }
-
-private:
-    IExtensionPtr extension;
-};
+// class ExtensionWrapper: public OpsetExtension {
+// public:
+//     ExtensionWrapper(const IExtensionPtr& ext): extension(ext) {}
+//
+//     std::map<std::string, ngraph::OpSet> getOpSets() override {
+//         return extension->getOpSets();
+//     }
+//
+// private:
+//     IExtensionPtr extension;
+// };
 
 template <typename T = Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
@@ -873,7 +873,7 @@ public:
         }
         extensions.emplace_back(extension);
 
-        AddExtension(std::make_shared<ExtensionWrapper>(extension));
+        // AddExtension(std::make_shared<ExtensionWrapper>(extension));
     }
 
     void AddExtension(const std::string& library_path) {

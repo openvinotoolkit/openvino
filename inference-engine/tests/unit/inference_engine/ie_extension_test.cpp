@@ -58,13 +58,13 @@ TEST(ExtensionTests, testNewExtensionCast) {
     Core ie;
     std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());
     ASSERT_EQ(2, extensions.size());
-    ASSERT_TRUE(ngraph::is_type<OpsetExtension>(extensions[0]));
-    ASSERT_TRUE(ngraph::is_type<OpsetExtension>(extensions[1]));
-    auto opsetExt = ngraph::as_type_ptr<OpsetExtension>(extensions[0]);
-    auto* opsetExtP = ngraph::as_type<OpsetExtension>(extensions[1].get());
+    ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[0]));
+    ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[1]));
+    auto opsetExt = ngraph::as_type_ptr<IRExtension>(extensions[0]);
+    auto* opsetExtP = ngraph::as_type<IRExtension>(extensions[1].get());
     ASSERT_NE(opsetExtP, nullptr);
     ASSERT_NE(opsetExt, nullptr);
-    ASSERT_NE(opsetExt.get(), extensions[0]);
-    ASSERT_NE(opsetExtP, extensions[1]);
+    ASSERT_NE(opsetExt.get(), extensions[0].get());
+    ASSERT_NE(opsetExtP, extensions[1].get());
     ie.AddExtension(getExtensionPath());
 }
