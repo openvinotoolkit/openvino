@@ -53,7 +53,8 @@ def assert_that_is_castable_to_fp16(node: Node):
     start, limit, delta = [node.in_port(i).data.get_value() for i in range(3)]
     for val in [start, limit, delta]:
         if val > np.finfo(np.float16).max or val < np.finfo(np.float16).min:
-            raise Error("This model can not be converted to FP16 precision, since "
+            raise Error("Try to convert with --data_type=FP32 argument."
+                        "This model can not be converted to FP16 precision, since "
                         "Range node '{}' input value {} exceeds FP16 allowed limits: [{}, {}]"
                         .format(node_name, val, np.finfo(np.float16).min, np.finfo(np.float16).max))
 
@@ -61,8 +62,9 @@ def assert_that_is_castable_to_fp16(node: Node):
     casted_output = np.arange(start, limit, delta, dtype=node['output_type'])
     original_output = node.out_port(0).data.get_value()
     if len(original_output) != len(casted_output):
-        raise Error("This model can not be converted to FP16 precision, since "
-                    "after changing Range node '{}' dtype to FP16 output shape {} differs from original {}"
+        raise Error("Try to convert with --data_type=FP32 argument."
+                    "This model can not be converted to FP16 precision, since "
+                    "after changing Range node '{}' dtype to FP16 output shape {} differs from original {}."
                     .format(node_name, len(casted_output), len(original_output)))
 
     diff_count = np.count_nonzero(np.subtract(original_output, casted_output) > 1.e-4)
