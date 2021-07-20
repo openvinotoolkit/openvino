@@ -90,11 +90,11 @@ else:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is `[N, C_INPUT, Z, Y, X]` (number of batches, number of input channels, spatial axes Z, Y, X). *Required*.
+*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is `[N, C_INPUT, Z, Y, X]` (number of batches, number of input channels, spatial axes Z, Y, X). **Required.**
 
-*   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is `[C_INPUT, C_OUTPUT, Z, Y, X]` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. *Required*.
+*   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is `[C_INPUT, C_OUTPUT, Z, Y, X]` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. **Required.**
 
-*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`. *Optional*.
+*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`. **Optional.**
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X,
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X,
