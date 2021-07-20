@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import fastjsonschema as json_validate
 import json
 import logging as log
 import os
 from re import compile, match
-
-import fastjsonschema as json_validate
 
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error

@@ -3,7 +3,6 @@
 
 import os
 import unittest
-
 from generator import generator, generate
 
 from mo.utils.custom_replacement_config import load_and_validate_json_config
