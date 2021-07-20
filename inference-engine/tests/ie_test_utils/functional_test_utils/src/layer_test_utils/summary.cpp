@@ -149,6 +149,7 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
     }
 }
 
+#ifdef IE_TEST_DEBUG
 void Summary::savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
                              unsigned long skipped, unsigned long crashed) {
     std::string outputFilePath = "./part_report.txt";
@@ -157,6 +158,7 @@ void Summary::savePartReport(const char* className, const char* opName, unsigned
     file << className << ' ' << opName << ' ' << passed << ' ' << failed << ' ' << skipped << ' ' << crashed << '\n';
     file.close();
 }
+#endif  //IE_TEST_DEBUG
 
 void Summary::saveReport() {
     if (isReported) {

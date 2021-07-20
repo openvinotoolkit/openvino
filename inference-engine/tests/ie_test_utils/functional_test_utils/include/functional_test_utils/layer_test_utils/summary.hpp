@@ -89,14 +89,18 @@ public:
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
     void updateOPsStats(const std::shared_ptr<ngraph::Function> &function, const PassRate::Statuses &status,
-                        const char* className);
+                        const char* className = nullptr);
 
     void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status, const char* className);
 
     static Summary &getInstance();
 
+    // #define IE_TEST_DEBUG
+
+    #ifdef IE_TEST_DEBUG
     void savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
                         unsigned long skipped, unsigned long crashed);
+    #endif  //IE_TEST_DEBUG
 
     void saveReport();
 
