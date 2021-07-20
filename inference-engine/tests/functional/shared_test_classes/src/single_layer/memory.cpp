@@ -199,9 +199,7 @@ namespace LayerTestsDefinitions {
            manager.run_passes(function);
         } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
             cnnNetwork = InferenceEngine::CNNNetwork{function};
-           InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
-           auto x = cnnNetwork.getFunction();
-           std::cout << x;
+            InferenceEngine::lowLatency2(cnnNetwork, iteration_count);
         }
     }
 
