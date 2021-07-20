@@ -18,11 +18,7 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 
-namespace ngraph {
-
-class Function;
-
-}  // namespace ngraph
+#include <ngraph/ngraph.hpp>
 
 namespace InferenceEngine {
 

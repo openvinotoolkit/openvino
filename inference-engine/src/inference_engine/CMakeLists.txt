@@ -161,7 +161,8 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph ngraph::frontend_manager inference_engine_transformations)
+                                             ngraph::frontend_manager inference_engine_transformations
+                                     PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -215,7 +216,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+export(TARGETS ${NGRAPH_LIBRARIES} ${TARGET_NAME} NAMESPACE IE::
         APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
 # Export for developer package

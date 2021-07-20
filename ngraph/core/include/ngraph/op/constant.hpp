@@ -176,6 +176,8 @@ namespace ngraph
                 // Don't constant fold a constant; it would make a copy
                 bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override
                 {
+                    (void)outputs;
+                    (void)inputs;
                     return false;
                 }
 
@@ -377,7 +379,7 @@ namespace ngraph
                 {
                     const uint8_t i4data =
                         (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
-                    const bool is_negative_number = (i4data >> 3) & 0b1;
+                    const bool is_negative_number = (i4data >> 3) & 0x01;
                     const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
                     return data;
                 }
@@ -463,7 +465,7 @@ namespace ngraph
                         for (const auto i : {4, 0})
                         {
                             const uint8_t i4data = (c >> i) & 0x0F;
-                            const bool is_negative_number = (i4data >> 3) & 0b1;
+                            const bool is_negative_number = (i4data >> 3) & 0x01;
                             const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
                             output.push_back(data);
                         }

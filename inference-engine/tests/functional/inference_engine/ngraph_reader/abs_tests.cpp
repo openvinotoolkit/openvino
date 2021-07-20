@@ -24,6 +24,7 @@ public:
         return std::make_shared<FakeAbs>(new_args.at(0));
     }
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+        (void) visitor;
         return true;
     }
 };
