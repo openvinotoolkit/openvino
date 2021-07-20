@@ -4,61 +4,117 @@
 
 **Category**: *Normalization*
 
-**Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/mvn.html)
+**Short description**: Calculates mean-variance normalization of the input tensor. Supports two normalization techniques: [Instance/Contrast Normalization](https://arxiv.org/abs/1607.08022) and [Layer Normalization](https://arxiv.org/abs/1607.06450).
 
 **Detailed description**
 
-*MVN* subtracts mean value from the input blob:
+Based on `across_channels` attribute mean value is calculated using one of formulas below:
+
+1. if `true` mean value is calculated using Layer Normalization:
 \f[
-o_{i} = i_{i} - \frac{\sum{i_{k}}}{C * H * W}
+\mu_{n} = \frac{\sum_{c}^{C}\sum_{h}^{H}\sum_{w}^{W} i_{nchw}}{C * H * W}
 \f]
-If *normalize_variance* is set to 1, the output blob is divided by variance:
+2. if `false` mean value is calculated using Instance/Contrast Normalization:
 \f[
-o_{i}=\frac{o_{i}}{\sum \sqrt {o_{k}^2}+\epsilon}
+\mu_{nc} = \frac{\sum_{h}^{H}\sum_{w}^{W} i_{nchw}}{H * W}
 \f]
+
+where \f$i_{nchw}\f$ is an input tensor parametrized by \f$n\f$ batches, \f$c\f$ channels and \f$h,w\f$ spatial dimesnions.
+
+If `reduction_axes` attribute is provided mean value is calculated based on formula:
+\f[
+\mu_{n} = ReduceMean(i_{k}, reduction_axes)
+\f]
+
+Afterwards *MVN* subtracts mean value from the input blob.
+
+If *normalize_variance* is set to `true`, the output blob is divided by variance:
+\f[
+o_{i}=\frac{o_{i}}{\sqrt {\sum {\sigma_{k}^2}+\epsilon}}
+\f]
+
+where \f$\sigma_{k}^2\f$ is the variance calculated based on mean value, \f$\epsilon\f$ is a value added to the variance for numerical stability and corresponds to `epsilon` attribute.
 
 **Attributes**
 
 * *across_channels*
 
-  * **Description**: *across_channels* is a flag that specifies whether mean values are shared across channels. For example, *across_channels* equal to `false` means that mean values are not shared across channels.
+  * **Description**: *across_channels* is a flag that specifies whether mean values are shared across channels. If `true` mean values and variance are calculated for each sample across all channels and spatial dimensions (Layer Normalization), otherwise calculation is done for each sample and for each channel across spatial dimensions (Instance/Contrast Normalization).
   * **Range of values**:
     * `false` - do not share mean values across channels
     * `true` - share mean values across channels
   * **Type**: `boolean`
-  * **Default value**: `false`
-  * **Required**: *no*
+  * **Required**: *yes*
+
+* *reduction_axes*
+
+  * **Description**: 1D tensor of unique elements and type *T_IND* which specifies indices of dimensions in `data` that define normalization slices. Negative value means counting dimensions from the back.
+  * **Range of values**: allowed range of axes is `[-r; r-1]` where `r = rank(data)`, the order cannot be sorted
+  * **Type**: `int`
+  * **Required**: *yes*
 
 * *normalize_variance*
 
   * **Description**: *normalize_variance* is a flag that specifies whether to perform variance normalization.
   * **Range of values**:
-    * `false` -- do not normalize variance
-    * `true` -- normalize variance
+    * `false` - do not normalize variance
+    * `true` - normalize variance
   * **Type**: `boolean`
-  * **Default value**: `false`
-  * **Required**: *no*
+  * **Required**: *yes*
 
 * *eps*
 
   * **Description**: *eps* is the number to be added to the variance to avoid division by zero when normalizing the value. For example, *epsilon* equal to 0.001 means that 0.001 is added to the variance.
   * **Range of values**: a positive floating-point number
-  * **Type**: `float`
+  * **Type**: `double`
   * **Required**: *yes*
+
+*   **Note** Important: it is necessary to use only one of `across_channels` or `reduction_axes` attributes, they cannot be defined together.
 
 **Inputs**
 
-* **1**: 4D or 5D input tensor of any floating-point type. **Required.**
+* **1**: `data` - input tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: normalized tensor of the same type and shape as input tensor.
+* **1**: normalized tensor of type *T* and shape as input tensor.
 
-**Example**
+**Types**
+
+* *T*: any floating point type.
+* *T_IND*: `int64` or `int32`.
+
+**Examples**
+
+*Example: with `across_channels` attribute*
 
 ```xml
 <layer ... type="MVN">
     <data across_channels="true" eps="1e-9" normalize_variance="true"/>
+    <input>
+        <port id="0">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+    </output>
+</layer>
+```
+
+*Example: with `reduction_axes` attribute*
+
+```xml
+<layer ... type="MVN">
+    <data reduction_axes="2,3" eps="1e-9" normalize_variance="true"/>
     <input>
         <port id="0">
             <dim>6</dim>
