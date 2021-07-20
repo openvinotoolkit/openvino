@@ -85,7 +85,7 @@ def test_convert():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file(onnx_model_filename)
+    model = fe.load(onnx_model_filename)
     assert model
 
     function = fe.convert(model)
@@ -103,7 +103,7 @@ def test_decode_and_convert():
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file(onnx_model_filename)
+    model = fe.load(onnx_model_filename)
     assert model
 
     decoded_function = fe.decode(model)

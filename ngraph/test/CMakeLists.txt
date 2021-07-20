@@ -416,6 +416,7 @@ set(MULTI_TEST_SRC
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
+    backend/fake_quantize.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -630,6 +631,7 @@ install(TARGETS unit-test
         EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
 target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)

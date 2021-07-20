@@ -8,6 +8,7 @@
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
 #include "plugin_loader.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -23,11 +24,11 @@ public:
 
     ~Impl() = default;
 
-    FrontEnd::Ptr load_by_framework(const std::string& framework, FrontEndCapFlags fec)
+    FrontEnd::Ptr load_by_framework(const std::string& framework)
     {
         FRONT_END_INITIALIZATION_CHECK(
             m_factories.count(framework), "FrontEnd for Framework ", framework, " is not found");
-        return m_factories[framework](fec);
+        return m_factories[framework]();
     }
 
     std::vector<std::string> available_front_ends() const
@@ -42,9 +43,17 @@ public:
         return keys;
     }
 
-    FrontEnd::Ptr load_by_model(const std::string& path, FrontEndCapFlags fec)
+    FrontEnd::Ptr load_by_model(const std::vector<std::shared_ptr<Variant>>& variants)
     {
-        FRONT_END_NOT_IMPLEMENTED(load_by_model);
+        for (const auto& factory : m_factories)
+        {
+            auto FE = factory.second();
+            if (FE->supported(variants))
+            {
+                return FE;
+            }
+        }
+        return FrontEnd::Ptr();
     }
 
     void register_front_end(const std::string& name, FrontEndFactory creator)
@@ -81,7 +90,7 @@ private:
         }
         else
         {
-            register_from_dir(".");
+            register_from_dir(get_frontend_library_path());
         }
     }
 };
@@ -96,14 +105,15 @@ FrontEndManager& FrontEndManager::operator=(FrontEndManager&&) = default;
 
 FrontEndManager::~FrontEndManager() = default;
 
-FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework, FrontEndCapFlags fec)
+FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework)
 {
-    return m_impl->load_by_framework(framework, fec);
+    return m_impl->load_by_framework(framework);
 }
 
-FrontEnd::Ptr FrontEndManager::load_by_model(const std::string& path, FrontEndCapFlags fec)
+FrontEnd::Ptr
+    FrontEndManager::load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants)
 {
-    return m_impl->load_by_model(path, fec);
+    return m_impl->load_by_model(variants);
 }
 
 std::vector<std::string> FrontEndManager::get_available_front_ends() const
@@ -122,37 +132,15 @@ FrontEnd::FrontEnd() = default;
 
 FrontEnd::~FrontEnd() = default;
 
-InputModel::Ptr FrontEnd::load_from_file(const std::string& path) const
+bool FrontEnd::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const
 {
-    FRONT_END_NOT_IMPLEMENTED(load_from_file);
+    return false;
 }
 
-InputModel::Ptr FrontEnd::load_from_files(const std::vector<std::string>& paths) const
+InputModel::Ptr FrontEnd::load_impl(const std::vector<std::shared_ptr<Variant>>& params) const
 {
-    FRONT_END_NOT_IMPLEMENTED(load_from_files);
+    FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
-
-InputModel::Ptr FrontEnd::load_from_memory(const void* model) const
-{
-    FRONT_END_NOT_IMPLEMENTED(load_from_memory);
-}
-
-InputModel::Ptr
-    FrontEnd::load_from_memory_fragments(const std::vector<const void*>& model_parts) const
-{
-    FRONT_END_NOT_IMPLEMENTED(load_from_memory_fragments);
-}
-
-InputModel::Ptr FrontEnd::load_from_stream(std::istream& path) const
-{
-    FRONT_END_NOT_IMPLEMENTED(load_from_stream);
-}
-
-InputModel::Ptr FrontEnd::load_from_streams(const std::vector<std::istream*>& paths) const
-{
-    FRONT_END_NOT_IMPLEMENTED(load_from_streams);
-}
-
 std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const
 {
     FRONT_END_NOT_IMPLEMENTED(convert);
@@ -423,3 +411,9 @@ Place::Ptr Place::get_source_tensor(int input_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
 }
+
+constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<std::istream>>::type_info;
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
+#endif
