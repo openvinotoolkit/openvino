@@ -39,8 +39,9 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
  * @brief Function calls `runPipeline` with mandatory memory values tracking of full run
  */
 int _runPipeline() {
-  SCOPED_MEM_COUNTER(full_run);
-  return runPipeline(FLAGS_m, FLAGS_d);
+  auto status = runPipeline(FLAGS_m, FLAGS_d);
+  SCOPED_MEM_COUNTER(after_objects_release);
+  return status;
 }
 
 /**

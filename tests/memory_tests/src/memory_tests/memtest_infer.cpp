@@ -25,43 +25,46 @@ int runPipeline(const std::string &model, const std::string &device) {
     size_t batchSize = 0;
 
     {
-      SCOPED_MEM_COUNTER(first_inference_latency);
+      SCOPED_MEM_COUNTER(full_run);
       {
-        SCOPED_MEM_COUNTER(load_plugin);
-        ie.GetVersions(device);
-      }
-      {
-        SCOPED_MEM_COUNTER(create_exenetwork);
-        if (MemoryTest::fileExt(model) == "blob") {
-          SCOPED_MEM_COUNTER(import_network);
-          exeNetwork = ie.ImportNetwork(model, device);
+        SCOPED_MEM_COUNTER(first_inference_latency);
+        {
+          SCOPED_MEM_COUNTER(load_plugin);
+          ie.GetVersions(device);
         }
-        else {
-          {
-            SCOPED_MEM_COUNTER(read_network);
-            cnnNetwork = ie.ReadNetwork(model);
-            batchSize = cnnNetwork.getBatchSize();
+        {
+          SCOPED_MEM_COUNTER(create_exenetwork);
+          if (MemoryTest::fileExt(model) == "blob") {
+            SCOPED_MEM_COUNTER(import_network);
+            exeNetwork = ie.ImportNetwork(model, device);
           }
+          else {
+            {
+              SCOPED_MEM_COUNTER(read_network);
+              cnnNetwork = ie.ReadNetwork(model);
+              batchSize = cnnNetwork.getBatchSize();
+            }
 
-          {
-            SCOPED_MEM_COUNTER(load_network);
-            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            {
+              SCOPED_MEM_COUNTER(load_network);
+              exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            }
           }
         }
       }
-    }
-
-    {
-      SCOPED_MEM_COUNTER(first_inference);
-      inferRequest = exeNetwork.CreateInferRequest();
 
       {
-        SCOPED_MEM_COUNTER(fill_inputs)
-        batchSize = batchSize != 0 ? batchSize : 1;
-        const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-        fillBlobs(inferRequest, inputsInfo, batchSize);
+        SCOPED_MEM_COUNTER(first_inference);
+        inferRequest = exeNetwork.CreateInferRequest();
+
+        {
+          SCOPED_MEM_COUNTER(fill_inputs)
+          batchSize = batchSize != 0 ? batchSize : 1;
+          const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+          fillBlobs(inferRequest, inputsInfo, batchSize);
+        }
+        inferRequest.Infer();
       }
-      inferRequest.Infer();
     }
   };
 
