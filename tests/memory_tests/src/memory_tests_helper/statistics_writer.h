@@ -76,11 +76,11 @@ public:
     for (auto& mem_counter: mem_struct_order) {
       std::string tabs = std::string(TAB * mem_structure[mem_counter].first, ' ');
       statistics_file << tabs << "- " << mem_counter << ":" << '\n'
-                      << tabs << "  " << "- VMRSS: " << mem_structure[mem_counter].second[0] << '\n'
-                      << tabs << "  " << "  VMHWM: " << mem_structure[mem_counter].second[1] << '\n'
-                      << tabs << "  " << "  VMSIZE: " << mem_structure[mem_counter].second[2] << '\n'
-                      << tabs << "  " << "  VMPEAK: " << mem_structure[mem_counter].second[3] << '\n'
-                      << tabs << "  " << "  THREADS: " << mem_structure[mem_counter].second[4] << '\n';
+                      << tabs << "  " << "- vmrss: " << mem_structure[mem_counter].second[0] << '\n'
+                      << tabs << "  " << "  vmhwm: " << mem_structure[mem_counter].second[1] << '\n'
+                      << tabs << "  " << "  vmsize: " << mem_structure[mem_counter].second[2] << '\n'
+                      << tabs << "  " << "  vmpeak: " << mem_structure[mem_counter].second[3] << '\n'
+                      << tabs << "  " << "  threads: " << mem_structure[mem_counter].second[4] << '\n';
     }
     statistics_file << "---" << '\n' << "measurement_unit: Kb";
   }
