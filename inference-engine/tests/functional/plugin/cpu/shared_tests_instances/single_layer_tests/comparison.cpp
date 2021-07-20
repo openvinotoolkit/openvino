@@ -24,7 +24,6 @@ std::vector<InferenceEngine::Precision> inputsPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::U32,
         InferenceEngine::Precision::BOOL,
 };
 
