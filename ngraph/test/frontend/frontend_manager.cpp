@@ -34,8 +34,7 @@ static int set_test_env(const char* name, const char* value)
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end(
-        "mock", []() { return std::make_shared<FrontEnd>(); }));
+    ASSERT_NO_THROW(fem.register_front_end("mock", []() { return std::make_shared<FrontEnd>(); }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
