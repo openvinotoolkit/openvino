@@ -27,7 +27,7 @@ erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Examples**
 

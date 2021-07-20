@@ -170,7 +170,7 @@ public:
     std::shared_ptr<Function> func =
         make_shared<Function>(AplusBtimesC, ParameterVector{A, B, C}, "f");
 
-    void SetUp()
+    void SetUp() override
     {
         nodes.push_back(AplusBtimesC);
         nodes.push_back(AplusB);

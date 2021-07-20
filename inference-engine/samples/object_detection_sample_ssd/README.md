@@ -41,9 +41,9 @@ To run the sample, you need specify a model and image:
 - you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 - you can use images from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
-Running the application with the <code>-h</code> option yields the following usage message:
+Running the application with the `-h` option yields the following usage message:
 
-```sh
+```
 ./object_detection_sample_ssd -h
 InferenceEngine:
     API version ............ <version>
@@ -75,18 +75,30 @@ Running the application with the empty list of options yields the usage message 
 >
 > - The sample accepts models in ONNX format (\*.onnx) that do not require preprocessing.
 
-For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name person-detection-retail-0013
+```
+
+2. `person-detection-retail-0013` model does not need to be converted, because it is already in necessary format, so you can skip this step. If you want to use a other model that is not in the Inference Engine IR or ONNX format, you can convert it using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name <model_name>
+```
+
+3. For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 - with one image and [person-detection-retail-0013](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013.html) model
 
-```sh
-./object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0013.xml -i <path_to_image>/inputImage.bmp -d CPU
+```
+<path_to_sample>/object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0013.xml -i <path_to_image>/person_detection.png -d CPU
 ```
 
 - with one image and [person-detection-retail-0002](https://docs.openvinotoolkit.org/latest/omz_models_intel_person_detection_retail_0002_description_person_detection_retail_0002.html) model
 
-```sh
-./object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0002.xml -i <path_to_image>/inputImage.jpg -d GPU
+```
+<path_to_sample>/object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0002.xml -i <path_to_image>/person_detection.png -d GPU
 ```
 
 ## Sample Output
@@ -95,7 +107,7 @@ The application outputs an image (`out_0.bmp`) with detected objects enclosed in
 of the detected objects along with the respective confidence values and the coordinates of the
 rectangles to the standard output stream.
 
-```sh
+```
 object_detection_sample_ssd -m person-detection-retail-0013\FP16\person-detection-retail-0013.xml -i person_detection.png
 [ INFO ] InferenceEngine:
         API version ............ <version>

@@ -67,7 +67,7 @@ protected:
         ASSERT_TRUE(foundConv) << "Can't find Convolution node";
     }
 
-    void SetUp() {
+    void SetUp() override {
         groupConvLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;

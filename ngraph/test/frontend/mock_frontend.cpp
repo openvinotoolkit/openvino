@@ -29,6 +29,6 @@ extern "C" MOCK_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
-    res->m_creator = [](FrontEndCapFlags) { return std::make_shared<FrontEndMock>(); };
+    res->m_creator = []() { return std::make_shared<FrontEndMock>(); };
     return res;
 }
