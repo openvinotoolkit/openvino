@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DENABLE_PYTHON=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+          cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
 
       - name: Check code style
         run: cmake --build build --target clang_format_check_all

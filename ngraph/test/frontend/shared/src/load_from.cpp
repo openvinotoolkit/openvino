@@ -63,7 +63,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles)
 TEST_P(FrontEndLoadFromTest, testLoadFromStream)
 {
     auto ifs = std::make_shared<std::ifstream>(m_param.m_modelsPath + m_param.m_stream,
-                                                      std::ios::in | std::ifstream::binary);
+                                               std::ios::in | std::ifstream::binary);
     auto is = std::dynamic_pointer_cast<std::istream>(ifs);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;

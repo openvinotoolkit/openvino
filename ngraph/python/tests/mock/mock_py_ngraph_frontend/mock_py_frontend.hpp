@@ -504,7 +504,8 @@ public:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
         if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
-            m_stat.m_load_paths.push_back(as_type_ptr<VariantWrapper<std::string>>(params[0])->get());
+            m_stat.m_load_paths.push_back(
+                as_type_ptr<VariantWrapper<std::string>>(params[0])->get());
         return std::make_shared<InputModelMockPy>();
     }
 

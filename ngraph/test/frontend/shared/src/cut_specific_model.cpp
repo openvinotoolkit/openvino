@@ -3,8 +3,8 @@
 //
 
 #include "cut_specific_model.hpp"
-#include "utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
