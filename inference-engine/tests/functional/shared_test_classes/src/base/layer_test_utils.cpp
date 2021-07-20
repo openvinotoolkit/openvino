@@ -90,8 +90,10 @@ void LayerTestsCommon::Serialize() {
     CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
-InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo& info) const {
+    return FuncTestUtils::createAndFillBlob(
+            InferenceEngine::TensorDesc(info.getPrecision(), targetStaticShape,
+                                        const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
 }
 
 void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,

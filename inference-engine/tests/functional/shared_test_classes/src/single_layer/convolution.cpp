@@ -70,26 +70,6 @@ void ConvolutionLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
 
-void ConvolutionLayerTest::GenerateInputs() {
-    const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    const auto& functionParams = function->get_parameters();
-    for (int i = 0; i < functionParams.size(); ++i) {
-        const auto& param = functionParams[i];
-        const auto infoIt = inputsInfo.find(param->get_friendly_name());
-        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-
-        const auto& info = infoIt->second;
-        auto blob = GenerateInput(*info);
-        inputs.push_back(blob);
-    }
-}
-
-InferenceEngine::Blob::Ptr ConvolutionLayerTest::GenerateInput(const InferenceEngine::InputInfo& info) const {
-    return FuncTestUtils::createAndFillBlob(
-        InferenceEngine::TensorDesc(info.getPrecision(), targetStaticShape,
-                                    const_cast<InferenceEngine::InputInfo&>(info).getLayout()));
-}
-
 ngraph::PartialShape ConvolutionLayerTest::vec2partialshape(std::vector<std::vector<size_t>> inputShape) {
     if (inputShape.empty()) {
         for (auto&& item : targetStaticShape) {
