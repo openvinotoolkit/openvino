@@ -4,81 +4,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-This script runs timetest executable several times and aggregate
+This script runs test executable several times and aggregate
 collected statistics.
 """
 
 # pylint: disable=redefined-outer-name
 
-import statistics
-import tempfile
-import subprocess
-import logging
 import argparse
-import sys
+import logging
 import os
-import yaml
-
+import sys
+import tempfile
 from pathlib import Path
 from pprint import pprint
 
-TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
-sys.path.append(TIME_TESTS_DIR)
+import yaml
 
-from test_runner.utils import filter_timetest_result
+UTILS_DIR = Path(__file__).parent.parent
+sys.path.insert(0, str(UTILS_DIR))
 
-
-def run_cmd(args: list, log=None, verbose=True):
-    """ Run command
-    """
-    if log is None:
-        log = logging.getLogger('run_cmd')
-    log_out = log.info if verbose else log.debug
-
-    log.info(f'========== cmd: {" ".join(args)}')  # pylint: disable=logging-fstring-interpolation
-
-    proc = subprocess.Popen(args,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            encoding='utf-8',
-                            universal_newlines=True)
-    output = []
-    for line in iter(proc.stdout.readline, ''):
-        log_out(line.strip('\n'))
-        output.append(line)
-        if line or proc.poll() is None:
-            continue
-        break
-    outs = proc.communicate()[0]
-
-    if outs:
-        log_out(outs.strip('\n'))
-        output.append(outs)
-    log.info('========== Completed. Exit code: %d', proc.returncode)
-    return proc.returncode, ''.join(output)
-
-
-def parse_stats(stats: list, res: dict):
-    """Parse raw statistics from nested list to flatten dict"""
-    for element in stats:
-        if isinstance(element, (int, float)):
-            for k, v in res.items():
-                if v is None:
-                    res.update({k: element})
-        else:
-            for k, v in element.items():
-                if len(v) == 1:
-                    res.update({k: v[0]})
-                else:
-                    res.update({k: None})
-                    parse_stats(v, res)
-
-
-def aggregate_stats(stats: dict):
-    """Aggregate provided statistics"""
-    return {step_name: {"avg": statistics.mean(duration_list),
-                        "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
-            for step_name, duration_list in stats.items()}
+from proc_utils import cmd_exec
+from scripts.stats_parsers import StatisticsParser
 
 
 def prepare_executable_cmd(args: dict):
@@ -88,19 +34,18 @@ def prepare_executable_cmd(args: dict):
             "-d", args["device"]]
 
 
-def run_timetest(args: dict, log=None):
+def run_test(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
     if log is None:
-        log = logging.getLogger('run_timetest')
+        log = logging.getLogger('run_test')
 
     cmd_common = prepare_executable_cmd(args)
 
     # Run executable and collect statistics
-    stats = {}
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
                       "Statistics aggregation is skipped.".format(args["executable"], retcode, msg))
@@ -112,24 +57,16 @@ def run_timetest(args: dict, log=None):
 
         os.unlink(tmp_stats_path)
 
-        # Parse raw data
-        flatten_data = {}
-        parse_stats(raw_data[0], flatten_data)
+        # Parse and combine raw data
+        StatisticsParser().append_stats(raw_data)
 
-        log.debug("Statistics after run of executable #{}: {}".format(run_iter, flatten_data))
-
-        # Combine statistics from several runs
-        stats = dict((step_name, stats.get(step_name, []) + [duration])
-                     for step_name, duration in flatten_data.items())
-
-    # Remove outliers
-    filtered_stats = filter_timetest_result(stats)
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, StatisticsParser().executor.last_stats))
 
     # Aggregate results
-    aggregated_stats = aggregate_stats(filtered_stats)
-    log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
+    StatisticsParser().aggregate_stats()
+    log.debug("Aggregated statistics after full run: {}".format(StatisticsParser().executor.aggregated_stats))
 
-    return 0, "", aggregated_stats, stats
+    return 0, "", StatisticsParser().executor.aggregated_stats, StatisticsParser().executor.combined_stats
 
 
 def check_positive_int(val):
@@ -143,7 +80,7 @@ def check_positive_int(val):
 
 def cli_parser():
     """parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Run timetest executable')
+    parser = argparse.ArgumentParser(description='Run test executable')
     parser.add_argument('executable',
                         type=Path,
                         help='binary to execute')
@@ -178,7 +115,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, _, aggr_stats, _ = run_timetest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, _, aggr_stats, _ = run_test(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file
@@ -193,17 +130,16 @@ if __name__ == "__main__":
     sys.exit(exit_code)
 
 
-def test_timetest_parser():
-    # Example of timetest yml file
+def test_parser():
+    # Example of test yml file
     raw_data_example = [{'full_run': [1, {'first_inference_latency': [2, {'load_plugin': [3]}, {
         'create_exenetwork': [4, {'read_network': [5]}, {'load_network': [6]}]}]},
-                              {'first_inference': [7, {'fill_inputs': [8]}]}]}]
+                                      {'first_inference': [7, {'fill_inputs': [8]}]}]}]
 
     # Refactoring raw data from yml
-    flatten_dict = {}
-    parse_stats(raw_data_example, flatten_dict)
+    StatisticsParser().parse_stats(raw_data_example)
 
-    expected_result = {'full_run': 1, 'first_inference_latency': 2, 'load_plugin': 3, 'create_exenetwork': 4,
-                       'read_network': 5, 'load_network': 6, 'first_inference': 7, 'fill_inputs': 8}
+    expected_result = {'full_run': [1], 'first_inference_latency': [2], 'load_plugin': [3], 'create_exenetwork': [4],
+                       'read_network': [5], 'load_network': [6], 'first_inference': [7], 'fill_inputs': [8]}
 
-    assert flatten_dict == expected_result, "Statistics parsing is performed incorrectly!"
+    assert StatisticsParser().executor.last_stats == expected_result, "Statistics parsing is performed incorrectly!"
