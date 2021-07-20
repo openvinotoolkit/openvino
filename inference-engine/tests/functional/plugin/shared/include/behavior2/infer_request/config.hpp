@@ -16,7 +16,8 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         // Create CNNNetwork from ngrpah::Function
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
+        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32},
+                                                               FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 
