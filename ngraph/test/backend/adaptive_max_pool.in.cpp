@@ -16,7 +16,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_1d)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 7});
-    auto output_shape = op::Constant::create<int32_t>(element::i32, Shape{1}, {3});
+    auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{1}, {3});
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, output_shape, element::i32);
     auto fun = make_shared<Function>(adaptive_pool->outputs(), ParameterVector{data});
 
@@ -51,7 +51,7 @@ NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_1d)
 NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_2d)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 7, 10});
-    auto output_shape = op::Constant::create<int32_t>(element::i32, Shape{2}, {3, 3});
+    auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {3, 3});
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, output_shape, element::i32);
     auto fun = make_shared<Function>(adaptive_pool->outputs(), ParameterVector{data});
 
@@ -111,7 +111,7 @@ NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_2d)
 NGRAPH_TEST(${BACKEND_NAME}, adaptive_max_pool_3d)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3, 3, 3});
-    auto output_shape = op::Constant::create<int32_t>(element::i32, Shape{3}, {2, 2, 2});
+    auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 2, 2});
     auto adaptive_pool = make_shared<op::v8::AdaptiveMaxPool>(data, output_shape, element::i32);
     auto fun = make_shared<Function>(adaptive_pool->outputs(), ParameterVector{data});
 
