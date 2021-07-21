@@ -9,6 +9,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_nodes, Node
+from mo.ops.shape import Shape
 from mo.ops.unsqueeze import Unsqueeze
 
 
@@ -59,9 +60,11 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
                                                   2: np.array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
 
-        node.in_port(1).get_connection().add_destination(gather.in_port(0))
+        shapeof_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
+        shapeof_node.out_port(0).connect(gather.in_port(0))
         gather.out_port(0).connect(range_node.in_port(1))
         node.in_port(0).get_connection().set_source(range_node.out_port(0))
+        const.out_port(0).connect(shapeof_node.in_port(0))
 
         if one_dims.size:
             unsqueeze = create_op_node_with_second_input(graph, Unsqueeze, one_dims,
