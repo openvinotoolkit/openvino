@@ -22,7 +22,7 @@ class PolymorphAllocator {
     explicit PolymorphAllocator(const std::shared_ptr<IPolymorphAllocator<T>> &impl) : _impl(impl) {}
 
     T *allocate(std::size_t n) {
-        return _impl->allocate(n + 256) + 128;
+        return _impl->allocate(n + 128);
     }
 
     void deallocate(T *p, std::size_t n) {
