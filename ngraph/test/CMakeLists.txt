@@ -151,12 +151,13 @@ set(SRC
     type_prop/hswish.cpp
     type_prop/idft.cpp
     type_prop/interpolate.cpp
+    type_prop/logical_and.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
-    type_prop/matrix_nms.cpp    
+    type_prop/matrix_nms.cpp
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
@@ -259,6 +260,7 @@ set(SRC
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
     visitors/op/log.cpp
+    visitors/op/logical_and.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
