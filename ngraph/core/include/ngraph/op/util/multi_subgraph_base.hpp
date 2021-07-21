@@ -269,7 +269,6 @@ namespace ngraph
                 {
                     return m_output_descriptions[index];
                 }
-
                 /// \brief     Sets vector with connections beewtwen operation inputs
                 /// and internal sub-graph parameters
                 ///
