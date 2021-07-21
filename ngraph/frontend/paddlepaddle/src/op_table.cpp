@@ -9,6 +9,7 @@
 #include "op/concat.hpp"
 #include "op/conv2d.hpp"
 #include "op/conv2d_transpose.hpp"
+#include "op/deformable_conv.hpp"
 #include "op/dropout.hpp"
 #include "op/elementwise_ops.hpp"
 #include "op/equal.hpp"
@@ -24,7 +25,9 @@
 #include "op/log.hpp"
 #include "op/logical_not.hpp"
 #include "op/matmul.hpp"
+#include "op/matrix_nms.hpp"
 #include "op/mul.hpp"
+#include "op/multiclass_nms.hpp"
 #include "op/pad3d.hpp"
 #include "op/pool2d.hpp"
 #include "op/pow.hpp"
@@ -65,6 +68,8 @@ namespace ngraph
                         {"concat", op::concat},
                         {"conv2d", op::conv2d},
                         {"conv2d_transpose", op::conv2d_transpose},
+                        {"deformable_conv", op::deformable_conv},
+                        {"deformable_conv_v1", op::deformable_conv},
                         {"depthwise_conv2d", op::conv2d},
                         {"depthwise_conv2d_transpose", op::conv2d_transpose},
                         {"dropout", op::dropout},
@@ -87,8 +92,10 @@ namespace ngraph
                         {"log", op::log},
                         {"logical_not", op::logical_not},
                         {"matmul", op::matmul},
+                        {"matrix_nms", op::matrix_nms},
                         {"max_pool2d_with_index", op::pool2d},
                         {"mul", op::mul},
+                        {"multiclass_nms3", op::multiclass_nms},
                         {"nearest_interp_v2", op::nearest_interp_v2},
                         {"nearest_interp", op::nearest_interp_v2},
                         {"pad3d", op::pad3d},
