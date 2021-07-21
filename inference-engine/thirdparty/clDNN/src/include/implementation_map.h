@@ -29,6 +29,7 @@ struct permute;
 struct reorder;
 struct custom_gpu_primitive;
 struct generic_layer;
+struct generic_primitive;
 struct reshape;
 struct data;
 struct mutable_data;
@@ -80,6 +81,13 @@ struct implementation_key<custom_gpu_primitive> {
     typedef cldnn::engine_types type;
     type operator()(engine_types engine_type, const typed_program_node<custom_gpu_primitive>&) { return engine_type; }
     type operator()(engine_types engine_type, const layout&) { return engine_type; }
+};
+
+template <>
+struct implementation_key<generic_primitive> {
+  typedef cldnn::engine_types type;
+  type operator()(engine_types engine_type, const typed_program_node<generic_primitive>&) { return engine_type; }
+  type operator()(engine_types engine_type, const layout&) { return engine_type; }
 };
 
 template <>

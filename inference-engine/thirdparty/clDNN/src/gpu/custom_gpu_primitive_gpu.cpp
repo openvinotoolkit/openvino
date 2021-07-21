@@ -39,6 +39,8 @@ struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
     , cl_kernel(other.cl_kernel)
     , _kernels({})
     , _kernel_id(other._kernel_id) {
+        // FIXME: apparently the std::move prevents RVO here - remove?
+        // reference: https://stackoverflow.com/questions/19267408/why-does-stdmove-prevent-rvo
         _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)->clone()));
     }
 
@@ -51,6 +53,8 @@ struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels() override {
+        // FIXME: apparently the std::move prevents RVO here - remove?
+        // reference: https://stackoverflow.com/questions/19267408/why-does-stdmove-prevent-rvo
         _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)));
     }
 

@@ -142,6 +142,7 @@ REGISTER_GPU(fused_conv_eltwise);
 REGISTER_GPU(lstm_dynamic_input);
 REGISTER_GPU(lstm_dynamic_timeloop);
 REGISTER_GPU(generic_layer);
+REGISTER_GPU(generic_primitive);
 REGISTER_GPU(gather_tree);
 REGISTER_GPU(resample);
 REGISTER_GPU(non_max_suppression);
