@@ -453,16 +453,10 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         ngraph::pass::VisualizeTree("original.svg").run_on_function(nGraphFunc);
         std::cout << std::endl << std::endl;
 #endif
-        ngraph::pass::Manager tokenization_manager_start;
-        tokenization_manager_start.register_pass<ngraph::snippets::pass::FilterFused>();
-        //tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>(tokenizeSubgraphs == Config::TokenizationMode::Node);
-        tokenization_manager_start.register_pass<ngraph::snippets::pass::StartSubgraph>(tokenizeSubgraphs == Config::TokenizationMode::Node);
-        tokenization_manager_start.run_passes(nGraphFunc);
-        // todo: Is it possible to perform correct Start tagging in FilterFused?
-        // For now perform two separate passes, otherwise nodes matched in Start would not be matched in Attach
-        ngraph::pass::Manager tokenization_manager_attach;
-        tokenization_manager_attach.register_pass<ngraph::snippets::pass::AttachToSubgraph>(tokenizeSubgraphs == Config::TokenizationMode::Node);
-        tokenization_manager_attach.run_passes(nGraphFunc);
+        ngraph::pass::Manager tokenization_manager;
+        tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
+        tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
+        tokenization_manager.run_passes(nGraphFunc);
 #if defined (DUMP_TOKENIZATION)
         int subgraph_index = 0;
         auto formatNodeName = [](const std::string& original_name) {
