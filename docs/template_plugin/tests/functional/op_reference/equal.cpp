@@ -8,7 +8,6 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/ngraph.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
 
 #include "comparison.hpp"
 
@@ -63,9 +62,10 @@ std::vector<RefComparisonParams> generateComparisonCombinedParams() {
         generateComparisonParams<element::Type_t::u32>(ngraph::element::u32),
         generateComparisonParams<element::Type_t::u8>(ngraph::element::boolean)};
     std::vector<RefComparisonParams> combinedParams;
-    std::for_each(compTypeParams.begin(), compTypeParams.end(), [&](std::vector<RefComparisonParams> params) {
+
+    for (const auto& params : compTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    });
+    }
     return combinedParams;
 }
 

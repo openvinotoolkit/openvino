@@ -8,19 +8,14 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/ngraph.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
-#include "ngraph_functions/builders.hpp"
-#include <tuple>
 
 #include "base_reference_test.hpp"
-
-using namespace ngraph;
-using namespace InferenceEngine;
-using ComparisonTypes = ngraph::helpers::ComparisonTypes;
+#include "ngraph_functions/builders.hpp"
 
 namespace ComparisonOpsRefTestDefinitions {
 struct RefComparisonParams {
     template <class IT, class OT>
-    RefComparisonParams(const ComparisonTypes comp, const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2,
+    RefComparisonParams(const ngraph::helpers::ComparisonTypes comp, const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2,
                         const ngraph::element::Type& iType, const ngraph::element::Type& oType, const std::vector<IT>& iValues1,
                         const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
         : comparisonType(comp),
@@ -31,7 +26,7 @@ struct RefComparisonParams {
           inputData1(CreateBlob(iType, iValues1)),
           inputData2(CreateBlob(iType, iValues2)),
           refData(CreateBlob(oType, oValues)) {}
-    ComparisonTypes comparisonType;
+    ngraph::helpers::ComparisonTypes comparisonType;
     ngraph::PartialShape pshape1;
     ngraph::PartialShape pshape2;
     ngraph::element::Type inType;
@@ -43,7 +38,12 @@ struct RefComparisonParams {
 
 class ReferenceComparisonLayerTest : public testing::TestWithParam<RefComparisonParams>, public CommonReferenceTest {
 public:
-    void SetUp() override;
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params.comparisonType, params.pshape1, params.pshape2, params.inType, params.outType);
+        inputData = {params.inputData1, params.inputData2};
+        refOutData = {params.refData};
+    }
     static std::string getTestCaseName(const testing::TestParamInfo<RefComparisonParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
@@ -56,12 +56,13 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(ComparisonTypes& comp_op_type, PartialShape& input_shape1, const PartialShape& input_shape2,
-                                                    const element::Type& input_type, const element::Type& expected_output_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape1);
-        const auto in2 = std::make_shared<op::Parameter>(input_type, input_shape2);
+    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, ngraph::PartialShape& input_shape1,
+                                                            const ngraph::PartialShape& input_shape2, const ngraph::element::Type& input_type,
+                                                            const ngraph::element::Type& expected_output_type) {
+        const auto in = std::make_shared<ngraph::op::Parameter>(input_type, input_shape1);
+        const auto in2 = std::make_shared<ngraph::op::Parameter>(input_type, input_shape2);
         const auto comp = ngraph::builder::makeComparison(in, in2, comp_op_type);
-        return std::make_shared<Function>(NodeVector {comp}, ParameterVector {in, in2});
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector {comp}, ngraph::ParameterVector {in, in2});
     }
 };
-} // namespace ComparisonOpsRefTestDefinitions
+}  // namespace ComparisonOpsRefTestDefinitions
