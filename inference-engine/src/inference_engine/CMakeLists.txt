@@ -134,7 +134,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt)
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE USE_STATIC_FRONTEND_MANAGER)
 
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
@@ -164,7 +163,6 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ngraph ngraph::frontend_manager::static inference_engine_transformations)
-target_compile_definitions(${TARGET_NAME} PRIVATE USE_STATIC_FRONTEND_MANAGER)
 
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -207,8 +205,6 @@ endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph ngraph::frontend_manager::static
                                                inference_engine_transformations pugixml::static)
-
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE PRIVATE USE_STATIC_FRONTEND_MANAGER)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
