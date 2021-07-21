@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
@@ -114,6 +118,63 @@ endfunction()
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_gtest_libraries()
+endif()
+
+#
+# Protobuf
+#
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        set(Protobuf_USE_STATIC_LIBS ON)
+        if(VERBOSE_BUILD)
+            set(Protobuf_DEBUG ON)
+        endif()
+        find_package(Protobuf REQUIRED)
+        if(NGRAPH_USE_PROTOBUF_LITE)
+            set(Protobuf_LIBRARIES protobuf::libprotobuf-lite)
+        else()
+            set(Protobuf_LIBRARIES protobuf::libprotobuf)
+        endif()
+        set(SYSTEM_PROTOC protobuf::protoc)
+        set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
+
+        foreach(target ${SYSTEM_PROTOC} ${Protobuf_LIBRARIES})
+            set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL TRUE)
+        endforeach()
+    else()
+        add_subdirectory(protobuf)
+    endif()
+
+    # forward variables used in the other places
+    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE} PARENT_SCOPE)
+    set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+    set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
+
+    # set public / interface compile options
+    foreach(target IN LISTS Protobuf_LIBRARIES)
+        set(link_type PUBLIC)
+        if(NGRAPH_USE_SYSTEM_PROTOBUF)
+            set(link_type INTERFACE)
+        endif()
+        if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+            target_compile_options(${target} ${link_type} -Wno-undef)
+        endif()
+    endforeach()
+
+    # version checks
+    if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+        message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
+    endif()
+endif()
+
+#
+# ONNX
+#
+
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    add_subdirectory(onnx)
 endif()
 
 #

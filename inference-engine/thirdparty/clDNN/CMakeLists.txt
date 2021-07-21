@@ -2,12 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required (VERSION 3.1)
-
-# ======================================================================================================
-# ======================================================================================================
-# ======================================================================================================
-
 # Name of project (helper constant variable).
 set(CLDNN__PROJ_NAME "clDNN")
 
@@ -58,18 +52,6 @@ set(CLDNN__CODEGEN_INCDIR  "${CLDNN__CODEGEN_DIR}/include")
 # ============================================ CMAKE OPTIONS ===========================================
 # ======================================================================================================
 
-# Include and build: Core of clDNN framework.
-set(CLDNN__INCLUDE_CORE ON CACHE BOOL "Include and build: clDNN core.")
-mark_as_advanced(CLDNN__INCLUDE_CORE)
-
-# ======================================================================================================
-
-# Include and build: Kernel selector for clDNN framework.
-set(CLDNN__INCLUDE_KERNEL_SELECTOR ON CACHE BOOL "Include and build: clDNN kernel selector.")
-mark_as_advanced(CLDNN__INCLUDE_KERNEL_SELECTOR)
-
-# ======================================================================================================
-
 # Include and build: Tests (unit tests and small acceptance tests) for clDNN framework.
 set(CLDNN__INCLUDE_TESTS ON CACHE BOOL "Include and build: clDNN framework's tests.")
 mark_as_advanced(CLDNN__INCLUDE_TESTS)
@@ -96,10 +78,6 @@ set(CLDNN_UTILS__RAPIDJSON_INCDIRS "utils/rapidjson" CACHE INTERNAL "Paths to in
 set(CLDNN_BUILD__PROJ__clDNN       "clDNN_lib")
 set(CLDNN_BUILD__PROJ_LABEL__clDNN "clDNN")
 
-# ================================================ Outputs =============================================
-
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME__clDNN "clDNN${CLDNN__OUT_CPU_SUFFIX}")
-
 # ===================================== Include/Link directories =======================================
 
 include_directories(
@@ -109,13 +87,11 @@ include_directories(
   )
 
 # =================================== Link targets and dependencies ====================================
-if(CLDNN__INCLUDE_CORE)
-  add_subdirectory(src)
-  add_subdirectory(runtime)
-endif()
+add_subdirectory(src)
+add_subdirectory(runtime)
+
 if(CLDNN__INCLUDE_TESTS)
   add_subdirectory(tests)
 endif()
-if(CLDNN__INCLUDE_KERNEL_SELECTOR)
-  add_subdirectory(kernel_selector)
-endif()
+
+add_subdirectory(kernel_selector)
