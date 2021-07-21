@@ -39,7 +39,7 @@
 # pragma GCC system_header
 #endif
 
-#include <CL/opencl.hpp>
+#include <CL/cl2.hpp>
 
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
