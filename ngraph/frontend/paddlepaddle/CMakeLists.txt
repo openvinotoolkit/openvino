@@ -72,6 +72,7 @@ link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
                                      PRIVATE ngraph::builder)
+target_compile_definitions(${TARGET_NAME} PRIVATE USE_STATIC_FRONTEND_MANAGER)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

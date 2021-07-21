@@ -22,6 +22,8 @@ target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} PUBLIC ngra
 target_include_directories(${TARGET_NAME}_static PUBLIC $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_compile_definitions(${TARGET_NAME}_static PRIVATE USE_STATIC_FRONTEND_MANAGER)
+
 
 # Shared library - need to recompile object files to export necessary symbols
 
