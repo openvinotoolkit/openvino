@@ -77,7 +77,7 @@ endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
 
-set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")
+set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include/ie")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
        ${PUBLIC_HEADERS_DIR}/*.hpp
@@ -300,7 +300,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
 
-set(IE_INCLUDE_DIR "include")
+set(IE_INCLUDE_DIR "include/ie")
 set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
