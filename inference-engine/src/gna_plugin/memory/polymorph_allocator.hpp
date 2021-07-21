@@ -26,7 +26,7 @@ class PolymorphAllocator {
     }
 
     void deallocate(T *p, std::size_t n) {
-        _impl->deallocate(p - 128, n + 256);
+        _impl->deallocate(p, n + 128);
     }
 };
 
