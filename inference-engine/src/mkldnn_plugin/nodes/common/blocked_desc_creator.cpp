@@ -13,7 +13,7 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
+    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
         return BlockedMemoryDesc(precision, srcDims, srcDims, order);
@@ -23,11 +23,7 @@ public:
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-<<<<<<< HEAD
-    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const override {
-=======
-    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const {
->>>>>>> [CPU] Unified memory descriptor: initial commit
+    BlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const override {
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcDims;
@@ -49,11 +45,7 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-<<<<<<< HEAD
-    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
-=======
-    virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
->>>>>>> [CPU] Unified memory descriptor: initial commit
+    BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
         if (srcDims.size() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }
