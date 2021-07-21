@@ -26,6 +26,7 @@ namespace ngraph
                 {
                     return m_bodies[0];
                 };
+
                 virtual void set_function(const std::shared_ptr<Function>& func)
                 {
                     m_bodies[0] = func;
