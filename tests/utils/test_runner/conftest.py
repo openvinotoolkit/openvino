@@ -11,7 +11,7 @@ This plugin adds the following command-line options:
 
 * `--test_conf` - Path to test configuration file. Used to parametrize tests.
   Format: YAML file.
-* `--exe` - Path to a timetest binary to execute.
+* `--exe` - Path to a test binary to execute.
 * `--niter` - Number of times to run executable.
 """
 
@@ -33,7 +33,7 @@ UTILS_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(UTILS_DIR))
 
 from scripts.run_test import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, DATABASE, DB_COLLECTIONS
+from test_runner.utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
 from path_utils import expand_env_vars
 from platform_utils import get_os_name, get_os_version, get_cpu_info
 
@@ -43,7 +43,7 @@ from platform_utils import get_os_name, get_os_version, get_cpu_info
 
 def pytest_addoption(parser):
     """Specify command-line options for all plugins"""
-    test_args_parser = parser.getgroup("timetest test run")
+    test_args_parser = parser.getgroup("test run")
     test_args_parser.addoption(
         "--test_conf",
         type=Path,
@@ -55,7 +55,7 @@ def pytest_addoption(parser):
         required=True,
         dest="executable",
         type=Path,
-        help="path to a timetest binary to execute"
+        help="path to a test binary to execute"
     )
     test_args_parser.addoption(
         "--niter",
@@ -63,7 +63,7 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
-    db_args_parser = parser.getgroup("timetest database use")
+    db_args_parser = parser.getgroup("test database use")
     db_args_parser.addoption(
         '--db_submit',
         metavar="RUN_ID",
@@ -80,10 +80,17 @@ def pytest_addoption(parser):
         help='MongoDB URL in a form "mongodb://server:port"'
     )
     db_args_parser.addoption(
+        '--db_name',
+        type=str,
+        required=is_db_used,
+        help='database name',
+        choices=DATABASES
+    )
+    db_args_parser.addoption(
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in "{}" database'.format(DATABASE),
+        help='collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
@@ -117,6 +124,14 @@ def niter(request):
 
 
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="session")
+def test_exe_field(request):
+    """Fixture function use to map DB fields according to DB name."""
+    db_name = request.config.getoption("db_name")
+    return {'timetests': "timetest",
+            'memcheck': "memory_exe"}[db_name]
 
 
 @pytest.fixture(scope="function")
@@ -171,10 +186,10 @@ def model_cache_dir(pytestconfig, instance):
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
-    """Fixture for collecting timetests information.
+    """Fixture for collecting test information.
 
     Current fixture fills in `request` and `pytestconfig` global
-    fixtures with timetests information which will be used for
+    fixtures with test information which will be used for
     internal purposes.
     """
     setattr(request.node._request, "test_info", {"results": {},
@@ -225,14 +240,14 @@ def validate_test_case(request, test_info):
 
 
 @pytest.fixture(scope="function")
-def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
+def prepare_db_info(request, test_info, executable, niter, manifest_metadata, test_exe_field):
     """Fixture for preparing and validating data to submit to a database.
 
     Fixture prepares data and metadata to submit to a database. One of the steps
     is parsing of build information from build manifest. After preparation,
     it checks if data contains required properties.
     """
-    FIELDS_FOR_ID = ['run_id', 'timetest', 'model', 'device', 'niter']
+    FIELDS_FOR_ID = ['run_id', test_exe_field, 'model', 'device', 'niter']
 
     run_id = request.config.getoption("db_submit")
     if not run_id:
@@ -249,7 +264,7 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     info = {
         # results will be added immediately before uploading to DB in `pytest_runtest_makereport`
         "run_id": run_id,
-        "timetest": str(executable.stem),
+        test_exe_field: str(executable.stem),
         "model": request.node.funcargs["instance"]["model"],
         "device": request.node.funcargs["instance"]["device"],
         "niter": niter,
@@ -286,17 +301,17 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
                 "required": ["path", "name", "precision", "framework"]
             },
             "run_id": {"type": "string"},
-            "timetest": {"type": "string"},
+            %test_exe_field%: {"type": "string"},
             "niter": {"type": "integer"},
             "test_name": {"type": "string"},
             "results": {"type": "object"},
             "os": {"type": "string"},
             "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", "timetest", "niter", "test_name", "os", "_id"],
+        "required": ["device", "model", "run_id", %test_exe_field%, "niter", "test_name", "os", "_id"],
         "additionalProperties": true
     }
-    """
+    """.replace("%test_exe_field%", test_exe_field)
     schema = json.loads(schema)
 
     try:
@@ -403,6 +418,7 @@ def pytest_runtest_makereport(item, call):
                 data["status"] = "passed"
 
         db_url = item.config.getoption("db_url")
+        db_name = item.config.getoption("db_name")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
-        upload_timetest_data(data, db_url, db_collection)
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, data))
+        upload_data(data, db_url, db_name, db_collection)

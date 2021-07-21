@@ -9,15 +9,15 @@ import yaml
 from pymongo import MongoClient
 
 # constants
-DATABASE = 'timetests'   # database name for timetests results
+DATABASES = ['timetests', 'memcheck']   # database name for timetests results
 DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 PRODUCT_NAME = 'dldt'   # product name from build manifest
 
 
-def upload_timetest_data(data, db_url, db_collection):
+def upload_timetest_data(data, db_url, db_name, db_collection):
     """ Upload timetest data to database."""
     client = MongoClient(db_url)
-    collection = client[DATABASE][db_collection]
+    collection = client[db_name][db_collection]
     collection.replace_one({'_id': data['_id']}, data, upsert=True)
 
 
