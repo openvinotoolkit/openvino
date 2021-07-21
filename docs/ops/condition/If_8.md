@@ -19,16 +19,16 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 
     `then_body`/`else_body` are subgraphs that are executed depending on the `cond` value. 
     The subgraph is described operation by operation as a typical IR network. 
-    The subgraph has parameters (`Parameter` operations) and results (`Result` operations).
+    The subgraph has inputs (`Parameter` operations) and outputs (`Result` operations).
     
-    * **Subgraph's parameters** - inputs to the subgraph which associated with *If* inputs via *port_map*. 
-    The subgraph can have any number of parameters (even zero).
+    * **Subgraph's inputs** - inputs to the subgraph which associated with *If* inputs via *port_map*. 
+    The subgraph can have any number of inputs (even zero).
     
-    * **Subgraph's results** - outputs from the subgraph which associated with *If* outputs via *port_map*.
-    The subgraph must contain at least one result. Each *If* output is associated with one result from the subgraph. 
-    Therefore the number of `then_body` results is equal to the number of outputs from *If* and 
-    the number of `else_body` results. 
-    The type of the subgraph result and the type of the associated output from *If* must be equal.
+    * **Subgraph's outputs** - outputs from the subgraph which associated with *If* outputs via *port_map*.
+    The subgraph must contain at least one output. Each *If* output is associated with one output from the subgraph. 
+    Therefore the number of `then_body` outputs is equal to the number of outputs from *If* and 
+    the number of `else_body` outputs. 
+    The type of the subgraph output and the type of the associated output from *If* must be equal.
     
 
 * **Port maps**:
@@ -82,7 +82,7 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 
 *Example 1: a typical If structure*
 ```xml
-    <layer id="6" name="PartitionedCall/model/if/cond" type="If" version="opset8">
+    <layer id="6" name="if/cond" type="If" version="opset8">
         <input>
             <port id="0"/>
             <port id="1">
@@ -99,7 +99,7 @@ Also the number of outputs from *If* always must be greater than zero and equal 
             </port>
         </input>
         <output>
-            <port id="4" names="PartitionedCall/model/if/cond/Identity:0,PartitionedCall/model/if/cond:0" precision="FP32">
+            <port id="4" names="if/cond/Identity:0,if/cond:0" precision="FP32">
                 <dim>2</dim>
                 <dim>4</dim>
             </port>
