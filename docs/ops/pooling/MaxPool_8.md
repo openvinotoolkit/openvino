@@ -89,6 +89,13 @@
     * **Default value**: "i64"
     * **Required**: *No*
 
+* *axis*
+
+    * **Description**: indicator of the first dimension in the input shape that should be used to calculate the upper bound of allowed index output values. The upper bound is the product of dimensions starting from the one pointed by the 'axis' attribute until the end of the input shape.
+    * **Range of values**: integer number. Negative value means counting dimension from the end. The range is `[-R, R-1]`, where `R` is the rank of the input tensor.
+    * **Type**: int
+    * **Default value**: 0
+    * **Required**: *No*
 
 **Inputs**:
 
@@ -98,10 +105,11 @@
   * **1**: Input shape can be either `[N, C, H]`, `[N, C, H, W]` or `[N, C, H, W, D]`. Then the corresponding output shape will be `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, H_out, W_out, D_out]`. Output tensor has the same data type as input tensor.
 
   * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
-    Shape of this output matches the first output.
-    The type of this output can be specified using the `index_element_type` attribute.
-    Values are computed as indices in a tensor flattened to 1-D, not considering padding,
-    so the values are in the range `[0, N * C * H * W * D)`.
+    Shape of this output matches the first output. The type of this output can be specified using the `index_element_type` attribute.
+    Values are computed as indices in a tensor flattened to 1-D, not considering padding. Examples for 5D input tensor:
+    * When `axis == 0`, the values are in the range `[0, N * C * H * W * D)`.
+    * When `axis == 2`, the values are in the range `[0, H * W * D)`.
+
     Note: the values of this output can only be calculated correctly if `pads_value` is set to `-infinity`.
 
 
