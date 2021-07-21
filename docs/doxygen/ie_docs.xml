@@ -34,6 +34,7 @@ limitations under the License.
                             <tab type="user" title="Converting DeepSpeech Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow"/>
                             <tab type="user" title="Converting Language Model on One Billion Word Benchmark from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow* Object Detection API Models" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models"/>
+                            <tab type="user" title="Converting RetinaNet Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow*-Slim Image Classification Model Library Models" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models"/>
                             <tab type="user" title="Converting CRNN Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow"/>
                             <tab type="user" title="Converting GNMT from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow"/>
@@ -176,6 +177,7 @@ limitations under the License.
                 <tab type="user" title="HSigmoid-5" url="@ref openvino_docs_ops_activation_HSigmoid_5"/>
                 <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
                 <tab type="user" title="IDFT-7" url="@ref openvino_docs_ops_signals_IDFT_7"/>
+                <tab type="user" title="If-8" url="@ref openvino_docs_ops_condition_If_8"/>
                 <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
                 <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
                 <tab type="user" title="LRN-1" url="@ref openvino_docs_ops_normalization_LRN_1"/>
