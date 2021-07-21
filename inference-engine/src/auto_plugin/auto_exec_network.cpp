@@ -93,14 +93,10 @@ AutoExecutableNetwork::AutoExecutableNetwork(const std::string& modelPath,
             }
             // std::cout << "!!! DEBUG: " << device << " was loaded !!!" << std::endl;
 
-            uint32_t optimalNum {0};
+            uint32_t optimalNum {1};
             try {
                 optimalNum = executableNetwork->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<uint32_t>();
-            } catch (const InferenceEngine::Exception &iie) {
-                IE_THROW()
-                    << "Every device used with the Multi-Device should "
-                    << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                    << "Failed to query the metric for the " << device << " with error:" << iie.what();
+            } catch (...) {
             }
             auto& workerRequests = _workerRequests[device];
             workerRequests.resize(optimalNum);

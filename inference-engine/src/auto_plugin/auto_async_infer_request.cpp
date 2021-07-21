@@ -25,13 +25,14 @@ AutoAsyncInferRequest::AutoAsyncInferRequest(const AutoInferRequest::Ptr&       
         explicit ThisRequestExecutor(AutoAsyncInferRequest* asyncInferRequest) : _asyncInferRequest{asyncInferRequest} {}
         void run(Task task) override {
             auto workerInferRequest = _asyncInferRequest->_workerInferRequest;
+            // this replace the actual infer request callback task in the worker created by auto_exec_network.cpp
+            // and note that this task is next stage task which here means PerfCount part task, so it will be executed after callback.
             workerInferRequest->_task = std::move(task);
             workerInferRequest->_inferRequest->StartAsync();
         };
         AutoAsyncInferRequest* _asyncInferRequest = nullptr;
     };
 
-    // todo: redefine _pipeline
     _pipeline = {
         // schedule a worker for current infer request, then we need sets the device-agnostic blobs to the actual (scheduled device-specific) request
         { autoExecutableNetwork, [this](){
