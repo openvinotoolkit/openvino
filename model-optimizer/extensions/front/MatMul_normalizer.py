@@ -13,6 +13,7 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.reshape import Reshape
+from mo.ops.const import Const
 
 
 class FullyConnectedDecomposer(FrontReplacementSubgraph):
@@ -97,6 +98,10 @@ class GemmDecomposer(FrontReplacementSubgraph):
             del node['alpha']
 
         if node.has_valid('beta') and not math.isclose(node.beta, 1):
+            if not bias_node.in_port(1).get_source():
+                bias_const_node = Const(graph, {'name': name + '/Const',
+                                                'value': 0}).create_node()
+                bias_const_node.out_port(0).connect(bias_node.in_port(1))
             bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=np.array(node.beta),
                                               new_op_attrs={'name': name + '/Beta_', 'can_be_scaleshift': False})
             del node['beta']
