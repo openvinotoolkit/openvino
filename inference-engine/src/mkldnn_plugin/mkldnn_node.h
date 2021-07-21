@@ -192,6 +192,10 @@ static std::string NameFromType(Type type) {
             return "ExtractImagePatches";
         case NonMaxSuppression:
             return "NonMaxSuppression";
+        case MatrixNms:
+            return "MatrixNms";
+        case MulticlassNms:
+            return "MulticlassNms";
         default:
             return "Unknown";
     }

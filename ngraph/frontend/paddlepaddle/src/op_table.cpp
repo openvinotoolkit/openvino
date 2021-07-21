@@ -114,11 +114,11 @@ namespace ngraph
                         {"sigmoid", op::sigmoid},
                         {"split", op::split},
                         {"squeeze2", op::squeeze},
+                        {"sync_batch_norm", op::batch_norm},
                         {"unsqueeze2", op::unsqueeze},
                         {"yolo_box", op::yolo_box}};
             };
         }; // namespace pdpd
 
     } // namespace frontend
-} // namespace ngraph
 } // namespace ngraph
