@@ -255,11 +255,10 @@ numeric_float_nan
 numeric_float_inf
 numeric_double_nan
 numeric_double_inf
-
+fake_quantize
+fake_quantize_with_clip
+fake_quantize_with_clip_across_channels
 fake_quantize_pdpd
-IE_GPU.fake_quantize
-IE_GPU.fake_quantize_with_clip
-IE_GPU.fake_quantize_with_clip_across_channels
 
 # <op name> has zero dimension that is not allowable
 zero_sized_abs
@@ -424,6 +423,11 @@ max_pool_2d_1channel_1image_overpadded
 grn_2d_with_bias
 erf
 divide_adjoint_stability
+notequal
+greater
+greatereq
+less
+lesseq
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
 max_pool_uint8
@@ -463,6 +467,7 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
+greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
@@ -484,6 +489,7 @@ logical_xor
 logical_or
 logical_and
 gather_axis_0_bool
+lesseq_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
 any_2x2_to_scalar_true
@@ -755,6 +761,7 @@ strided_slice_stride_optional
 divide_int32
 divide_cpp_rounding_int32
 divide_python_rounding_int32
+lesseq_int32
 
 # Constant and Low Precision
 constant_equality_u4_2x2x3
@@ -1601,14 +1608,6 @@ IE_CPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_CPU.deformable_convolution_2D_real_offsets_groups_basic
 IE_CPU.deformable_convolution_2D_real_offsets_groups_complex
 IE_CPU.deformable_convolution_2D_real_offsets_groups_and_deforgroups
-# No plugin support for DeformableConvolution v8
-IE_GPU.deformable_convolution_opset8_2D_v8_zeroed_offsets_default_mask
-IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask
-IE_GPU.deformable_convolution_opset8_2D_real_offsets_groups_and_deforgroups_mask_2
-IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
-# results missmatch, ticket: 59600
-IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
-IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
 # No plugin support for AdaptiveAvgPool and AdaptiveMaxPool
 adaptive_avg_pool_1d
