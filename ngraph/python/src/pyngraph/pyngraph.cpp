@@ -51,7 +51,6 @@ PYBIND11_MODULE(_pyngraph, m)
     regclass_pyngraph_OpConversionFailureFrontEnd(m);
     regclass_pyngraph_OpValidationFailureFrontEnd(m);
     regclass_pyngraph_NotImplementedFailureFrontEnd(m);
-    regclass_pyngraph_FEC(m);
     regclass_pyngraph_FrontEndManager(m);
     regclass_pyngraph_FrontEnd(m);
     regclass_pyngraph_InputModel(m);

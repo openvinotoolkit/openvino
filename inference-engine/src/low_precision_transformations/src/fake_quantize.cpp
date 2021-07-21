@@ -7,6 +7,7 @@
 #include <cmath>
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
 
@@ -14,11 +15,25 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addSingleNodePattern<opset1::FakeQuantize>(pass, context);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FakeQuantizeTransformation, "FakeQuantizeTransformation", 0);
+
+FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<opset1::FakeQuantize> layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
@@ -28,13 +43,14 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
+    bool wasHandled = false;
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = layer;
     do {
-        layer = fakeQuantize;
-        fakeQuantize = fuseElementwise(context, fakeQuantize);
+        fakeQuantize = fuseElementwise(context, this, fakeQuantize);
+        wasHandled = wasHandled || (fakeQuantize != nullptr);
     } while (fakeQuantize != nullptr);
 
-    return true;
+    return wasHandled;
 }
 
 namespace fq {
@@ -110,6 +126,7 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
 
 std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwise(
     TransformationContext& context,
+    MatcherPass* matcherPass,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
@@ -172,12 +189,15 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
     const auto data = fq::getData(eltwise);
     const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
+
     std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
         data->output(outputIdx),
         inputLowConst_f32,
         inputHighConst_f32,
         foldConvert(fakeQuantize->input_value(3), deqPrecision),
         foldConvert(fakeQuantize->input_value(4), deqPrecision) }));
+
+    matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
     ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);

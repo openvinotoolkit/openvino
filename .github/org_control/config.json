@@ -33,6 +33,7 @@
         "openvino-mo-maintainers": "category: MO",
         "openvino-ngraph-maintainers": "category: nGraph",
         "openvino-tests-maintainers": "category: IE Tests",
-        "openvino-tools-maintainers": "category: tools"
+        "openvino-tools-maintainers": "category: tools",
+        "openvino-configuration-mgmt": "category: dependency_changes"
     }
 }

@@ -1032,21 +1032,24 @@ def dict_includes(big: dict, sub_dict: dict, skip_attr_names=[]):
     )
 
 
-def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
+def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True, keep_output_port: bool = False):
     """
     Creates and connects Result node to node_name port. Cuts existing port if requested.
     :param graph: graph to operate with
     :param node_name: name of existing node in the graph that we want to add Result to
     :param port: output port of node to connect Result to
     :param cut: determines way of operating with edge specified by node_name and port
+    :param keep_output_port: special attribute determines if this operation is saved in IR or not
     """
     # we import it here because Op imports add_attrs_props and update_ie_fields from this file
     from mo.ops.result import Result
     node = Node(graph, node_name)
     if cut and len(node.out_edges()) != 0:
-        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port),
+                                                                       'keep_output_port': keep_output_port})
     else:
-        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
+        opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port),
+                                                                   'keep_output_port': keep_output_port})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
 
     log.debug('Sink: {} for node {}'.format(opoutput_node.id, node_name))
