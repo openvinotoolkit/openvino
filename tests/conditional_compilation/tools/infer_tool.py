@@ -74,7 +74,6 @@ if __name__ == "__main__":
     ir_path, device, out_path = cli_parser()
 
     for model in ir_path:
-        result = []
         result = infer(ir_path=model, device=device)
 
         np.savez(out_path / f"{Path(model).name}.npz", **result)

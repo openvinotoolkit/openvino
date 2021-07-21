@@ -29,7 +29,8 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
                       contain a dictionary to store test metadata.
     """
     out = artifacts / test_id
-    test_info["test_id"] = artifacts / test_id
+    infer_out_dir = Path(f"{out}/inference_result/")
+    test_info["test_id"] = test_id
 
     # cleanup old data if any
     prev_result = glob.glob(f"{out / test_id}.pid*.csv")
@@ -47,7 +48,7 @@ def test_cc_collect(test_id, models, openvino_ref, test_info,
             infer_tool,
             *[f"-m={model}" for model in models],
             "-d=CPU",
-            f"-r={out / test_id}"
+            f"-r={infer_out_dir}"
         ]
     )
     out_csv = glob.glob(f"{out / test_id}.pid*.csv")
@@ -97,17 +98,20 @@ def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # py
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
 
-    infer_out_dir = f"{out}_cc/inference_result/"
+    infer_out_dir_cc = Path(f"{out}_cc/inference_result/")
+    infer_out_dir = Path(f"{out}/inference_result/")
+
+    Path(infer_out_dir_cc).mkdir(parents=True, exist_ok=True)
     Path(infer_out_dir).mkdir(parents=True, exist_ok=True)
 
-    return_code, output = run_infer(models, out, openvino_ref)
+    return_code, output = run_infer(models, infer_out_dir_cc, openvino_ref)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
     return_code, output = run_infer(models, infer_out_dir, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
 
     for model in models:
-        out_file = f"{out / test_id / Path(model).name}.npz"
-        out_file_cc = f"{out}_cc/inference_result/{Path(model).name}.npz"
+        out_file = f"{infer_out_dir / Path(model).name}.npz"
+        out_file_cc = f"{infer_out_dir_cc / Path(model).name}.npz"
 
         reference_results = dict(np.load(out_file, allow_pickle=True))
         inference_results = dict(np.load(out_file_cc, allow_pickle=True))
