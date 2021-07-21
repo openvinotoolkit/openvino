@@ -34,6 +34,7 @@ limitations under the License.
                             <tab type="user" title="Converting DeepSpeech Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_DeepSpeech_From_Tensorflow"/>
                             <tab type="user" title="Converting Language Model on One Billion Word Benchmark from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_lm_1b_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow* Object Detection API Models" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models"/>
+                            <tab type="user" title="Converting RetinaNet Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_RetinaNet_From_Tensorflow"/>
                             <tab type="user" title="Converting TensorFlow*-Slim Image Classification Model Library Models" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Slim_Library_Models"/>
                             <tab type="user" title="Converting CRNN Model from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_CRNN_From_Tensorflow"/>
                             <tab type="user" title="Converting GNMT from TensorFlow" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_GNMT_From_Tensorflow"/>
