@@ -21,6 +21,14 @@ bool hasFusedParent(std::shared_ptr<Node> node) {
     }
     return false;
 }
+bool hasParameterParent(std::shared_ptr<Node> node) {
+    for (const auto& input : node->inputs()) {
+        const auto parent = input.get_source_output().get_node_shared_ptr();
+        if (!!as_type_ptr<ngraph::op::Parameter>(parent))
+            return true;
+    }
+    return false;
+}
 bool hasParentInStartedSubgraph(std::shared_ptr<Node> node) {
     auto inputs = node->inputs();
     for (const auto& input : inputs) {
@@ -128,11 +136,12 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             continue;
         if (isSutableParentForFusingSimple(node)) {
             // Initiate fusing chain
-            //rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(SnippetsNodeType::Fused));
             SetSnippetsNodeType(node, SnippetsNodeType::Fused);
             continue;
         }
-        if (hasFusedParent(node)) {
+        // todo: enable u8 support in Snippetst
+        // Ignore eltwise chains starting at Parameter node, since it could be u8
+        if (hasFusedParent(node) || hasParameterParent(node)) {
             if (isSutableChildForFusingSimple(node)) {
                 // This feature is disabled to emulate FusingSimple->FusingActivationAndSum->FusingSimple
                 // todo: clean all the commented code after benchmark and analysis
@@ -155,12 +164,10 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             }
         }
         if (AppropriateForSubgraph(node) && (GetSnippetsNodeType(node) != SnippetsNodeType::Fused)) {
-            if (!hasParentInStartedSubgraph (node))
-                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
-                //rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(SnippetsNodeType::SubgraphStart));
-            else
+            if (hasParentInStartedSubgraph (node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
-                //rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(SnippetsNodeType::SubgraphBody));
+            else
+                SetSnippetsNodeType(node, SnippetsNodeType::SubgraphStart);
         }
     }
     return true;
