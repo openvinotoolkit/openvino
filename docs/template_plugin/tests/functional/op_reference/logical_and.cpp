@@ -68,18 +68,22 @@ std::vector<LogicalAndParams> generateLogicalAndParams(const ngraph::element::Ty
     std::vector<LogicalAndParams> logicalAndParams {
         // 1D // 2D // 3D // 4D
         LogicalAndParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, type, ngraph::element::boolean,
-                std::vector<T> {1, 0, 1, 0},
-                std::vector<T> {0, 1, 1, 0},
-                std::vector<char> {0, 0, 1, 0}),
+                std::vector<T> {true, false, true, false},
+                std::vector<T> {false, true, true, false},
+                std::vector<char> {false, false, true, false}),
         LogicalAndParams(ngraph::PartialShape {1}, ngraph::PartialShape {1},  type, ngraph::element::boolean,
-                std::vector<T> {1},
-                std::vector<T> {1},
-                std::vector<char> {1}),
+                std::vector<T> {true},
+                std::vector<T> {true},
+                std::vector<char> {true}),
 
         LogicalAndParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 1, 2, 1}, type, ngraph::element::boolean,
-                std::vector<T> {1, 0, 1, 0},
-                std::vector<T> {1, 0},
-                std::vector<char> {1, 0, 1, 0})};
+                std::vector<T> {true, false, true, false},
+                std::vector<T> {true, false},
+                std::vector<char> {true, false, true, false}),
+        LogicalAndParams(ngraph::PartialShape {3, 4}, ngraph::PartialShape {3, 4}, type, ngraph::element::boolean,
+                std::vector<T> {true, true, true, true, true, false, true, false, false, true, true, true},
+                std::vector<T> {true, true, true, true, true, false, true, false, false, true, true, false},
+                std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, false})};
     return logicalAndParams;
 }
 
