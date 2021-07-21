@@ -93,72 +93,27 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     // we supports only fp32 currently
     precision = Precision::FP32;
 
-    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
-    for (auto fmt : getAvailableFormatsForDims(getParentEdgeAt(0)->getDims())) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, fmt);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, fmt);
-        if (algorithm == Algorithm::AdaptivePoolingMax) {
-            memory::format_tag indexFmt;
-            switch (spatialDimsCount) {
-                case 1:
-                    indexFmt =  memory::format_tag::ncw;
-                    break;
-                case 2:
-                    indexFmt = memory::format_tag::nchw;
-                    break;
-                case 3:
-                    indexFmt = memory::format_tag::ncdhw;
-                    break;
-                default:
-                    IE_THROW() << errorPrefix << "has incorrect spatial dims count(" << spatialDimsCount << ")";
-            }
-            config.outConfs[1].desc = MKLDNNMemoryDesc(getChildEdgeAt(1)->getDims(), memory::data_type::s32, indexFmt);
-        }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
+    std::vector<TensorDescCreatorTypes> dataFormats{ TensorDescCreatorTypes::ncsp };
+    if (getParentEdgeAt(0)->getDims()[1] != 1) {
+        dataFormats.push_back(TensorDescCreatorTypes::nspc);
+        dataFormats.push_back(TensorDescCreatorTypes::nCsp16c);
+        dataFormats.push_back(TensorDescCreatorTypes::nCsp8c);
     }
-}
-
-std::vector<memory::format_tag>
-MKLDNNAdaptivePoolingNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
-    auto plainFmt = [&]() {
-        if (dims.ndims() == 3)
-            return memory::format_tag::ncw;
-        else if (dims.ndims() == 4)
-            return memory::format_tag::nchw;
-        else if (dims.ndims() == 5)
-            return memory::format_tag::ncdhw;
-        return memory::format_tag::any;
-    };
-    auto blockedFmt = [&]() {
-        if (dims.ndims() == 3)
-            return mayiuse(avx512_common) ? memory::format_tag::nCw16c : memory::format_tag::nCw8c;
-        else if (dims.ndims() == 4)
-            return mayiuse(avx512_common) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
-        else if (dims.ndims() == 5)
-            return mayiuse(avx512_common) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
-        return memory::format_tag::any;
-    };
-    auto tailFmt = [&]() {
-        if (dims.ndims() == 3)
-            return memory::format_tag::nwc;
-        else if (dims.ndims() == 4)
-            return memory::format_tag::nhwc;
-        else if (dims.ndims() == 5)
-            return memory::format_tag::ndhwc;
-        return memory::format_tag::any;
-    };
-
-    if (getParentEdgeAt(0)->getDims()[1] == 1) {
-        return { plainFmt() };
-    } else {
-        return { plainFmt(), tailFmt(), blockedFmt() };
+    for (const auto &df : dataFormats) {
+        if (algorithm == Algorithm::AdaptivePoolingAvg) {
+            addSupportedPrimDesc({{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                                 {{df, precision}},
+                                 impl_desc_type::unknown);
+        } else {
+            addSupportedPrimDesc({{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                                 {{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                                 impl_desc_type::unknown);
+        }
     }
 }
 
