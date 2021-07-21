@@ -10,7 +10,7 @@ from re import compile, match
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
-from mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
+from mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
 
 
 class CustomReplacementDescriptor(object):
@@ -396,7 +396,7 @@ def load_and_validate_json_config(config_file_name: str):
     """
     Reads and validate custom replacement configuration file config_file_name.
     :param config_file_name: name of the file to read from.
-    :return: The dictionary which was serialize from json config file.
+    :return: A dictionary serialized from json config file.
     """
     try:
         with open(config_file_name, 'r') as f:
