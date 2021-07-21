@@ -156,6 +156,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
+        {"Abs",                                                LAYER_PARSER(parseAbs)}
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
