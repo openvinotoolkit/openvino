@@ -17,7 +17,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 /// \brief Constructs a hyperbolic tangent operation.
                 ///
                 /// \param arg Node that produces the input tensor.

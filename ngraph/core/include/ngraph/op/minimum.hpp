@@ -17,7 +17,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 /// \brief Constructs a minimum operation.
                 Minimum()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)

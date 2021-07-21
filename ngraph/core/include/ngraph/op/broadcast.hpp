@@ -21,7 +21,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 /// \brief Constructs a broadcast operation.
                 Broadcast() = default;
                 /// \brief Constructs a broadcast operation.

@@ -18,7 +18,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 /// \brief Constructs a Mod node.
                 Mod()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)

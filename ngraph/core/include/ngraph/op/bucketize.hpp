@@ -17,7 +17,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 Bucketize() = default;
                 /// \brief Constructs a Bucketize node
 

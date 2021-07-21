@@ -16,7 +16,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
-                
+
                 ROIPooling() = default;
                 /// \brief Constructs a ROIPooling operation
                 ///
