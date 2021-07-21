@@ -520,7 +520,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp

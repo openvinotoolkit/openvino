@@ -57,23 +57,25 @@ TEST_P(ReferenceTanLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
-std::vector<TanParams> generateTanParamsInt(const ngraph::element::Type& type) {
-    using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<TanParams> tanParams {
-        TanParams(ngraph::PartialShape {5}, type, std::vector<T> {-2, -1, 0, 1, 2},
-                  std::vector<T> {2, -2, 0, 2, -2})
-    };
-    return tanParams;
-}
-
 std::vector<TanParams> generateTanCombinedParams() {
-    const std::vector<std::vector<TanParams>> tanTypeParams {generateTanParamsInt<element::Type_t::i32>(ngraph::element::i32),
-                                                            generateTanParamsInt<element::Type_t::i64>(ngraph::element::i64)};
-    std::vector<TanParams> combinedParams;
-    std::for_each(tanTypeParams.begin(), tanTypeParams.end(), [&](std::vector<TanParams> params) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    });
+    std::vector<TanParams> combinedParams {
+        TanParams(ngraph::PartialShape {5}, ngraph::element::i32, std::vector<int32_t> {-2, -1, 0, 1, 2},
+                  std::vector<int32_t> {2, -2, 0, 2, -2}),
+        TanParams(ngraph::PartialShape {5}, ngraph::element::i64, std::vector<int64_t> {-2, -1, 0, 1, 2},
+                  std::vector<int64_t> {2, -2, 0, 2, -2}),
+        TanParams(ngraph::PartialShape {5}, ngraph::element::u32, std::vector<uint32_t> {1, 2, 3, 4, 5},
+                  std::vector<uint32_t> {2, 0xFFFFFFFF - 1, 0, 1, 0xFFFFFFFF - 2}),
+        TanParams(ngraph::PartialShape {5}, ngraph::element::u64, std::vector<uint64_t> {1, 2, 3, 4, 5},
+                  std::vector<uint64_t> {2, 0xFFFFFFFFFFFFFFFF - 1, 0, 1, 0xFFFFFFFFFFFFFFFF - 2}),
+        TanParams(ngraph::PartialShape {11}, ngraph::element::f32, std::vector<float> {0.f, 0.25f,
+                      -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f},
+                  std::vector<float> {0.00000000f, 0.25534192f, -0.25534192f, 0.54630249f, -0.54630249f,
+                       1.55740772f, -1.55740772f, -2.18503986f, 2.18503986f, 1.15782128f, -1.15782128f}),
+        TanParams(ngraph::PartialShape {11}, ngraph::element::f16, std::vector<float16> {0.f, 0.25f,
+                      -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f},
+                  std::vector<float16> {0.00000000f, 0.25534192f, -0.25534192f, 0.54630249f, -0.54630249f,
+                       1.55740772f, -1.55740772f, -2.18503986f, 2.18503986f, 1.15782128f, -1.15782128f})
+    };
     return combinedParams;
 }
 
