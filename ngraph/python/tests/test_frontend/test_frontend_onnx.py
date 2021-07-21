@@ -5,7 +5,6 @@ import os
 import onnx
 import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-from sys import platform
 import pytest
 
 from ngraph.frontend import FrontEndManager
@@ -50,7 +49,7 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
-    if not "onnx" in front_ends:
+    if "onnx" not in front_ends:
         pytest.skip()
 
 
