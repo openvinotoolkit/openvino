@@ -160,7 +160,7 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     const int oDHW = OD * OH * OW, oHW = OH * OW;
 
     const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
-    const int blockCount = chPadding / blockSize;
+    const int blockCount = (isTailCFmt ? 1 :  chPadding / blockSize);
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
@@ -229,29 +229,25 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
         pool = poolAvg;
     }
 
-    if (isTailCFmt) {
-        parallel_for4d(N, OD, OH, OW,
-                       [&](int n, int od, int oh, int ow) {
-                           auto srcData = src + n * inStrides[0];
-                           auto dstData = dst + n * outStrides[0] + od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
-                           for (int c = 0; c < C; c++) {
-                               pool(srcData + c * inStrides[1], dstData + c * outStrides[1], od, oh, ow, n * C + c);
-                           }
-                       });
-    } else {  // nchw, nChw16c, nChw8c
-        parallel_for5d(N, blockCount, OD, OH, OW,
-                       [&](int n, int blkIdx, int od, int oh, int ow) {
-                           auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
-                           auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] +
-                                          od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
-                           int cStart = blkIdx * blockSize;
-                           int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
-                           for (int c = cStart; c < cEnd; c++) {
-                               const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
-                               pool(srcData + blockResidual, dstData + blockResidual, od, oh, ow, n * C + c);
-                           }
-                       });
-    }
+    parallel_for5d(N, blockCount, OD, OH, OW,
+        [&](int n, int blkIdx, int od, int oh, int ow) {
+        auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
+        auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] +
+                      od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
+        int cStart = 0, cEnd = C, inResidual = 0, outResidual = 0;
+        if (!isTailCFmt) {
+           cStart = blkIdx * blockSize;
+           cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
+        }
+        for (int c = cStart; c < cEnd; c++) {
+           if (isTailCFmt) {
+               inResidual = c * inStrides[1];
+               outResidual = c * outStrides[1];
+           } else if (!isPlainFmt) {
+               inResidual = outResidual = c % blockSize;
+           }
+           pool(srcData + inResidual, dstData + outResidual, od, oh, ow, n * C + c);
+        }});
 }
 
 bool MKLDNNAdaptivePoolingNode::created() const {
