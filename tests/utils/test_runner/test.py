@@ -19,8 +19,8 @@ import logging
 import os
 import shutil
 
-from scripts.run_timetest import run_timetest
-from test_runner.utils import expand_env_vars
+from scripts.run_test import run_test
+from path_utils import expand_env_vars
 
 REFS_FACTOR = 1.2      # 120%
 

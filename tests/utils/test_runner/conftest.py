@@ -34,7 +34,6 @@ sys.path.insert(0, str(UTILS_DIR))
 
 from scripts.run_test import check_positive_int
 from test_runner.utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
-from path_utils import expand_env_vars
 from platform_utils import get_os_name, get_os_version, get_cpu_info
 
 
