@@ -115,6 +115,7 @@ namespace ngraph
                         {"split", op::split},
                         {"squeeze2", op::squeeze},
                         {"sync_batch_norm", op::batch_norm},
+                        {"transpose2", op::transpose2},
                         {"unsqueeze2", op::unsqueeze},
                         {"yolo_box", op::yolo_box}};
             };
