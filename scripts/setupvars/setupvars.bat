@@ -37,6 +37,13 @@ set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PYTHONPATH
 set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
 )
 
+
+:: Model Downloader
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader (
+set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PYTHONPATH%
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader;%PATH%"
+)
+
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
@@ -61,6 +68,11 @@ set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVINO_LIB_PATHS%"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
+)
+
+:: Compile tool
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool (
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\tools\compile_tool;%PATH%"
 )
 
 :: Add libs dirs to the PATH

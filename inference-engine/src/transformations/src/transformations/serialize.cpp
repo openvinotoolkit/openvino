@@ -465,10 +465,10 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 7>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6(),
-        ngraph::get_opset7()};
+        ngraph::get_opset7(), ngraph::get_opset8()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -495,6 +495,7 @@ std::string get_opset_name(
 std::string get_precision_name(const ngraph::element::Type & elem_type) {
     switch (elem_type) {
     case ::ngraph::element::Type_t::undefined:
+    case ::ngraph::element::Type_t::dynamic:
         return "UNSPECIFIED";
     case ::ngraph::element::Type_t::f16:
         return "FP16";

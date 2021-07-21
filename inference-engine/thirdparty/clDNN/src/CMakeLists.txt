@@ -6,26 +6,6 @@
 
 set(CLDNN_BUILD__PROJ             "${CLDNN_BUILD__PROJ__clDNN}")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ_LABEL__clDNN}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ_OUTPUT_NAME__clDNN}")
-
-# ========================================== Compiler options ==========================================
-# FIXME: latest findings showed issue with using libgomp inside clDNN
-#        temporarily disabling OpenMP to ensure clDNN works
-#find_package(OpenMP)
-if (OPENMP_FOUND)
-    add_definitions(-DOPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
-
-# ================================== Compiler preprocessor definitions =================================
-
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
-    "CLDNN_VERSION_MAJOR=${CLDNN__VERSION_MAJOR}"
-    "CLDNN_VERSION_MINOR=${CLDNN__VERSION_MINOR}"
-    "CLDNN_VERSION_BUILD=${CLDNN__VERSION_BUILD}"
-    "CLDNN_VERSION_REVISION=${CLDNN__VERSION_REVISION}"
-  )
 
 # ========================================= Source/Header files ========================================
 
@@ -57,27 +37,15 @@ file(GLOB __CLDNN_Headers__include
     "${__CLDNN_Directory__include}/*.hpp"
   )
 
-set(__CLDNN_Directory__gpu             "${CMAKE_CURRENT_SOURCE_DIR}/gpu")
-set(__CLDNN_Label__gpu                 "gpu")
+set(__CLDNN_Directory__impls             "${CMAKE_CURRENT_SOURCE_DIR}/impls")
+set(__CLDNN_Label__gpu                 "impls")
 file(GLOB __CLDNN_Sources__gpu
-    "${__CLDNN_Directory__gpu}/*.h"
-    "${__CLDNN_Directory__gpu}/*.hpp"
-    "${__CLDNN_Directory__gpu}/*.cpp"
-    "${__CLDNN_Directory__gpu}/*.inc"
-  )
-
-set(__CLDNN_Directory__cache           "${__CLDNN_Directory__gpu}/cache")
-set(__CLDNN_Label__cache               "${__CLDNN_Label__gpu}\\cache")
-file(GLOB __CLDNN_Sources__cache
-    "${__CLDNN_Directory__cache}/*.h"
-    "${__CLDNN_Directory__cache}/*.hpp"
-    "${__CLDNN_Directory__cache}/*.cpp"
-  )
-
-set(__CLDNN_Directory__ch_kernels      "${__CLDNN_Directory__cache}/kernels")
-set(__CLDNN_Label__ch_kernels          "${__CLDNN_Label__cache}\\kernels")
-file(GLOB __CLDNN_Sources__ch_kernels
-    "${__CLDNN_Directory__ch_kernels}/*.cl"
+    "${__CLDNN_Directory__impls}/common/*.hpp"
+    "${__CLDNN_Directory__impls}/common/*.cpp"
+    "${__CLDNN_Directory__impls}/cpu/*.hpp"
+    "${__CLDNN_Directory__impls}/cpu/*.cpp"
+    "${__CLDNN_Directory__impls}/ocl/*.hpp"
+    "${__CLDNN_Directory__impls}/ocl/*.cpp"
   )
 
 set(__CLDNN_Directory__cg_cache        "${CLDNN__CODEGEN_INCDIR}")
@@ -135,7 +103,6 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC
     OpenCL
@@ -164,5 +131,5 @@ endif()
 # ======================================================================================================
 
 ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(gpu/detection_output_cpu.cpp half.cpp
+set_source_files_properties(impls/cpu/detection_output.cpp half.cpp
   PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")

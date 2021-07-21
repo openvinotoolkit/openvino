@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     ngraph::element::Type,
-    std::pair<ngraph::Shape, ngraph::Shape>,
+    std::pair<ngraph::PartialShape, ngraph::Shape>,
     std::string,
     std::vector<uint64_t>,
     bool,
@@ -28,9 +28,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

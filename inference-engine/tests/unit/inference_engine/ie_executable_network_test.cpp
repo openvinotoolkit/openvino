@@ -42,13 +42,13 @@ protected:
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
 
-    virtual void TearDown() {
+    void TearDown() override {
         mockIExeNet.reset();
         exeNetwork = {};
         plugin = {};
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
@@ -113,12 +113,12 @@ class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:
     std::shared_ptr<MockIInferRequestInternal> mockIInferReq_p;
 
-    virtual void TearDown() {
+    void TearDown() override {
         ExecutableNetworkTests::TearDown();
         mockIInferReq_p.reset();
     }
 
-    virtual void SetUp() {
+    void SetUp() override {
         ExecutableNetworkTests::SetUp();
         mockIInferReq_p = std::make_shared<MockIInferRequestInternal>();
     }
@@ -143,10 +143,7 @@ protected:
     std::shared_ptr<IExecutableNetwork> exeNetwork;
     ResponseDesc dsc;
 
-    virtual void TearDown() {
-    }
-
-    virtual void SetUp() {
+    void SetUp() override {
         mock_impl.reset(new MockIExecutableNetworkInternal());
         exeNetwork = std::make_shared<ExecutableNetworkBase>(mock_impl);
     }
