@@ -67,16 +67,14 @@ auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph:
             }
         };
         unsigned int from_to_distance = 0;
-        const unsigned int max_allowed_distance = 100000;
+        const unsigned int max_allowed_distance = 10000;
         while (stack.size() > 0) {
             ngraph::Node* curr = stack.front();
             visited.insert(curr);
 
             if (from_to_distance++ == max_allowed_distance) {
-                // TODO: Decide if we need a proper error/warning or silently ignore large cycles
-                // throw ngraph_error("Distance in cycle dependencies check is too large.");
-                assert(from_to_distance <= max_allowed_distance);
-                return false;
+                // Return as if cycle dependence, if can't prove the opposite
+                return true;
             }
             stack.pop();
 
