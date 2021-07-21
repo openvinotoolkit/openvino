@@ -37,13 +37,8 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     ConcatTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(
-        params.precisionsOnActivations[0],
-        info.getTensorDesc(),
-        k);
+    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
 }
 
 void ConcatTransformation::SetUp() {
@@ -57,30 +52,6 @@ void ConcatTransformation::SetUp() {
         inputShape,
         testValues.fqOnData1,
         testValues.fqOnData2);
-
-    validate();
-}
-
-void ConcatTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShapes, targetDevice, testValues) = GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto previousLayer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = previousLayer->get_type_name();
-
-    if (testValues.fqOnData1.quantizationLevel != 256ul ||
-        testValues.fqOnData2.quantizationLevel != 256ul) {
-        ASSERT_EQ("Concat", typeName);
-    } else {
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    }
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

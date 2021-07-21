@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-    output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] = 
+    output[p_0, p_1, ..., p_{axis-1}, i, ..., j, ...] =
        input1[p_0, p_1, ..., p_{axis-1}, input2[i, ..., j], ...]
 
 Where `axis` is the value from the third input.
@@ -17,11 +17,11 @@ Where `axis` is the value from the third input.
 
 **Inputs**
 
-* **1**:  Tensor with arbitrary data. Required.
+* **1**:  Tensor with arbitrary data. **Required.**
 
-* **2**:  Tensor with indices to gather. The values for indices are in the range `[0, input1[axis] - 1]`. Required.
+* **2**:  Tensor with indices to gather. The values for indices are in the range `[0, input1[axis] - 1]`. **Required.**
 
-* **3**:  Scalar or 1D tensor *axis* is a dimension index to gather data from. For example, *axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. Allowed values are from `[-len(input1.shape), len(input1.shape) - 1]`. Required.
+* **3**:  Scalar or 1D tensor *axis* is a dimension index to gather data from. For example, *axis* equal to 1 means that gathering is performed over the first dimension. Negative value means reverse indexing. Allowed values are from `[-len(input1.shape), len(input1.shape) - 1]`. **Required.**
 
 **Outputs**
 
@@ -59,4 +59,3 @@ Where `axis` is the value from the third input.
     </output>
 </layer>
 ```
-

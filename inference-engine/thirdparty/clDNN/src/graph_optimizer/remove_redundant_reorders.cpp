@@ -27,9 +27,8 @@ void remove_redundant_reorders::run(program_impl& p) {
         if (!update_implementations)
             return;
 
-        auto& eng = p.get_engine();
         node.set_unique_id(node.get_unique_id() + "_reorder");
-        auto new_impl = node.type()->choose_impl(eng, node);
+        auto new_impl = node.type()->choose_impl(node);
         node.set_selected_impl(std::move(new_impl));
     };
 
@@ -300,7 +299,7 @@ void remove_redundant_reorders::run(program_impl& p) {
                 continue;
 
             input.set_output_layout(output_layout, false);
-            if (input.type()->does_possible_implementation_exist(p.get_engine(), input)) {
+            if (input.type()->does_possible_implementation_exist(input)) {
                 p.replace_all_usages(node, input);
                 p.add_optimized_primitive_info(node.id());
                 p.remove_all_connections(node);

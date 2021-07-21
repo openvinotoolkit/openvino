@@ -39,7 +39,7 @@ public:
         ngraph::element::Type precisionAfterOperation;
         DequantizationOperations dequantizationAfter;
     };
-    low_precision::LayerTransformation::Params transformationParams;
+    TestTransformationParams transformationParams;
     Actual actual;
     Expected expected;
 };
@@ -70,8 +70,7 @@ public:
             params.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
-            low_precision::LayerTransformation::Params(params.transformationParams));
+        transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(params.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
