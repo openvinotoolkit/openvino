@@ -43,6 +43,7 @@ struct Parsed {
 
 class ExtensionWrapper: public IRExtension {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ExtensionWrapper(const IExtensionPtr& ext, const std::string& opsetVersion, const ngraph::Node::type_info_t& type, const ngraph::OpSet& opset)
         : IRExtension(opsetVersion), extension(ext), type(type), opset(opset) {}
 
@@ -64,6 +65,8 @@ private:
     ngraph::Node::type_info_t type;
     ngraph::OpSet opset;
 };
+
+NGRAPH_RTTI_DEFINITION(ExtensionWrapper, "ExtensionWrapper", 0, IRExtension);
 
 template <typename T = Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
