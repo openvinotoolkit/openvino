@@ -21,7 +21,7 @@ macro(onnx_set_target_properties)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         target_compile_options(onnx PRIVATE -Wno-all)
         target_compile_options(onnx_proto PRIVATE -Wno-all -Wno-unused-variable)
     endif()
