@@ -606,8 +606,10 @@ void MKLDNNROIPoolingNode::execute() {
                 float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
                 float in_y, in_x;
-                // we have to take into account border case explicitly, because for floating-point operations
-                // inequality A / B * B <= A may be violated
+                // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
+                // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
+                // and as result excess of right limit for proposal value,
+                // if the border case (current_h == pooled_h - 1) will not be handled explicitly
                 if (jpp.pooled_h > 1) {
                     in_y = (oh == jpp.pooled_h - 1 ? roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1)));
                 } else {

@@ -138,9 +138,14 @@ namespace ngraph
                             {
                                 for (int pw = 0; pw < pooled_w; pw++)
                                 {
-                                    // we have to take into account border case explicitly, because
-                                    // for floating-point operations inequality A / B * B <= A may
-                                    // be violated
+                                    // because of nonalgebraic character of floating point
+                                    // operation, some proposals can cause violation of inequality:
+                                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) *
+                                    // (pooled_h - 1)
+                                    // <= (end_h - start_h) * (input_h - 1),
+                                    // and as result excess of right limit for proposal value
+                                    // if the border case (current_h == pooled_h - 1)
+                                    // will not be handled explicitly
                                     T in_y, in_x;
                                     if (pooled_h > 1)
                                     {
