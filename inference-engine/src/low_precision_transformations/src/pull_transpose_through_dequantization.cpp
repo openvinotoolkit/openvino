@@ -88,25 +88,25 @@ void fuseConstant(const std::shared_ptr<Node>& transpose, const std::shared_ptr<
 }  // namespace pull_transpose_through_dequantization
 
 ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeThroughDequantization(
-    const std::vector<ngraph::element::Type>& inputPrecisions) {
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>(pattern::type_matches_any(inputPrecisions));
-    const auto convert = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ weights });
+    const std::vector<element::Type>& inputPrecisions) {
+    const auto weights = pattern::wrap_type<opset1::Constant>(pattern::type_matches_any(inputPrecisions));
+    const auto convert = pattern::wrap_type<opset1::Convert>({ weights });
 
     const auto subtractValues = std::make_shared<pattern::op::Or>(OutputVector{
-        ngraph::pattern::wrap_type<ngraph::opset1::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset1::Convert>({ngraph::pattern::wrap_type<ngraph::opset1::Constant>()})
+        ngraph::pattern::wrap_type<opset1::Constant>(),
+        ngraph::pattern::wrap_type<opset1::Convert>({pattern::wrap_type<opset1::Constant>()})
     });
-    const auto subtract = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>({ convert, subtractValues });
+    const auto subtract = ngraph::pattern::wrap_type<opset1::Subtract>({ convert, subtractValues });
 
     const auto subtractOrConvert = std::make_shared<pattern::op::Or>(OutputVector{ convert, subtract });
 
-    const auto multiplyConstant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    const auto multiply = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>({ subtractOrConvert, multiplyConstant });
+    const auto multiplyConstant = pattern::wrap_type<opset1::Constant>();
+    const auto multiply = pattern::wrap_type<opset1::Multiply>({ subtractOrConvert, multiplyConstant });
 
-    const auto transposeConstant = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
-    auto matcherTranspose = ngraph::pattern::wrap_type<opset1::Transpose>({ multiply, transposeConstant });
+    const auto transposeConstant = pattern::wrap_type<opset1::Constant>();
+    auto matcherTranspose = pattern::wrap_type<opset1::Transpose>({ multiply, transposeConstant });
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+    matcher_pass_callback callback = [=](pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         auto transpose = opsMap.find(matcherTranspose)->second.get_node()->shared_from_this();
 
@@ -127,6 +127,6 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcherTranspose, "PullTransposeThroughDequantization");
+    auto m = std::make_shared<pattern::Matcher>(matcherTranspose, "PullTransposeThroughDequantization");
     this->register_matcher(m, callback);
 }

@@ -37,7 +37,7 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupOptimizations : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MarkupOptimizations(
@@ -49,22 +49,21 @@ private:
     const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions;
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
+class ngraph::pass::low_precision::TypeRelaxedReplacer : public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     TypeRelaxedReplacer();
 };
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::LowPrecision : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     LowPrecision(
         const std::vector<OperationPrecisionRestriction>& precisionRestrictions = {},
         const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {},
         const LayerTransformation::Params = LayerTransformation::Params());
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    static bool isFunctionQuantized(const std::shared_ptr<const ngraph::Function>& function);
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:
     std::vector<OperationPrecisionRestriction> precisionRestrictions;

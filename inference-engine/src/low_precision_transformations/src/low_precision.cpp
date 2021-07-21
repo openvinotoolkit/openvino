@@ -76,87 +76,68 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
-
-ngraph::pass::low_precision::LowPrecision::LowPrecision(
-    const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
-    const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
-    const LayerTransformation::Params params) :
-    precisionRestrictions(precisionRestrictions),
-    quantizationRestrictions(quantizationRestrictions),
-    params(params) {
-}
-
 using namespace ngraph::pass::low_precision;
 
-template <typename BaseOp>
-void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
-    using namespace ngraph;
-
-    auto is_op_type = [](std::shared_ptr<Node> n) {
-        return !!ov::as_type_ptr<BaseOp>(n);
-    };
-
-    auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
-
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
-        auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
-        if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
-            return false;
-        }
-        if (!l_node) {
-            THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
-        }
-
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionTypeRelaxedMatcher");
-
-        std::vector<element::Type> inputPrecisions;
-        for (auto& inputs : l_node->inputs()) {
-            inputPrecisions.push_back(inputs.get_element_type());
-        }
-
-        std::vector<element::Type> outputPrecisions;
-        for (auto& output : l_node->outputs()) {
-            outputPrecisions.push_back(output.get_element_type());
-        }
-
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
-
-        copy_runtime_info(l_node, replacement);
-        replace_node(l_node, replacement);
-        return true;
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::TypeRelaxedReplacer, "TypeRelaxedReplacer", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::LowPrecision, "LowPrecision", 0);
+
+template <typename NodeType>
+class RelaxNode : public ngraph::pass::MatcherPass {
+public:
+    RelaxNode() {
+        matcher_pass_callback callback = [](pattern::Matcher& m) {
+            auto l_node = std::dynamic_pointer_cast<NodeType>(m.get_match_root());
+            if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(l_node)) {
+                return false;
+            }
+            if (!l_node) {
+                THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
+            }
+
+            OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecisionTypeRelaxedMatcher");
+
+            element::TypeVector inputPrecisions;
+            for (const auto& inputs : l_node->inputs()) {
+                inputPrecisions.push_back(inputs.get_element_type());
+            }
+
+            element::TypeVector outputPrecisions;
+            for (const auto& output : l_node->outputs()) {
+                outputPrecisions.push_back(output.get_element_type());
+            }
+
+            auto replacement = std::make_shared<ngraph::op::TypeRelaxed<NodeType>>(*l_node, inputPrecisions, outputPrecisions);
+
+            copy_runtime_info(l_node, replacement);
+            replace_node(l_node, replacement);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(pattern::wrap_type<NodeType>(), "TypeRelaxedReplacer");
+    }
+};
 
 ngraph::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
-    make_matcher_type_relaxed<opset1::Add>(this);
-    make_matcher_type_relaxed<opset1::AvgPool>(this);
-    make_matcher_type_relaxed<opset1::Clamp>(this);
-    make_matcher_type_relaxed<opset1::Convolution>(this);
-    make_matcher_type_relaxed<opset1::ConvolutionBackpropData>(this);
-    make_matcher_type_relaxed<opset1::DepthToSpace>(this);
-    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
-    make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::PRelu>(this);
-    make_matcher_type_relaxed<opset1::ReduceMean>(this);
-    make_matcher_type_relaxed<opset1::ReduceSum>(this);
-    make_matcher_type_relaxed<opset1::Subtract>(this);
-    make_matcher_type_relaxed<opset1::Interpolate>(this);
-    make_matcher_type_relaxed<opset1::Multiply>(this);
-    make_matcher_type_relaxed<op::MVN>(this);
-    make_matcher_type_relaxed<opset6::MVN>(this);
-    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
-    make_matcher_type_relaxed<opset4::Interpolate>(this);
+    add_matcher<RelaxNode<opset1::Add>>();
+    add_matcher<RelaxNode<opset1::AvgPool>>();
+    add_matcher<RelaxNode<opset1::Clamp>>();
+    add_matcher<RelaxNode<opset1::Convolution>>();
+    add_matcher<RelaxNode<opset1::ConvolutionBackpropData>>();
+    add_matcher<RelaxNode<opset1::DepthToSpace>>();
+    add_matcher<RelaxNode<opset1::FakeQuantize>>();
+    add_matcher<RelaxNode<opset1::GroupConvolution>>();
+    add_matcher<RelaxNode<opset1::PRelu>>();
+    add_matcher<RelaxNode<opset1::ReduceMean>>();
+    add_matcher<RelaxNode<opset1::ReduceSum>>();
+    add_matcher<RelaxNode<opset1::Subtract>>();
+    add_matcher<RelaxNode<opset1::Interpolate>>();
+    add_matcher<RelaxNode<opset1::Multiply>>();
+    add_matcher<RelaxNode<op::MVN>>();
+    add_matcher<RelaxNode<opset6::MVN>>();
+    add_matcher<RelaxNode<opset1::NormalizeL2>>();
+    add_matcher<RelaxNode<opset4::Interpolate>>();
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupOptimizations, "MarkupOptimizations", 0);
 
 MarkupOptimizations::MarkupOptimizations(
     const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
@@ -186,6 +167,14 @@ bool ngraph::pass::low_precision::MarkupOptimizations::run_on_function(std::shar
     return false;
 }
 
+ngraph::pass::low_precision::LowPrecision::LowPrecision(
+        const std::vector<OperationPrecisionRestriction>& precisionRestrictions,
+        const std::vector<OperationPerTensorQuantizationRestriction>& quantizationRestrictions,
+        const LayerTransformation::Params params) :
+        precisionRestrictions(precisionRestrictions),
+        quantizationRestrictions(quantizationRestrictions),
+        params(params) {}
+
 bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
@@ -193,7 +182,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     ngraph::pass::Manager manager(passConfig);
 
     auto prerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-    const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
+    const element::TypeVector supportedTypes = {ngraph::element::i8, ngraph::element::u8};
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
@@ -202,7 +191,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
 
     manager.register_pass<ngraph::pass::low_precision::MarkupOptimizations>(precisionRestrictions, quantizationRestrictions);
 
-    std::shared_ptr<ngraph::pass::GraphRewrite> common = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto common = manager.register_pass<ngraph::pass::GraphRewrite>();
     common->add_matcher<ngraph::pass::low_precision::AddTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::AvgPoolTransformation>(params);
     common->add_matcher<ngraph::pass::low_precision::ClampTransformation>(params);

@@ -177,6 +177,7 @@ public:
             return *this;
         }
 
+        // TODO: add explanations
         bool updatePrecisions;
         element::Type deqPrecision;
     };

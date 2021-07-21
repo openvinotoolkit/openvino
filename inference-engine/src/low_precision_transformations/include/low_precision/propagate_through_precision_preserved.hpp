@@ -31,7 +31,7 @@ template <typename AttributeType>
 class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ngraph::pass::MatcherPass {
 public:
     PropagateThroughPrecisionPreserved() {
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ngraph::matcher_pass_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;
@@ -80,6 +80,7 @@ public:
 
 private:
     std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> getSourceOutputAttribute(const Input<Node>& input) {
+        // TODO: explain
         auto input2 = input;
         auto output = input2.get_source_output();
         std::shared_ptr<ngraph::VariantWrapper<std::shared_ptr<AttributeType>>> attribute = getAttributeFromOutput<std::shared_ptr<AttributeType>>(output);

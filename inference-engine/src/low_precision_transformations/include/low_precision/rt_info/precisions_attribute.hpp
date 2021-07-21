@@ -29,6 +29,12 @@ public:
 
 using PrecisionsAttributePtr = std::shared_ptr<PrecisionsAttribute>;
 
+/*
+ * Explain PrecisionsAttribute usages
+ * 1. Exists and empty - can't be quantized
+ * 2. Exists and not empty - has precision requirements
+ * 3. Doesn't exists - any precision
+ */
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
 public:
     static const std::vector<ngraph::element::Type> defaultPrecisions;
@@ -64,5 +70,9 @@ public:
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() override;
 };
+
+LP_TRANSFORMATIONS_API ngraph::PrecisionsAttributePtr get_precisions(const ngraph::Input<ngraph::Node>& input);
+
+LP_TRANSFORMATIONS_API void set_precisions(ngraph::Input<ngraph::Node> input, ngraph::PrecisionsAttributePtr attribute);
 
 }  // namespace ov

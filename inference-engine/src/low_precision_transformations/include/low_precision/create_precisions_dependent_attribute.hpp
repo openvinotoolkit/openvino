@@ -35,7 +35,7 @@ public:
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
 
-        ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
+        ngraph::matcher_pass_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
                 return false;

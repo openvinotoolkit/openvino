@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MarkupPerTensorQuantization,
 
 ngraph::pass::low_precision::MarkupPerTensorQuantization::MarkupPerTensorQuantization(
     const std::vector<OperationPerTensorQuantizationRestriction>& restrictions) {
-    for (const OperationPerTensorQuantizationRestriction& restriction : restrictions) {
+    for (const auto & restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
         if (it == restrictionsByOperation.end()) {
             PerTensorQuantization r(restriction.specifyVersion);
