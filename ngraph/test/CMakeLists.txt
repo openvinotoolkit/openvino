@@ -301,6 +301,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
@@ -488,7 +489,6 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
@@ -619,7 +619,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
