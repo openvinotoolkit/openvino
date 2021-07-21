@@ -527,18 +527,18 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 
 | Operator Name in PaddlePaddle\*| Limitations|
 | :----------| :----------|
-| adpative_pool2d | Only supports the NCHW data_layout |
-| arg_max | Only supports the 'Int64' output data_type |
+| adpative_pool2d | 'NHWC' data_layout is not supported |
+| arg_max | 'int32' output data_type is not supported |
 | assign_value | No |
 | batch_norm | No |
-| bilinear_interp | Only supports the NCHW data_layout |
-| bilinear_interp_v2 | Only supports the NCHW data_layout |
+| bilinear_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| bilinear_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
 | bmm | No |
 | cast | No |
 | clip | No |
 | concat | No |
-| conv2d | Only supports the NCHW data_layout |
-| depthwise_conv2d | Only supports the NCHW data_layout |
+| conv2d | 'NHWC' data_layout is not supported |
+| depthwise_conv2d | 'NHWC' data_layout is not supported |
 | deformable_conv | No |
 | elementwise_add | No |
 | elementwise_div | No |
@@ -563,16 +563,16 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | max_pool2d_with_index | No |
 | mul | No |
 | multiclass_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
-| nearest_interp | Only supports the NCHW data_layout |
-| nearest_interp_v2 | Only supports the NCHW data_layout |
-| pad3d | Not supports the 'Circular' mode |
+| nearest_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| nearest_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| pad3d | 'Circular' mode is not supported |
 | pow | No |
-| pool2d | Only supports the NCHW data_layout |
+| pool2d | 'NHWC' data_layout is not supported |
 | range | No |
 | relu | No |
 | relu6 | No |
 | reshape2 | No |
-| rnn | Only supports the 'LSTM' Mode |
+| rnn | 'SimpleRNN' and 'GRU' Mode are not supported |
 | scale | No |
 | shape | No |
 | slice | No |
