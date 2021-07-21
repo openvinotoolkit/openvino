@@ -47,6 +47,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     }
 
     auto dequantization = NetworkHelper::getDequantization(multiply, inputIndex);
+    if (dequantization.data.get_node() == nullptr) {
+        return false;
+    }
     if (dequantization.subtractConvert != nullptr) {
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
     }
