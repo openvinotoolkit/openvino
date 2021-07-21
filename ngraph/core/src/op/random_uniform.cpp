@@ -259,8 +259,8 @@ vector<double>
         float mx[1];
         memcpy(mn, min_val, elem_type.size());
         memcpy(mx, max_val, elem_type.size());
-        res[0] = mn[0];
-        res[1] = mx[0];
+        res[0] = static_cast<double>(mn[0]);
+        res[1] = static_cast<double>(mx[0]);
         break;
     }
     case ngraph::element::Type_t::f16:
@@ -269,8 +269,8 @@ vector<double>
         float16 mx[1];
         memcpy(mn, min_val, elem_type.size());
         memcpy(mx, max_val, elem_type.size());
-        res[0] = mn[0];
-        res[1] = mx[0];
+        res[0] = static_cast<double>(mn[0]);
+        res[1] = static_cast<double>(mx[0]);
         break;
     }
     case ngraph::element::Type_t::bf16:
@@ -279,18 +279,14 @@ vector<double>
         bfloat16 mx[1];
         memcpy(mn, min_val, elem_type.size());
         memcpy(mx, max_val, elem_type.size());
-        res[0] = mn[0];
-        res[1] = mx[0];
+        res[0] = static_cast<double>(mn[0]);
+        res[1] = static_cast<double>(mx[0]);
         break;
     }
     case ngraph::element::Type_t::f64:
     {
-        double mn[1];
-        double mx[1];
-        memcpy(mn, min_val, elem_type.size());
-        memcpy(mx, max_val, elem_type.size());
-        res[0] = mn[0];
-        res[1] = mx[0];
+        memcpy(res.data(), min_val, elem_type.size());
+        memcpy(res.data() + 1, max_val, elem_type.size());
         break;
     }
     default: throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
