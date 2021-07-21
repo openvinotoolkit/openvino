@@ -225,7 +225,6 @@ namespace ngraph
                 {
                     return m_bodies[index];
                 };
-
                 /// \brief     Adds sub-graph to MultiSubGraphOp
                 ///
                 /// \param index   index of new sub-graph
