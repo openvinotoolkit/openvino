@@ -23,6 +23,9 @@ public:
     }
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 };
+enum class SnippetsNodeType : int64_t {NotSet = 0, Fused, SubgraphStart, SubgraphBody};
+void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
+SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);
 
 } // namespace pass
 } // namespace snippets

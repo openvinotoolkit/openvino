@@ -21,9 +21,9 @@ namespace pass {
 class StartSubgraph: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit StartSubgraph(bool tokenize_by_node = false);
+    explicit StartSubgraph();
 };
-
+bool AppropriateForSubgraph(std::shared_ptr<Node>);
 /**
  * @interface AttachToSubgraph
  * @brief Matches loyout-oblivious operations with subgraph operation as an input to attech this node into it
@@ -32,7 +32,7 @@ public:
 class AttachToSubgraph: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    explicit AttachToSubgraph(bool tokenize_by_node = false);
+    explicit AttachToSubgraph();
 };
 
 /**
@@ -61,9 +61,9 @@ public:
 class TokenizeSnippets: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    TokenizeSnippets(bool tokenize_by_node = false) {
-        add_matcher<ngraph::snippets::pass::StartSubgraph>(tokenize_by_node);
-        add_matcher<ngraph::snippets::pass::AttachToSubgraph>(tokenize_by_node);
+    TokenizeSnippets() {
+        add_matcher<ngraph::snippets::pass::StartSubgraph>();
+        add_matcher<ngraph::snippets::pass::AttachToSubgraph>();
     }
 };
 
