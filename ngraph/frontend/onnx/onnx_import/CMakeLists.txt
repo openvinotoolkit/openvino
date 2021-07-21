@@ -63,10 +63,8 @@ if(NGRAPH_USE_PROTOBUF_LITE)
     target_compile_definitions(onnx_importer PRIVATE NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    target_compile_options(onnx_importer PRIVATE -Wno-undef -Wno-reserved-id-macro -Wno-switch-enum
-            -Wno-invalid-offsetof -Wno-shorten-64-to-32 -Wno-unused-macros -Wno-missing-variable-declarations
-            -Wno-unused-private-field -Wno-shadow -Wno-deprecated PUBLIC -Wno-undefined-func-template)
+if(OV_COMPILER_IS_CLANG)
+    target_compile_options(onnx_importer PRIVATE -Wno-undef)
 endif()
 
 install(TARGETS onnx_importer EXPORT ngraphTargets
