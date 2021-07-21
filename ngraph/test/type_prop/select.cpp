@@ -298,13 +298,13 @@ INSTANTIATE_TEST_SUITE_P(
                       SelectParams({{4}, {4}, {2, 4}, {2, 4}},
                                    {element::dynamic, element::dynamic, element::i8, element::i8},
                                    op::AutoBroadcastType::NUMPY),
-                      SelectParams({{2}, {2}, {2, 4}, {2, 4}},
+                      SelectParams({{2}, {2, 4}, {2}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 0}),
                       // TODO: Whats the right behavior here?
                       // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::boolean, element::f32,
                       // element::dynamic, element::f32}, {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 1})),
     PrintToDummyParamName());
