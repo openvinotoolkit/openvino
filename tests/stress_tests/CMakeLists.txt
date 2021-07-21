@@ -9,12 +9,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-# Define directory where artifacts will be placed
-set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-
-find_package(InferenceEngineDeveloperPackage REQUIRED)
-
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+
+# Search OpenVINO Inference Engine installed
+find_package(InferenceEngine REQUIRED)
 
 add_subdirectory(common)
 add_subdirectory(unittests)
