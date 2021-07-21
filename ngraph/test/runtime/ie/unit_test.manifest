@@ -141,9 +141,6 @@ onnx_model_argmin_select_last_index
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
 
-# Select layer with name 'y' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks
-onnx_model_where
-
 # y Incorrect input precision. Only FP32 is supported!
 onnx_model_erf_int32
 
@@ -449,7 +446,6 @@ sum_trivial_in_double
 sum_stable_acc_double
 sum_stable_simple_double
 softmax_axis_3d_double
-select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
 argmin_trivial_in_double
@@ -485,7 +481,6 @@ sigmoid_bprop_n1c1h4
 IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
-select
 not
 logical_xor
 logical_or
@@ -518,9 +513,6 @@ all_2x2x3_eliminate_dims_1_2
 all_2x2x3_eliminate_dims_0_1_2
 all_dynamic_axis
 all_change_axis
-
-# Positive input shape should be the same as negative input shape
-select_v1
 
 # Cannot cast ngraph node Reverse to CNNLayer!
 reverse_1d_0
@@ -855,8 +847,6 @@ backwards_power
 backwards_relu
 backwards_replace_slice
 backwards_reshape
-backwards_select
-backwards_select_nested
 backwards_sigmoid
 backwards_sign
 backwards_sin
