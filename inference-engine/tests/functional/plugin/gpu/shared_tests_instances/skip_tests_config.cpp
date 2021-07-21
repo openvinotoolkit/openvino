@@ -58,6 +58,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*IEClassImportExportTestP.*)",
 
             // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
-            R"(.*NormalizeL2LayerTest.*axes=\(\).*)"
+            R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
+            // TODO: until issue is xxx-59670 is resolved
+            R"(.*Gather8LayerTest.*)"
     };
 }
