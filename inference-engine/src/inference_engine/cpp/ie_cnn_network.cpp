@@ -124,6 +124,14 @@ void CNNNetwork::serialize(const std::string& xmlPath, const std::string& binPat
     CALL_STATUS_FNC(serialize, xmlPath, binPath);
 }
 
+void CNNNetwork::serialize(std::ostream& xmlBuf, std::ostream& binBuf) const {
+    CALL_STATUS_FNC(serialize, xmlBuf, binBuf);
+}
+
+void CNNNetwork::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob) const {
+    CALL_STATUS_FNC(serialize, xmlBuf, binBlob);
+}
+
 std::string CNNNetwork::getOVNameForTensor(const std::string& orig_name) const {
     std::string ov_name;
     CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);

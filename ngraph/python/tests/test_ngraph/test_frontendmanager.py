@@ -1,12 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
+import pickle
 
 from ngraph import PartialShape
-from ngraph.frontend import FrontEndCapabilities, FrontEndManager, InitializationFailure
+from ngraph.frontend import FrontEndManager, InitializationFailure
 from ngraph.utils.types import get_element_type
+
+import numpy as np
+
+import pytest
 
 mock_available = True
 try:
@@ -24,28 +27,13 @@ mock_needed = pytest.mark.skipif(not mock_available,
 
 
 # ---------- FrontEnd tests ---------------
-@mock_needed
-def test_load_by_framework_caps():
-    frontEnds = fem.get_available_front_ends()
-    assert frontEnds is not None
-    assert "mock_py" in frontEnds
-    caps = [FrontEndCapabilities.DEFAULT,
-            FrontEndCapabilities.CUT,
-            FrontEndCapabilities.NAMES,
-            FrontEndCapabilities.WILDCARDS,
-            FrontEndCapabilities.CUT | FrontEndCapabilities.NAMES | FrontEndCapabilities.WILDCARDS]
-    for cap in caps:
-        fe = fem.load_by_framework(framework="mock_py", capabilities=cap)
-        stat = get_fe_stat(fe)
-        assert cap == stat.load_flags
-    for i in range(len(caps) - 1):
-        for j in range(i + 1, len(caps)):
-            assert caps[i] != caps[j]
+def test_pickle():
+    pickle.dumps(fem)
 
 
 def test_load_by_unknown_framework():
     frontEnds = fem.get_available_front_ends()
-    assert not("UnknownFramework" in frontEnds)
+    assert not ("UnknownFramework" in frontEnds)
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
@@ -55,10 +43,10 @@ def test_load_by_unknown_framework():
 
 
 @mock_needed
-def test_load_from_file():
+def test_load():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
-    model = fe.load_from_file("abc.bin")
+    model = fe.load("abc.bin")
     assert model is not None
     stat = get_fe_stat(fe)
     assert "abc.bin" in stat.load_paths
@@ -68,7 +56,7 @@ def test_load_from_file():
 def test_convert_model():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
-    model = fe.load_from_file(path="")
+    model = fe.load(path="")
     func = fe.convert(model=model)
     assert func is not None
     stat = get_fe_stat(fe)
@@ -79,7 +67,7 @@ def test_convert_model():
 def test_convert_partially():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
-    model = fe.load_from_file(path="")
+    model = fe.load(path="")
     func = fe.convert_partially(model=model)
     stat = get_fe_stat(fe)
     assert stat.convert_partially == 1
@@ -92,7 +80,7 @@ def test_convert_partially():
 def test_decode_and_normalize():
     fe = fem.load_by_framework(framework="mock_py")
     assert fe is not None
-    model = fe.load_from_file(path="")
+    model = fe.load(path="")
     func = fe.decode(model=model)
     stat = get_fe_stat(fe)
     assert stat.decode == 1
@@ -106,7 +94,7 @@ def test_decode_and_normalize():
 @mock_needed
 def init_model():
     fe = fem.load_by_framework(framework="mock_py")
-    model = fe.load_from_file(path="")
+    model = fe.load(path="")
     return model
 
 
@@ -372,7 +360,7 @@ def test_model_set_element_type():
 @mock_needed
 def init_place():
     fe = fem.load_by_framework(framework="mock_py")
-    model = fe.load_from_file(path="")
+    model = fe.load(path="")
     place = model.get_place_by_tensor_name(tensorName="")
     return model, place
 

@@ -22,6 +22,7 @@ namespace ngraph
 
         virtual std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node);
         virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
+        virtual std::string to_string() { return ""; }
     };
 
     template <typename VT>
@@ -74,4 +75,27 @@ namespace ngraph
         {
         }
     };
+
+    template <typename T>
+    inline std::shared_ptr<Variant> make_variant(const T& p)
+    {
+        return std::dynamic_pointer_cast<VariantImpl<T>>(std::make_shared<VariantWrapper<T>>(p));
+    }
+
+    template <size_t N>
+    inline std::shared_ptr<Variant> make_variant(const char (&s)[N])
+    {
+        return std::dynamic_pointer_cast<VariantImpl<std::string>>(
+            std::make_shared<VariantWrapper<std::string>>(s));
+    }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    template <size_t N>
+    inline std::shared_ptr<Variant> make_variant(const wchar_t (&s)[N])
+    {
+        return std::dynamic_pointer_cast<VariantImpl<std::wstring>>(
+            std::make_shared<VariantWrapper<std::wstring>>(s));
+    }
+#endif
+
 } // namespace ngraph

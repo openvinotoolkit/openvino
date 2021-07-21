@@ -77,6 +77,13 @@ namespace ngraph
                 return node;
             }
 
+            template <typename T>
+            std::shared_ptr<T> register_new_node(const std::shared_ptr<T>& node)
+            {
+                m_new_nodes.push_back(node);
+                return node;
+            }
+
             const std::vector<std::shared_ptr<ngraph::Node>>& get_new_nodes()
             {
                 return m_new_nodes;
@@ -259,7 +266,7 @@ namespace ngraph
             void add_matcher(const std::shared_ptr<pattern::RecurrentMatcher>& m,
                              const ngraph::recurrent_graph_rewrite_callback& callback);
 
-            virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
+            bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
         private:
             size_t m_num_iters;

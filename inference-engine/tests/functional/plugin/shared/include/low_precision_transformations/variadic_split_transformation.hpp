@@ -17,7 +17,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     VariadicSplitTransformationParam
@@ -31,8 +31,6 @@ public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
+
 }  // namespace LayerTestsDefinitions
