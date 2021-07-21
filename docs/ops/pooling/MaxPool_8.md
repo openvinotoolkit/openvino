@@ -189,10 +189,10 @@ strides = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_lower"
-output = [[[[-1, 2, 3],
+output0 = [[[[-1, 2, 3],
             [4, 5, 5]
             [4, 8, 9]]]]
-output = [[[[0, 1, 2],
+output1 = [[[[0, 1, 2],
             [3, 4, 4]
             [3, 7, 8]]]]
 ```
@@ -210,18 +210,18 @@ strides = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
-output = [[[[5, 5, 3],
-            [8, 9, 9]
-            [8, 9, 9]],
-           [[6, 5, 5],
-            [8, 2, 1],
-            [8, 2, -3]]]]
-output = [[[[4, 4, 2],
-            [7, 8, 8]
-            [7, 8, 8]],
-           [[3, 2, 2],
-            [6, 7, 5],
-            [6, 7, 8]]]]
+output0 = [[[[5, 5, 3],
+             [8, 9, 9]
+             [8, 9, 9]],
+            [[6, 5, 5],
+             [8, 2, 1],
+             [8, 2, -3]]]]
+output1 = [[[[4, 4, 2],
+             [7, 8, 8]
+             [7, 8, 8]],
+            [[12, 11, 11],
+             [15, 16, 14],
+             [15, 16, 17]]]]
 ```
 
 Example 5 shows how *MaxPool* operates with 4D input using 2D kernel, `auto_pad = valid` and `rounding_type = ceil`
@@ -234,10 +234,10 @@ strides = [2, 2]
 kernel = [2, 2]
 rounding_type = "ceil"
 auto_pad = "valid"
-output = [[[[5, 3],
-            [8, 9]]]]
-output = [[[[4, 2],
-            [7, 8]]]]
+output0 = [[[[5, 3],
+             [8, 9]]]]
+output1 = [[[[4, 2],
+             [7, 8]]]]
 ```
 
 Example 6 shows how *MaxPool* operates on 4D input using dilated 2D kernel, `auto_pad = explicit` and `rounding_type = floor`
@@ -253,12 +253,40 @@ rounding_type = "floor"
 auto_pad = "explicit"
 pads_begin = [1, 1]
 pads_end = [1, 1]
-output = [[[[5, 6, 5],
-            [8, 9, 8],
-            [5, 6, 5]]]]
-output = [[[[4, 5, 4],
-            [7, 8, 7],
-            [4, 5, 4]]]]
+output0 = [[[[5, 6, 5],
+             [8, 9, 8],
+             [5, 6, 5]]]]
+output1 = [[[[4, 5, 4],
+             [7, 8, 7],
+             [4, 5, 4]]]]
+```
+
+Example 7 shows how *MaxPool* operates on 4D input using 2D kernel, with non-default `axis` value
+
+```
+input = [[[[1, 2, 3],
+           [4, 5, 6],
+           [7, 8, 9]],
+          [[10, 11, 12],
+           [13, 14, 15],
+           [16, 17, 18]]
+           ]]
+strides = [1, 1]
+kernel = [2, 2]
+dilations = [1, 1]
+rounding_type = "floor"
+auto_pad = "explicit"
+pads_begin = [0, 0]
+pads_end = [0, 0]
+axis = 2
+output0 = [[[[5, 6],
+             [8, 9]],
+            [[14, 15],
+             [17, 18]]]]
+output1 = [[[[4, 5],
+             [7, 8]],
+            [[4, 5],
+             [7, 8]]]]
 ```
 
 **Examples**
