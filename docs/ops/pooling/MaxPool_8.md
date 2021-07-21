@@ -6,7 +6,7 @@
 
 **Short description**: Performs max pooling operation on input.
 
-**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value are `-inf`. The Max Pooling operation involves sliding a filter over each channel of feature map and downsampling by choosing the biggest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s). 
+**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value are `-inf`. The Max Pooling operation involves sliding a filter over each channel of feature map and downsampling by choosing the biggest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s).
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -20,7 +20,7 @@
 
 * *dilations*
 
-    * **Description**: *dilations* specify the index of the next pixel to select then pooling. If not present, the dilation defaults to 1, meaning the very next pixel is chosen. A value of 2 indicates that one pixel is skipped and every other pixel is considered. Dilations specify one value for each spatial axis of the kernel: `(z, y, x)` for 3D poolings and `(y, x)`  for 2D poolings.
+    * **Description**: *dilations* specify the index of the next pixel to select when pooling. If not present, the dilation defaults to 1, meaning the adjacent pixel is chosen. A value of 2 indicates that one pixel is skipped and every other pixel is considered. Dilations specify one value for each spatial axis of the kernel: `(z, y, x)` for 3D poolings and `(y, x)`  for 2D poolings.
     * **Range of values**: integer values starting from 0
     * **Type**: int[]
     * **Default value**: [1,1,...]
@@ -86,7 +86,7 @@
     * **Description**: the type of output tensor with indices
     * **Range of values**: "i64" or "i32"
     * **Type**: string
-    * **Default value**: "i32"
+    * **Default value**: "i64"
     * **Required**: *No*
 
 
@@ -113,38 +113,38 @@
 
 
 **Mathematical Formulation**
-Output shape calculation based on `auto_pad` and `rounding_type`:  
-  * `auto_pad = explicit` and `rounding_type = floor`   
-          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`  
-          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`  
-          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`   
-  
-  * `auto_pad = valid` and `rounding_type = floor`  
-        `H_out = floor(H - kernel[0] / strides[0]) + 1`   
-        `W_out = floor(W - kernel[1] / strides[1]) + 1`    
-        `D_out = floor(D - kernel[2] / strides[2]) + 1`  
-  
-  * `auto_pad = same_upper/same_lower` and `rounding_type = floor`  
-        `H_out = H`   
-        `W_out = W`    
-        `D_out = D`  
-  
-  * `auto_pad = explicit` and `rounding_type = ceil`  
-        `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`   
-        `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`    
-        `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`    
-  
-  * `auto_pad = valid` and `rounding_type = ceil`  
-        `H_out = ceil(H - kernel[0] / strides[0]) + 1`   
-        `W_out = ceil(W - kernel[1] / strides[1]) + 1`    
-        `D_out = ceil(D - kernel[2] / strides[2]) + 1`  
-  
-  * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`  
-        `H_out = H`   
-        `W_out = W`    
-        `D_out = D`  
+Output shape calculation based on `auto_pad` and `rounding_type`:
+  * `auto_pad = explicit` and `rounding_type = floor`
+          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
+          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
+          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
 
-If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute. 
+  * `auto_pad = valid` and `rounding_type = floor`
+        `H_out = floor(H - kernel[0] / strides[0]) + 1`
+        `W_out = floor(W - kernel[1] / strides[1]) + 1`
+        `D_out = floor(D - kernel[2] / strides[2]) + 1`
+
+  * `auto_pad = same_upper/same_lower` and `rounding_type = floor`
+        `H_out = H`
+        `W_out = W`
+        `D_out = D`
+
+  * `auto_pad = explicit` and `rounding_type = ceil`
+        `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
+        `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
+        `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
+
+  * `auto_pad = valid` and `rounding_type = ceil`
+        `H_out = ceil(H - kernel[0] / strides[0]) + 1`
+        `W_out = ceil(W - kernel[1] / strides[1]) + 1`
+        `D_out = ceil(D - kernel[2] / strides[2]) + 1`
+
+  * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`
+        `H_out = H`
+        `W_out = W`
+        `D_out = D`
+
+If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute.
 
 Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = explicit`
 
@@ -158,10 +158,14 @@ pads_end = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "explicit"
-output = [[[[-1, 2, 3, 3],
-            [4, 5, 5, -6],
-            [4, 8, 9, 9],
-            [-7, 8, 9, 9]]]]
+output0 = [[[[-1, 2, 3, 3],
+             [4, 5, 5, -6],
+             [4, 8, 9, 9],
+             [-7, 8, 9, 9]]]]
+output1 = [[[[0, 1, 2, 2],
+             [3, 4, 4, 5],
+             [3, 7, 8, 8],
+             [6, 7, 8, 8]]]]
 ```
 
 Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and `auto_pad = valid`
@@ -172,7 +176,8 @@ strides = [1]
 kernel = [3]
 rounding_type = "floor"
 auto_pad = "valid"
-output = [[[3, 5, 5, 9, 9]]]
+output0 = [[[3, 5, 5, 9, 9]]]
+output1 = [[[2, 3, 3, 5, 5]]]
 ```
 
 Example 3 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_lower`
@@ -188,6 +193,9 @@ auto_pad = "same_lower"
 output = [[[[-1, 2, 3],
             [4, 5, 5]
             [4, 8, 9]]]]
+output = [[[[0, 1, 2],
+            [3, 4, 4]
+            [3, 7, 8]]]]
 ```
 
 Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_upper`
@@ -203,12 +211,18 @@ strides = [1, 1]
 kernel = [2, 2]
 rounding_type = "floor"
 auto_pad = "same_upper"
-output = [[[[5, 5, -6],
+output = [[[[5, 5, 3],
             [8, 9, 9]
             [8, 9, 9]],
            [[6, 5, 5],
             [8, 2, 1],
             [8, 2, -3]]]]
+output = [[[[4, 4, 2],
+            [7, 8, 8]
+            [7, 8, 8]],
+           [[3, 2, 2],
+            [6, 7, 5],
+            [6, 7, 8]]]]
 ```
 
 Example 5 shows how *MaxPool* operates with 4D input using 2D kernel, `auto_pad = valid` and `rounding_type = ceil`
@@ -223,6 +237,8 @@ rounding_type = "ceil"
 auto_pad = "valid"
 output = [[[[5, 3],
             [8, 9]]]]
+output = [[[[4, 2],
+            [7, 8]]]]
 ```
 
 **Examples**
@@ -230,7 +246,7 @@ output = [[[[5, 3],
 ```xml
 <layer ... type="MaxPool" ... >
     <data auto_pad="same_upper" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-    <input> 
+    <input>
         <port id="0">
             <dim>1</dim>
             <dim>3</dim>
@@ -240,6 +256,12 @@ output = [[[[5, 3],
     </input>
     <output>
         <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>32</dim>
+            <dim>32</dim>
+        </port>
+        <port id="2">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
@@ -250,7 +272,7 @@ output = [[[[5, 3],
 
 <layer ... type="MaxPool" ... >
     <data auto_pad="explicit" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-    <input> 
+    <input>
         <port id="0">
             <dim>1</dim>
             <dim>3</dim>
@@ -260,6 +282,12 @@ output = [[[[5, 3],
     </input>
     <output>
         <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>17</dim>
+            <dim>17</dim>
+        </port>
+        <port id="2">
             <dim>1</dim>
             <dim>3</dim>
             <dim>17</dim>
@@ -270,7 +298,7 @@ output = [[[[5, 3],
 
 <layer ... type="MaxPool" ... >
     <data auto_pad="valid" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-    <input> 
+    <input>
         <port id="0">
             <dim>1</dim>
             <dim>3</dim>
@@ -280,6 +308,12 @@ output = [[[[5, 3],
     </input>
     <output>
         <port id="1">
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>16</dim>
+            <dim>16</dim>
+        </port>
+        <port id="2">
             <dim>1</dim>
             <dim>3</dim>
             <dim>16</dim>
