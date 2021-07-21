@@ -127,10 +127,10 @@ Output shape calculation based on `auto_pad` and `rounding_type`:
           `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
           `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
 
-  * `auto_pad = valid` and `rounding_type = floor`
-        `H_out = floor(H - kernel[0] / strides[0]) + 1`
-        `W_out = floor(W - kernel[1] / strides[1]) + 1`
-        `D_out = floor(D - kernel[2] / strides[2]) + 1`
+  * `auto_pad = valid`
+        `H_out = ceil((H - ((kernel[0] - 1) * dilations[0] + 1) + 1) / strides[0])`
+        `W_out = ceil((W - ((kernel[1] - 1) * dilations[1] + 1) + 1) / strides[1])`
+        `D_out = ceil((D - ((kernel[2] - 1) * dilations[2] + 1) + 1) / strides[2])`
 
   * `auto_pad = same_upper/same_lower` and `rounding_type = floor`
         `H_out = H`
@@ -141,11 +141,6 @@ Output shape calculation based on `auto_pad` and `rounding_type`:
         `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
         `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
         `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
-
-  * `auto_pad = valid` and `rounding_type = ceil`
-        `H_out = ceil(H - kernel[0] / strides[0]) + 1`
-        `W_out = ceil(W - kernel[1] / strides[1]) + 1`
-        `D_out = ceil(D - kernel[2] / strides[2]) + 1`
 
   * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`
         `H_out = H`
