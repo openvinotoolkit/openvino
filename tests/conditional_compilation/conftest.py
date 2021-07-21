@@ -72,17 +72,17 @@ def pytest_generate_tests(metafunc):
     for test in test_cases:
         model_list = []
         test_id_list = []
-        for models in test["collection"]:
+        for models in test:
             extra_args = {}
             model_path = models["model"]["path"]
-            if "marks" in test["collection"]:
+            if "marks" in test:
                 extra_args["marks"] = test["marks"]
             model_list.append(expand_env_vars(model_path))
             test_id_list.append(model_path.split("/")[- 1])
         ids = ids + ['-'.join(test_id_list)]
         params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
 
-    metafunc.parametrize("test_id, model", params, ids=ids)
+    metafunc.parametrize("test_id, models", params, ids=ids)
 
 
 @pytest.fixture(scope="session")

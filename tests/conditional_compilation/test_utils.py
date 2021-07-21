@@ -59,13 +59,17 @@ def write_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / SESS
         json.dump(data, json_file, indent=4)
 
 
-def run_infer(model, out_file, install_dir):
+def run_infer(models, out_file, install_dir):
     """ Function running inference
     """
+    sys_executable = os.path.join(sys.prefix, 'python.exe') if sys.platform == "win32" \
+        else os.path.join(sys.prefix, 'bin', 'python')
     return_code, output = cmd_exec(
-        [sys.executable,
+        [sys_executable,
          infer_tool,
-         "-d=CPU", f"-m={model}", f"-r={out_file}"
+         "-d=CPU",
+         *[f"-m={model}" for model in models],
+         f"-r={out_file}"
          ],
         env=get_openvino_environment(install_dir),
     )
