@@ -123,31 +123,27 @@
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:
   * `auto_pad = explicit` and `rounding_type = floor`
-          `H_out = floor(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
-          `W_out = floor(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
-          `D_out = floor(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
+        `H_out = floor((H + pads_begin[0] + pads_end[0] - ((kernel[0] - 1) * dilations[0] + 1)) / strides[0] + 1)`
+        `W_out = floor((W + pads_begin[1] + pads_end[1] - ((kernel[1] - 1) * dilations[1] + 1)) / strides[1] + 1)`
+        `D_out = floor((D + pads_begin[2] + pads_end[2] - ((kernel[2] - 1) * dilations[2] + 1)) / strides[2] + 1)`
+
+  * `auto_pad = explicit` and `rounding_type = ceil`
+        `H_out = ceil((H + pads_begin[0] + pads_end[0] - ((kernel[0] - 1) * dilations[0] + 1)) / strides[0] + 1)`
+        `W_out = ceil((W + pads_begin[1] + pads_end[1] - ((kernel[1] - 1) * dilations[1] + 1)) / strides[1] + 1)`
+        `D_out = ceil((D + pads_begin[2] + pads_end[2] - ((kernel[2] - 1) * dilations[2] + 1)) / strides[2] + 1)`
 
   * `auto_pad = valid`
         `H_out = ceil((H - ((kernel[0] - 1) * dilations[0] + 1) + 1) / strides[0])`
         `W_out = ceil((W - ((kernel[1] - 1) * dilations[1] + 1) + 1) / strides[1])`
         `D_out = ceil((D - ((kernel[2] - 1) * dilations[2] + 1) + 1) / strides[2])`
 
-  * `auto_pad = same_upper/same_lower` and `rounding_type = floor`
+  * `auto_pad = same_upper/same_lower`
         `H_out = H`
         `W_out = W`
         `D_out = D`
 
-  * `auto_pad = explicit` and `rounding_type = ceil`
-        `H_out = ceil(H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1`
-        `W_out = ceil(W + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1`
-        `D_out = ceil(D + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1`
 
-  * `auto_pad = same_upper/same_lower` and `rounding_type = ceil`
-        `H_out = H`
-        `W_out = W`
-        `D_out = D`
-
-If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divided by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute.
+If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divisible by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute.
 
 Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = explicit`
 
@@ -242,6 +238,27 @@ output = [[[[5, 3],
             [8, 9]]]]
 output = [[[[4, 2],
             [7, 8]]]]
+```
+
+Example 6 shows how *MaxPool* operates on 4D input using dilated 2D kernel, `auto_pad = explicit` and `rounding_type = floor`
+
+```
+input = [[[[1, 2, 3],
+           [4, 5, 6],
+           [7, 8, 9]]]]
+strides = [1, 1]
+kernel = [2, 2]
+dilations = [2, 2]
+rounding_type = "floor"
+auto_pad = "explicit"
+pads_begin = [1, 1]
+pads_end = [1, 1]
+output = [[[[5, 6, 5],
+            [8, 9, 8],
+            [5, 6, 5]]]]
+output = [[[[4, 5, 4],
+            [7, 8, 7],
+            [4, 5, 4]]]]
 ```
 
 **Examples**
