@@ -292,7 +292,7 @@ namespace ngraph
                 }
             }
         } // namespace reference
-    } // namespace runtime
+    }     // namespace runtime
 } // namespace ngraph
 
 // can't be removed currently due to arm-plugin dependency
