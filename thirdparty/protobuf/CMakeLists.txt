@@ -18,11 +18,11 @@ if(OV_COMPILER_IS_CLANG)
 endif()
 
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
-set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
 
 # When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
 # These two options can't be mixed, because they requires link two imcompatiable runtime.
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
 if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
@@ -47,6 +47,10 @@ if(CMAKE_CROSSCOMPILING)
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 endif()
 
+set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
 add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION protobuf_VERSION)
 
@@ -68,9 +72,10 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         CXX_VISIBILITY_PRESET default
         C_VISIBILITY_PRESET default
         VISIBILITY_INLINES_HIDDEN OFF)
-    foreach(target IN LISTS Protobuf_LIBRARIES)
+    foreach(target libprotobuf libprotobuf-lite)
         target_compile_options(${target}
-            PRIVATE -Wno-all -Wno-unused-variable)
+            PRIVATE -Wno-all -Wno-unused-variable
+            PUBLIC -Wno-undef)
     endforeach()
 endif()
 
@@ -83,6 +88,10 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
+if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
+endif()
+
 if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
     message(WARNING "Protobuf in version 3.8.0+ can throw runtime exceptions if LTO is enabled.")
 endif()
@@ -92,13 +101,6 @@ if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
 endif()
 
 # forward variables used in the other places
-if(SYSTEM_PROTOC)
-    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
-    set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC} PARENT_SCOPE)
-else()
-    set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
-endif()
-
-set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
+set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
 set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
 set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
