@@ -159,7 +159,7 @@ void raise_key(uint64_t& key)
 
 float uint32_to_float(uint32_t x)
 {
-    uint32_t x_uint32 = (static_cast<uint32_t>(127) << 23) | x & 0x7fffffu;
+    uint32_t x_uint32 = (static_cast<uint32_t>(127) << 23) | (x & 0x7fffffu);
 
     float x_float;
     memcpy(&x_float, &x_uint32, sizeof(x_uint32));
@@ -169,7 +169,7 @@ float uint32_to_float(uint32_t x)
 float16 uint32_to_float16(uint32_t x)
 {
     uint16_t x_uint16 = static_cast<uint16_t>(x);
-    x_uint16 = (static_cast<uint16_t>(15) << 10) | x_uint16 & 0x3ffu;
+    x_uint16 = (static_cast<uint16_t>(15) << 10) | (x_uint16 & 0x3ffu);
 
     float16 x_float16;
     memcpy(&x_float16, &x_uint16, sizeof(x_uint16));
@@ -635,7 +635,8 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
     }
     else
     {
-        throw ngraph_error("Unsupported type of out shape in RandomUniform operation: " + inputs[0]->get_element_type().get_type_name());
+        throw ngraph_error("Unsupported type of out shape in RandomUniform operation: " +
+                           inputs[0]->get_element_type().get_type_name());
     }
 
     element::Type_t t_out = get_out_type();
