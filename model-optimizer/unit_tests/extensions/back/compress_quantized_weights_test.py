@@ -254,10 +254,42 @@ class ZeroPointOptimizerTestClass(unittest.TestCase):
     @generate(*[
         ([-10, 7], [-1], [-9, 8], [0]),
         ([-10, 7], [-0.99999999], [-9, 8], [0]),
+    ])
+    def test_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+        nodes = lambda w, zp: {
+            **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
+            **regular_op_with_shaped_data(
+                'cast', len(w), {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+            **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
+            **regular_op_with_shaped_data(
+                'sub', len(w),
+                {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
+            **result()
+        }
+        edges = [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:sub"),
+            *connect("zp:0", "1:sub"),
+            *connect("sub:0", "0:output"),
+        ]
+        graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
+        ZeroPointOptimizer().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes(adj_weights, adj_zero_point), [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:output"),
+        ], nodes_with_edges_only=True)
+        graph_ref.clean_up()
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    @generate(*[
         ([-128, 7], [1], [-128, 7], [1]),
         ([127, 7], [-1], [127, 7], [-1]),
     ])
-    def test_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+    def test_negative_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
         nodes = lambda w, zp: {
             **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
             **regular_op_with_shaped_data(
