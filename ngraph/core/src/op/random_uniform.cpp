@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ctime>
 #include "ngraph/op/random_uniform.hpp"
+#include <ctime>
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
