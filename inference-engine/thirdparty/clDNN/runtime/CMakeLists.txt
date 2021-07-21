@@ -6,7 +6,6 @@
 
 set(CLDNN_BUILD__PROJ             "cldnn_runtime")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
 
 # ========================================= Source/Header files ========================================
 
@@ -48,7 +47,6 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
   )
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
 if(COMMAND add_cpplint_target)
   add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")

@@ -17,7 +17,6 @@ from ngraph.impl import Function
 from ngraph.impl import Node
 from ngraph.impl import PartialShape
 from ngraph.frontend import FrontEnd
-from ngraph.frontend import FrontEndCapabilities
 from ngraph.frontend import FrontEndManager
 from ngraph.frontend import GeneralFailure
 from ngraph.frontend import NotImplementedFailure
@@ -32,6 +31,8 @@ from ngraph.opset8 import absolute
 from ngraph.opset8 import absolute as abs
 from ngraph.opset8 import acos
 from ngraph.opset8 import acosh
+from ngraph.opset8 import adaptive_avg_pool
+from ngraph.opset8 import adaptive_max_pool
 from ngraph.opset8 import add
 from ngraph.opset8 import asin
 from ngraph.opset8 import asinh

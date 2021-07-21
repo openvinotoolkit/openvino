@@ -64,7 +64,7 @@ Batch indices must be in the range of `[0, N-1]`.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 
