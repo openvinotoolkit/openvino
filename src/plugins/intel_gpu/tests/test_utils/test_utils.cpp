@@ -294,10 +294,14 @@ cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type
     bool use_unified_shared_memory = true;
     return engine_configuration(enable_profiling, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
 }
-
+#ifndef GPU_ENABLE_ZE_BACKEND
 std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type) {
     return cldnn::engine::create(engine_types::ocl, runtime_types::ocl, get_test_engine_config(queue_type));
+#else
+std::shared_ptr<cldnn::engine> create_test_engine() {
+    return cldnn::engine::create(engine_types::ze, runtime_types::ze, get_test_engine_config());
 }
+#ifdef
 
 cldnn::engine& get_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
