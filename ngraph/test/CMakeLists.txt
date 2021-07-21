@@ -259,7 +259,6 @@ set(SRC
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
-    visitors/op/less_eq.cpp
     visitors/op/log.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
