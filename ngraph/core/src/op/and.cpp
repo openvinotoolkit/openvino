@@ -7,6 +7,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 
+#include "ngraph/validation_util.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -77,6 +79,7 @@ bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
