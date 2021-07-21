@@ -22,6 +22,7 @@ from extensions.ops.ReduceOps import ReduceMean
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.elementwise import Mul, Sub, Add, Div
 from extensions.ops.gather import Gather
+from extensions.ops.parameter import Parameter
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from extensions.ops.psroipooling import PSROIPoolingOp
 from extensions.ops.split import Split
@@ -34,7 +35,7 @@ from mo.front.tf.graph_utils import add_activation_function_after_node, add_conv
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
     create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph, FrontReplacementFromConfigFileGeneral
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, add_opoutput
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.clamp import Clamp, AttributedClamp
 from mo.ops.concat import Concat
@@ -1108,8 +1109,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
 
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
-        proposal_ratios = _value_or_raise(match, pipeline_config, 'anchor_generator_aspect_ratios')
-        proposal_scales = _value_or_raise(match, pipeline_config, 'anchor_generator_scales')
 
         # Convolution/matmul node that produces classes predictions
         # Transpose result of the tensor with classes permissions so it will be in a correct layout for Softmax
@@ -1135,8 +1134,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                         '/Flatten'), boxes_logit)
 
         yxyx_anchors = match.single_input_node(2)[0]
-
-#        xyxy_anchors = add_convolution_to_swap_xy_coordinates(graph, yxyx_anchors, 4)
 
         variance_height = pipeline_config.get_param('frcnn_variance_height')
         variance_width = pipeline_config.get_param('frcnn_variance_width')
@@ -1215,7 +1212,6 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         do_split.out_port(5).connect(xyxy_coord.in_port(3))
         do_split.out_port(6).connect(xyxy_coord.in_port(2))
 
-        # clamp proposal boxes to [0,1]. TODO Do we really need this?
         clamped_xyxy_coord = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy',
                                                      'nchw_layout': True}).create_node([xyxy_coord])
 
@@ -1225,7 +1221,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         do_split.out_port(0).connect(proposal_node.in_port(0))
         clamped_xyxy_coord.out_port(0).connect(proposal_node.in_port(1))
 
-        # TODO FIXME ??? Check for other models
+        # TODO FIXME Check for other models
         # swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
         #                  not pipeline_config.get_param('use_matmul_crop_and_resize')
         #
