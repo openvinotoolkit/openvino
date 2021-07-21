@@ -33,9 +33,6 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
-        if (transformation_callback(pattern_to_output.at(axes).get_node_shared_ptr()))
-            return false;
-
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
         const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
@@ -55,6 +52,8 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         const auto eps_attr_value = eps_attr->cast_vector<float>()[0];
 
         auto normalize_l2 = std::make_shared<ngraph::opset4::NormalizeL2>(data_input, axes_input, eps_attr_value, op::EpsMode::MAX);
+        if (transformation_callback(normalize_l2))
+            return false;
 
         normalize_l2->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),
@@ -90,9 +89,6 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
-        if (transformation_callback(pattern_to_output.at(axes).get_node_shared_ptr()))
-            return false;
-
         const auto data_input = pattern_to_output.at(input);
         const auto exp_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
         const auto axes_input = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(axes).get_node_shared_ptr());
@@ -112,6 +108,8 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         const auto eps_attr_value = op::util::has_constant_value<float>(exp_input, 2.0f);
 
         auto normalize_l2 = std::make_shared<ngraph::opset4::NormalizeL2>(data_input, axes_input, eps_attr_value, op::EpsMode::ADD);
+        if (transformation_callback(normalize_l2))
+            return false;
 
         normalize_l2->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({pattern_to_output.at(pow).get_node_shared_ptr(),

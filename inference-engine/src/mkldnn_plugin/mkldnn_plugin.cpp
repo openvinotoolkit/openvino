@@ -88,6 +88,7 @@
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
+#include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -279,20 +280,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             });
 
     auto normalizeL2FusionCallback = [](const_node_ptr &node) -> bool {
-        // This is a restriction based on MKLDNNNormalizeL2Node::isSupportedOperation in CPU plugin.
-        // Since CPU can't handle axes other that [1] or [1, ..] we need to keep NormalizeL2 decomposed
-        auto axes_node = std::dynamic_pointer_cast<const ngraph::opset4::Constant>(node);
-        if (!axes_node)
-            return true;
-        auto axes = axes_node->cast_vector<uint64_t>();
-        if (axes.size() == 1 && axes[0] == 1) {
-            return false;
-        }
-        for (size_t i = 0; i < axes.size(); i++) {
-            if (axes[i] != i + 1)
-                return true;
-        }
-        return false;
+        std::string errorMsg;
+        return !MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
     };
     pass_config->set_callback<ngraph::pass::NormalizeL2FusionWithAdd>(normalizeL2FusionCallback);
     pass_config->set_callback<ngraph::pass::NormalizeL2FusionWithMax>(normalizeL2FusionCallback);
