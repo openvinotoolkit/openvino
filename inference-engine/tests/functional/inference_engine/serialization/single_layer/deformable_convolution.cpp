@@ -25,8 +25,6 @@ const std::vector<std::vector<size_t>> dilations = {{1, 1}};
 const std::vector<size_t> groups = {1};
 const std::vector<size_t> defor_groups = {1};
 const std::vector<size_t> numOutChannels = {1};
-const std::vector<bool> with_bilinear_interpolation_pad = { false, true };
-const std::vector<bool> with_modulated_scalar = { false, true };
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
     ::testing::ValuesIn(offsets), ::testing::ValuesIn(filters),
@@ -34,9 +32,7 @@ const auto conv2DParams_ExplicitPadding = ::testing::Combine(
     ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
     ::testing::ValuesIn(groups), ::testing::ValuesIn(defor_groups),
     ::testing::ValuesIn(numOutChannels),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(with_bilinear_interpolation_pad),
-    ::testing::ValuesIn(with_modulated_scalar));
+    ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(offsets), ::testing::ValuesIn(filters),
     ::testing::ValuesIn(strides),
@@ -44,9 +40,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
     ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels),
-    ::testing::Values(ngraph::op::PadType::VALID),
-    ::testing::ValuesIn(with_bilinear_interpolation_pad),
-    ::testing::ValuesIn(with_modulated_scalar));
+    ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_DeformableConvolution2D_Serialization_ExplicitPadding, DeformableConvolutionLayerTest,
