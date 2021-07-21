@@ -22,8 +22,8 @@ o_{i} = a_{i} == b_{i}
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes should match,
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](https://docs.openvinotoolkit.org/latest/openvino_docs_ops_broadcast_rules.html),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](https://docs.openvinotoolkit.org/latest/openvino_docs_ops_broadcast_rules.html).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
