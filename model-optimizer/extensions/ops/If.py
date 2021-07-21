@@ -109,9 +109,11 @@ class If(Op):
                 assert node.soft_get('type') == 'Parameter'
                 input_port_id = node['input_id']
                 input_shape = if_node.in_port(input_port_id).get_connection().get_source().data.get_shape()
+                if node.soft_get('shape', None) is None:
+                    node['shape'] = None
                 node.shape = input_shape.copy()
                 log.debug('Updated shape for the body node with name "{}" with value {}'
-                          .format(node.name, node.shape))
+                          .format(node.soft_get('name', node.soft_get('id')), node.shape))
 
     @staticmethod
     def updated_if_output_ports_shape(if_node: Node):
@@ -136,7 +138,10 @@ class If(Op):
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
-
+        
+        then_contains_fake_outputs=False
+        else_contains_fake_outputs=False
+        
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
             port_id = then_output_node['output_id']
@@ -144,6 +149,9 @@ class If(Op):
                                         'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
                 .format(then_output_node.name, port_id)
             outputs_mapping[port_id]['then_graph'] = then_output_node
+            then_shape = then_output_node.in_port(0).data.get_shape()
+
+            then_contains_fake_outputs = then_contains_fake_outputs or (len(then_shape)==1 and then_shape[0]==0)
 
         for else_output_node in else_outputs:
             assert else_output_node.soft_get('type') == 'Result'
@@ -152,7 +160,10 @@ class If(Op):
                                         'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
                 .format(else_output_node.name, port_id)
             outputs_mapping[port_id]['else_graph'] = else_output_node
+            else_shape = else_output_node.in_port(0).data.get_shape()
+            else_contains_fake_outputs = else_contains_fake_outputs or (len(else_shape)==1 and else_shape[0]==0)
 
+        use_then_shape = else_contains_fake_outputs or not then_contains_fake_outputs
         for port_id in outputs_mapping:
             then_else_nodes = outputs_mapping[port_id]
             assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
@@ -162,12 +173,11 @@ class If(Op):
 
             then_shape = then_else_nodes['then_graph'].in_port(0).get_connection().data.get_shape()
             else_shape = then_else_nodes['else_graph'].in_port(0).get_connection().data.get_shape()
-            result_shape = then_shape if np.sum(then_shape) !=0 else else_shape
             comparison = then_shape == else_shape
             if not comparison.all():
                 log.debug("\'If\' node {0} has dynamic output [{1}] because output shape from then_graph is {2} and "
                           "else_graph {3}".format(if_node.name, port_id, then_shape, else_shape))
-            if_node.out_port(port_id).data.set_shape(result_shape)
+            if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
 
     @staticmethod
     def updated_if_output_ports_type(if_node: Node):
@@ -190,7 +200,6 @@ class If(Op):
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
-
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
             port_id = then_output_node['output_id']
