@@ -27,7 +27,7 @@ Also the number of outputs from *If* always must be greater than zero and equal 
     * **Subgraph's outputs** - outputs from the subgraph which associated with *If* outputs via *port_map*.
     The subgraph must contain at least one output. Each *If* output is associated with one output from the subgraph. 
     Therefore the number of `then_body` outputs is equal to the number of outputs from *If* and 
-    the number of `else_body` outputs. 
+    the number of `else_body` outputs.
     The type of the subgraph output and the type of the associated output from *If* must be equal.
     
 
