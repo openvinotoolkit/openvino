@@ -63,6 +63,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     if(TARGET libprotoc)
         list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+        # libprotobuf is always built for protoc
+        target_compile_options(libprotobuf PUBLIC -Wno-undef)
     endif()
     set_target_properties(${_proto_libs} PROPERTIES
         CXX_VISIBILITY_PRESET default
