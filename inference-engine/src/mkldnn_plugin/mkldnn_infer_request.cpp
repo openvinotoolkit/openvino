@@ -38,12 +38,12 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // TODO [DS]: phase 2: when dynamic TensorDesc representation becomes available, we will rewrite the behaviour to allocate the dynamic Blob as well.
     // Allocate all input blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkInputs) {
-        if (it.second->getInputData()->getPartialShape().is_static())
+        if (!(it.second->getInputData()->isDynamic()))
             MKLDNNInferRequest::GetBlob(it.first);
     }
     // Allocate all output blobs if shape is static, delay allocation otherwise
     for (const auto& it : _networkOutputs) {
-        if (it.second->getPartialShape().is_static())
+        if (!(it.second->isDynamic()))
             MKLDNNInferRequest::GetBlob(it.first);
     }
 

@@ -283,7 +283,7 @@ bool MKLDNNMatMulNode::created() const {
     return getType() == MatMul;
 }
 
-int MKLDNNMatMulNode::getMaxBatch() {
+size_t MKLDNNMatMulNode::getMaxBatch() {
     if (!outputShapes.empty())
         return outputShapes[0].getStaticDims()[0];
     return 0;

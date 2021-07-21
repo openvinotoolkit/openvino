@@ -389,7 +389,7 @@ InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &
     InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
 
     desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    return MKLDNNPlugin::isEmptyTensorDesc(desc) ? make_blob_with_precision(desc) : make_blob_with_precision(desc, mem.GetData());
+    return make_blob_with_precision(desc, mem.GetData());
 }
 
 } // namespace MKLDNNPlugin

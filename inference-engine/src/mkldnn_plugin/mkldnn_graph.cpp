@@ -762,6 +762,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         int MB = intr_blob.GetDims()[0];
         int MB_to_process = node->batchToProcess();
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
+        // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
         if (config.batchLimit)
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
