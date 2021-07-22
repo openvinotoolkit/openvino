@@ -10,10 +10,10 @@ from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const, result, regular_op
 
-nodes_attributes = {
+nodes = {
     **regular_op('placeholder', {'type': 'Parameter'}),
     **regular_op('attr_random_uniform', {'type': 'AttributedRandomUniform', 'op': 'AttributedRandomUniform',
-                                         'output_type': np.float32, 'initial_type': np.float64,
+                                         'output_type': np.float32,
                                          'min_val': float32_array([-1.5]), 'max_val': float32_array([10.7]),
                                          'shape': int64_array([5, 4, 3])}),
     **result('result'),
@@ -28,11 +28,11 @@ nodes_attributes = {
 
 class AttributedRandomUniformToRandomUniformTest(unittest.TestCase):
     def test_min_max(self):
-        graph = build_graph(nodes_attributes,
+        graph = build_graph(nodes,
                             [('placeholder', 'attr_random_uniform', {'in': 0, 'out': 0}),
                              ('attr_random_uniform', 'result', {'in': 0, 'out': 0})], {}, nodes_with_edges_only=True)
 
-        graph_ref = build_graph(nodes_attributes,
+        graph_ref = build_graph(nodes,
                                 [('placeholder', 'random_uniform', {'in': 0, 'out': 0}),
                                  ('min_val', 'random_uniform', {'in': 1, 'out': 0}),
                                  ('max_val', 'random_uniform', {'in': 2, 'out': 0}),
@@ -47,10 +47,10 @@ class AttributedRandomUniformToRandomUniformTest(unittest.TestCase):
             graph.node[graph.get_nodes_with_attributes(op='RandomUniform')[0]]['name'] == 'attr_random_uniform')
 
     def test_min_max_shape(self):
-        graph = build_graph(nodes_attributes,
+        graph = build_graph(nodes,
                             [('attr_random_uniform', 'result', {'in': 0, 'out': 0})], {}, nodes_with_edges_only=True)
 
-        graph_ref = build_graph(nodes_attributes,
+        graph_ref = build_graph(nodes,
                                 [('shape', 'random_uniform', {'in': 0, 'out': 0}),
                                  ('min_val', 'random_uniform', {'in': 1, 'out': 0}),
                                  ('max_val', 'random_uniform', {'in': 2, 'out': 0}),

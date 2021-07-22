@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
+
 from extensions.ops.random_uniform import RandomUniform
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -40,7 +42,11 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
                 else:
                     port_value_dict.update({0: attr_random_uniform.shape})
 
-            new_random_uniform = create_op_with_const_inputs(graph, op=RandomUniform, port_value_dict=port_value_dict)
+            attrs = {'seed': attr_random_uniform.soft_get('seed', 0), 'seed2': attr_random_uniform.soft_get('seed2', 0),
+                     'output_type': attr_random_uniform.soft_get('output_type', np.float32)}
+
+            new_random_uniform = create_op_with_const_inputs(graph, op=RandomUniform, port_value_dict=port_value_dict,
+                                                             op_attrs=attrs)
             rename_nodes([(attr_random_uniform, original_name + '/to_be_removed'), (new_random_uniform, original_name)])
             attr_random_uniform.out_port(0).get_connection().set_source(new_random_uniform.out_port(0))
             if new_random_uniform.in_port(0).disconnected():
@@ -49,12 +55,4 @@ class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
                 else:
                     new_random_uniform.in_port(0).connect(attr_random_uniform.in_port(0).get_connection().get_source())
 
-            if attr_random_uniform.has_valid('seed'):
-                new_random_uniform['seed'] = attr_random_uniform['seed']
-            if attr_random_uniform.has_valid('seed'):
-                new_random_uniform['seed2'] = attr_random_uniform['seed2']
-            if attr_random_uniform.has_valid('initial_type'):
-                new_random_uniform['initial_type'] = attr_random_uniform['initial_type']
-            if attr_random_uniform.has_valid('output_type'):
-                new_random_uniform['output_type'] = attr_random_uniform['output_type']
             graph.remove_node(attr_random_uniform.id)

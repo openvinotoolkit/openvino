@@ -19,6 +19,6 @@ class RandomUniformExtractor(FrontExtractorOp):
         high = attrs.float("high", 1.0)
         low = attrs.float("low", 0.0)
         out_type = attrs.dtype("dtype", np.float32)
-        new_attrs = {'shape': shape, 'min_val': low, 'max_val': high, 'output_type': out_type, 'initial_type': out_type}
+        new_attrs = {'shape': shape, 'min_val': low, 'max_val': high, 'output_type': out_type}
         AttributedRandomUniform.update_node_stat(node, new_attrs)
         return cls.enabled

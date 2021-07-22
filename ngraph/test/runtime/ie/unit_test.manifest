@@ -1582,15 +1582,8 @@ random_uniform_float16_case2
 random_uniform_double_case2
 random_uniform_int32
 random_uniform_int64
-random_uniform_f32_to_f16
-random_uniform_f16_to_bf16
-random_uniform_f32_to_f64
-random_uniform_f64_to_i32
-random_uniform_f16_to_i64
-random_uniform_i32_to_i64
-random_uniform_i64_to_i32
-random_uniform_i32_to_f64
-random_uniform_i32_to_bf16
+random_uniform_bfloat16_case1
+random_uniform_bfloat16_case2
 
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel

@@ -27,18 +27,10 @@ class RandomUniform(Op):
             'seed': 0,
             'seed2': 0,
             'output_type': np.float32,
-            'initial_type': np.float32
         }, attrs)
 
     def backend_attrs(self):
         return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
-                ('initial_type', lambda node: np_data_type_to_destination_type(node.initial_type)),
-                'seed',
-                'seed2']
-
-    def supported_attrs(self):
-        return [('output_type', lambda node: np_data_type_to_destination_type(node.output_type)),
-                ('initial_type', lambda node: np_data_type_to_destination_type(node.initial_type)),
                 'seed',
                 'seed2']
 
@@ -56,7 +48,8 @@ class AttributedRandomUniform(Op):
     """ RandomUniform operation that generates a sequence of random values from uniform distribution.
         This operation uses the same semantics as RandomUniform but output shape, min value or max value
         can be specified as attribute.
-        Shape is specified as attribute in ONNX.
+        Shape is specified as attribute in ONNX. Min value and max value are specified as attributes
+        in RandomUniformInt in TF.
     """
     op = 'AttributedRandomUniform'
     enabled = False
@@ -71,5 +64,4 @@ class AttributedRandomUniform(Op):
             'seed': 0,
             'seed2': 0,
             'output_type': np.float32,
-            'initial_type': np.float32
         }, attrs)

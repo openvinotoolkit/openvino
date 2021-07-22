@@ -21,7 +21,6 @@ class RangeFrontExtractor(FrontExtractorOp):
         max_val = onnx_attr(node, 'high', 'f', default=1.0)
         AttributedRandomUniform.update_node_stat(node, {'shape': shape,
                                                         'output_type': out_type,
-                                                        'initial_type': out_type,
                                                         'seed': seed,
                                                         'min_val': min_val,
                                                         'max_val': max_val})

@@ -14,7 +14,6 @@ class RandomUniformIntExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = {
             'output_type': tf_dtype_extractor(node.pb.attr["Tout"].type),
-            'initial_type': tf_dtype_extractor(node.pb.attr["Tout"].type),
             'seed': node.pb.attr['seed'].i,
             'seed2': node.pb.attr['seed2'].i
         }

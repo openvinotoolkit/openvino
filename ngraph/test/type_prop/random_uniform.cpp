@@ -16,7 +16,8 @@ TEST(type_prop, random_uniform_type_shape)
     auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0.f);
     auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1.f);
 
-    auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+    auto r =
+        make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, 4, 5}));
@@ -24,16 +25,17 @@ TEST(type_prop, random_uniform_type_shape)
 
 TEST(type_prop, random_uniform_dynamic_shape)
 {
-    auto out_shape = make_shared<opset8::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto out_shape =
+        make_shared<opset8::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
     auto min_val = make_shared<opset8::Constant>(element::i64, Shape{}, 5);
     auto max_val = make_shared<opset8::Constant>(element::i64, Shape{}, 10);
 
-    auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, element::i64, 100, 200);
+    auto r =
+        make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i64, 100, 200);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i64);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
-
 
 TEST(type_prop, random_uniform_dynamic_rank)
 {
@@ -41,12 +43,12 @@ TEST(type_prop, random_uniform_dynamic_rank)
     auto min_val = make_shared<opset8::Constant>(element::f64, Shape{}, 5);
     auto max_val = make_shared<opset8::Constant>(element::f64, Shape{}, 10);
 
-    auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f64, 100, 200);
+    auto r =
+        make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f64, 100, 200);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f64);
     EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
-
 
 TEST(type_prop, random_uniform_invalid_out_shape_type)
 {
@@ -56,19 +58,19 @@ TEST(type_prop, random_uniform_invalid_out_shape_type)
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid output shape.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Output shape must be an integral number."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Output shape must have int32 or int64 element type."));
     }
     catch (...)
     {
-        FAIL() << "Check failed for unexpected reason";
+        FAIL() << "Check failed for unexpected reason.";
     }
 }
 
@@ -79,19 +81,20 @@ TEST(type_prop, random_uniform_invalid_out_shape_rank)
     auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1.f);
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid output shape.";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("The rank of the tensor defining output shape must be equal to 1."));
+            error.what(),
+            std::string("The rank of the tensor defining output shape must be equal to 1."));
     }
     catch (...)
     {
-        FAIL() << "Check failed for unexpected reason";
+        FAIL() << "Check failed for unexpected reason.";
     }
 }
 
@@ -103,19 +106,18 @@ TEST(type_prop, random_uniform_invalid_min_val)
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid min value.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("'min_val' input is not a scalar."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'min_val' should have 1 element."));
     }
     catch (...)
     {
-        FAIL() << "Check failed for unexpected reason";
+        FAIL() << "Check failed for unexpected reason.";
     }
 }
 
@@ -123,23 +125,22 @@ TEST(type_prop, random_uniform_invalid_max_val)
 {
     auto out_shape = opset8::Constant::create(element::i32, Shape{4}, {2, 3, 4, 5});
     auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0.f);
-    auto max_val = opset8::Constant::create(element::f32, Shape{2}, {2, 3});
+    auto max_val = opset8::Constant::create(element::f32, Shape{3}, {2, 3, 5});
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid max value.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("'max_val' input is not a scalar."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("'max_val' should have 1 element."));
     }
     catch (...)
     {
-        FAIL() << "Check failed for unexpected reason";
+        FAIL() << "Check failed for unexpected reason.";
     }
 }
 
@@ -151,39 +152,15 @@ TEST(type_prop, random_uniform_invalid_min_max_val_type_case1)
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid min value type.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("'min_val' should have the same type as 'max_val'."));
-    }
-    catch (...)
-    {
-        FAIL() << "Check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, random_uniform_invalid_min_max_val_type_case2)
-{
-    auto out_shape = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
-    auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0.f);
-    auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1.f);
-
-    try
-    {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::i32, 120, 100);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("'min_val' and 'max_val' should have the same type as 'out_type' attribute."));
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("'min_val' should have the same type as 'max_val'."));
     }
     catch (...)
     {
@@ -199,15 +176,14 @@ TEST(type_prop, random_uniform_invalid_min_max_values_case1)
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::f32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid min and max values.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Min value must be less than max value."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Min value must be less than max value."));
     }
     catch (...)
     {
@@ -223,18 +199,30 @@ TEST(type_prop, random_uniform_invalid_min_max_values_case2)
 
     try
     {
-        auto r = make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f16, element::i32, 120, 100);
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i32, 120, 100);
         // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid axes and shift.";
+        FAIL() << "Unexpected pass with invalid min and max values.";
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(
-                error.what(),
-                std::string("Min value must be less than max value."));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Min value must be less than max value."));
     }
     catch (...)
     {
         FAIL() << "Check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, random_uniform_min_max_1d_tensors)
+{
+    auto out_shape = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
+    auto min_val = opset8::Constant::create(element::f32, Shape{1}, {-1.0});
+    auto max_val = opset8::Constant::create(element::f32, Shape{1}, {2.0});
+
+    auto r =
+        make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::f32, 120, 100);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, 4, 5}));
 }
