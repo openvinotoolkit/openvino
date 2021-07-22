@@ -11,9 +11,6 @@
 #include <functional>
 
 #ifdef _WIN32
-#include <windows.h>
-#include <psapi.h>
-#include <tlhelp32.h>
 #define OS_SEP std::string("\\")
 #else
 #include <sys/unistd.h>

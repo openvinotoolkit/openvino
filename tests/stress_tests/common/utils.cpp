@@ -7,6 +7,13 @@
 #include <string>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+#endif
+
+
 std::string OS_PATH_JOIN(std::initializer_list<std::string> list) {
     if (!list.size())
         return "";
@@ -37,31 +44,30 @@ static int parseLine(std::string line) {
 }
 
 #ifdef _WIN32
-size_t getVmSizeInKB() {
-    PROCESS_MEMORY_COUNTERS pmc;
+static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
+    static PROCESS_MEMORY_COUNTERS pmc;
     pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
     GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    return pmc;
+}
+
+size_t getVmSizeInKB() {
+    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
     return pmc.PagefileUsage / 1024;
     }
 
 size_t getVmPeakInKB() {
-    PROCESS_MEMORY_COUNTERS pmc;
-    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
     return pmc.PeakPagefileUsage / 1024;
     }
 
 size_t getVmRSSInKB() {
-    PROCESS_MEMORY_COUNTERS pmc;
-    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
     return pmc.WorkingSetSize / 1024;
     }
 
 size_t getVmHWMInKB() {
-    PROCESS_MEMORY_COUNTERS pmc;
-    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-    GetProcessMemoryInfo(GetCurrentProcess(),&pmc, pmc.cb);
+    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
     return pmc.PeakWorkingSetSize / 1024;
     }
 

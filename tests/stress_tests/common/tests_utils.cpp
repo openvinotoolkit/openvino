@@ -8,10 +8,7 @@
 #include <pugixml.hpp>
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <psapi.h>
-#else
+#ifdef not _WIN32
 #include <unistd.h>
 #include <sys/wait.h>
 #endif
