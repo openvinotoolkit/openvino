@@ -276,7 +276,7 @@ void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&
 
 ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const
 {
-    FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
+    FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
 void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&)

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ONNX_NAMESPACE
@@ -37,6 +38,12 @@ namespace ngraph
         /// type.
         ///
         bool is_supported_ng_type(const element::Type_t& ng_type);
+
+        /// \brief Retuns nG PartialShape based on onnx_shape.
+        ///
+        /// \param onnx_shape A shape of tensor represented in ONNX way.
+        ///
+        PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape);
 
     } // namespace onnx_common
 } // namespace ngraph
