@@ -30,7 +30,6 @@ namespace ngraph
                     const auto data_shape = data.get_partial_shape();
                     const auto data_rank = data_shape.rank();
 
-                    const auto data_rank_value = data_rank.get_length();
                     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
 
                     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
@@ -46,23 +45,7 @@ namespace ngraph
                     const auto normalize_axis_const =
                         default_opset::Constant::create(element::i64, {}, {normalize_axis});
                     std::shared_ptr<ngraph::Node> norm = ngraph::builder::opset1::lp_norm(
-                        data, normalize_axis_const, static_cast<std::size_t>(p_norm));
-
-                    const auto target_shape = std::make_shared<default_opset::ShapeOf>(data);
-
-                    // Create a default axes order matching the data tensor rank and erase the
-                    // element at the 'normalize_axis' position. The erased element indicates the
-                    // axis
-                    // along which the data should be broadcasted.
-                    std::vector<size_t> axes_values(data_rank_value);
-                    std::iota(axes_values.begin(), axes_values.end(), 0);
-                    axes_values.erase(axes_values.begin() + normalize_axis);
-
-                    const auto axes_mapping = default_opset::Constant::create(
-                        element::i64, Shape{axes_values.size()}, axes_values);
-
-                    norm = std::make_shared<default_opset::Broadcast>(
-                        norm, target_shape, axes_mapping);
+                        data, normalize_axis_const, static_cast<std::size_t>(p_norm), 0.0f, true);
 
                     return {std::make_shared<default_opset::Divide>(data, norm)};
                 }
