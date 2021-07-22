@@ -213,7 +213,7 @@ namespace ngraph
                 ///
                 /// \param     index sub-graph's index in op
                 /// \return pointer to ngraph::Function with sub-graph
-                virtual const std::shared_ptr<Function>& get_function(int index) const
+                const std::shared_ptr<Function>& get_function(int index) const
                 {
                     return m_bodies[index];
                 };
@@ -221,7 +221,7 @@ namespace ngraph
                 ///
                 /// \param     index sub-graph's index in op
                 /// \return pointer to ngraph::Function with sub-graph
-                virtual std::shared_ptr<const Function> get_function(int index)
+                std::shared_ptr<const Function> get_function(int index)
                 {
                     return m_bodies[index];
                 };
@@ -229,7 +229,7 @@ namespace ngraph
                 ///
                 /// \param index   index of new sub-graph
                 /// \param func    func new sub_graph as ngraph::Function
-                virtual void set_function(int index, const std::shared_ptr<Function>& func)
+                void set_function(int index, const std::shared_ptr<Function>& func)
                 {
                     m_bodies[index] = func;
                 }
