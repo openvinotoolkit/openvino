@@ -43,7 +43,7 @@ TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
         MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
         BlockedMemoryDesc blk_tdesc = MemoryDescUtils::convertToBlockedDescriptor(plg_tdesc);
 
-        BlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc.getPrecision(), blk_tdesc.getShape().getStaticDims(), blk_tdesc.getBlockDims(), blk_tdesc.getOrder());
+        BlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc.getPrecision(), blk_tdesc.getShape(), blk_tdesc.getBlockDims(), blk_tdesc.getOrder());
 
         return  blk_tdesc.isCompatible(recomputed_blk_tdesc);
     };
