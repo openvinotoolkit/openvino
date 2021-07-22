@@ -7,9 +7,24 @@
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+set(BUILD_SHARED_LIBS OFF)
 
-if (MSVC)
-    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
+if(OV_COMPILER_IS_CLANG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+endif()
+
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+set(protobuf_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
+set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+
+# When we build dll libraries. These flags make sure onnx and protobuf build with /MD, not /MT.
+# These two options can't be mixed, because they requires link two imcompatiable runtime.
+if(NOT DEFINED protobuf_MSVC_STATIC_RUNTIME)
+    set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "Link protobuf to static runtime libraries" FORCE)
 endif()
 
 if(CMAKE_CROSSCOMPILING)
@@ -19,8 +34,7 @@ if(CMAKE_CROSSCOMPILING)
         execute_process(
             COMMAND ${SYSTEM_PROTOC} --version
             OUTPUT_VARIABLE PROTOC_VERSION
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         string(REPLACE " " ";" PROTOC_VERSION ${PROTOC_VERSION})
         list(GET PROTOC_VERSION -1 PROTOC_VERSION)
@@ -33,10 +47,6 @@ if(CMAKE_CROSSCOMPILING)
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 endif()
 
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs")
-set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-
 add_subdirectory(protobuf/cmake EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION protobuf_VERSION)
 
@@ -48,23 +58,21 @@ else()
     set(Protobuf_LIBRARIES libprotobuf)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
+        list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
-
-        # required for protoc compiler
-        set_target_properties(libprotoc PROPERTIES
-            CXX_VISIBILITY_PRESET default
-            C_VISIBILITY_PRESET default
-            VISIBILITY_INLINES_HIDDEN OFF)
+        # libprotobuf is always built for protoc
+        target_compile_options(libprotobuf PUBLIC -Wno-undef)
     endif()
-    foreach(target libprotobuf libprotobuf-lite)
-        if(TARGET ${target})
-            target_compile_options(${target}
-                PRIVATE -Wno-all -Wno-unused-variable -Wno-inconsistent-missing-override
-                PUBLIC -Wno-undef)
-        endif()
+    set_target_properties(${_proto_libs} PROPERTIES
+        CXX_VISIBILITY_PRESET default
+        C_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF)
+    foreach(target IN LISTS Protobuf_LIBRARIES)
+        target_compile_options(${target}
+            PRIVATE -Wno-all -Wno-unused-variable)
     endforeach()
 endif()
 
@@ -78,7 +86,7 @@ if(NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
-    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
 endif()
 
 if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
@@ -90,6 +98,14 @@ if(CMAKE_CROSSCOMPILING AND NOT PROTOC_VERSION VERSION_EQUAL protobuf_VERSION)
 endif()
 
 # forward variables used in the other places
-set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+if(SYSTEM_PROTOC)
+    set(SYSTEM_PROTOC ${SYSTEM_PROTOC} PARENT_SCOPE)
+    set(PROTOC_EXECUTABLE ${SYSTEM_PROTOC} PARENT_SCOPE)
+else()
+    set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
+endif()
+
+set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
+set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
 set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
 set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
