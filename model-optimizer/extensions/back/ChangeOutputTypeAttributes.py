@@ -19,9 +19,9 @@ operations_with_data_type_attributes = {
 
 class ChangeOutputTypeAttributes(BackReplacementPattern):
     """
-    For operations that allow specify destination type by attribute this transformation
-    changes destination type from fp64 to fp32 since not all plugins support fp64 data type.
-    Changes destination type from fp32 to fp16 (and ensure that this is possible) when generating IR for fp16.
+    For operations that allow specify output type by attribute this transformation
+    changes output type from fp64 to fp32 since not all plugins support fp64 data type.
+    Changes output type from fp32 to fp16 (and ensure that this is possible) when generating IR for fp16.
     But leave fp32 if node returns shape value even if --data_type=FP16 (look extensions/back/MarkNodesWithShapeValues.py)
     """
     enabled = True
@@ -64,11 +64,13 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
 
 
 def assert_that_is_castable_to_fp16(node: Node):
-    node_type = node.soft_get('type')
+    op_name = node.soft_get('op')
     node_name = node.soft_get('name', node.id)
 
-    for i in operations_with_data_type_attributes[node_type]['in_ports_to_check']:
+    for i in operations_with_data_type_attributes[op_name]['in_ports_to_check']:
         val = node.in_port(i).data.get_value()
+        if val is None:
+            return
 
         if np.any(val > np.finfo(np.float16).max) or np.any(val < np.finfo(np.float16).min):
             raise Error("Try to convert with --data_type=FP32 argument. "
@@ -81,12 +83,14 @@ def assert_that_is_castable_to_fp16(node: Node):
     original_output = node.out_port(0).data.get_value()
     node.infer(node)
     casted_output = node.out_port(0).data.get_value()
+    original_output_len = len(original_output) if hasattr(original_output, '__len__') else None
+    casted_output_len = len(casted_output) if hasattr(casted_output, '__len__') else None
 
-    if len(original_output) != len(casted_output):
+    if original_output_len != casted_output_len:
         raise Error("Try to convert with --data_type=FP32 argument. "
                     "This model can not be converted to FP16 precision, since "
                     "after '{}' node dtype to FP16 output shape {} differs from original {}."
-                    .format(node_name, len(casted_output), len(original_output)))
+                    .format(node_name, casted_output_len, original_output_len))
 
     diff_count = np.count_nonzero(np.subtract(original_output, casted_output) > 1.e-4)
     if diff_count > 0:

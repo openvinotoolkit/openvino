@@ -95,7 +95,7 @@ def build_range_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16'):
 def build_cast_test_graphs(input_data, dst_type_str='FP16'):
     nodes = {
         **valued_const_with_data('input', float32_array(input_data)),
-        **regular_op_with_empty_data('cast', {'type': 'Cast', 'op': 'Cast',
+        **regular_op_with_empty_data('cast', {'type': 'Convert', 'op': 'Cast',
                                               'dst_type': np.float32,
                                               'infer': Cast.infer}),
         **result('res'),
@@ -103,7 +103,7 @@ def build_cast_test_graphs(input_data, dst_type_str='FP16'):
 
     nodes_ref = deepcopy(nodes)
     nodes_ref.update({
-        **regular_op_with_empty_data('cast', {'type': 'Cast', 'op': 'Cast',
+        **regular_op_with_empty_data('cast', {'type': 'Convert', 'op': 'Cast',
                                               'dst_type': data_type_str_to_np(dst_type_str),
                                               'infer': Cast.infer}),
     })
