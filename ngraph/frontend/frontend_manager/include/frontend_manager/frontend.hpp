@@ -63,7 +63,7 @@ namespace ngraph
             /// \param partiallyConverted partially converted nGraph function
             /// \return fully converted nGraph function
             virtual std::shared_ptr<ngraph::Function>
-                convert(std::shared_ptr<ngraph::Function> partiallyConverted) const;
+                convert(std::shared_ptr<ngraph::Function> partially_converted) const;
 
             /// \brief Convert only those parts of the model that can be converted leaving others
             /// as-is. Converted parts are not normalized by additional transformations; normalize

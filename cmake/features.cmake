@@ -125,6 +125,7 @@ else()
 endif()
 
 ie_dependent_option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" ON "protoc_available" OFF)
+ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" OFF "NGRAPH_ONNX_IMPORT_ENABLE" OFF)
 ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" OFF
     "NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE" OFF)

@@ -4,8 +4,8 @@
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
-#include "core/model.hpp"
 #include "ngraph/log.hpp"
+#include "onnx_import/core/model.hpp"
 
 namespace ngraph
 {
@@ -18,15 +18,14 @@ namespace ngraph
                 throw error::attribute::InvalidData{m_attribute_proto->type()};
             }
 
-            auto model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>();
+            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
 
             const auto& graph = m_attribute_proto->g();
             model_proto->mutable_graph()->CopyFrom(graph);
 
             // set opset version and domain from the parent graph
             model_proto->mutable_opset_import()->CopyFrom(parent_graph.get_opset_imports());
-            auto model = common::make_unique<Model>(std::move(model_proto));
-            return Subgraph{std::move(model), parent_graph};
+            return Subgraph{model_proto, parent_graph};
         }
 
     } // namespace onnx_import

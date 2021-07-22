@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <onnx_import/onnx_framework_node.hpp>
+#include <onnx_framework_node.hpp>
 
 namespace ngraph
 {
@@ -25,7 +25,7 @@ namespace ngraph
         std::shared_ptr<Node>
             ONNXFrameworkNode::clone_with_new_inputs(const OutputVector& inputs) const
         {
-            return std::make_shared<ONNXFrameworkNode>(m_node, inputs);
+            return std::make_shared<ONNXFrameworkNode>(m_graph, m_node, inputs);
         }
 
         NGRAPH_RTTI_DEFINITION(ONNXSubgraphFrameworkNode, "ONNXSubgraphFrameworkNode", 1);
