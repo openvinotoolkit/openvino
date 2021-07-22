@@ -20,7 +20,7 @@ else()
     add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
 endif()
 
-if(GPU_DEBUG_CONFIG)
+if(ENABLE_GPU_DEBUG_CAPS)
   add_definitions(-DGPU_DEBUG_CONFIG=1)
 endif()
 

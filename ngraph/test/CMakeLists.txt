@@ -230,6 +230,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/asinh.cpp
@@ -371,7 +372,6 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -613,9 +613,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
@@ -623,6 +620,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 

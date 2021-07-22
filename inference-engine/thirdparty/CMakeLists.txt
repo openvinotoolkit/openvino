@@ -24,7 +24,6 @@ if (ENABLE_CLDNN)
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
     set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
-    set(GPU_DEBUG_CONFIG OFF CACHE BOOL "Enable debug config feature")
     add_subdirectory(clDNN)
 endif()
 

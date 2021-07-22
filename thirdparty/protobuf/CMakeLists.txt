@@ -63,6 +63,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     if(TARGET libprotoc)
         list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+        # libprotobuf is always built for protoc
+        target_compile_options(libprotobuf PUBLIC -Wno-undef)
     endif()
     set_target_properties(${_proto_libs} PROPERTIES
         CXX_VISIBILITY_PRESET default
@@ -81,6 +83,10 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         CXX_VISIBILITY_PRESET default
         C_VISIBILITY_PRESET default
         VISIBILITY_INLINES_HIDDEN OFF)
+endif()
+
+if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
 endif()
 
 if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
