@@ -58,11 +58,26 @@ directory.
 Intel employees can get the corpus as described here
 https://wiki.ith.intel.com/x/2N42bg. 
 
+Use tests/fuzz/scripts/init_corpus.py script to prepare fuzzing corpus for import_pdpd-fuzzer.
+
+```bash
+tests/fuzz/scripts/init_corpus.py ./pdpd_layer_models/**/*.pdmodel --join pdiparams && \
+mkdir -p import_pdpd-corpus && find ./pdpd_layer_models/ -name "*.fuzz" -exec cp \{\} ./import_pdpd-corpus \;
+```
+
 2. Run fuzzing
+
+For read_network-fuzzer:
 
 ```bash
 ./read_network-fuzzer -max_total_time=600 ./read_network-corpus
 ```
+For import_pdpd-fuzzer:
+
+```bash
+OV_FRONTEND_PATH=$(pwd)/lib ./import_pdpd-fuzzer -max_total_time=600 ./import_pdpd-corpus
+```
+
 Consider adding those useful command line options:
 - `-jobs=$(nproc)` runs multiple fuzzing jobs in parallel.
 - `-rss_limit_mb=0` to ignore out-of-memory issues.
@@ -82,8 +97,16 @@ llvm-cov show ./read_network-fuzzer -instr-profile=default.profdata -format=html
 
 Fuzzing run halts on the first issue identified, prints issue details to stdout and save data to reproduce the issue as a file in the current folder. To debug the issue pass reproducer as command line argument to fuzz test
 
+For read_network-fuzzer:
+
 ```bash
 ./read_network-fuzzer crash-409b5eeed46a8445b7f7b7a2ce5b60a9ad895e3b
+```
+
+For import_pdpd-fuzzer:
+
+```bash
+OV_FRONTEND_PATH=$(pwd)/lib ./import_pdpd-fuzzer crash-409b5eeed46a8445b7f7b7a2ce5b60a9ad895e3b
 ```
 
 It is recommended but not required to use binaries built for fuzzing to debug the issues. A binaries built without `ENABLE_FUZZING` options can also be used to reproduce and debug the issues.
