@@ -17,99 +17,22 @@
 #include <ie_parallel.hpp>
 #include <threading/ie_itask_executor.hpp>
 
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-# include <tbb/concurrent_queue.h>
-#endif
+#include "plugin_helper.hpp"
+#include "plugin_exec_network.hpp"
 
 namespace MultiDevicePlugin {
 
-using DeviceName = std::string;
+using namespace PluginHelper;
 
-struct DeviceInformation {
-    DeviceName deviceName;
-    std::map<std::string, std::string> config;
-    int numRequestsPerDevices;
-};
+using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
+using DeviceName = std::string;
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-template <typename T>
-using ThreadSafeQueue = tbb::concurrent_queue<T>;
-template <typename T>
-using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
-#else
-template <typename T>
-class ThreadSafeQueue {
-public:
-    void push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _queue.push(std::move(value));
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-private:
-    std::queue<T>   _queue;
-    std::mutex      _mutex;
-};
-template <typename T>
-class ThreadSafeBoundedQueue {
-public:
-    ThreadSafeBoundedQueue() = default;
-    bool try_push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity > _queue.size()) {
-            _queue.push(std::move(value));
-            return true;
-        }
-        return false;
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity && !_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-    void set_capacity(std::size_t newCapacity) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _capacity = newCapacity;
-    }
-
-    size_t size() const {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return _queue.size();
-    }
-
-private:
-    std::queue<T>   _queue;
-    mutable std::mutex      _mutex;
-    std::size_t     _capacity { 0 };
-};
-#endif
-
-class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
-                                     public InferenceEngine::ITaskExecutor {
+class MultiDeviceExecutableNetwork : public PluginExecHelper {
 public:
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
-    struct WorkerInferRequest {
-        InferenceEngine::SoIInferRequestInternal  _inferRequest;
-        InferenceEngine::Task                     _task;
-        std::exception_ptr                        _exceptionPtr = nullptr;
-    };
-    using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&                  networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
@@ -128,14 +51,8 @@ public:
 
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
 
-    static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
-    // have to use the const char* ptr rather than std::string due to a bug in old gcc versions,
-    // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
-    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
-    static thread_local const char*                             _thisPreferredDeviceName;
     mutable std::mutex                                          _mutex;
     std::vector<DeviceInformation>                              _devicePriorities;
-    const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::SoExecutableNetworkInternal>     _networksPerDevice;
     ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
     DeviceMap<std::unique_ptr<ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
