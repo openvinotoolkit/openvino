@@ -98,7 +98,7 @@ void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_ze
 void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &output, size_t size) {
     if (size != 0)
         IE_ASSERT(size <= output.GetDescriptor().get_size());
-    if (input.GetMKLDNNDesc() == output.GetMKLDNNDesc()) {
+    if (input.GetDescriptor() == output.GetDescriptor()) {
         auto srcPtr = static_cast<uint8_t*>(input.GetPtr());
         auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
 
