@@ -1306,6 +1306,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         detection_output_node = detection_output_op.create_node(
             [reshape_loc_node, reshape_conf_node, priors_node],
             dict(name=detection_output_op.attrs['type'],
+                 num_classes=num_classes,
                  confidence_threshold=_value_or_raise(match, pipeline_config, 'postprocessing_score_threshold'),
                  top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_detections_per_class'),
                  keep_top_k=_value_or_raise(match, pipeline_config, 'postprocessing_max_total_detections'),

@@ -3,8 +3,6 @@
 
 import logging as log
 
-import numpy as np
-
 from mo.front.common.partial_infer.utils import is_fully_defined, compare_dimensions
 from mo.graph.graph import Node
 from mo.utils.error import Error
@@ -30,7 +28,12 @@ def multi_box_detection_infer(node: Node):
     num_priors = prior_boxes_shape[-1] // prior_size
     if not node.has_valid('keep_top_k') or node.keep_top_k == -1:
         node['keep_top_k'] = num_priors
-    node.graph.node[node.id]['num_classes'] = conf_shape[-1] // num_priors
+
+    # do not try to infer number of classes because it is not possible in case when input shapes are partially defined
+    if not node.has_valid('num_classes'):
+        node['num_classes'] = conf_shape[-1] // num_priors
+        log.debug('Inferred amount of classes "{}"'.format(node.num_classes))
+
     num_loc_classes = node.num_classes
     if node.has_and_set('share_location') and node.share_location:
         num_loc_classes = 1
@@ -47,7 +50,6 @@ def multi_box_detection_infer(node: Node):
         raise Error('Amount of confidences "{}" is not divisible by amount of priors "{}" for node "{}".'
                     ''.format(conf_shape[-1], num_priors, node_name))
 
-    log.debug('Inferred amount of classes "{}"'.format(node.num_classes))
     node.out_port(0).data.set_shape([1, 1, conf_shape[0] * node.keep_top_k, 7])
 
     # the line below is needed for the TF framework so the MO will not change the layout
