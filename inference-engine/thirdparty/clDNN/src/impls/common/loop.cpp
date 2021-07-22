@@ -25,73 +25,6 @@ struct loop_impl : typed_primitive_impl<loop> {
     loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other), node(other.node) {}
     explicit loop_impl(const loop_node& node) : node(node) {}
 
-    // read scala value from data primitive
-    static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
-        int64_t trip_count = 0;
-        const layout& prim_layout = mem->get_layout();
-
-        switch (prim_layout.data_type) {
-        case data_types::u8: {
-            mem_lock<uint8_t> lock_prim_output{mem, stream};
-            trip_count = *lock_prim_output.data();
-            break;
-        }
-        case data_types::i8: {
-            mem_lock<int8_t> lock_prim_output{mem, stream};
-            trip_count = *lock_prim_output.data();
-            break;
-        }
-        case data_types::i32: {
-            mem_lock<int32_t> lock_prim_output{mem, stream};
-            trip_count = *lock_prim_output.data();
-            break;
-        }
-        case data_types::i64: {
-            mem_lock<int64_t> lock_prim_output{mem, stream};
-            trip_count = *lock_prim_output.data();
-            break;
-        }
-        default:
-            assert(false);
-        }
-        return trip_count;
-    }
-
-    static void write_scalar_value(memory::ptr mem, stream& stream, int64_t input) {
-        const layout& prim_layout = mem->get_layout();
-
-        switch (prim_layout.data_type) {
-        case data_types::u8: {
-            assert(input >= std::numeric_limits<uint8_t>::min() &&
-                   input <= std::numeric_limits<uint8_t>::max());
-            mem_lock<uint8_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<uint8_t>(input);
-            break;
-        }
-        case data_types::i8: {
-            assert(input >= std::numeric_limits<int8_t>::min() &&
-                   input <= std::numeric_limits<int8_t>::max());
-            mem_lock<int8_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<int8_t>(input);
-            break;
-        }
-        case data_types::i32: {
-            assert(input >= std::numeric_limits<int32_t>::min() &&
-                   input <= std::numeric_limits<int32_t>::max());
-            mem_lock<int32_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = static_cast<int32_t>(input);
-            break;
-        }
-        case data_types::i64: {
-            mem_lock<int64_t> lock_prim_output{mem, stream};
-            *lock_prim_output.data() = input;
-            break;
-        }
-        default:
-            assert(false);
-        }
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
         auto& outer_network = instance.get_network();
         auto& stream = outer_network.get_stream();
@@ -104,40 +37,43 @@ struct loop_impl : typed_primitive_impl<loop> {
             instance.preprocess_output_memory();
             instance.preprocess_input_memory();
             instance.preprocess_backedge_memory();
+
+            // set input data for current_iteration primitive if current_iteration is used
+            if (node.is_current_iteration_used()) {
+                const primitive_id& current_iteration_id = node.get_current_iteration_id();
+                auto current_iteration_prim = body_network->get_primitive(current_iteration_id);
+                auto input_layout_prim = std::dynamic_pointer_cast<input_layout_inst>(current_iteration_prim);
+                if (input_layout_prim == nullptr) {
+                    CLDNN_ERROR_MESSAGE(node.id(), "current_iteration primitive is not input_layout");
+                }
+
+                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
+                input_layout_prim->set_data(backedge_mapping.initial_mem);
+            }
             instance.preproc_memories_done = true;
         }
 
         // read trip_count from outer network
+        bool update_num_iterations = false;
         const primitive_id& trip_count_id = node.get_trip_count_id();
         memory::ptr trip_count_mem = outer_network.get_primitive(trip_count_id)->output_memory_ptr();
-        int64_t trip_count = read_scalar_value(trip_count_mem, stream);
+        int64_t trip_count = loop_node::read_scalar_value(trip_count_mem, stream);
         if (trip_count < 0) {
             const int64_t max_iteration = node.get_max_iteration();
             trip_count = max_iteration;
+            update_num_iterations = true;
         }
 
         // read initial execution condition from outer network
         const primitive_id& initial_execution_id = node.get_initial_execution_id();
         memory::ptr initial_execution_mem = outer_network.get_primitive(initial_execution_id)->output_memory_ptr();
-        int64_t execution_condition = read_scalar_value(initial_execution_mem, stream);
-
-        // shortcut of current_iteration memory in body network (slice of input)
-        memory::ptr current_iteration_mem = nullptr;
-        if (node.is_current_iteration_used()) {
-            const primitive_id& current_iteration_id = node.get_current_iteration_id();
-            current_iteration_mem = body_network->get_primitive(current_iteration_id)->output_memory_ptr();
-        }
+        int64_t execution_condition = loop_node::read_scalar_value(initial_execution_mem, stream);
 
         // shortcut of execution_condition memory in body network
         memory::ptr execution_condition_mem = nullptr;
         if (node.is_execution_condition_used()) {
             const primitive_id& condition_id = node.get_condition_id();
             execution_condition_mem = body_network->get_primitive(condition_id)->output_memory_ptr();
-        }
-
-        int64_t current_iteration = 0;
-        if (node.is_current_iteration_used()) {
-            write_scalar_value(current_iteration_mem, stream, current_iteration);
         }
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
@@ -155,12 +91,12 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         std::vector<event::ptr> loop_carried_dep(events.begin(), events.end());
-
-        while (current_iteration < trip_count && execution_condition) {
+        int64_t current_iteration_idx = 0;
+        while (current_iteration_idx < trip_count && execution_condition) {
             // Copy & Set sliced input memory
             for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
                 const auto& concatenated_input = concatenated_input_mem_mappings.at(i);
-                memory::ptr mem = concatenated_input.get_sliced_mem(current_iteration);
+                memory::ptr mem = concatenated_input.get_sliced_mem(current_iteration_idx);
                 if (mem) {
                     concatenated_input.sliced_data_prim->set_output_memory(mem);
                 } else {
@@ -170,12 +106,12 @@ struct loop_impl : typed_primitive_impl<loop> {
 
             // Set backedges
             for (const auto& backedge_memory_mapping : instance.backedge_memory_mappings) {
-                backedge_memory_mapping.setup_iteration(current_iteration);
+                backedge_memory_mapping.setup_iteration(current_iteration_idx);
             }
 
             // Set sliced output memory
             for (const auto& concat_output_mem_mapping : concatenated_output_mem_mappings) {
-                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration);
+                concat_output_mem_mapping.setup_concatenated_output_memory(current_iteration_idx);
             }
 
             // execute body network
@@ -187,17 +123,16 @@ struct loop_impl : typed_primitive_impl<loop> {
                 loop_carried_dep.emplace_back(body_event);
             }
 
-            //TODO: "curreint_iteration primitive and execution_condition is prepared
-            //as they are presented in the ngraph opset document for loop operation.
-            //However they are not being used yet and only TensorIterator which has fixed sequence length is being validated.
-            if (node.is_current_iteration_used()) {
-                write_scalar_value(current_iteration_mem, stream, current_iteration);
-            }
+            //TODO: execution_condition is prepared as they are presented in the
+            //      ngraph opset document for loop operation.
+            // However they are not being used yet and only TensorIterator which
+            // has fixed sequence length is being validated.
             if (node.is_execution_condition_used()) {
-                execution_condition = read_scalar_value(execution_condition_mem, stream);
+                execution_condition = loop_node::read_scalar_value(execution_condition_mem, stream);
             }
+
             // update index & execution condition for the next iteration
-            ++current_iteration;
+            ++current_iteration_idx;
         }
 
         body_network->reset_execution();
@@ -208,9 +143,21 @@ struct loop_impl : typed_primitive_impl<loop> {
             concat_output.restore_concatenated_mem();
         }
 
-        const primitive_id& num_iteration_id = node.get_num_iteration_id();
-        memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
-        write_scalar_value(num_actual_iterations_mem, stream, current_iteration);
+        if (update_num_iterations) {
+            // update num_iterations (actual number of iterations)
+            int64_t actual_iterations = 0;
+            if (node.is_current_iteration_used()) {
+                const auto& backedge_mapping = instance.get_current_iteration_backedge_mapping();
+                auto current_iteration_mem = backedge_mapping.from_primitive->output_memory_ptr();
+                actual_iterations = loop_node::read_scalar_value(current_iteration_mem, stream);
+            } else {
+                actual_iterations = current_iteration_idx;
+            }
+
+            const primitive_id& num_iteration_id = node.get_num_iteration_id();
+            memory::ptr num_actual_iterations_mem = outer_network.get_primitive(num_iteration_id)->output_memory_ptr();
+            loop_node::write_scalar_value(num_actual_iterations_mem, stream, actual_iterations);
+        }
 
         ev->set();
         return ev;
