@@ -221,10 +221,7 @@ namespace ngraph
                 ///
                 /// \param     index sub-graph's index in op
                 /// \return pointer to ngraph::Function with sub-graph
-                std::shared_ptr<const Function> get_function(int index)
-                {
-                    return m_bodies[index];
-                };
+                std::shared_ptr<const Function> get_function(int index) { return m_bodies[index]; };
                 /// \brief     Adds sub-graph to MultiSubGraphOp
                 ///
                 /// \param index   index of new sub-graph

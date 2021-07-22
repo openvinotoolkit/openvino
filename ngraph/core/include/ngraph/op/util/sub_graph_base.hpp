@@ -22,14 +22,8 @@ namespace ngraph
                 NGRAPH_RTTI_DECLARATION;
 
                 const std::shared_ptr<Function>& get_function() { return m_bodies[0]; };
-                std::shared_ptr<const Function> get_function() const
-                {
-                    return m_bodies[0];
-                };
-                void set_function(const std::shared_ptr<Function>& func)
-                {
-                    m_bodies[0] = func;
-                };
+                std::shared_ptr<const Function> get_function() const { return m_bodies[0]; };
+                void set_function(const std::shared_ptr<Function>& func) { m_bodies[0] = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
                 {
