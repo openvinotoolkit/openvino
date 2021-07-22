@@ -1070,6 +1070,7 @@ mo/utils/ir_reader/extenders/topk_extender.py
 mo/utils/ir_reader/extenders/variadic_split_extender.py
 mo/utils/ir_reader/layer_to_class.py
 mo/utils/ir_reader/restore_graph.py
+mo/utils/json_schema.py
 mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
