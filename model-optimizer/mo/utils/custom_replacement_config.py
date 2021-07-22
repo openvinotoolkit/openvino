@@ -10,6 +10,7 @@ from re import compile, match
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
+from mo.utils.json_schema import schema_dict
 from mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
 
 
@@ -398,22 +399,14 @@ def load_and_validate_json_config(config_file_name: str):
     :param config_file_name: name of the file to read from.
     :return: A dictionary serialized from json config file.
     """
+
     try:
         with open(config_file_name, 'r') as f:
             json_config = json.load(f)
-    except Exception as exc:
-        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
-                    refer_to_faq_msg(70)) from exc
-
-    try:
-        base_dir = get_mo_root_dir()
-        schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
-        with open(schema_file, 'r') as f:
-            schema = json.load(f)
-            validator = json_validate.compile(schema)
+            validator = json_validate.compile(schema_dict)
             validator(json_config)
     except Exception as exc:
-        raise Error("Failed to validate custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
+        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
                     refer_to_faq_msg(70)) from exc
 
     return json_config
