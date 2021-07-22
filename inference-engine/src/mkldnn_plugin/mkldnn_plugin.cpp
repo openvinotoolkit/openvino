@@ -26,6 +26,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
+#include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -74,13 +75,12 @@
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
-#include <low_precision/pull_reshape_through_dequantization.hpp>
-#include <low_precision/pull_transpose_through_dequantization.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
-#include <low_precision/group_convolution.hpp>
+#include <low_precision/layer_transformation.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 
@@ -88,6 +88,7 @@
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
+#include "nodes/mkldnn_normalize_node.h"
 #include "ngraph_transformations/convert_to_cpu_specific_opset.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -121,7 +122,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     const bool useLpt =
         (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
-        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
     if (useLpt) {
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -278,6 +279,13 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return node->input_value(0).get_partial_shape().rank().get_length() > 5;
             });
 
+    auto normalizeL2FusionCallback = [](const_node_ptr &node) -> bool {
+        std::string errorMsg;
+        return !MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
+    };
+    pass_config->set_callback<ngraph::pass::NormalizeL2FusionWithAdd>(normalizeL2FusionCallback);
+    pass_config->set_callback<ngraph::pass::NormalizeL2FusionWithMax>(normalizeL2FusionCallback);
+
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
@@ -314,30 +322,42 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
 
-        ngraph::pass::Manager manager;
-        auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-        lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-        lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-        manager.run_passes(nGraphFunc);
+        auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+            OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                {0, {ngraph::element::u8, ngraph::element::i8}},
+                {1, {ngraph::element::i8}}
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}}
+            }),
+            OperationPrecisionRestriction::create<ngraph::opset1::Multiply>({
+                {0, {ngraph::element::u8}},
+                {1, {ngraph::element::i8}},
+            }),
+        });
 
-        auto params = LayerTransformation::Params(
-            true,  // updatePrecisions
-            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
-            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
-            .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(
-                    LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+        auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+            OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
+        });
 
-        transformer.transform(nGraphFunc);
+        ngraph::pass::Manager lptManager;
+        lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+            if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
+            }
+            return false;
+        });
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+        });
+        lptManager.run_passes(nGraphFunc);
     }
 
     ngraph::pass::Manager postLPTPassManager;
