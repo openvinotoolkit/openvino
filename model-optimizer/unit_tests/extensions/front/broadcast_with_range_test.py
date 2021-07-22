@@ -8,7 +8,7 @@ import numpy as np
 from extensions.front.broadcast_with_range import ExpandRangeConstant
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
-    regular_op_with_empty_data, connect_data
+    regular_op_with_empty_data
 
 
 class TestRangeBroadcast(unittest.TestCase):
@@ -25,8 +25,11 @@ class TestRangeBroadcast(unittest.TestCase):
         ], nodes_with_edges_only=True)
         ExpandRangeConstant().find_and_replace_pattern(graph)
 
-        graph_ref = build_graph({
+        graph_ref = build_graph(nodes_attrs={
             **regular_op_with_shaped_data('shape', [2], {'type': 'Parameter'}),
+            **valued_const_with_data('value', np.arange(0, 384).reshape((1, 384))),
+            **regular_op_with_empty_data('bc', {'type': 'Broadcast'}),
+            **regular_op_with_empty_data('shapeof', {'type': 'ShapeOf'}),
 
             # start
             **valued_const_with_data('start', np.array(0)),
@@ -36,27 +39,32 @@ class TestRangeBroadcast(unittest.TestCase):
             **regular_op_with_empty_data('range_dim', {'type': 'Gather'}),
             # delta
             **valued_const_with_data('delta', np.array(1)),
-            **regular_op_with_empty_data('range', {'type': 'Range'}),
+            **regular_op_with_shaped_data('range', [1, 384], {'type': 'Range'}),
 
             # keep dims
             **valued_const_with_data('axes', np.array([0])),
-            **regular_op_with_empty_data('keep_shape', {'type': 'Unsqueeze'}),
+            **regular_op_with_shaped_data('keep_shape', [1, 384], {'type': 'Unsqueeze'}),
 
-            **regular_op_with_empty_data('bc', {'type': 'Broadcast'}),
             **result(),
-        }, [
-            *connect('start', '0:range'),
-            *connect('shape', '0:range_dim'),
-            *connect('minus_one', '1:range_dim'),
-            *connect('zero', '2:range_dim'),
-            *connect('range_dim', '1:range'),
-            *connect('delta', '2:range'),
-            *connect('range', '0:keep_shape'),
-            *connect('axes', '1:keep_shape'),
-            *connect('keep_shape', '0:bc'),
-            *connect_data('shape', '1:bc'),
-            *connect('bc', 'output'),
-        ], nodes_with_edges_only=True)
+        },
+            edges=[
+                *connect('value', 'shapeof'),
+                *connect('shapeof', '0:range_dim'),
+                *connect('minus_one', '1:range_dim'),
+                *connect('zero', '2:range_dim'),
+                *connect('start', '0:range'),
+                *connect('range_dim', '1:range'),
+                *connect('delta', '2:range'),
+                *connect('range', '0:keep_shape'),
+                *connect('axes', '1:keep_shape'),
+                *connect('keep_shape', '0:bc'),
+                *connect('shape', '1:bc'),
+                *connect('bc', 'output'),
+            ],
+            update_attributes={
+                'range_d': {'value': np.arange(0, 384).reshape((1, 384))},
+                'keep_shape_d': {'value': np.arange(0, 384).reshape((1, 384))},
+            })
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
