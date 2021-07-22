@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::Acosh::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Acosh, "Acosh", 3, util::UnaryElementwiseArithmetic);
 
 op::v3::Acosh::Acosh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
