@@ -1576,10 +1576,10 @@ gather_v7_4d_data_axis_2_batch_dims_1_int32
 # RandomUniform is not implemented yet for CPU, GPU
 random_uniform_float32_case1
 random_uniform_float16_case1
-random_uniform_double
+random_uniform_double_case1
 random_uniform_float32_case2
 random_uniform_float16_case2
-random_uniform_double_min_max
+random_uniform_double_case2
 random_uniform_int32
 random_uniform_int64
 random_uniform_f32_to_f16
