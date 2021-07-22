@@ -94,7 +94,7 @@ void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const 
 
     VPU_THROW_UNLESS(!axes.count(Dim::N) && width,
                      "Unsupported combination of indices in layer \"%s\". "
-                     "Only across channel and full batch supported.", layer->name);
+                     "Only across channel, width and full batch supported.", layer->name);
     const auto acrossChannels = axes.count(Dim::C) != 0;
     const auto acrossWidth = width == 1 && axes.count(Dim::H) == 0;
 
