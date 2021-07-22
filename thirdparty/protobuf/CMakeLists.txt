@@ -13,7 +13,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if(OV_COMPILER_IS_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
 endif()
 
@@ -58,11 +58,13 @@ else()
     set(Protobuf_LIBRARIES libprotobuf)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
         list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+        # libprotobuf is always built for protoc
+        target_compile_options(libprotobuf PUBLIC -Wno-undef)
     endif()
     set_target_properties(${_proto_libs} PROPERTIES
         CXX_VISIBILITY_PRESET default
