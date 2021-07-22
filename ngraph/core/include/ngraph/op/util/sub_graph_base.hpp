@@ -21,7 +21,10 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                virtual const std::shared_ptr<Function>& get_function() const { return m_bodies[0]; };
+                virtual const std::shared_ptr<Function>& get_function() const
+                {
+                    return m_bodies[0];
+                };
                 virtual void set_function(const std::shared_ptr<Function>& func)
                 {
                     m_bodies[0] = func;
@@ -133,6 +136,7 @@ namespace ngraph
                 SubGraphOp& operator=(SubGraphOp&&) = default;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
+
             protected:
                 int64_t m_num_iterations =
                     -1; // -1 means infinity for Loop op, inconsistent for TensorIterator
