@@ -1,0 +1,143 @@
+{
+  "version": "0.2",
+  "components": {
+    "setupvars": {
+      "mandatory" : "yes",
+      "files": [
+        "bin"
+      ]
+    },
+    "openvino_license": {
+      "mandatory" : "yes",
+      "files": [
+        "licensing"
+      ]
+    },
+    "ie_core": {
+      "group": ["ie"],
+      "files": [
+        "deployment_tools/inference_engine/version.txt",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_transformations.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_preproc.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_ir_reader.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_onnx_reader.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_c_api.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/AutoPlugin.dll",
+        "deployment_tools/inference_engine/lib/intel64/Release/HeteroPlugin.dll",
+        "deployment_tools/inference_engine/lib/intel64/Release/MultiDevicePlugin.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/plugins.xml",
+        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine.lib",
+        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine_transformations.lib",
+        "deployment_tools/inference_engine/lib/intel64/Release/inference_engine_c_api.lib",
+        "deployment_tools/inference_engine/external/tbb",
+        "deployment_tools/ngraph/lib"
+      ]
+    },
+    "cpu": {
+      "ui_name": "Inference Engine Runtime for Intel(R) CPU",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/MKLDNNPlugin.dll"
+      ]
+    },
+    "gpu": {
+      "ui_name": "Inference Engine Runtime for Intel(R) Processor Graphics",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/cache.json",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/clDNNPlugin.dll"
+      ]
+    },
+    "vpu": {
+      "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/usb-ma2x8x.mvcmd",
+        "deployment_tools/inference_engine/bin/intel64/Release/pcie-ma2x8x.elf",
+        "deployment_tools/inference_engine/bin/intel64/Release/myriadPlugin.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/myriad_compile.exe",
+        "deployment_tools/inference_engine/bin/intel64/Release/myriad_perfcheck.exe"
+      ]
+    },
+    "gna": {
+      "ui_name": "Inference Engine Runtime for Intel(R) Gaussian Neural Accelerator",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/gna.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/GNAPlugin.dll"
+      ]
+    },
+    "hddl": {
+      "ui_name": "Inference Engine Runtime for Intel(R) Vision Accelerator Design with\n\t   Intel(R) Movidius(tm) VPUs",
+      "group": ["ie"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/HDDLPlugin.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_legacy.dll",
+        "deployment_tools/inference_engine/bin/intel64/Release/hddl_perfcheck.exe",
+        "deployment_tools/inference_engine/external/MovidiusDriver",
+        "deployment_tools/inference_engine/external/hddl"
+      ]
+    },
+    "opencv": {
+      "ui_name": "OpenCV",
+      "group": ["opencv"],
+      "dependencies" : [],
+      "files": [
+        "opencv/version.txt",
+        "opencv/setupvars.bat",
+        "opencv/lib",
+        "opencv/bin"
+      ]
+    },
+    "python_common": {
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3",
+        "python/requirements.txt"
+      ]
+    },
+    "python3.6": {
+      "ui_name": "OpenVINO Python API for Python3.6",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.6"
+      ]
+    },
+    "python3.7": {
+      "ui_name": "OpenVINO Python API for Python3.7",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.7"
+      ]
+    },
+    "python3.8": {
+      "ui_name": "OpenVINO Python API for Python3.8",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.8"
+      ]
+    },
+    "python3.9": {
+      "ui_name": "OpenVINO Python API for Python3.9",
+      "group": ["python"],
+      "dependencies" : ["ie_core", "python_common"],
+      "files": [
+        "python/python3.9"
+      ]
+    }
+  }
+}

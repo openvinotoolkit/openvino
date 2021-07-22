@@ -26,7 +26,7 @@ struct roi_pooling_params : public base_params {
     int part_size = 1;
     int group_size = 1;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         if (position_sensitive) {
             k.EnablePositionSensitivePooling();

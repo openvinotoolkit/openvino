@@ -4,7 +4,6 @@
 
 #include <vpu/backend/backend.hpp>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>

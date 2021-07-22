@@ -30,14 +30,13 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: D:\build
     BUILD_SAMPLES_DIR: D:\build_samples
-    BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
+    INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
     SETUPVARS: $(INSTALL_DIR)\bin\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
-    TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\bin;$(IB_DIR);%PATH%
 
   steps:
   - script: |
@@ -96,6 +95,9 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
+  - script: dir $(REPO_DIR)\inference-engine\temp\ /s
+    displayName: 'List temp SDKs'
+
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
@@ -112,6 +114,13 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install tests'
+
+  - script: dir $(INSTALL_DIR) /s
+    displayName: 'List install files'
+
   - script: $(INSTALL_DIR)\deployment_tools\inference_engine\samples\cpp\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
@@ -120,71 +129,55 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
   - script: |
-      set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
+      set PATH=$(IB_DIR);%PATH%
+      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
     displayName: 'IE UT old - IB'
+    continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
 
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\templateFuncTests --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
 
+    # call $(SETUPVARS) && $(INSTALL_TEST_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml
   - script: |
-      set PATH=$(TEST_ENV_PATH)
-      rem $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio*:*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24
+      set PATH=$(IB_DIR);%PATH%
+      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio*:*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24
     displayName: 'CPU FuncTests - IB'
     continueOnError: false
 
   - script: |
-      set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
 

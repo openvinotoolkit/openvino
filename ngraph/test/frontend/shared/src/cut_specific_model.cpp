@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/cut_specific_model.hpp"
-#include "../include/utils.hpp"
+#include "cut_specific_model.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -44,7 +44,7 @@ void FrontEndCutModelTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
     ASSERT_NE(m_inputModel, nullptr);
 }
 
