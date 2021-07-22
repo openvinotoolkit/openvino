@@ -15,7 +15,7 @@ struct typed_program_node<pyramid_roi_align> : public typed_program_node_base<py
     using parent = typed_program_node_base<pyramid_roi_align>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     // program_node& boxes() const { return get_dependency(0); }

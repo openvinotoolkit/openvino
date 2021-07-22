@@ -32,7 +32,7 @@ memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem) {
 }
 }  // namespace
 
-data_node::typed_program_node(const std::shared_ptr<data> dprim, program_impl& prog)
+data_node::typed_program_node(const std::shared_ptr<data> dprim, program& prog)
     : parent(dprim, prog), mem(dprim->mem) {
     constant = true;
     can_share_buffer(false);

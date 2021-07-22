@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "cldnn/runtime/engine.hpp"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "network_impl.h"
 #include "data_inst.h"
 #include "runtime/cldnn_itt.hpp"
@@ -18,8 +18,8 @@
 
 using namespace cldnn;
 
-// ToDo remove friendship relation from  program_node and program_impl
-void propagate_constants::run(program_impl& p) {
+// ToDo remove friendship relation from  program_node and program
+void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::PropagateConstants");
     for (auto& node : p.get_processing_order()) {
         if (node->is_constant())
@@ -127,7 +127,7 @@ std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(e
     return ret;
 }
 
-void propagate_constants::handle_constant(program_impl& prog, program_node& node) {
+void propagate_constants::handle_constant(program& prog, program_node& node) {
     if (!node.is_type<data>()) {
         add_constant(prog, node);
         if (has_non_const_user(node))
@@ -135,7 +135,7 @@ void propagate_constants::handle_constant(program_impl& prog, program_node& node
     }
 }
 
-void propagate_constants::add_constant(program_impl& prog, program_node& node) {
+void propagate_constants::add_constant(program& prog, program_node& node) {
     if (node.is_type<data>())
         return;
     nodes.insert(prog.get_node_ptr(node.get_primitive()->id));
@@ -149,7 +149,7 @@ void propagate_constants::add_constant(program_impl& prog, program_node& node) {
     add_deps_to_tpl(prog, node.get_dependencies());
 }
 
-void propagate_constants::add_deps_to_tpl(program_impl& prog, const std::vector<program_node*>& deps) {
+void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<program_node*>& deps) {
     /*
     Nodes can share dependencies, if we already have dep in tpl, don't add it again.
     example:

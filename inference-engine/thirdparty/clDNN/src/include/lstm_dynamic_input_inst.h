@@ -17,7 +17,7 @@ struct typed_program_node<lstm_dynamic_input> : public typed_program_node_base<l
     using parent = typed_program_node_base<lstm_dynamic_input>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
     program_node& dyn_length() const { return get_dependency(1); }

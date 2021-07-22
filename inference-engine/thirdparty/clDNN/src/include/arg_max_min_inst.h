@@ -17,7 +17,7 @@ struct typed_program_node<arg_max_min> : public typed_program_node_base<arg_max_
     using parent = typed_program_node_base<arg_max_min>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
     program_node& input() const { return get_dependency(0); }
 };
 

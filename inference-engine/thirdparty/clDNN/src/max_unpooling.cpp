@@ -16,7 +16,7 @@ primitive_type_id max_unpooling::type_id() {
     return &instance;
 }
 
-max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog)
+max_unpooling_node::typed_program_node(const std::shared_ptr<max_unpooling> prim, program& prog)
     : parent(prim, prog) {
     can_share_buffer(false);  // for max_unpooling initial zero values are significant
 }

@@ -235,7 +235,6 @@ public:
         }
     }
 
-<<<<<<< HEAD
     void process_current_iteration() const {
         const primitive_id& current_iteration_id = get_current_iteration_id();
         if (current_iteration_id.empty()) {
@@ -277,24 +276,14 @@ public:
 
     void process_single_int_output(const primitive_id& id) const {
         // add mutable if not exist
-=======
-    void process_single_int_input(const primitive_id& id) {
->>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
         const topology_map& body_topology_map = body.get_primitives();
         layout body_output_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
         if (!id.empty()) {
-<<<<<<< HEAD
             auto body_output = body_topology_map.find(id);
             if (body_output == body_topology_map.end()) {
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
                 auto md = std::make_shared<data>(id, mem);
                 body.add(md);
-=======
-            // add input_layout if not exist
-            if (body_topology_map.count(id)) {
-                layout body_input_layout(data_types::i32, format::bfyx, {1, 1, 1, 1});
-                body.add_primitive(std::make_shared<input_layout>(id, body_input_layout));
->>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
@@ -303,7 +292,6 @@ public:
         }
     }
 
-<<<<<<< HEAD
     void build_body_program() const {
         for (const auto& pm : input_primitive_maps) {
             layout calculated_layout = calc_body_input_layout(pm);
@@ -314,30 +302,6 @@ public:
                 body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
             } else {
                 body.change_input_layout(internal_input_id, calculated_layout);
-=======
-    void build_body_program() {
-        const std::vector<cldnn::program_node *>& deps = get_dependencies();
-        // setup internal inputs
-        const primitive_id& trip_count_id = get_trip_count_id();
-        const primitive_id& initial_execution = get_initial_execution_id();
-        const primitive_id& num_iteration = get_num_iteration_id();
-        for (const cldnn::program_node * dep : deps) {
-            const primitive_id& id = dep->id();
-            if (id == trip_count_id || id == initial_execution || id == num_iteration) {
-                continue;
-            }
-
-            for (const auto& pm : input_primitive_maps) {
-                layout calculated_layout = calc_body_input_layout(pm);
-                const primitive_id& internal_input_id = pm.internal_id;
-
-                // add inputs for body network if not exist
-                if (body.get_primitives().count(internal_input_id) == 0) {
-                    body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
-                } else {
-                    body.change_input_layout(internal_input_id, calculated_layout);
-                }
->>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
             }
         }
 

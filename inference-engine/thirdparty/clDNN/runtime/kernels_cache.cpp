@@ -3,8 +3,8 @@
 //
 
 #include "kernels_factory.hpp"
-#include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "cldnn/runtime/kernels_cache.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
 
 #include <algorithm>

@@ -6,14 +6,14 @@
 
 #include "cldnn/runtime/engine.hpp"
 
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "network_impl.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 
@@ -44,7 +44,7 @@ TEST(reorder_inputs, propagation) {
 
     build_options build_opts;
     build_opts.set_option(build_option::optimize_data(true));
-    auto prog = program(engine, topology, build_opts);
+    auto prog = program::build_program(engine, topology, build_opts);
 
     auto prog_impl = prog.get();
 

@@ -26,16 +26,16 @@ private:
 
         void set(const program_node& node) {
             add_or_change_input_layout(node);
-            _program = program_impl::build_program(node.get_program().get_engine(),
+            _program = program::build_program(node.get_program().get_engine(),
                                                    _topology,
                                                    node.get_program().get_options(),
                                                    true);  // rebuild program
         }
-        program_impl::ptr get() const { return _program; }
+        program::ptr get() const { return _program; }
 
     private:
         topology _topology;
-        program_impl::ptr _program = (program_impl::ptr) nullptr;
+        program::ptr _program = (program::ptr) nullptr;
 
         void add_or_change_input_layout(const program_node& node) {
             auto layout = node.get_dependency(0).get_output_layout();
@@ -57,7 +57,7 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
           _branch_true(this->get_primitive()->topology_true),
           _branch_false(this->get_primitive()->topology_false) {}
@@ -70,8 +70,8 @@ public:
         _branch_true.set(*this);
         _branch_false.set(*this);
     }
-    program_impl::ptr get_branch_true() const { return _branch_true.get(); }
-    program_impl::ptr get_branch_false() const { return _branch_false.get(); }
+    program::ptr get_branch_true() const { return _branch_true.get(); }
+    program::ptr get_branch_false() const { return _branch_false.get(); }
     primitive_id result_id() const { return id() + ":result"; }
 
 private:

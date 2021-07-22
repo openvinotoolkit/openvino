@@ -19,7 +19,7 @@ primitive_type_id generic_layer::type_id() {
     return &instance;
 }
 
-generic_layer_node::typed_program_node(const std::shared_ptr<generic_layer> prim, program_impl& prog)
+generic_layer_node::typed_program_node(const std::shared_ptr<generic_layer> prim, program& prog)
     : parent(prim, prog) {
     can_share_buffer(false);
 }

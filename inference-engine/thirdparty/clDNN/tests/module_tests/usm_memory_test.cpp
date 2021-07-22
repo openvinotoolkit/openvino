@@ -13,7 +13,7 @@
 #include "runtime/ocl/ocl_common.hpp"
 #include "runtime/ocl/ocl_base_event.hpp"
 
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
@@ -21,7 +21,7 @@
 #include "network_impl.h"
 #include "reshape_inst.h"
 #include "pass_manager.h"
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 

@@ -60,7 +60,7 @@ struct network {
     /// @param program The program object which contains compiled primitives this network should allocate memory for.
     /// @param stream_id Stream ID of this network. 0 is for primary stream, the others are secondary.
     /// Used to determine whether an extra copy of primitive's memory needed.
-    explicit network(program const& program, uint16_t stream_id);
+    explicit network(program::ptr program, uint16_t stream_id);
 
     /// @brief Constructs network object from implicitly created program object. This is a shorthand for network(program(engine, topology, options))
     /// @param engine
@@ -71,7 +71,7 @@ struct network {
             const topology& topology,
             const build_options& options = build_options(),
             uint16_t stream_id = 0)
-        : network(program(engine, topology, options), stream_id) {}
+        : network(program::build_program(engine, topology, options), stream_id) {}
 
     /// @brief Constructs network object from C API @ref cldnn_network.
     explicit network(std::shared_ptr<network_impl> impl) : _impl(impl) {
@@ -97,7 +97,7 @@ struct network {
     engine& get_engine() const;
 
     /// @brief Returns network internal @ref program.
-    program get_program() const;
+    program::cptr get_program() const;
 
     /// @brief Provides @ref memory for @ref input_layout primitives defined by user in source @ref topology.
     void set_input_data(const primitive_id& id, memory::ptr mem) const;

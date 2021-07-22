@@ -15,7 +15,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<max_unpooling> : public typed_program_node_base<max_unpooling> {
     using parent = typed_program_node_base<max_unpooling>;
-    typed_program_node(const std::shared_ptr<max_unpooling> prim, program_impl& prog);
+    typed_program_node(const std::shared_ptr<max_unpooling> prim, program& prog);
 
 public:
     using parent::parent;

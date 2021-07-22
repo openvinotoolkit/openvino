@@ -8,7 +8,7 @@
 #include "cldnn/runtime/memory.hpp"
 
 #include "cldnn/graph/topology.hpp"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
@@ -17,7 +17,7 @@
 #include "reshape_inst.h"
 #include "pass_manager.h"
 
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 
@@ -49,7 +49,7 @@ TEST(basic, test1) {
     topology.add(concatenation("concat", { "reorder1", "weights2" }, concatenation::along_x));
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
 
-    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false);
+    program::ptr prog = program::build_program(engine, topology, build_opt, false);
     std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
     network network(net);
 
@@ -66,7 +66,7 @@ TEST(basic, test1) {
 }
 
 // This test creates a program without optimization passes, even the compilation is being run manualy.
-// Thus, a single method from program_impl like add_intermediate might be tested separately.
+// Thus, a single method from program like add_intermediate might be tested separately.
 TEST(add_intermediate_gpu, test1)
 {
     build_options build_opt;
@@ -94,11 +94,11 @@ TEST(add_intermediate_gpu, test1)
     topology.add(cldnn::convolution("conv1b", { "input" }, { "weights" }));
     topology.add(cldnn::convolution("conv2a", { "conv1a" }, { "weights2" }));
     auto new_reorder = std::make_shared<reorder>("reorder","nothing", input->get_layout());
-    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false, true);
+    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
     prog->dump_program("custom_dump", true);
 
-    program_impl_wrapper::build(*prog);
+    program_wrapper::build(*prog);
 
     std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
     network network(net);
@@ -123,7 +123,7 @@ TEST(add_intermediate_gpu, test1)
     }
 }
 
-/* This test shows how to use private members (here: add_connection) of program_impl using program_impl_wraper */
+/* This test shows how to use private members (here: add_connection) of program using program_wraper */
 // Disabled for now as it produces wrong results
 TEST(add_intermediate_gpu, test2)
 {
@@ -156,13 +156,13 @@ TEST(add_intermediate_gpu, test2)
     w_vec.push_back("weights");
     auto new_conv = std::make_shared<convolution>("conv1a", "input", w_vec);
     auto weights_node = std::make_shared<data>("weights", weights);
-    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false, true);
+    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
-    program_impl_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
+    program_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
     prog->dump_program("custom_dump", true);
 
-    program_impl_wrapper::build(*prog);
+    program_wrapper::build(*prog);
 
     std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
     network network(net);

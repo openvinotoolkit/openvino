@@ -219,7 +219,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
 }
 }  // namespace
 
-prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program_impl& prog) : parent(prim, prog) {
+prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& prog) : parent(prim, prog) {
     constant = true;
 }
 

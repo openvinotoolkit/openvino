@@ -18,7 +18,7 @@ struct typed_program_node<input_layout> : public typed_program_node_base<input_l
     using parent = typed_program_node_base<input_layout>;
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<input_layout> prim, program_impl& prog);
+    typed_program_node(const std::shared_ptr<input_layout> prim, program& prog);
 };
 
 using input_layout_node = typed_program_node<input_layout>;

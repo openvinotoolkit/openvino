@@ -20,7 +20,7 @@
 namespace cldnn {
 template <class PType>
 struct primitive_type_base : primitive_type {
-    std::shared_ptr<cldnn::program_node> create_node(program_impl& program,
+    std::shared_ptr<cldnn::program_node> create_node(program& program,
                                                      const std::shared_ptr<primitive> prim) const override {
         if (prim->type != this)
             throw std::invalid_argument("primitive_type_base::create_node: primitive type mismatch");

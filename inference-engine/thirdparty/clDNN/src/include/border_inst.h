@@ -19,7 +19,7 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<border> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<border> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }

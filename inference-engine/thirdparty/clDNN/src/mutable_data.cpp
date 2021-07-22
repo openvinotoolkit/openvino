@@ -37,7 +37,7 @@ memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem, bool reu
 }
 }  // namespace
 
-mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program_impl& prog)
+mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program& prog)
     : parent(dprim, prog), mem(dprim->mem) {
     recalc_output_layout(false);
     can_share_buffer(false);

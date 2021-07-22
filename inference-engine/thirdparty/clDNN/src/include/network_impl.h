@@ -9,7 +9,7 @@
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/stream.hpp"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "impls/implementation_map.hpp"
 
 #include <map>
@@ -27,7 +27,7 @@ class primitive_inst;
 struct network_impl {
 public:
     using ptr = std::shared_ptr<network_impl>;
-    explicit network_impl(program_impl::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = false);
+    explicit network_impl(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = false);
     network_impl(engine& engine,
                  const topology& topo,
                  const build_options& options = build_options(),
@@ -49,16 +49,16 @@ public:
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
-                                program_impl::ptr program,
+                                program::ptr program,
                                 bool is_internal = false,
                                 bool is_primary_stream = false);
 
     static ptr allocate_network(engine& engine,
-                                program_impl::ptr program,
+                                program::ptr program,
                                 bool is_internal = false,
                                 bool is_primary_stream = false);
-    program_impl::cptr get_program() const { return _program; }
-    program_impl::ptr get_program() { return _program; }
+    program::cptr get_program() const { return _program; }
+    program::ptr get_program() { return _program; }
     engine& get_engine() const { return _program->get_engine(); }
 
     void reset_execution(bool wait = true);
@@ -79,8 +79,8 @@ public:
     std::vector<primitive_id> get_executed_primitive_ids() const;
     std::vector<primitive_id> get_all_primitive_ids() const;
     std::vector<primitive_id> get_all_primitive_org_ids() const;
-    const program_impl::primitives_info& get_primitives_info() const;
-    const program_impl::graph_optimizer_info& get_optimizer_passes_info() const;
+    const program::primitives_info& get_primitives_info() const;
+    const program::graph_optimizer_info& get_optimizer_passes_info() const;
     void execute(const std::vector<event::ptr>& events);
     void validate_primitives();
     void set_arguments();
@@ -112,7 +112,7 @@ public:
 
 private:
     uint32_t net_id = 0;
-    program_impl::ptr _program;
+    program::ptr _program;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;

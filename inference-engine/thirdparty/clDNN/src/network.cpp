@@ -15,8 +15,9 @@
 #include "cldnn/runtime/stream.hpp"
 #include "cldnn/runtime/debug_configuration.hpp"
 
+#include "cldnn/graph/program.hpp"
+
 #include "network_impl.h"
-#include "program_impl.h"
 #include "to_string_utils.h"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
@@ -40,16 +41,15 @@
 
 namespace cldnn {
 
-network::network(program const& program, uint16_t stream_id)
-    : _impl(network_impl::allocate_network(program.get()->get_engine(), program.get(), false, stream_id == 0)) {}
+network::network(program::ptr program, uint16_t stream_id)
+    : _impl(network_impl::allocate_network(program->get_engine(), program, false, stream_id == 0)) {}
 
 engine& network::get_engine() const {
     return _impl->get_engine();
 }
 
-program network::get_program() const {
-    auto impl = std::const_pointer_cast<program_impl>(_impl->get_program());
-    return program(impl);
+program::cptr network::get_program() const {
+    return _impl->get_program();
 }
 
 void network::set_input_data(const primitive_id& id, memory::ptr mem) const {
@@ -283,7 +283,7 @@ static void log_memory_to_file(memory::ptr mem, stream& stream, std::string laye
 Network_impl will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network_impl::network_impl(program_impl::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network_impl::network_impl(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
@@ -306,11 +306,11 @@ network_impl::~network_impl() {
     _memory_pool->clear_pool_for_network(net_id);
 }
 
-network_impl::ptr network_impl::allocate_network(stream::ptr stream, program_impl::ptr program, bool is_internal, bool is_primary_stream) {
+network_impl::ptr network_impl::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
     return std::make_shared<network_impl>(program, stream, is_internal, is_primary_stream);
 }
 
-network_impl::ptr network_impl::allocate_network(engine& engine, program_impl::ptr program, bool is_internal, bool is_primary_stream) {
+network_impl::ptr network_impl::allocate_network(engine& engine, program::ptr program, bool is_internal, bool is_primary_stream) {
     auto stream = engine.create_stream();
     return std::make_shared<network_impl>(program, stream, is_internal, is_primary_stream);
 }
@@ -333,13 +333,13 @@ network_impl::network_impl(engine& engine,
                            const topology& topo,
                            const build_options& options,
                            bool is_internal)
-    : network_impl(program_impl::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
+    : network_impl(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
 
 network_impl::network_impl(engine& engine,
                            const std::set<std::shared_ptr<program_node>>& nodes,
                            const build_options& options,
                            bool is_internal)
-    : network_impl(program_impl::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
+    : network_impl(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
 
 void network_impl::validate_primitives() {
     for (auto const& prim : _exec_order) {
@@ -632,11 +632,11 @@ std::vector<primitive_id> network_impl::get_all_primitive_org_ids() const {
     return ret;
 }
 
-const program_impl::primitives_info& network_impl::get_primitives_info() const {
+const program::primitives_info& network_impl::get_primitives_info() const {
     return _program->get_primitives_info();
 }
 
-const program_impl::graph_optimizer_info& network_impl::get_optimizer_passes_info() const {
+const program::graph_optimizer_info& network_impl::get_optimizer_passes_info() const {
     return _program->get_optimizer_passes_info();
 }
 

@@ -7687,7 +7687,7 @@ public:
             build_option::optimize_data(true),
             build_option::force_implementations({ {"conv", {input_format(), ""}} })
         );
-        auto prog = program(engine, topo, build_opts);
+        auto prog = program::build_program(engine, topo, build_opts);
 
         auto net = network(prog, 0);
 
@@ -8047,7 +8047,7 @@ public:
             build_option::optimize_data(true),
             build_option::force_implementations({ {"conv", { this->input_format(), ""}} })
         );
-        auto prog = program(engine, topo, build_opts);
+        auto prog = program::build_program(engine, topo, build_opts);
 
         auto net = network(prog, 0);
 

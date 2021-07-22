@@ -18,7 +18,7 @@ struct typed_program_node<binary_convolution> : public typed_program_node_base<b
     using parent = typed_program_node_base<binary_convolution>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog), split(this->get_primitive()->split()), depthwise_sep_opt(false) {}
 
     void set_split(int32_t node_split) { split = node_split; }

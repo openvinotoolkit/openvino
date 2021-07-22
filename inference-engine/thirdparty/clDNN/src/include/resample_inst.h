@@ -14,7 +14,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<resample> : public typed_program_node_base<resample> {
     using parent = typed_program_node_base<resample>;
-    typed_program_node(const std::shared_ptr<resample> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<resample> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 
