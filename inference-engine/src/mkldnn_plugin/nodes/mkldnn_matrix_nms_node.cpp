@@ -41,12 +41,6 @@ bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Nod
             errorMessage = "Does not support DcayFunction";
             return false;
         }
-
-        if (nms->get_input_shape(NMS_BOXES)[1] != nms->get_input_shape(NMS_SCORES)[2]) {
-            errorMessage = "Input Box Dimension 1: " + std::to_string(nms->get_input_shape(NMS_BOXES)[1]) +
-                           " doesn't match Score Dimension 2: " + std::to_string(nms->get_input_shape(NMS_SCORES)[2]);
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -69,6 +63,11 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     if (getOriginalOutputsNumber() < 1 || getOriginalOutputsNumber() > 3)
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
+    if (matrix_nms->get_input_shape(NMS_BOXES)[1] != matrix_nms->get_input_shape(NMS_SCORES)[2]) {
+        IE_THROW() << errorPrefix
+                   << "Input Box Dimension 1: " + std::to_string(matrix_nms->get_input_shape(NMS_BOXES)[1]) +
+                          " doesn't match Score Dimension 2: " + std::to_string(matrix_nms->get_input_shape(NMS_SCORES)[2]);
+    }
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
@@ -109,7 +108,6 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
         m_decayFunction = LINEAR;
 
     m_sortResultAcrossBatch = attrs.sort_result_across_batch;
-    m_outputType = attrs.output_type;
     m_scoreThreshold = attrs.score_threshold;
     m_nmsTopk = attrs.nms_top_k;
     m_keepTopk = attrs.keep_top_k;
@@ -138,11 +136,7 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
     m_realNumBoxes = m_nmsTopk == -1 ? m_numBoxes : std::min(m_nmsTopk, static_cast<int>(m_numBoxes));
     m_numPerBatch.resize(m_numBatches);
     m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);
-    m_numPerBatchClass.resize(m_numBatches);
-    for (size_t i = 0; i < m_numBatches; i++) {
-        m_numPerBatchClass[i].resize(m_numClasses, 0);
-    }
-
+    m_numPerBatchClass.resize(m_numBatches, std::vector<int64_t>(m_numClasses, 0));
     m_classOffset.resize(m_numClasses, 0);
 
     for (size_t i = 0, count = 0; i < m_numClasses; i++) {

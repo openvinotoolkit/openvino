@@ -50,7 +50,6 @@ private:
 
     MatrixNmsSortResultType m_sortResultType;
     bool m_sortResultAcrossBatch;
-    ngraph::element::Type m_outputType;
     float m_scoreThreshold;
     int m_nmsTopk;
     int m_keepTopk;
