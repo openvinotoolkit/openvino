@@ -16,7 +16,7 @@ class UnsqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> unsqueezeAxes;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
 };
 
 typedef std::tuple<
@@ -35,9 +35,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions
