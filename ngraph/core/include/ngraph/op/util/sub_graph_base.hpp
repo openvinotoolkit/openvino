@@ -21,9 +21,11 @@ namespace ngraph
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                const std::shared_ptr<Function>& get_function() { return m_bodies[0]; };
-                std::shared_ptr<const Function> get_function() const { return m_bodies[0]; };
-                void set_function(const std::shared_ptr<Function>& func) { m_bodies[0] = func; };
+                virtual const std::shared_ptr<Function>& get_function() const { return m_bodies[0]; };
+                virtual void set_function(const std::shared_ptr<Function>& func)
+                {
+                    m_bodies[0] = func;
+                };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
                 {
@@ -131,7 +133,6 @@ namespace ngraph
                 SubGraphOp& operator=(SubGraphOp&&) = default;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-
             protected:
                 int64_t m_num_iterations =
                     -1; // -1 means infinity for Loop op, inconsistent for TensorIterator
@@ -141,6 +142,11 @@ namespace ngraph
 
                 SubGraphOp();
                 explicit SubGraphOp(const OutputVector& args);
+
+            private:
+                using MultiSubGraphOp::get_function;
+
+                using MultiSubGraphOp::set_function;
             };
             using InputDescriptionPtr = std::shared_ptr<util::SubGraphOp::InputDescription>;
             using OutputDescriptionPtr = std::shared_ptr<util::SubGraphOp::OutputDescription>;
