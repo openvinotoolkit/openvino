@@ -52,6 +52,8 @@ TYPED_TEST_P(BinaryOperatorVisitor, Auto_Broadcast)
     ngraph::test::NodeBuilder builder(op_func);
     const auto g_op_func = ngraph::as_type_ptr<OP_Type>(builder.create());
 
+    const auto expected_attr_count = 1;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op_func->get_autob(), g_op_func->get_autob());
 }
 
