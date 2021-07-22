@@ -74,6 +74,4 @@ if __name__ == "__main__":
     results = infer(ir_path=ir_path, device=device)
     np.savez(out_path, **results)
     log.info("Path for inference results: {}".format(out_path))
-    log.info("Inference results:")
-    log.info(results)
-    log.info("SUCCESS!")
+    log.info("Inference is successful!")
