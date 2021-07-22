@@ -945,14 +945,17 @@ bool program_impl::extract_and_remove(program_node& node) {
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
-    for (const auto user : node.users) {
+    for (const auto& user : node.users) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
         }
-        if (node.dependencies.front()->is_type<loop>()) {
-            loop_node& loop = *node.dependencies.front();
-            loop.update_primitive_map(node.id(), user->id());
+
+        for (auto& dep : node.dependencies) {
+            if (dep->is_type<loop>()) {
+                loop_node& loop = *dep;
+                loop.update_primitive_map(node.id(), user->id());
+            }
         }
     }
     input.users.remove(&node);
