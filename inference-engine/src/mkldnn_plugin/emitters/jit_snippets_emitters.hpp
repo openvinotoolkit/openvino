@@ -39,6 +39,9 @@ private:
         Xbyak::Reg64 param    { dnnl::impl::cpu::x64::abi_param1 }; // RDI
         Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param3 }; // RDX
 
+        if (tile_rank != 2)
+            IE_THROW() << "Kernel of codegen supports only Tile2D" << std::endl;
+
         h->preamble();
 
         std::vector<Xbyak::Reg64> regs(nparams);
@@ -98,7 +101,10 @@ private:
         }
 
         std::array<Xbyak::Label, 2> for_body;
+
         // loop_entry()
+
+        // internal full tile should to have new full work amount after every iteration of external tile
         if (dim == 0 && inc != 1)
             h->mov(amount, h->ptr[shedule + dim * sizeof(int64_t)]);
 
@@ -113,6 +119,7 @@ private:
             }
             h->pop(amount);
 
+            // we need to add offset for ptrs only in external tiles because stores and loaders in internal tiles have default offsets
             if (dim > 0) {
                 for (auto i = 0; i < nparams; i++) {
                     h->add(regs[i], h->ptr[offsets + i * sizeof(int64_t)]);

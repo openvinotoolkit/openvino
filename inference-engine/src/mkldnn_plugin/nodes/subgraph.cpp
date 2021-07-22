@@ -389,27 +389,6 @@ void MKLDNNSnippetNode::define_shedule() {
 
     auto find_dims_to_collapse = [this, config]() -> int {
         int collapsedDims = 0;
-        // we support dim collapsing only for equal in and out dims without broadcasting otherwise we use tile2D
-        bool hasBroadcast = false;
-        for (int i = 0; i < dims_in.size(); i++) {
-            for (int j = 0; j < dims_out.size(); j++) {
-                if (dims_in[i] != dims_out[j]) {
-                    hasBroadcast = true;
-                    break;
-                }
-            }
-        }
-
-        bool canCollapse = true;
-        for (int i = 0; i < dims_in.size(); i++) {
-            if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                    canCollapse = false;
-                    break;
-                }
-            }
-        }
-
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
@@ -419,16 +398,26 @@ void MKLDNNSnippetNode::define_shedule() {
             if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
                 break;
 
+            bool canCollapse = true;
+            for (int i = 0; i < dims_in.size(); i++) {
+                if (dims_in[i][dims_in[i].size() - 2] != 1 && dims_in[i][dims_in[i].size() - 1] == 1 ||
+                    dims_in[i][dims_in[i].size() - 2] == 1 && dims_in[i][dims_in[i].size() - 1] != 1) {
+                    canCollapse = false;
+                    break;
+                }
+            }
+
             size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[max_rank_out_desc_idx][dims_out[max_rank_out_desc_idx].size() - 2];
             if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
                 currentJitWorkAmount = nextJitWorkAmount;
-                if (hasBroadcast || !canCollapse) {
+                // if we cannot use dim collapsing we should use tile2D
+                if (!canCollapse) {
                     if (tileRank < maxTileRank) {
                         tileRank++;
                         continue;
-                    } else {
-                        break;
                     }
+
+                    break;
                 }
 
                 collapsedDims++;
