@@ -25,7 +25,7 @@ class TuningCache;
 
 namespace cldnn {
 
-struct topology_impl;
+struct topology;
 struct primitive_impl;
 struct program_node;
 class layout_optimizer;
@@ -135,7 +135,7 @@ public:
     typedef std::pair<primitive_id, std::vector<primitive_id>> optimized_info;
 
     program_impl(engine& engine_ref,
-                 topology_impl const& topology,
+                 topology const& topology,
                  build_options const& options,
                  bool is_internal,
                  bool no_optimizations = false,
@@ -227,7 +227,7 @@ public:
     uint32_t get_id() const { return prog_id; }
 
     static ptr build_program(engine& engine,
-                             const topology_impl& topology,
+                             const topology& topology,
                              const build_options& options,
                              bool is_internal = false,
                              bool no_optimizations = false,
@@ -271,7 +271,7 @@ private:
     ** High-level functions, in order of usage
     */
     /* build nodes internal structure based on topology */
-    void prepare_nodes(topology_impl const& topology);
+    void prepare_nodes(topology const& topology);
     /* build nodes internal structure based on the subset of nodes of other program  (used in propagate_constants) */
     void prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes);
     void add_node_dependencies(program_node* node_ptr);

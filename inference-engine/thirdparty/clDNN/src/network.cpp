@@ -316,7 +316,7 @@ network_impl::ptr network_impl::allocate_network(engine& engine, program_impl::p
 }
 
 network_impl::ptr network_impl::build_network(engine& engine,
-                                              const topology_impl& topology,
+                                              const topology& topology,
                                               const build_options& options,
                                               bool is_internal) {
     return std::make_shared<network_impl>(engine, topology, options, is_internal);
@@ -330,7 +330,7 @@ network_impl::ptr network_impl::build_network(engine& engine,
 }
 
 network_impl::network_impl(engine& engine,
-                           const topology_impl& topo,
+                           const topology& topo,
                            const build_options& options,
                            bool is_internal)
     : network_impl(program_impl::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}

@@ -3,30 +3,23 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
-#include "cldnn/runtime/compounds.hpp"
 #include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/input_layout.hpp"
 
-#include <cstdint>
-#include <vector>
+#include <map>
 #include <memory>
+#include <vector>
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
+typedef std::map<primitive_id, std::shared_ptr<primitive>> topology_map;
 
-/// @defgroup cpp_topology Network Topology
-/// @{
-
-struct topology_impl;
-
-/// @brief Network topology to be defined by user.
 struct topology {
-    /// @brief Constructs empty network topology.
-    topology();
+public:
+    using ptr = std::shared_ptr<topology>;
+    explicit topology(const topology_map& map = topology_map()) : _primitives(map) {}
 
     /// @brief Constructs topology containing primitives provided in argument(s).
     template <class... Args>
@@ -34,30 +27,20 @@ struct topology {
         add<Args...>(args...);
     }
 
-    /// @brief Copy construction.
-    topology(const topology& other) : _impl(other._impl) { }
 
-    /// @brief Copy assignment.
-    topology& operator=(const topology& other) {
-        if (_impl == other._impl)
-            return *this;
-        _impl = other._impl;
-        return *this;
+    void add_primitive(std::shared_ptr<primitive> desc) {
+        auto id = desc->id;
+        auto itr = _primitives.find(id);
+        if (itr != _primitives.end()) {
+            if (itr->second != desc)
+                throw std::runtime_error("different primitive with id '" + id + "' exists already");
+
+            // adding the same primitive more than once is not an error
+            return;
+        }
+
+        _primitives.insert({id, desc});
     }
-
-    /// Construct C++ topology based on C API @p cldnn_topology
-    explicit topology(std::shared_ptr<topology_impl> other) : _impl(other) {
-        if (_impl == nullptr)
-            throw std::invalid_argument("implementation pointer should not be null");
-    }
-
-    /// @brief Releases wrapped C API @ref cldnn_topology.
-    ~topology() { }
-
-    friend bool operator==(const topology& lhs, const topology& rhs) { return lhs._impl == rhs._impl; }
-    friend bool operator!=(const topology& lhs, const topology& rhs) { return !(lhs == rhs); }
-
-    void add_primitive(std::shared_ptr<primitive> desc);
 
     /// @brief Adds a primitive to topology.
     template <class PType>
@@ -72,22 +55,42 @@ struct topology {
         add<Args...>(args...);
     }
 
-    /// @brief Returns wrapped implementation pointer.
-    std::shared_ptr<topology_impl> get() const { return _impl; }
 
-    const std::vector<primitive_id> get_primitive_ids() const;
+    const std::shared_ptr<primitive>& at(primitive_id id) const {
+        try {
+            return _primitives.at(id);
+        } catch (...) {
+            throw std::runtime_error("Topology doesn't contain primtive: " + id);
+        }
+    }
 
-    void change_input_layout(primitive_id id, const layout& new_layout);
+    void change_input_layout(const primitive_id& id, const layout& new_layout) {
+        if (new_layout.format < format::any || new_layout.format >= format::format_num)
+            throw std::invalid_argument("Unknown format of layout.");
 
-    const std::shared_ptr<primitive>& at(const primitive_id& id) const;
+        if (new_layout.data_type != data_types::f16 && new_layout.data_type != data_types::f32 &&
+            new_layout.data_type != data_types::i8 && new_layout.data_type != data_types::bin &&
+            new_layout.data_type != data_types::u8 && new_layout.data_type != data_types::i32 &&
+            new_layout.data_type != data_types::i64)
+            throw std::invalid_argument("Unknown data_type of layout.");
+
+        auto& inp_layout = this->at(id);
+        if (inp_layout->type != input_layout::type_id()) {
+            throw std::runtime_error("Primitive: " + id + " is not input_layout.");
+        }
+        auto inp_lay_prim = static_cast<input_layout*>(inp_layout.get());
+        inp_lay_prim->change_layout(new_layout);
+    }
+
+    const topology_map& get_primitives() const { return _primitives; }
+
+    const std::vector<primitive_id> get_primitives_ids() const {
+        std::vector<primitive_id> prim_ids;
+        for (const auto& prim : _primitives) prim_ids.push_back(prim.first);
+        return prim_ids;
+    }
 
 private:
-    friend class engine;
-    friend struct network;
-    std::shared_ptr<topology_impl> _impl;
+    topology_map _primitives;
 };
-
-CLDNN_API_CLASS(topology)
-/// @}
-/// @}
 }  // namespace cldnn

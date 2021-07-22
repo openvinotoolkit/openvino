@@ -83,7 +83,7 @@ layout loop_inst::calc_output_layout(loop_node const & node) {
     // from outputs of loop's dependency and calculate loop output layout
     // from the outputs of body program
     if (!node.get_body_program()) {
-        node.build_body_program();
+        const_cast<loop_node&>(node).build_body_program();
     }
 
     // type checks
@@ -126,7 +126,7 @@ std::string loop_inst::to_string(const loop_node & node) {
     auto node_info = node.desc_to_json();
 
     json_composite loop_info;
-    loop_info.add("body input id", desc->body.get_primitive_ids());
+    loop_info.add("body input id", desc->body.get_primitives_ids());
     loop_info.add("trip_count_id", desc->trip_count_id);
     loop_info.add("initial_execution_id", desc->initial_execution_id);
     loop_info.add("current_iteration_id", desc->current_iteration_id);

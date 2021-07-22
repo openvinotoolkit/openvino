@@ -5,11 +5,11 @@
 #pragma once
 
 #include "cldnn/graph/network.hpp"
+#include "cldnn/graph/topology.hpp"
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/stream.hpp"
 #include "program_impl.h"
-#include "topology_impl.h"
 #include "impls/implementation_map.hpp"
 
 #include <map>
@@ -29,7 +29,7 @@ public:
     using ptr = std::shared_ptr<network_impl>;
     explicit network_impl(program_impl::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = false);
     network_impl(engine& engine,
-                 const topology_impl& topo,
+                 const topology& topo,
                  const build_options& options = build_options(),
                  bool is_internal = false);
     network_impl(engine& engine,
@@ -40,7 +40,7 @@ public:
 
 
     static ptr build_network(engine& engine,
-                             const topology_impl& topology,
+                             const topology& topology,
                              const build_options& options,
                              bool is_internal = false);
     static ptr build_network(engine& engine,

@@ -6,7 +6,6 @@
 #pragma once
 #include "cldnn/primitives/detection_output.hpp"
 #include "primitive_inst.h"
-#include "topology_impl.h"
 
 #include <string>
 

@@ -24,21 +24,19 @@ template<>
 struct typed_program_node<loop> : public typed_program_node_base<loop> {
 private:
     using parent = typed_program_node_base<loop>;
-    topology body_topology;
-    topology_impl& body;
+    topology body;
 
     std::vector<loop::io_primitive_map> input_primitive_maps;
     std::vector<loop::io_primitive_map> output_primitive_maps;
     mutable std::vector<loop::backedge_mapping> back_edges;
     bool use_current_iteration;
     bool use_execution_condition;
-    mutable program_impl::ptr body_program;
+    mutable program::ptr body_program;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog) :
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) :
         parent(prim, prog),
-        body_topology(this->get_primitive()->body),
-        body(*body_topology.get()),
+        body(this->get_primitive()->body),
         input_primitive_maps(this->get_primitive()->input_primitive_maps),
         output_primitive_maps(this->get_primitive()->output_primitive_maps),
         back_edges(this->get_primitive()->back_edges),
@@ -50,7 +48,7 @@ public:
     int64_t max_iteration;
 
     int64_t get_max_iteration() const { return max_iteration; }
-    program_impl::ptr get_body_program() const { return body_program; }
+    program::ptr get_body_program() const { return body_program; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
 
@@ -237,6 +235,7 @@ public:
         }
     }
 
+<<<<<<< HEAD
     void process_current_iteration() const {
         const primitive_id& current_iteration_id = get_current_iteration_id();
         if (current_iteration_id.empty()) {
@@ -278,14 +277,24 @@ public:
 
     void process_single_int_output(const primitive_id& id) const {
         // add mutable if not exist
+=======
+    void process_single_int_input(const primitive_id& id) {
+>>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
         const topology_map& body_topology_map = body.get_primitives();
         layout body_output_layout(data_types::i64, format::bfyx, {1, 1, 1, 1});
         if (!id.empty()) {
+<<<<<<< HEAD
             auto body_output = body_topology_map.find(id);
             if (body_output == body_topology_map.end()) {
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
                 auto md = std::make_shared<data>(id, mem);
                 body.add(md);
+=======
+            // add input_layout if not exist
+            if (body_topology_map.count(id)) {
+                layout body_input_layout(data_types::i32, format::bfyx, {1, 1, 1, 1});
+                body.add_primitive(std::make_shared<input_layout>(id, body_input_layout));
+>>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
@@ -294,6 +303,7 @@ public:
         }
     }
 
+<<<<<<< HEAD
     void build_body_program() const {
         for (const auto& pm : input_primitive_maps) {
             layout calculated_layout = calc_body_input_layout(pm);
@@ -304,6 +314,30 @@ public:
                 body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
             } else {
                 body.change_input_layout(internal_input_id, calculated_layout);
+=======
+    void build_body_program() {
+        const std::vector<cldnn::program_node *>& deps = get_dependencies();
+        // setup internal inputs
+        const primitive_id& trip_count_id = get_trip_count_id();
+        const primitive_id& initial_execution = get_initial_execution_id();
+        const primitive_id& num_iteration = get_num_iteration_id();
+        for (const cldnn::program_node * dep : deps) {
+            const primitive_id& id = dep->id();
+            if (id == trip_count_id || id == initial_execution || id == num_iteration) {
+                continue;
+            }
+
+            for (const auto& pm : input_primitive_maps) {
+                layout calculated_layout = calc_body_input_layout(pm);
+                const primitive_id& internal_input_id = pm.internal_id;
+
+                // add inputs for body network if not exist
+                if (body.get_primitives().count(internal_input_id) == 0) {
+                    body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
+                } else {
+                    body.change_input_layout(internal_input_id, calculated_layout);
+                }
+>>>>>>> 70f36b25a5 ([GPU] Get rid of pimpl for topology)
             }
         }
 
@@ -345,7 +379,7 @@ public:
         auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program_impl::build_program(get_program().get_engine(), body, opts, false, false, true);
+        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }

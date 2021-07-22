@@ -66,7 +66,7 @@ std::map<primitive_id, network_output> test_prepare_conv_eltw_fusing(bool eltw1,
     {
         topology.add(eltwise("eltw3", "conv1", "conv2", cldnn::eltwise_mode::sum));
     }
-    program_impl::ptr prog = program_impl::build_program(engine, *topology.get(), build_opt, false, true);
+    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false, true);
 
     layout_optimizer lo;
     program_impl_wrapper::apply_opt_pass<prepare_conv_eltw_fusing>(*prog, lo);

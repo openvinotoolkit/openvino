@@ -7,8 +7,8 @@
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/memory.hpp"
 
+#include "cldnn/graph/topology.hpp"
 #include "program_impl.h"
-#include "topology_impl.h"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
@@ -49,7 +49,7 @@ TEST(basic, test1) {
     topology.add(concatenation("concat", { "reorder1", "weights2" }, concatenation::along_x));
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
 
-    program_impl::ptr prog = program_impl::build_program(engine, *topology.get(), build_opt, false);
+    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false);
     std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
     network network(net);
 
@@ -94,7 +94,7 @@ TEST(add_intermediate_gpu, test1)
     topology.add(cldnn::convolution("conv1b", { "input" }, { "weights" }));
     topology.add(cldnn::convolution("conv2a", { "conv1a" }, { "weights2" }));
     auto new_reorder = std::make_shared<reorder>("reorder","nothing", input->get_layout());
-    program_impl::ptr prog = program_impl::build_program(engine, *topology.get(), build_opt, false, true);
+    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
     prog->dump_program("custom_dump", true);
 
@@ -156,7 +156,7 @@ TEST(add_intermediate_gpu, test2)
     w_vec.push_back("weights");
     auto new_conv = std::make_shared<convolution>("conv1a", "input", w_vec);
     auto weights_node = std::make_shared<data>("weights", weights);
-    program_impl::ptr prog = program_impl::build_program(engine, *topology.get(), build_opt, false, true);
+    program_impl::ptr prog = program_impl::build_program(engine, topology, build_opt, false, true);
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
     program_impl_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));

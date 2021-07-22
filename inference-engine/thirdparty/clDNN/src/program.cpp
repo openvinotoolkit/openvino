@@ -80,10 +80,10 @@
 #include <stdexcept>
 
 program::program(engine& engine, const topology& topology, const build_options& options)
-    : _impl(program_impl::build_program(engine, *topology.get(), options)) {}
+    : _impl(program_impl::build_program(engine, topology, options)) {}
 
 program_impl::program_impl(engine& engine_ref,
-                           topology_impl const& topology,
+                           topology const& topology,
                            build_options const& options,
                            bool is_internal,
                            bool no_optimizations,
@@ -165,7 +165,7 @@ kernel::ptr program_impl::get_kernel(kernel_id id) {
 }
 
 program_impl::ptr program_impl::build_program(engine& engine,
-                                              const topology_impl& topology,
+                                              const topology& topology,
                                               const build_options& options,
                                               bool is_internal,
                                               bool no_optimizations,
@@ -334,7 +334,7 @@ void program_impl::prepare_nodes(std::set<std::shared_ptr<program_node>> const& 
 }
 
 // create all nodes from topology primitives, add dependencies among them and create inputs list
-void program_impl::prepare_nodes(topology_impl const& topology) {
+void program_impl::prepare_nodes(topology const& topology) {
     auto const& topo_map = topology.get_primitives();
     for (const auto& prim : topo_map) {
         get_or_create(prim.second);
