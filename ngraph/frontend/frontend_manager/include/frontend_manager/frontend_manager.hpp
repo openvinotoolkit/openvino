@@ -8,36 +8,14 @@
 #include <string>
 #include "frontend.hpp"
 #include "frontend_manager_defs.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
     namespace frontend
     {
-        /// Capabilities for requested FrontEnd
-        /// In general, frontend implementation may be divided into several libraries by capability
-        /// level It will allow faster load of frontend when only limited usage is expected by
-        /// client application as well as binary size can be minimized by removing not needed parts
-        /// from application's package
-        namespace FrontEndCapabilities
-        {
-            /// \brief Just reading and conversion, w/o any modifications; intended to be used in
-            /// Reader
-            static const int FEC_DEFAULT = 0;
-
-            /// \brief Topology cutting capability
-            static const int FEC_CUT = 1;
-
-            /// \brief Query entities by names, renaming and adding new names for operations and
-            /// tensors
-            static const int FEC_NAMES = 2;
-
-            /// \brief Partial model conversion and decoding capability
-            static const int FEC_WILDCARDS = 4;
-        }; // namespace FrontEndCapabilities
-
         // -------------- FrontEndManager -----------------
-        using FrontEndCapFlags = int;
-        using FrontEndFactory = std::function<FrontEnd::Ptr(FrontEndCapFlags fec)>;
+        using FrontEndFactory = std::function<FrontEnd::Ptr()>;
 
         /// \brief Frontend management class, loads available frontend plugins on construction
         /// Allows load of frontends for particular framework, register new and list available
@@ -62,26 +40,22 @@ namespace ngraph
             /// \param framework Framework name. Throws exception if name is not in list of
             /// available frontends
             ///
-            /// \param fec Frontend capabilities. It is recommended to use only
-            /// those capabilities which are needed to minimize load time
-            ///
             /// \return Frontend interface for further loading of models
-            FrontEnd::Ptr
-                load_by_framework(const std::string& framework,
-                                  FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
+            FrontEnd::Ptr load_by_framework(const std::string& framework);
 
-            /// \brief Loads frontend by model file path. Selects and loads appropriate frontend
-            /// depending on model file extension and other file info (header)
+            /// \brief Loads frontend by model fragments described by each FrontEnd documentation.
+            /// Selects and loads appropriate frontend depending on model file extension and other
+            /// file info (header)
             ///
             /// \param framework
             /// Framework name. Throws exception if name is not in list of available frontends
             ///
-            /// \param fec Frontend capabilities. It is recommended to use only those capabilities
-            /// which are needed to minimize load time
-            ///
             /// \return Frontend interface for further loading of model
-            FrontEnd::Ptr load_by_model(const std::string& path,
-                                        FrontEndCapFlags fec = FrontEndCapabilities::FEC_DEFAULT);
+            template <typename... Types>
+            FrontEnd::Ptr load_by_model(const Types&... vars)
+            {
+                return load_by_model_impl({make_variant(vars)...});
+            }
 
             /// \brief Gets list of registered frontends
             std::vector<std::string> get_available_front_ends() const;
@@ -96,6 +70,8 @@ namespace ngraph
 
         private:
             class Impl;
+
+            FrontEnd::Ptr load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants);
 
             std::unique_ptr<Impl> m_impl;
         };
@@ -118,5 +94,32 @@ namespace ngraph
         };
 
     } // namespace frontend
+
+    template <>
+    class FRONTEND_API VariantWrapper<std::shared_ptr<std::istream>>
+        : public VariantImpl<std::shared_ptr<std::istream>>
+    {
+    public:
+        static constexpr VariantTypeInfo type_info{"Variant::std::shared_ptr<std::istream>", 0};
+        const VariantTypeInfo& get_type_info() const override { return type_info; }
+        VariantWrapper(const value_type& value)
+            : VariantImpl<value_type>(value)
+        {
+        }
+    };
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    template <>
+    class FRONTEND_API VariantWrapper<std::wstring> : public VariantImpl<std::wstring>
+    {
+    public:
+        static constexpr VariantTypeInfo type_info{"Variant::std::wstring", 0};
+        const VariantTypeInfo& get_type_info() const override { return type_info; }
+        VariantWrapper(const value_type& value)
+            : VariantImpl<value_type>(value)
+        {
+        }
+    };
+#endif
 
 } // namespace ngraph

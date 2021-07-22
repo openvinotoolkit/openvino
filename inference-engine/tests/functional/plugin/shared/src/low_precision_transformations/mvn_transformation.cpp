@@ -23,7 +23,7 @@ namespace LayerTestsDefinitions {
 
 std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
     std::string targetDevice;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::AxisSet reductionAxes;
@@ -37,9 +37,8 @@ std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransfo
 }
 
 void MVNTransformation::SetUp() {
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     ngraph::AxisSet reductionAxes;
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
@@ -49,29 +48,6 @@ void MVNTransformation::SetUp() {
         shape,
         reductionAxes,
         normalizeVariance);
-
-    validate();
-}
-
-void MVNTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape shape;
-    std::string targetDevice;
-    ngraph::AxisSet reductionAxes;
-    bool normalizeVariance;
-    std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
-
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    if (normalizeVariance) {
-        ASSERT_EQ("MVN", typeName);
-    } else {
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    }
 }
 
 TEST_P(MVNTransformation, CompareWithRefImpl) {

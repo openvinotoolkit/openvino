@@ -79,6 +79,7 @@ declared in `namespace opset8`.
 * [HSigmoid](activation/HSigmoid_5.md)
 * [HSwish](activation/HSwish_4.md)
 * [IDFT](signals/IDFT_7.md)
+* [If](condition/If_8.md)
 * [Interpolate](image/Interpolate_4.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)

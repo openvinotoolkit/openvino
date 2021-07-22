@@ -8,7 +8,7 @@
 #include "myriad_executable_network.h"
 #include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
-#include "configuration/myriad_configuration.hpp"
+#include "vpu/configuration/plugin_configuration.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,7 +51,7 @@ public:
             const std::map<std::string, ie::Parameter>& options) const override;
 
 private:
-    MyriadConfiguration _parsedConfig;
+    PluginConfiguration _parsedConfig;
     std::vector<DevicePtr> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;

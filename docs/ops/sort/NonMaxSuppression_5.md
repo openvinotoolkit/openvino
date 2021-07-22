@@ -50,13 +50,13 @@ class must not exceed `max_output_boxes_per_class`.
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i64"
-  * **Required**: *No*
+  * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `boxes` - tensor of type *T* and shape `[num_batches, num_boxes, 4]` with box coordinates. Required.
+*   **1**: `boxes` - tensor of type *T* and shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
 
-*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
+*   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
 
 *   **3**: `max_output_boxes_per_class` - scalar or 1D tensor with 1 element of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
@@ -78,11 +78,11 @@ Plugins which do not support dynamic output tensors produce `selected_indices` a
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 * *T_MAX_BOXES*: integer type.
 
-* *T_THRESHOLDS*: floating point type.
+* *T_THRESHOLDS*: floating-point type.
 
 * *T_IND*: `int64` or `int32`.
 

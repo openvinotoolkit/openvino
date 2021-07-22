@@ -24,6 +24,8 @@ ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag
 
 ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
 
+ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
+
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
 ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
@@ -56,7 +58,7 @@ ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "CMAKE_CXX_COMPILER_ID MATCHES ^(Apple)?Clang$; NOT WIN32" OFF)
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG; NOT WIN32" OFF)
 
 #
 # Check features
