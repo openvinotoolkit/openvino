@@ -12,7 +12,9 @@ using namespace ngraph;
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 
-constexpr NodeTypeInfo op::Sign::type_info;
+#include "ngraph/validation_util.hpp"
+
+NGRAPH_RTTI_DEFINITION(op::v0::Sign, "Sign", 0, util::UnaryElementwiseArithmetic);
 
 op::Sign::Sign(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -50,7 +52,6 @@ namespace signop
 
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_sign, boolean, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, i32, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, i64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_sign, u32, arg0, out, count);
@@ -66,6 +67,7 @@ namespace signop
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Sign_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
