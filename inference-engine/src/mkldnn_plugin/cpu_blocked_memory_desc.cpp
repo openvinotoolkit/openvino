@@ -4,7 +4,6 @@
 
 #include "cpu_blocked_memory_desc.h"
 #include "mkldnn_memory.h"
-#include "utils/cpu_utils.hpp"
 
 using namespace MKLDNNPlugin;
 
@@ -66,7 +65,7 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape
     }
 }
 
-bool BlockedMemoryDesc::isDefined() const {
+bool BlockedMemoryDesc::isDefinedImp() const {
     bool defined = true;
     defined = defined && std::none_of(blockedDims.cbegin(), blockedDims.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
     defined = defined && std::none_of(strides.cbegin(), strides.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
@@ -261,25 +260,7 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     return result.str();
 }
 
-std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDims(const std::vector<size_t> &dims) const {
-    // TODO [DS]: phase 2 : move to the base class
-    // TODO [DS]: phase 2 : to discuss the behaviour, should we check the upper bound?
-    if (getShape().getRank() != dims.size()) {
-        IE_THROW(ParameterMismatch) << "Can not clone descriptor since it has rank = " << getShape().getRank() <<
-            ", but dims with size=" << dims.size() << "were provided.";
-    }
-
-    auto comparator = [](size_t lhs, size_t rhs) {
-        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
-    };
-
-    if (!std::equal(getShape().getDims().begin(), getShape().getDims().end(), dims.begin(), comparator)) {
-        IE_THROW(ParameterMismatch) << "Can not clone descriptor! Incompatible dims, shape: " << dims2str(getShape().getDims())
-            << " provided dims: " << dims2str(dims);
-    }
-
-    // TODO [DS]: phase 2 : end code frame to be moved
-
+std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDimsImp(const std::vector<size_t> &dims) const {
     std::vector<size_t> newBlockedDims(order.size());
 
     for (size_t i = 0; i < dims.size(); ++i) {

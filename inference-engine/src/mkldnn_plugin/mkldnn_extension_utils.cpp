@@ -4,9 +4,7 @@
 
 #include "mkldnn_extension_utils.h"
 #include "utils/general_utils.h"
-#include <limits>
 #include <vector>
-#include <numeric>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -77,10 +75,22 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
     }
 }
 
-InferenceEngine::SizeVector MKLDNNExtensionUtils::convertToSizeVector(const mkldnn::memory::dims& dims) {
-    return InferenceEngine::SizeVector(dims.begin(), dims.end());
+InferenceEngine::SizeVector MKLDNNExtensionUtils::convertToSizeVector(const memory::dims& dims) {
+    std::vector<size_t> vecResult;
+    vecResult.reserve(dims.size());
+    std::back_insert_iterator<std::vector<size_t>> itr(vecResult);
+    std::transform(dims.begin(), dims.end(), itr, [](memory::dim x) {
+        return x == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(x);
+    });
+    return vecResult;
 }
 
-std::vector<dnnl::memory::dim> MKLDNNExtensionUtils::convertToDnnlDims(const InferenceEngine::SizeVector& dims) {
-    return std::vector<dnnl::memory::dim>(dims.begin(), dims.end());;
+memory::dims MKLDNNExtensionUtils::convertToDnnlDims(const InferenceEngine::SizeVector& dims) {
+    memory::dims vecResult;
+    vecResult.reserve(dims.size());
+    std::back_insert_iterator<memory::dims> itr(vecResult);
+    std::transform(dims.begin(), dims.end(), itr, [](size_t x) {
+        return x == Shape::UNDEFINED_DIM ? DNNL_RUNTIME_DIM_VAL : static_cast<mkldnn::memory::dim>(x);
+    });
+    return vecResult;
 }

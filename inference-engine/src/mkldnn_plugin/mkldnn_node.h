@@ -454,6 +454,28 @@ public:
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
+    const MemoryDesc* getOutputMemDescAtPort(size_t portNum) const {
+        if (auto primDesc = getSelectedPrimitiveDescriptor()) {
+            const auto& outConfs = primDesc->getConfig().outConfs;
+            if (outConfs.size() < portNum) {
+                return nullptr;
+            }
+            return outConfs[portNum].desc.get();
+        }
+        return nullptr;
+    }
+
+    const MemoryDesc* getInputMemDescAtPort(size_t portNum) const {
+        if (auto primDesc = getSelectedPrimitiveDescriptor()) {
+            const auto& inConfs = primDesc->getConfig().inConfs;
+            if (inConfs.size() < portNum) {
+                return nullptr;
+            }
+            return inConfs[portNum].desc.get();
+        }
+        return nullptr;
+    }
+
     void selectPrimitiveDescriptorByIndex(int index) {
         if (index < 0 || index >= supportedPrimitiveDescriptors.size())
             selectedPrimitiveDescriptorIndex = -1;

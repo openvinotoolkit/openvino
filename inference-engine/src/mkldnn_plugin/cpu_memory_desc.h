@@ -41,13 +41,25 @@ public:
 
     virtual std::unique_ptr<MemoryDesc> clone() const = 0;
 
-    // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims and rank)
-    virtual std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const = 0;
+    // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
+    std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const {
+        if (!getShape().isCompatible(dims)) {
+            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
+                                        " is incompatible with provided dimensions: " << dims2str(dims) << ".";
+        }
+
+        return cloneWithNewDimsImp(dims);
+    }
 
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
     // Checks that all dimensions, offsets, strides, etc are defined (!= UNDEFINED_DIM)
-    virtual bool isDefined() const = 0;
+    bool isDefined() const {
+        if (descStatus::Unknown == status) {
+            status = isDefinedImp() ? descStatus::Defined : descStatus::Undefined;
+        }
+        return descStatus::Defined == status;
+    }
 
     virtual bool hasLayoutType(LayoutType layoutType) const = 0;
 
@@ -102,8 +114,18 @@ protected:
     // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
+    virtual bool isDefinedImp() const = 0;
+
+    virtual std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const = 0;
+
     MemoryDescType type;
     Shape shape;
+
+    mutable enum class descStatus : uint8_t {
+        Unknown,
+        Defined,
+        Undefined,
+    } status = descStatus::Unknown;
 
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation

@@ -19,7 +19,9 @@ public:
 
     explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -118,13 +120,20 @@ public:
     }
 
     ngraph::PartialShape toPartialShape() const {
-        std::vector<ngraph::Dimension> nGraphDims;
+        using ngraph::Dimension;
+        std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
-            nGraphDims.emplace_back(minDims[i], maxDims[i]);
+            Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : minDims[i];
+            Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
+            nGraphDims.emplace_back(minDim, maxDim);
         }
         return ngraph::PartialShape(nGraphDims);
     }
+
+    bool isCompatible(const std::vector<size_t>& vecDims) const;
+
+    std::string toString() const;
 
     bool operator == (const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
@@ -155,21 +164,4 @@ private:
     std::vector<size_t> maxDims;
     std::vector<size_t> dims;
 };
-
-inline std::string dims2str(const std::vector<size_t>& dims) {
-    std::stringstream output;
-    output << "{";
-
-    auto itr = dims.begin();
-    do {
-        if (*itr == Shape::UNDEFINED_DIM) {
-            output << "?";
-        } else {
-            output << *itr;
-        }
-    } while (++itr != dims.end() && output << ", ");
-
-    output << "}";
-    return output.str();
-}
 }  // namespace MKLDNNPlugin
