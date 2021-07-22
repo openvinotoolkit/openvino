@@ -18,13 +18,26 @@ using namespace InferenceEngine;
 
 struct ErfParams {
     template <class IT>
-    ErfParams(const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const std::vector<IT>& iValues, size_t iSize = 0, size_t oSize = 0)
-        : pshape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, iValues, iSize)) {
-        std::vector<IT> oValues(iValues);
-        std::transform(oValues.begin(), oValues.end(), oValues.begin(), [](float input) -> float {
+    ErfParams(const ngraph::PartialShape& shape, const ngraph::element::Type& iType, const std::vector<IT>& iValues)
+        : pshape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, iValues)) {
+        std::vector<IT> oValues;
+        std::vector<double> output;
+        for (auto element : iValues)
+            output.push_back(static_cast<double>(element));
+
+        std::transform(output.begin(), output.end(), output.begin(), [](double input) -> double {
             return std::erf(input);
         });
-        refData = CreateBlob(outType, oValues, oSize);
+
+        if (std::is_integral<IT>()) {
+            std::transform(output.begin(), output.end(), output.begin(), [](double input) -> double {
+                return std::round(input);
+            });
+        }
+
+        for (auto element : output)
+            oValues.push_back(static_cast<IT>(element));
+        refData = CreateBlob(outType, oValues);
     }
     ngraph::PartialShape pshape;
     ngraph::element::Type inType;
@@ -63,7 +76,18 @@ TEST_P(ReferenceErfLayerTest, CompareWithRefs) {
     Exec();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Erf_With_Hardcoded_Refs, ReferenceErfLayerTest,
-                         ::testing::Values(ErfParams(ngraph::PartialShape {2, 5}, ngraph::element::f32,
-                                                     std::vector<float> {-INFINITY, -4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f, INFINITY})),
-                         ReferenceErfLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Erf_With_Hardcoded_Refs, ReferenceErfLayerTest,
+    ::testing::Values(ErfParams(ngraph::PartialShape {2, 5}, ngraph::element::f32,
+                                std::vector<float> {-INFINITY, -4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f, INFINITY}),
+                      ErfParams(ngraph::PartialShape {2, 5}, ngraph::element::f16,
+                                std::vector<float16> {-INFINITY, -4.0f, -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f, INFINITY}),
+                      ErfParams(ngraph::PartialShape {2, 3}, ngraph::element::i32,
+                                std::vector<int32_t> {std::numeric_limits<int32_t>::min(), -2, -1, 1, 2, std::numeric_limits<int32_t>::max()}),
+                      ErfParams(ngraph::PartialShape {2, 3}, ngraph::element::u32,
+                                std::vector<uint32_t> {std::numeric_limits<uint32_t>::min(), 0, 1, 2, 3, std::numeric_limits<uint32_t>::max()}),
+                      ErfParams(ngraph::PartialShape {2, 3}, ngraph::element::i64,
+                                std::vector<int64_t> {std::numeric_limits<int64_t>::min(), -2, -1, 1, 2, std::numeric_limits<int64_t>::max()}),
+                      ErfParams(ngraph::PartialShape {2, 3}, ngraph::element::u64,
+                                std::vector<uint64_t> {std::numeric_limits<uint64_t>::min(), 0, 1, 2, 3, std::numeric_limits<uint64_t>::max()})),
+    ReferenceErfLayerTest::getTestCaseName);
