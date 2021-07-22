@@ -263,19 +263,9 @@ std::string BlockedMemoryDesc::serializeFormat() const {
 
 std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDims(const std::vector<size_t> &dims) const {
     // TODO [DS]: phase 2 : move to the base class
-    // TODO [DS]: phase 2 : to discuss the behaviour, should we check the upper bound?
-    if (getShape().getRank() != dims.size()) {
-        IE_THROW(ParameterMismatch) << "Can not clone descriptor since it has rank = " << getShape().getRank() <<
-            ", but dims with size=" << dims.size() << "were provided.";
-    }
-
-    auto comparator = [](size_t lhs, size_t rhs) {
-        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
-    };
-
-    if (!std::equal(getShape().getDims().begin(), getShape().getDims().end(), dims.begin(), comparator)) {
-        IE_THROW(ParameterMismatch) << "Can not clone descriptor! Incompatible dims, shape: " << dims2str(getShape().getDims())
-            << " provided dims: " << dims2str(dims);
+    if (!getShape().isCompatible(dims)) {
+        IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
+            " is incompatible with provided dimensions: " << dims2str(dims) << ".";
     }
 
     // TODO [DS]: phase 2 : end code frame to be moved

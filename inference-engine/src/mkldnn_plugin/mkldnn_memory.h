@@ -177,11 +177,13 @@ public:
     }
 
     void Create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
+    void Create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
-    // Redefines dimensions. The memory descriptor will also be redefined with the new dims.
+    // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated if the new tensor size is less or equal the upper bound.
     // Caution!!! This action invalidates the previous data layout. The old data may become unreachable.
-    void redefineDims(const std::vector<size_t>& desc);
+    void redefineDesc(const MemoryDesc& desc);
+    void redefineDesc(MemoryDescPtr desc);
 
     // Like a plain format
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format, const void* data, size_t size, bool ftz = true) const;

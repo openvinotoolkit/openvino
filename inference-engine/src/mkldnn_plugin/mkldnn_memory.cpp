@@ -91,18 +91,22 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
 }
 
 void MKLDNNMemory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
-    pMemDesc = desc.clone();
+    Create(desc.clone(), data, pads_zeroing);
+}
+
+void MKLDNNMemory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
+    pMemDesc = std::move(desc);
     if (nullptr != data) {
         useExternalStorage = true;
     } else {
         useExternalStorage = false;
     }
 
-    if (desc.isDefined()) {
-        Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(desc)), data, pads_zeroing);
+    if (pMemDesc->isDefined()) {
+        Create(mkldnn::memory::desc(MemoryDescUtils::convertToMKLDNNMemoryDesc(*pMemDesc)), data, pads_zeroing);
     } else {
         //delayed dynamic allocation
-        size_t maxMemSize = desc.getMaxMemSize();
+        size_t maxMemSize = pMemDesc->getMaxMemSize();
         int64_t dummySize = MemoryDesc::UNDEFINED_SIZE == maxMemSize ? 1 : maxMemSize;
         MKLDNNMemoryDesc dummyDesc({dummySize}, mkldnn::memory::data_type::u8);
         Create(mkldnn::memory::desc(dummyDesc), data, false);  // no pads zeroing
@@ -304,20 +308,23 @@ MKLDNNMemoryDesc MKLDNNMemory::GetDescWithType<MKLDNNMemoryDesc, 0, 0>() const {
     }
 }
 
-void MKLDNNMemory::redefineDims(const std::vector<size_t>& dims) {
-    auto desc = pMemDesc->cloneWithNewDims(dims);
+void MKLDNNMemory::redefineDesc(const MemoryDesc& desc) {
+    redefineDesc(desc.clone());
+}
+
+void MKLDNNMemory::redefineDesc(MemoryDescPtr desc) {
     if (useExternalStorage) {
         size_t descMaxSize = desc->getMaxMemSize();
         if (MemoryDesc::UNDEFINED_SIZE == descMaxSize) {
             IE_THROW() << "Can not reset descriptor, memory upper bound is unknown.";
         }
         if (descMaxSize <= memUpperBound) {
-            this->Create(*desc, prim->get_data_handle(), false);
+            this->Create(std::move(desc), prim->get_data_handle(), false);
         } else {
-            this->Create(*desc, nullptr, false);
+            this->Create(std::move(desc), nullptr, false);
         }
     } else {
-        this->Create(*desc, nullptr, false);
+        this->Create(std::move(desc), nullptr, false);
     }
 }
 
