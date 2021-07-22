@@ -11,6 +11,9 @@
 #include <windows.h>
 #include <psapi.h>
 #include <tlhelp32.h>
+#else
+#include <sys/unistd.h>
+#include <sys/wait.h>
 #endif
 
 
@@ -115,6 +118,36 @@ size_t getVmHWMInKB() {return getSystemDataByName((char*) "VmHWM:");}
 size_t getThreadsNum() {return getSystemDataByName((char*) "Threads:");}
 
 #endif
+
+template<typename Function, typename ... Args>
+int run_in_processes(const int &numprocesses, Function const &function, Args ... args) {
+#ifdef _WIN32
+    // TODO: implement run in separate process by using WinAPI
+    function(args...);
+    return 0;
+#else
+    std::vector<pid_t> child_pids(numprocesses);
+
+    for (int i = 0; i < numprocesses; i++) {
+        child_pids[i] = fork();
+        if (child_pids[i] == 0) {
+            function(args...);
+            exit(EXIT_SUCCESS);
+        }
+    }
+
+    int status = 0;
+    for (int i = 0; i < numprocesses; i++) {
+        int _status = 0;
+        waitpid(child_pids[i], &_status, WSTOPPED);
+        if (_status) {
+            log_err("Process run # " << i << " failed with exitcode " << _status);
+            status = _status;
+        }
+    }
+    return status;
+#endif
+}
 
 void auto_expand_env_vars(std::string &input) {
     const static std::string pattern1 = "${", pattern2 = "}";

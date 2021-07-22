@@ -13,8 +13,6 @@
 #ifdef _WIN32
 #define OS_SEP std::string("\\")
 #else
-#include <sys/unistd.h>
-#include <sys/wait.h>
 #define OS_SEP std::string("/")
 #endif
 
@@ -40,34 +38,7 @@ size_t getVmHWMInKB();
 size_t getThreadsNum();
 
 template<typename Function, typename ... Args>
-int run_in_processes(const int &numprocesses, Function const &function, Args ... args) {
-#ifdef _WIN32
-    // TODO: implement run in separate process by using WinAPI
-    function(args...);
-    return 0;
-#else
-    std::vector<pid_t> child_pids(numprocesses);
-
-    for (int i = 0; i < numprocesses; i++) {
-        child_pids[i] = fork();
-        if (child_pids[i] == 0) {
-            function(args...);
-            exit(EXIT_SUCCESS);
-        }
-    }
-
-    int status = 0;
-    for (int i = 0; i < numprocesses; i++) {
-        int _status = 0;
-        waitpid(child_pids[i], &_status, WSTOPPED);
-        if (_status) {
-            log_err("Process run # " << i << " failed with exitcode " << _status);
-            status = _status;
-        }
-    }
-    return status;
-#endif
-}
+int run_in_processes(const int &numprocesses, Function const &function, Args ... args);
 
 template<typename Function, typename ... Args>
 inline void run_in_threads(const int &numthreads, Function const &function, Args ... args) {
