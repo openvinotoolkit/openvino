@@ -8,11 +8,6 @@
 #include <pugixml.hpp>
 #include <string>
 
-#ifdef not _WIN32
-#include <unistd.h>
-#include <sys/wait.h>
-#endif
-
 #define DEBUG_MODE false
 
 const pugi::xml_document & Environment::getTestConfig() {

@@ -52,23 +52,19 @@ static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
 }
 
 size_t getVmSizeInKB() {
-    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
-    return pmc.PagefileUsage / 1024;
+    return getMemoryInfo().PagefileUsage / 1024;
     }
 
 size_t getVmPeakInKB() {
-    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
-    return pmc.PeakPagefileUsage / 1024;
+    return getMemoryInfo().PeakPagefileUsage / 1024;
     }
 
 size_t getVmRSSInKB() {
-    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
-    return pmc.WorkingSetSize / 1024;
+    return getMemoryInfo().WorkingSetSize / 1024;
     }
 
 size_t getVmHWMInKB() {
-    PROCESS_MEMORY_COUNTERS pmc = getMemoryInfo();
-    return pmc.PeakWorkingSetSize / 1024;
+    return getMemoryInfo().PeakWorkingSetSize / 1024;
     }
 
 size_t getThreadsNum() {
