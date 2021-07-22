@@ -92,7 +92,7 @@ namespace ngraph
             bfloat16 uint32_to_bfloat16(uint32_t x)
             {
                 uint16_t x_uint16 = static_cast<uint16_t>(x);
-                x_uint16 = (static_cast<uint16_t>(127) << 7) | x_uint16 & 0x7fu;
+                x_uint16 = (static_cast<uint16_t>(127) << 7) | (x_uint16 & 0x7fu);
 
                 bfloat16 x_bfloat16;
                 memcpy(&x_bfloat16, &x_uint16, sizeof(x_uint16));
