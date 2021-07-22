@@ -39,13 +39,13 @@ struct RefComparisonParams {
 class ReferenceComparisonLayerTest : public testing::TestWithParam<RefComparisonParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.comparisonType, params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefComparisonParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "comparisonType=" << param.comparisonType << "_";
         result << "inpt_shape1=" << param.pshape1 << "_";
@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, ngraph::PartialShape& input_shape1,
+    static std::shared_ptr<ngraph::Function> CreateFunction(ngraph::helpers::ComparisonTypes comp_op_type, const ngraph::PartialShape& input_shape1,
                                                             const ngraph::PartialShape& input_shape2, const ngraph::element::Type& input_type,
                                                             const ngraph::element::Type& expected_output_type) {
         const auto in = std::make_shared<ngraph::op::Parameter>(input_type, input_shape1);

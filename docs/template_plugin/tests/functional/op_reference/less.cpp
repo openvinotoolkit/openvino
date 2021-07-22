@@ -23,31 +23,31 @@ TEST_P(ReferenceComparisonLayerTest, LessCompareWithHardcodedRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<RefComparisonParams> generateComparisonParams(const ngraph::element::Type& type) {
+std::vector<RefComparisonParams> generateComparisonParams(const element::Type& type) {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<RefComparisonParams> compParams {
         // 1D // 2D // 3D // 4D
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 2}, PartialShape {2, 2}, type, element::boolean,
                 std::vector<T> {0, 12, 23, 0},
                 std::vector<T> {0, 12, 23, 0},
                 std::vector<char> {0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {2, 3}, ngraph::PartialShape {2, 3}, type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 3}, PartialShape {2, 3}, type, element::boolean,
                 std::vector<T> {0, 6, 45, 1, 21, 21},
                 std::vector<T> {1, 18, 23, 1, 19, 21},
                 std::vector<char> {1, 1, 0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {1}, ngraph::PartialShape {1},  type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {1}, PartialShape {1},  type, element::boolean,
                 std::vector<T> {53},
                 std::vector<T> {53},
                 std::vector<char> {0}),
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {2, 4}, ngraph::PartialShape {2, 4}, type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 4}, PartialShape {2, 4}, type, element::boolean,
                 std::vector<T> {0, 12, 23, 0, 1, 5, 11, 8},
                 std::vector<T> {0, 12, 23, 0, 10, 5, 11, 8},
                 std::vector<char> {0, 0, 0, 0, 1, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {3, 1, 2}, ngraph::PartialShape {1, 2, 1}, type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {3, 1, 2}, PartialShape {1, 2, 1}, type, element::boolean,
                 std::vector<T> {2, 1, 4, 1, 3, 1},
                 std::vector<T> {1, 1},
                 std::vector<char> {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 2, 1}, type, ngraph::element::boolean,
+        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 1, 2, 1}, PartialShape {1, 2, 1}, type, element::boolean,
                 std::vector<T> {2, 1, 4, 1},
                 std::vector<T> {1, 1},
                 std::vector<char> {0, 0, 0, 0})};
@@ -56,11 +56,11 @@ std::vector<RefComparisonParams> generateComparisonParams(const ngraph::element:
 
 std::vector<RefComparisonParams> generateComparisonCombinedParams() {
     const std::vector<std::vector<RefComparisonParams>> compTypeParams {
-        generateComparisonParams<element::Type_t::f32>(ngraph::element::f32),
-        generateComparisonParams<element::Type_t::f16>(ngraph::element::f16),
-        generateComparisonParams<element::Type_t::i32>(ngraph::element::i32),
-        generateComparisonParams<element::Type_t::u32>(ngraph::element::u32),
-        generateComparisonParams<element::Type_t::u8>(ngraph::element::boolean)};
+        generateComparisonParams<element::Type_t::f32>(element::f32),
+        generateComparisonParams<element::Type_t::f16>(element::f16),
+        generateComparisonParams<element::Type_t::i32>(element::i32),
+        generateComparisonParams<element::Type_t::u32>(element::u32),
+        generateComparisonParams<element::Type_t::u8>(element::boolean)};
     std::vector<RefComparisonParams> combinedParams;
 
     for (const auto& params : compTypeParams) {
