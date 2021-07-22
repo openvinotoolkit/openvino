@@ -39,9 +39,9 @@ def infer(ir_path, device):
     :param device: Device name for inference
     :return: Dict containing out blob name and out data
     """
-    ie = IECore()
 
     bin_path = os.path.splitext(ir_path)[0] + '.bin'
+    ie = IECore()
     net = ie.read_network(model=ir_path, weights=bin_path)
     exec_net = ie.load_network(net, device)
     res = exec_net.infer(inputs=input_preparation(net))
