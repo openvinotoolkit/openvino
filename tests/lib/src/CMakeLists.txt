@@ -9,8 +9,6 @@ add_library(${TARGET_NAME} STATIC ${SRC})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../")
-
 # Search OpenVINO Inference Engine installed
 find_package(InferenceEngine REQUIRED)
 
