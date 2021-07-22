@@ -130,7 +130,7 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf REQUIRED)
+        find_package(Protobuf 3.9.0 REQUIRED)
         if(NGRAPH_USE_PROTOBUF_LITE)
             set(Protobuf_LIBRARIES protobuf::libprotobuf-lite)
         else()
@@ -162,11 +162,6 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()
-
-    # version checks
-    if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
-        message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
-    endif()
 endif()
 
 #
