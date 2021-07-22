@@ -168,18 +168,10 @@ output  = [[65 70 56]
 
 **Attributes**:
 
-* *initial_type*
-
-    * **Description**: the type of the output in original model. Random values are generated in initial type
-      then are casted to output type. In case of different precisions this may lead to data loss.
-    * **Range of values**: "i32", "i64", "f16", "f32", "f64".
-    * **Type**: string
-    * **Required**: *Yes*
-  
 * *output_type*
 
-    * **Description**: the type of the output. Random values are generated in initial type then are casted to 
-      output type. In case of different precisions this may lead to data loss. 
+    * **Description**: the type of the output. Determines generation algorithm and affects resulting values.
+      Values with different precision do not correspond each other.
     * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
     * **Type**: string
     * **Required**: *Yes*
@@ -217,20 +209,20 @@ output  = [[65 70 56]
 
 * *T_SHAPE*: `int32` or `int64`.
 
-*Example 1: IR example with initial type "FP32" in original model and output type "FP16" specified during conversion.*
+*Example 1: IR example.*
 
 ```xml
 <layer ... name="RandomUniform" type="RandomUniform">
-    <data initial_type="f32" output_type="f16" seed="234" seed2="148"/>
+    <data output_type="f32" seed="234" seed2="148"/>
     <input>
         <port id="0" precision="I32">  <!-- shape value: [2 , 3, 10] -->
             <dim>2</dim>
         </port>
-        <port id="1" precision="FP16"/> <!-- min value -->
-        <port id="2" precision="FP16"/> <!-- max value -->
+        <port id="1" precision="FP32"/> <!-- min value -->
+        <port id="2" precision="FP32"/> <!-- max value -->
     </input>
     <output>
-        <port id="3" precision="FP16" names="RandomUniform:0">
+        <port id="3" precision="FP32" names="RandomUniform:0">
             <dim>2</dim>
             <dim>3</dim>
             <dim>10</dim>
