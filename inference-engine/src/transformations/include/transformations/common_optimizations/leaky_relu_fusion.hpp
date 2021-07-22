@@ -23,8 +23,6 @@ class TRANSFORMATIONS_API LeakyReluFusion;
  * @ingroup ie_transformation_common_api
  * @brief LeakyReluFusion transformation replaces following graph:
  * Multiply->Maximum to LeakyRelu
- * Restrictions:
- * - one of the parameters to Multiply is a scalar constant
  */
 
 class ngraph::pass::LeakyReluFusion: public ngraph::pass::MatcherPass {
