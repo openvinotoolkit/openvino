@@ -112,7 +112,11 @@ ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are link
 
 ie_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
 
-ie_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" OFF)
+ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
+
+ie_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
+
+ie_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
 if(ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)))
     set(protoc_available OFF)
