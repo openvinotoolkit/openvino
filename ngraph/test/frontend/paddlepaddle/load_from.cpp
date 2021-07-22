@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/load_from.hpp"
+#include "load_from.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
