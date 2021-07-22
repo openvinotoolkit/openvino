@@ -12,6 +12,8 @@ add_subdirectory(readers)
 
 add_subdirectory(legacy_api)
 
+add_subdirectory(common)
+
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
