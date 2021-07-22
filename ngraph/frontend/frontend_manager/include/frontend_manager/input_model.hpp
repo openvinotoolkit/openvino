@@ -68,47 +68,47 @@ namespace ngraph
 
             /// \brief Returns a tensor place by a tensor name following framework conventions, or
             /// nullptr if a tensor with this name doesn't exist.
-            /// \param tensorName Name of tensor
+            /// \param tensor_name Name of tensor
             /// \return Tensor place corresponding to specifed tensor name
-            virtual Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
+            virtual Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
 
             /// \brief Returns an operation place by an operation name following framework
             /// conventions, or nullptr if an operation with this name doesn't exist. \param
-            /// operationName Name of operation \return Place representing operation
-            virtual Place::Ptr get_place_by_operation_name(const std::string& operationName);
+            /// operation_name Name of operation \return Place representing operation
+            virtual Place::Ptr get_place_by_operation_name(const std::string& operation_name);
 
             /// \brief Returns an input port place by operation name and appropriate port index
-            /// \param operationName Name of operation
-            /// \param outputPortIndex Index of input port for this operation
+            /// \param operation_name Name of operation
+            /// \param output_port_index Index of input port for this operation
             /// \return Place representing input port of operation
             virtual Place::Ptr
-                get_place_by_operation_name_and_input_port(const std::string& operationName,
-                                                           int inputPortIndex);
+                get_place_by_operation_name_and_input_port(const std::string& operation_name,
+                                                           int input_port_index);
 
             /// \brief Returns an output port place by operation name and appropriate port index
-            /// \param operationNameNname of operation
-            /// \param outputPortIndex Index of output port for this operation
+            /// \param operation_name Name of operation
+            /// \param output_port_index Index of output port for this operation
             /// \return Place representing output port of operation
             virtual Place::Ptr
-                get_place_by_operation_name_and_output_port(const std::string& operationName,
-                                                            int outputPortIndex);
+                get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                            int output_port_index);
 
             ///// Naming and annotation  /////
 
             /// \brief Sets name for tensor. Overwrites existing names of this place
             /// \param operation Tensor place
-            /// \param newName New name for this tensor
-            virtual void set_name_for_tensor(Place::Ptr tensor, const std::string& newName);
+            /// \param new_name New name for this tensor
+            virtual void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
 
             /// \brief Adds new name for tensor
             /// \param operation Tensor place
-            /// \param newName New name to be added to this place
-            virtual void add_name_for_tensor(Place::Ptr tensor, const std::string& newName);
+            /// \param new_name New name to be added to this place
+            virtual void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name);
 
             /// \brief Sets name for operation. Overwrites existing names of this place
             /// \param operation Operation place
-            /// \param newName New name for this operation
-            virtual void set_name_for_operation(Place::Ptr operation, const std::string& newName);
+            /// \param new_name New name for this operation
+            virtual void set_name_for_operation(Place::Ptr operation, const std::string& new_name);
 
             /// \brief Unassign specified name from tensor place(s)
             /// \param name Name of tensor
@@ -120,27 +120,27 @@ namespace ngraph
 
             /// \brief Set name for a particular dimension of a place (e.g. batch dimension)
             /// \param place Model's place
-            /// \param shapeDimIndex Dimension index
-            /// \param dimName Name to assign on this dimension
+            /// \param shape_dim_index Dimension index
+            /// \param dim_name Name to assign on this dimension
             virtual void set_name_for_dimension(Place::Ptr place,
-                                                size_t shapeDimIndex,
-                                                const std::string& dimName);
+                                                size_t shape_dim_index,
+                                                const std::string& dim_name);
 
             ///// Topology Editing  /////
 
             /// \brief Cut immediately before this place and assign this place as new input; prune
             /// all nodes that don't contribute to any output.
             /// \param place New place to be assigned as input
-            /// \param newNameOptional Optional new name assigned to this input place
+            /// \param new_name_optional Optional new name assigned to this input place
             virtual void cut_and_add_new_input(Place::Ptr place,
-                                               const std::string& newNameOptional = "");
+                                               const std::string& new_name_optional = "");
 
             /// \brief Cut immediately after this place and assign this place as new output; prune
             /// all nodes that don't contribute to any output.
             /// \param place New place to be assigned as output
-            /// \param newNameOptional Optional new name assigned to this output place
+            /// \param new_name_optional Optional new name assigned to this output place
             virtual void cut_and_add_new_output(Place::Ptr place,
-                                                const std::string& newNameOptional = "");
+                                                const std::string& new_name_optional = "");
 
             /// \brief Assign this place as new output or add necessary nodes to represent a new
             /// output.
@@ -200,13 +200,13 @@ namespace ngraph
             virtual void set_tensor_value(Place::Ptr place, const void* value);
 
             /// \brief Defines partial value (lower bound and upper bound) for a tensor place
-            /// TODO: more details for minValue and maxValue format; who defines shape?
+            /// TODO: more details for min_value and max_value format; who defines shape?
             /// \param place Tensor place
-            /// \param minValue Lower bound of partial value for tensor place
-            /// \param maxValue Upper bound of partial value for tensor place
+            /// \param min_value Lower bound of partial value for tensor place
+            /// \param max_value Upper bound of partial value for tensor place
             virtual void set_tensor_partial_value(Place::Ptr place,
-                                                  const void* minValue,
-                                                  const void* maxValue);
+                                                  const void* min_value,
+                                                  const void* max_value);
         };
 
     } // namespace frontend

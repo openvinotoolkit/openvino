@@ -16,22 +16,22 @@ using namespace ngraph::frontend;
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl
 {
-    std::vector<PluginHandle> m_loadedLibs; // must be a first class member (destroyed last)
+    std::vector<PluginHandle> m_loaded_libs; // must be a first class member (destroyed last)
     std::map<std::string, FrontEndFactory> m_factories;
 
 public:
-    Impl() { registerPlugins(); }
+    Impl() { register_plugins(); }
 
     ~Impl() = default;
 
-    FrontEnd::Ptr loadByFramework(const std::string& framework)
+    FrontEnd::Ptr load_by_framework(const std::string& framework)
     {
         FRONT_END_INITIALIZATION_CHECK(
             m_factories.count(framework), "FrontEnd for Framework ", framework, " is not found");
         return m_factories[framework]();
     }
 
-    std::vector<std::string> availableFrontEnds() const
+    std::vector<std::string> available_front_ends() const
     {
         std::vector<std::string> keys;
 
@@ -43,7 +43,7 @@ public:
         return keys;
     }
 
-    FrontEnd::Ptr loadByModel(const std::vector<std::shared_ptr<Variant>>& variants)
+    FrontEnd::Ptr load_by_model(const std::vector<std::shared_ptr<Variant>>& variants)
     {
         for (const auto& factory : m_factories)
         {
@@ -56,41 +56,41 @@ public:
         return FrontEnd::Ptr();
     }
 
-    void registerFrontEnd(const std::string& name, FrontEndFactory creator)
+    void register_front_end(const std::string& name, FrontEndFactory creator)
     {
         m_factories.insert({name, creator});
     }
 
 private:
-    void registerPlugins()
+    void register_plugins()
     {
-        auto registerFromDir = [&](const std::string& dir) {
+        auto register_from_dir = [&](const std::string& dir) {
             if (!dir.empty())
             {
-                auto plugins = loadPlugins(dir);
+                auto plugins = load_plugins(dir);
                 for (auto& plugin : plugins)
                 {
-                    registerFrontEnd(plugin.m_pluginInfo.m_name, plugin.m_pluginInfo.m_creator);
-                    m_loadedLibs.push_back(std::move(plugin.m_libHandle));
+                    register_front_end(plugin.m_plugin_info.m_name, plugin.m_plugin_info.m_creator);
+                    m_loaded_libs.push_back(std::move(plugin.m_lib_handle));
                 }
             }
         };
-        std::string envPath = ngraph::getenv_string("OV_FRONTEND_PATH");
-        if (!envPath.empty())
+        std::string env_path = ngraph::getenv_string("OV_FRONTEND_PATH");
+        if (!env_path.empty())
         {
             auto start = 0u;
-            auto sepPos = envPath.find(PathSeparator, start);
-            while (sepPos != std::string::npos)
+            auto sep_pos = env_path.find(PathSeparator, start);
+            while (sep_pos != std::string::npos)
             {
-                registerFromDir(envPath.substr(start, sepPos - start));
-                start = sepPos + 1;
-                sepPos = envPath.find(PathSeparator, start);
+                register_from_dir(env_path.substr(start, sep_pos - start));
+                start = sep_pos + 1;
+                sep_pos = env_path.find(PathSeparator, start);
             }
-            registerFromDir(envPath.substr(start, sepPos));
+            register_from_dir(env_path.substr(start, sep_pos));
         }
         else
         {
-            registerFromDir(getFrontendLibraryPath());
+            register_from_dir(get_frontend_library_path());
         }
     }
 };
@@ -107,23 +107,23 @@ FrontEndManager::~FrontEndManager() = default;
 
 FrontEnd::Ptr FrontEndManager::load_by_framework(const std::string& framework)
 {
-    return m_impl->loadByFramework(framework);
+    return m_impl->load_by_framework(framework);
 }
 
 FrontEnd::Ptr
     FrontEndManager::load_by_model_impl(const std::vector<std::shared_ptr<Variant>>& variants)
 {
-    return m_impl->loadByModel(variants);
+    return m_impl->load_by_model(variants);
 }
 
 std::vector<std::string> FrontEndManager::get_available_front_ends() const
 {
-    return m_impl->availableFrontEnds();
+    return m_impl->available_front_ends();
 }
 
 void FrontEndManager::register_front_end(const std::string& name, FrontEndFactory creator)
 {
-    m_impl->registerFrontEnd(name, creator);
+    m_impl->register_front_end(name, creator);
 }
 
 //----------- FrontEnd ---------------------------
@@ -158,7 +158,7 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert_partially(InputModel::Ptr mo
 
 std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const
 {
-    FRONT_END_NOT_IMPLEMENTED(convertDecodingOnly);
+    FRONT_END_NOT_IMPLEMENTED(decode);
 }
 
 void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const
@@ -177,39 +177,40 @@ std::vector<Place::Ptr> InputModel::get_outputs() const
     FRONT_END_NOT_IMPLEMENTED(get_outputs);
 }
 
-Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const
+Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_place_by_tensor_name);
 }
 
-Place::Ptr InputModel::get_place_by_operation_name(const std::string& operationName)
+Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name)
 {
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
 }
 
-Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operationName,
-                                                                  int inputPortIndex)
+Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operation_name,
+                                                                  int input_port_index)
 {
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
 }
 
-Place::Ptr InputModel::get_place_by_operation_name_and_output_port(const std::string& operationName,
-                                                                   int outputPortIndex)
+Place::Ptr
+    InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                            int output_port_index)
 {
     FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
 }
 
-void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& newName)
+void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
 {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_tensor);
 }
 
-void InputModel::add_name_for_tensor(Place::Ptr tensor, const std::string& newName)
+void InputModel::add_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
 {
     FRONT_END_NOT_IMPLEMENTED(add_name_for_tensor);
 }
 
-void InputModel::set_name_for_operation(Place::Ptr operation, const std::string& newName)
+void InputModel::set_name_for_operation(Place::Ptr operation, const std::string& new_name)
 {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_operation);
 }
@@ -225,18 +226,18 @@ void InputModel::free_name_for_operation(const std::string& name)
 }
 
 void InputModel::set_name_for_dimension(Place::Ptr place,
-                                        size_t shapeDimIndex,
-                                        const std::string& dimName)
+                                        size_t shape_dim_index,
+                                        const std::string& dim_name)
 {
     FRONT_END_NOT_IMPLEMENTED(set_name_for_dimension);
 }
 
-void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& newNameOptional)
+void InputModel::cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional)
 {
     FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_input);
 }
 
-void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& newNameOptional)
+void InputModel::cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional)
 {
     FRONT_END_NOT_IMPLEMENTED(cut_and_add_new_output);
 }
@@ -289,8 +290,8 @@ void InputModel::set_tensor_value(Place::Ptr place, const void* value)
 }
 
 void InputModel::set_tensor_partial_value(Place::Ptr place,
-                                          const void* minValue,
-                                          const void* maxValue)
+                                          const void* min_value,
+                                          const void* max_value)
 {
     FRONT_END_NOT_IMPLEMENTED(set_tensor_partial_value);
 }
@@ -306,7 +307,7 @@ std::vector<Place::Ptr> Place::get_consuming_operations() const
     FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
 
-std::vector<Place::Ptr> Place::get_consuming_operations(int outputPortIndex) const
+std::vector<Place::Ptr> Place::get_consuming_operations(int output_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
 }
@@ -316,7 +317,7 @@ Place::Ptr Place::get_target_tensor() const
     FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
 }
 
-Place::Ptr Place::get_target_tensor(int outputPortIndex) const
+Place::Ptr Place::get_target_tensor(int output_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
 }
@@ -326,7 +327,7 @@ Place::Ptr Place::get_producing_operation() const
     FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
 }
 
-Place::Ptr Place::get_producing_operation(int inputPortIndex) const
+Place::Ptr Place::get_producing_operation(int input_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
 }
@@ -341,17 +342,17 @@ Place::Ptr Place::get_input_port() const
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
 
-Place::Ptr Place::get_input_port(int inputPortIndex) const
+Place::Ptr Place::get_input_port(int input_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
 
-Place::Ptr Place::get_input_port(const std::string& inputName) const
+Place::Ptr Place::get_input_port(const std::string& input_name) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
 
-Place::Ptr Place::get_input_port(const std::string& inputName, int inputPortIndex) const
+Place::Ptr Place::get_input_port(const std::string& input_name, int input_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_input_port);
 }
@@ -361,17 +362,17 @@ Place::Ptr Place::get_output_port() const
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
 
-Place::Ptr Place::get_output_port(int outputPortIndex) const
+Place::Ptr Place::get_output_port(int output_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
 
-Place::Ptr Place::get_output_port(const std::string& outputName) const
+Place::Ptr Place::get_output_port(const std::string& output_name) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
 
-Place::Ptr Place::get_output_port(const std::string& outputName, int outputPortIndex) const
+Place::Ptr Place::get_output_port(const std::string& output_name, int output_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_output_port);
 }
@@ -406,7 +407,7 @@ Place::Ptr Place::get_source_tensor() const
     FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
 }
 
-Place::Ptr Place::get_source_tensor(int inputPortIndex) const
+Place::Ptr Place::get_source_tensor(int input_port_index) const
 {
     FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
 }

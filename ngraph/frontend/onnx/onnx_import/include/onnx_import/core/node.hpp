@@ -58,7 +58,6 @@ namespace ngraph
             Node& operator=(const Node&) = delete;
 
             OutputVector get_ng_inputs() const;
-            OutputVector get_ng_nodes() const;
             const std::string& domain() const;
             const std::string& op_type() const;
             const std::string& get_name() const;

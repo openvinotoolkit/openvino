@@ -161,6 +161,11 @@ namespace ngraph
             ///
             bool is_correct_and_unambiguous_node(const EditorNode& node) const;
 
+            /// \brief Returns a nGraph function based on edited model
+            ///        decoded to framework nodes
+            ///
+            std::shared_ptr<Function> decode();
+
         private:
             void update_mapper_if_needed() const;
 
