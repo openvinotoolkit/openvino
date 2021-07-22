@@ -10,7 +10,7 @@ from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
-class ChangeCastOutputType(BackReplacementPattern):
+class ChangeOutputTypeAttributes(BackReplacementPattern):
     """
     Change the Cast dst_type from fp64 to fp32 since not all plugins support fp64 data type.
     Change the Cast dst_type from fp32 to fp16 when generating IR for fp16.
