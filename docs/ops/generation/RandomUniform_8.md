@@ -194,11 +194,11 @@ output  = [[65 70 56]
 
 *   **1**: `shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
 
-*   **2**: `minval` - Scalar with type specified by the attribute *output_type*, defines the lower bound on the range 
-    of random values to generate (inclusive). **Required.**
+*   **2**: `minval` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, 
+    defines the lower bound on the range of random values to generate (inclusive). **Required.**
 
-*   **3**: `maxval` - Scalar with type specified by the attribute *output_type*, defines the upper bound on the range 
-    of random values to generate (exclusive). **Required.**
+*   **3**: `maxval` - scalar or 1D tensor with 1 element with type specified by the attribute *output_type*, 
+    defines the upper bound on the range of random values to generate (exclusive). **Required.**
 
 
 **Outputs**:
@@ -215,8 +215,8 @@ output  = [[65 70 56]
 <layer ... name="RandomUniform" type="RandomUniform">
     <data output_type="f32" seed="234" seed2="148"/>
     <input>
-        <port id="0" precision="I32">  <!-- shape value: [2 , 3, 10] -->
-            <dim>2</dim>
+        <port id="0" precision="I32">  <!-- shape value: [2, 3, 10] -->
+            <dim>3</dim>
         </port>
         <port id="1" precision="FP32"/> <!-- min value -->
         <port id="2" precision="FP32"/> <!-- max value -->
