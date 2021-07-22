@@ -15,24 +15,48 @@
 #include "ie_metric_helpers.hpp"
 #include <ie_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
+#include "multi_device_async_infer_request.hpp"
 #include "multi_device_plugin.hpp"
-#include "plugin_async_infer_request.hpp"
-#include "plugin_infer_request.hpp"
 
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;
 
+thread_local MultiDeviceExecutableNetwork::WorkerInferRequest* MultiDeviceExecutableNetwork::_thisWorkerInferRequest = nullptr;
+// TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
+thread_local const char* MultiDeviceExecutableNetwork::_thisPreferredDeviceName = "";
+
+struct IdleGuard {
+    explicit IdleGuard(MultiDeviceExecutableNetwork::WorkerInferRequest* workerInferRequestPtr,
+                       MultiDeviceExecutableNetwork::NotBusyWorkerRequests& notBusyWorkerRequests) :
+        _workerInferRequestPtr{workerInferRequestPtr},
+        _notBusyWorkerRequests{&notBusyWorkerRequests} {
+    }
+    ~IdleGuard() {
+        if (nullptr != _notBusyWorkerRequests) {
+            _notBusyWorkerRequests->try_push(_workerInferRequestPtr);
+        }
+    }
+    MultiDeviceExecutableNetwork::NotBusyWorkerRequests* Release() {
+        auto notBusyWorkerRequests = _notBusyWorkerRequests;
+        _notBusyWorkerRequests = nullptr;
+        return notBusyWorkerRequests;
+    }
+    MultiDeviceExecutableNetwork::WorkerInferRequest*     _workerInferRequestPtr = nullptr;
+    MultiDeviceExecutableNetwork::NotBusyWorkerRequests*  _notBusyWorkerRequests = nullptr;
+};
+
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&       networksPerDevice,
                                                            const std::vector<DeviceInformation>&                                networkDevices,
                                                            const std::unordered_map<std::string, InferenceEngine::Parameter>&   config,
                                                            const bool                                                           needPerfCounters) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
     _devicePriorities{networkDevices},
+    _devicePrioritiesInitial{networkDevices},
     _networksPerDevice{networksPerDevice},
     _config{config},
     _needPerfCounters{needPerfCounters} {
     _taskExecutor.reset();
-    _devicePrioritiesInitial = networkDevices;
     for (auto&& networkValue : _networksPerDevice) {
         auto& device  = networkValue.first;
         auto& network = networkValue.second;
@@ -50,17 +74,36 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         }
         const auto numRequests = (_devicePriorities.end() == itNumRequests ||
             itNumRequests->numRequestsPerDevices == -1) ? optimalNum : itNumRequests->numRequestsPerDevices;
-        auto scheduleFunc = [this](Task inferPipelineTask, const DeviceName& preferred_device){
-            ScheduleToWorkerInferRequest(inferPipelineTask, preferred_device);
-        };
-        PluginHelper::CreateWorkers(network,
-                                    _workerRequests,
-                                    _idleWorkerRequests,
-                                    _inferPipelineTasks,
-                                    _inferPipelineTasksDeviceSpecific,
-                                    numRequests,
-                                    device,
-                                    scheduleFunc);
+        auto& workerRequests = _workerRequests[device];
+        auto& idleWorkerRequests = _idleWorkerRequests[device];
+        workerRequests.resize(numRequests);
+        _inferPipelineTasksDeviceSpecific[device] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
+        auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+        idleWorkerRequests.set_capacity(numRequests);
+        for (auto&& workerRequest : workerRequests) {
+            workerRequest._inferRequest = { network, network->CreateInferRequest() };
+            auto* workerRequestPtr = &workerRequest;
+            IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+            workerRequest._inferRequest->SetCallback(
+                [workerRequestPtr, this, device, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
+                    IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                    workerRequestPtr->_exceptionPtr = exceptionPtr;
+                    {
+                        auto capturedTask = std::move(workerRequestPtr->_task);
+                        capturedTask();
+                    }
+                    // try to return the request to the idle list (fails if the overall object destruction has began)
+                    if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                        // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                        // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                        Task t;
+                        if (_inferPipelineTasks.try_pop(t))
+                            ScheduleToWorkerInferRequest(std::move(t));
+                        else if (_inferPipelineTasksDeviceSpecific[device]->try_pop(t))
+                            ScheduleToWorkerInferRequest(std::move(t), device);
+                    }
+                });
+        }
     }
 }
 
@@ -75,7 +118,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         WorkerInferRequest* workerRequestPtr = nullptr;
         NotBusyWorkerRequests& idleWorkerRequests = _idleWorkerRequests[device.deviceName];
         if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            PluginHelper::IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+            IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
             _thisWorkerInferRequest = workerRequestPtr;
             {
                 auto capturedTask = std::move(inferPipelineTask);
@@ -144,16 +187,16 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
         }
         sum += dev_requests.size();
     }
-    return std::make_shared<PluginInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
+    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
 IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    return std::make_shared<PluginAsyncInferRequest>(std::static_pointer_cast<PluginInferRequest>(syncRequestImpl),
-        std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
-        _callbackExecutor,
-        _needPerfCounters);
+    return std::make_shared<MultiDeviceAsyncInferRequest>(std::static_pointer_cast<MultiDeviceInferRequest>(syncRequestImpl),
+                                                          _needPerfCounters,
+                                                          std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
+                                                          _callbackExecutor);
 }
 
 void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) {
