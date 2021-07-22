@@ -22,12 +22,20 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using MulticlassNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>;
+
 bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>>(op);
+        const auto nms = std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op);
         if (!nms) {
-            errorMessage = "Only internal MulitClassNonMaxSuppression operation is "
-                           "supported";
+            errorMessage = "Only internal MulitClassNonMaxSuppression operation is supported";
+            return false;
+        }
+        const auto& atrri = nms->get_attrs();
+        const auto& sortType = atrri.sort_result_type;
+        if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
+            errorMessage = "Doest not support SortResultType";
             return false;
         }
     } catch (...) {
@@ -42,63 +50,71 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    errorPrefix = "multiclass_nms layer with name '" + op->get_friendly_name() + "' ";
-    const auto nms = std::dynamic_pointer_cast<const ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>>(op);
+    errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
+    const auto nms = std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op);
 
-    if (nms->get_input_size() != 2)
-        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << nms->get_input_size();
+    if (getOriginalInputsNumber() != 2)
+        IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-    if (nms->get_output_size() < 1 || nms->get_output_size() > 3)
-        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << nms->get_output_size();
+    if (getOriginalOutputsNumber() < 1 || nms->get_output_size() > 3)
+        IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    ngraph::op::v8::MulticlassNms::Attributes atrri;
-    atrri = nms->get_attrs();
+    auto& atrri = nms->get_attrs();
     sort_result_across_batch = atrri.sort_result_across_batch;
     max_output_boxes_per_class = atrri.nms_top_k;
     iou_threshold = atrri.iou_threshold;
     score_threshold = atrri.score_threshold;
     background_class = atrri.background_class;
     keep_top_k = atrri.keep_top_k;
-    sort_result_type = static_cast<int32_t>(atrri.sort_result_type);
+    if (atrri.sort_result_type == ngNmsSortResultType::CLASSID)
+        sort_result_type = MulticlassNmsSortResultType::CLASSID;
+    else if (atrri.sort_result_type == ngNmsSortResultType::SCORE)
+        sort_result_type = MulticlassNmsSortResultType::SCORE;
+    else if (atrri.sort_result_type == ngNmsSortResultType::NONE)
+        sort_result_type = MulticlassNmsSortResultType::NONE;
     nms_eta = atrri.nms_eta;
     normalized = atrri.normalized;
 
-    const SizeVector& boxes_dims = op->get_input_shape(NMS_BOXES);
-    num_batches = boxes_dims[0];
-    num_boxes = boxes_dims[1];
+    const SizeVector& boxes_dims = inDims[NMS_BOXES].ToSizeVector();
     if (boxes_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
     if (boxes_dims[2] != 4)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
-    const SizeVector& scores_dims = op->get_input_shape(NMS_SCORES);
-    num_classes = scores_dims[1];
+    const SizeVector& scores_dims = inDims[NMS_SCORES].ToSizeVector();
     if (scores_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 
-    if (num_batches != scores_dims[0])
+    if (boxes_dims[0] != scores_dims[0])
         IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
-    if (num_boxes != scores_dims[2])
+    if (boxes_dims[1] != scores_dims[2])
         IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
-    numFiltBox.resize(num_batches);  // batches
-    numBoxOffset.resize(num_batches);
-    for (size_t i = 0; i < numFiltBox.size(); i++) {
-        numFiltBox[i].resize(num_classes);  // classes
-    }
-
-    outputShape_SELECTEDINDICES = op->get_output_shape(NMS_SELECTEDINDICES);
-    outputShape_SELECTEDOUTPUTS = op->get_output_shape(NMS_SELECTEDOUTPUTS);
-    const SizeVector& valid_outputs_dims = op->get_output_shape(NMS_SELECTEDNUM);
+    outputShape_SELECTEDINDICES = outDims[NMS_SELECTEDINDICES].ToSizeVector();
+    outputShape_SELECTEDOUTPUTS = outDims[NMS_SELECTEDOUTPUTS].ToSizeVector();
+    const SizeVector& valid_outputs_dims = outDims[NMS_SELECTEDNUM].ToSizeVector();
     if (valid_outputs_dims.size() != 1)
         IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
-    if (valid_outputs_dims[0] != num_batches)  // valid_outputs_dims[0] != num_batches
+    if (valid_outputs_dims[0] != boxes_dims[0])  // valid_outputs_dims[0] != num_batches
         IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_dims[0];
 }
 
 void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
+    const SizeVector& boxes_dims = inDims[NMS_BOXES].ToSizeVector();
+    num_batches = boxes_dims[0];
+    num_boxes = boxes_dims[1];
+    const SizeVector& scores_dims = inDims[NMS_SCORES].ToSizeVector();
+    num_classes = scores_dims[1];
+    numFiltBox.resize(num_batches, std::vector<size_t>(num_classes));  // batches
+    numBoxOffset.resize(num_batches);
+
+    if (max_output_boxes_per_class) {
+        max_output_boxes_per_class = (max_output_boxes_per_class == -1) ? num_boxes : max_output_boxes_per_class;
+        filtBoxes.resize(max_output_boxes_per_class * num_batches * num_classes);
+    }
+
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
@@ -106,19 +122,11 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
 
-    const std::vector<Precision> supportedPrecision = {Precision::I16, Precision::U8,  Precision::I8,  Precision::U16,
-                                                       Precision::I32, Precision::U32, Precision::I64, Precision::U64};
-
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDINDICES), supportedIntOutputPrecision, "selected_indices", outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM), supportedIntOutputPrecision, "selected_num", outType);
 
-    std::vector<DataConfigurator> inDataConf;
-    inDataConf.reserve(getOriginalInputsNumber());
-    for (int i = 0; i < getOriginalInputsNumber(); ++i) {
-        Precision inPrecision = Precision::FP32;
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, inPrecision);
-    }
+    std::vector<DataConfigurator> inDataConf(NMS_SCORES + 1, {TensorDescCreatorTypes::ncsp, Precision::FP32});
 
     std::vector<DataConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
@@ -139,22 +147,16 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     if (max_output_boxes_per_class == 0)
         return;
     else if (max_output_boxes_per_class == -1)
-        max_output_boxes_per_class = dims_boxes[1];
+        max_output_boxes_per_class = num_boxes;
 
     int* selected_indices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 
-    float* selected_outputs = nullptr;
-    if (outDims.size() > NMS_SELECTEDOUTPUTS)
-        selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    float* selected_outputs = selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
 
-    int* selected_num = nullptr;
-    if (outDims.size() > NMS_SELECTEDNUM)
-        selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
+    int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getDesc().getBlockingDesc().getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getDesc().getBlockingDesc().getStrides();
-
-    std::vector<filteredBoxes> filtBoxes(max_output_boxes_per_class * num_batches * num_classes);
 
     std::vector<size_t> numBoxperBatch(num_batches);
 
@@ -222,20 +224,20 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 
     if (sort_result_across_batch) {
-        if (sort_result_type == 1) {
+        if (sort_result_type == SCORE) {
             parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
             });
-        } else if (sort_result_type == 0) {
+        } else if (sort_result_type == CLASSID) {
             parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
             });
         }
-    } else if (sort_result_type == 0) {
+    } else if (sort_result_type == CLASSID) {
         parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&
@@ -425,9 +427,5 @@ void MKLDNNMultiClassNmsNode::checkPrecision(const Precision prec, const std::ve
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         IE_THROW() << errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
 }
-
-// void MKLDNNMultiClassNmsNode::checkOutput(const SizeVector& dims, const std::vector<Precision> precList, const std::string name, const size_t port) {
-//     checkPrecision(getOriginalOutputPrecisionAtPort(port), precList, name, outType);
-// }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMultiClassNmsNode, MulticlassNms)
