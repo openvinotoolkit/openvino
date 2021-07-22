@@ -27,10 +27,12 @@ protected:
             return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        // FusedOpType::REORDER is not mandatory but only used to get output layout previous of fusing-reorder at GetJitLoad()
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::REORDER };
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

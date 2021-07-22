@@ -39,8 +39,8 @@ public:
     tensor get_input_offset() const { return input_offset; }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
         kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
+        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
         return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
     }
 

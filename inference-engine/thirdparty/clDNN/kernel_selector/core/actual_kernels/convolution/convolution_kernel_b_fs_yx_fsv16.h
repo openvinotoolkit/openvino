@@ -30,10 +30,12 @@ protected:
         return (p.groups > 1) ? WeightsLayout::g_os_is_yx_isv16_osv16 : WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        // FusedOpType::REORDER is not mandatory but only used to get output layout previous of fusing-reorder at GetJitLoad()
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::REORDER };
     }
 
     bool NeedPaddedInput() const override { return false; }

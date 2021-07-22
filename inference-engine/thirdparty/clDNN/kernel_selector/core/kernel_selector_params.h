@@ -565,7 +565,6 @@ struct fused_operation_desc {
     DataTensor output_tensor;
     size_t op_id;
     std::vector<std::pair<size_t, Datatype>> fused_op_ids;
-    DataLayout orig_output_layout;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }
@@ -589,7 +588,6 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     DataTensor output;
-    DataTensor orig_output;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
@@ -621,7 +619,6 @@ struct optional_params {
 
     std::vector<DataLayout> inputLayouts;
     std::vector<DataLayout> outputLayouts;
-    DataLayout origOutputLayouts;   // output layout before fusing conv+reorder
 
     bool meaningfulKernelsNames = false;  // use layer name instead of internal kernel name
     bool allowStaticInputReordering =

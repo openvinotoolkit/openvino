@@ -191,9 +191,6 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 }
 
 bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const {
-    if (fused_op.GetType() == FusedOpType::REORDER)
-        return true;
-
     for (auto& supported_op : GetSupportedFusedOps()) {
         if (fused_op.GetType() == supported_op)
             return true;
