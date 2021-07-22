@@ -21,9 +21,10 @@ using namespace ngraph::pass;
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions,
     const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions) {
+    auto passConfig = get_pass_config();
 
     // TODO: use one pass manager
-    markup = std::make_shared<ngraph::pass::Manager>();
+    markup = std::make_shared<ngraph::pass::Manager>(passConfig);
     markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>();
     markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions);
     markup->register_pass<ngraph::pass::low_precision::MarkupPerTensorQuantization>(quantizationRestrictions);
@@ -32,15 +33,20 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>();
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>();
 
-    common = std::make_shared<ngraph::pass::Manager>();
+    common = std::make_shared<ngraph::pass::Manager>(passConfig);
     commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();
     cleanup = common->register_pass<ngraph::pass::GraphRewrite>();
 }
 
 void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
+    run_on_function(function);
+}
+
+bool SimpleLowPrecisionTransformer::run_on_function(std::shared_ptr<ngraph::Function> function) {
     ngraph::pass::low_precision::TypeRelaxedReplacer pass;
     pass.run_on_function(function);
 
     markup->run_passes(function);
     common->run_passes(function);
+    return true;
 }
