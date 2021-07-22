@@ -97,5 +97,6 @@ bool op::v1::FloorMod::has_evaluate() const
 bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_FloorMod_visit_attributes);
+    BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }

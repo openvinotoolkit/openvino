@@ -94,5 +94,6 @@ bool op::v1::Equal::has_evaluate() const
 bool op::v1::Equal::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Equal_visit_attributes);
+    BinaryElementwiseComparison::visit_attributes(visitor);
     return true;
 }
