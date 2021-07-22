@@ -405,8 +405,8 @@ def load_and_validate_json_config(config_file_name: str):
             json_config = json.load(f)
             validator = json_validate.compile(schema_dict)
             validator(json_config)
-    except Exception as exc:
-        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, exc) +
-                    refer_to_faq_msg(70)) from exc
+    except Exception as e:
+        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, e) +
+                    refer_to_faq_msg(70)) from e
 
     return json_config
