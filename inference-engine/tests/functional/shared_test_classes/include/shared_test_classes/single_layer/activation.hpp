@@ -39,6 +39,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Clamp,                 "Clamp"},
         {ngraph::helpers::ActivationTypes::Negative,              "Negative"},
         {ngraph::helpers::ActivationTypes::Acos,                  "Acos"},
+        {ngraph::helpers::ActivationTypes::Acosh,                 "Acosh"},
         {ngraph::helpers::ActivationTypes::Asin,                  "Asin"},
         {ngraph::helpers::ActivationTypes::Asinh,                 "Asinh"},
         {ngraph::helpers::ActivationTypes::Atan,                  "Atan"},
