@@ -4,6 +4,7 @@
 VERIFIED_OP_REFERENCES = [
     'Abs-1',
     'Acos-1',
+    'Acosh-3',
     'Add-1',
     'Asin-1',
     'Asinh-3',

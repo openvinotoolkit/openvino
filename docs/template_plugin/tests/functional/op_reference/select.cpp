@@ -12,6 +12,7 @@
 
 #include "base_reference_test.hpp"
 
+using namespace reference_tests;
 using namespace ngraph;
 using namespace InferenceEngine;
 
@@ -33,12 +34,12 @@ struct SelectParams {
     element::Type data_type;
     op::AutoBroadcastSpec broadcast;
     PartialShape select_input_pshape;
-    InferenceEngine::Blob::Ptr select_input;
+    Blob::Ptr select_input;
     PartialShape if_input_pshape;
-    InferenceEngine::Blob::Ptr if_input;
+    Blob::Ptr if_input;
     PartialShape else_input_pshape;
-    InferenceEngine::Blob::Ptr else_input;
-    InferenceEngine::Blob::Ptr expected_output;
+    Blob::Ptr else_input;
+    Blob::Ptr expected_output;
 };
 
 class ReferenceSelectLayerTest : public testing::TestWithParam<SelectParams>, public CommonReferenceTest {

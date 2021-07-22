@@ -99,6 +99,7 @@ enum ActivationTypes {
     Clamp,
     Negative,
     Acos,
+    Acosh,
     Asin,
     Asinh,
     Atan,
