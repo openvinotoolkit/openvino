@@ -216,11 +216,10 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    // TODO: LPT: to support current flow: #58269
-    //if (((dequantization.subtractConstant != nullptr) && NetworkHelper::isScalarLike(dequantization.subtractConstant)) ||
-    //    ((dequantization.multiplyConstant != nullptr) && NetworkHelper::isScalarLike(dequantization.multiplyConstant))) {
-    //    return true;
-    //}
+    if (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
+        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant))) {
+        return true;
+    }
 
     const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
     Shape subtractShapeWithBatch = subtractShape;
