@@ -1032,7 +1032,6 @@ mo/utils/graph.py
 mo/utils/guess_framework.py
 mo/utils/ie_version.py
 mo/utils/import_extensions.py
-mo/utils/json_schema.py
 mo/utils/ir_engine/__init__.py
 mo/utils/ir_engine/compare_graphs.py
 mo/utils/ir_engine/ir_engine.py
@@ -1071,6 +1070,7 @@ mo/utils/ir_reader/extenders/topk_extender.py
 mo/utils/ir_reader/extenders/variadic_split_extender.py
 mo/utils/ir_reader/layer_to_class.py
 mo/utils/ir_reader/restore_graph.py
+mo/utils/json_schema.py
 mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
