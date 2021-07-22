@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 #include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 
@@ -16,20 +19,33 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MatMulTransformation, "MatMulTransformation", 0);
+
+MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransformation(params) {
+    auto mul1 = pattern::wrap_type<opset1::Multiply>();
+    auto mul2 = pattern::wrap_type<opset1::Multiply>();
+    auto fq2 = pattern::wrap_type<opset1::FakeQuantize>();
+    auto matcher = pattern::wrap_type<opset1::MatMul>({ mul1, std::make_shared<pattern::op::Or>(OutputVector{ mul2, fq2 })});
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MatMulTransformation");
+    this->register_matcher(m, callback);
+}
+
+bool MatMulTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
     }
 
     matMul = as_type_ptr<opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
-    if (!support3DTensorOnActivations) {
-        const auto inputRank = matMul->get_input_partial_shape(0).rank();
-        if (inputRank.is_dynamic() || inputRank.get_length() == 3) {
-            return false;
-        }
-    }
-
     const auto dequantization1 = NetworkHelper::getDequantization(matMul, 0);
     auto dequantization2 = NetworkHelper::getDequantization(matMul, 1);
 
@@ -38,7 +54,12 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
             as_type_ptr<opset1::FakeQuantize>(dequantization2.data.get_node_shared_ptr());
         if (fakeQuantize != nullptr) {
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
+
+            const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fakeQuantize);
+            const auto precisions = precisionsAttribute == nullptr ?
+                PrecisionsAttribute::defaultPrecisions :
+                precisionsAttribute->get()->sharedValue->precisions;
+            const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
 
             auto tuple = NetworkHelper::decomposeFakeQuantize(
                 fakeQuantize,
@@ -147,25 +168,18 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     replace_node(matMul, newMultiply);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
-    updateOutput(context, newMultiply, matMul);
+    updateOutput(context, newMultiply, newMatMul);
 
     return true;
 }
 
-void MatMulTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::MatMul>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::MatMul>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
-}
-
 bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
+}
+
+bool MatMulTransformation::is3DTensorOnActivations(const std::shared_ptr<const Node>& node) {
+    const auto inputDataRank = node->get_input_partial_shape(0).rank();
+    return inputDataRank.is_dynamic() || inputDataRank.get_length() == 3;
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -204,6 +218,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
             return false;
         }
+    } else {
+        return false;
     }
 
     const auto dequantization2 = NetworkHelper::getDequantization(layer, 1);
@@ -240,7 +256,13 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
 
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-        const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
+
+        const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(matMul->input(1));
+        const auto precisions = precisionsAttribute == nullptr ?
+            PrecisionsAttribute::defaultPrecisions :
+            precisionsAttribute->get()->sharedValue->precisions;
+
+        const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
         if (dataPrecision.hasZeroPoint) {
             return false;
         }
@@ -257,6 +279,10 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             ((outHighShape.size() == rank) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
+    }
+
+    if (!fakeQuantize && dequantization2.empty()) {
+        return false;
     }
 
     if ((!NetworkHelper::isConstantPath(layer->get_input_node_shared_ptr(1))) && (dequantization1.subtract)) {

@@ -68,6 +68,7 @@ set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\ngraph (
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OPENVINO_LIB_PATHS%"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
+set "OV_FRONTEND_PATH=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\lib;%OV_FRONTEND_PATH%"
 )
 
 :: Compile tool
