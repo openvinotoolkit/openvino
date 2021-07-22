@@ -150,7 +150,7 @@ namespace ngraph
 
         namespace pdpd
         {
-            void read_tensor(std::istream& is, char* data, size_t len)
+            bool read_tensor(std::istream& is, char* data, size_t len)
             {
                 std::vector<char> header(16);
                 is.read(&header[0], 16);
@@ -159,6 +159,9 @@ namespace ngraph
                 std::vector<char> dims_struct(dims_len);
                 is.read(&dims_struct[0], dims_len);
                 is.read(data, len);
+                if (is.gcount() != len)
+                    return false;
+                return true;
             }
 
             template <typename T>
@@ -248,9 +251,10 @@ namespace ngraph
                 const auto& data_length = shape_size(shape) * type.size();
                 std::vector<uint8_t> tensor_data(data_length);
 
+                bool read_succeed = false;
                 if (weight_stream)
                 {
-                    pdpd::read_tensor(
+                    read_succeed = pdpd::read_tensor(
                         *weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else if (!folder_with_weights.empty())
@@ -259,13 +263,18 @@ namespace ngraph
                                      std::ios::in | std::ifstream::binary);
                     FRONT_END_GENERAL_CHECK(is && is.is_open(),
                                             "Cannot open file for constant value.");
-                    pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+                    read_succeed = pdpd::read_tensor(
+                        is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else
                 {
                     FRONT_END_GENERAL_CHECK(
                         false, "Either folder with weights or stream must be provided.");
                 }
+                FRONT_END_GENERAL_CHECK(read_succeed,
+                                        "File containing constant with name ",
+                                        name,
+                                        " wasn't successfully read.");
 
                 auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
                 const_node->set_friendly_name(name);
@@ -289,8 +298,14 @@ namespace ngraph
                                     "Model can't be parsed");
 
             loadPlaces();
-            loadConsts(weights_stream && weights_stream.is_open() ? std::basic_string<T>{} : path,
-                       &weights_stream);
+            if (weights_stream && weights_stream.is_open())
+            {
+                loadConsts(std::basic_string<T>{}, &weights_stream);
+            }
+            else
+            {
+                loadConsts(path, nullptr);
+            }
         }
 
         InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(
@@ -309,7 +324,7 @@ namespace ngraph
 
             loadPlaces();
             if (streams.size() > 1)
-                loadConsts(std::string{""}, streams[1]);
+                loadConsts(std::string(), streams[1]);
         }
 
         std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs() const
