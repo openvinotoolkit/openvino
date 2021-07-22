@@ -127,10 +127,10 @@ namespace ngraph
                 get_output_ports() const;
             const std::map<std::string, std::vector<std::shared_ptr<InPortPlacePDPD>>>&
                 get_input_ports() const;
-            std::shared_ptr<OutPortPlacePDPD> get_output_port_pdpd(const std::string& name,
-                                                                   int idx) const;
-            std::shared_ptr<InPortPlacePDPD> get_input_port_pdpd(const std::string& name,
-                                                                 int idx) const;
+            std::shared_ptr<OutPortPlacePDPD> get_output_port_pdpd(const std::string& outputName,
+                                                                   int outputPortIndex) const;
+            std::shared_ptr<InPortPlacePDPD> get_input_port_pdpd(const std::string& inputName,
+                                                                 int inputPortIndex) const;
             const paddle::framework::proto::OpDesc& get_desc() const;
 
             // External API methods

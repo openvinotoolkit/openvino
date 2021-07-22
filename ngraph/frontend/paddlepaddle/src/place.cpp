@@ -50,16 +50,18 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlacePDPD>>>&
     return m_input_ports;
 }
 
-std::shared_ptr<OutPortPlacePDPD> OpPlacePDPD::get_output_port_pdpd(const std::string& name,
-                                                                    int idx) const
+std::shared_ptr<OutPortPlacePDPD> OpPlacePDPD::get_output_port_pdpd(const std::string& outputName,
+                                                                    int outputPortIndex) const
 {
-    return m_output_ports.at(name)[idx];
+    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(), "outputPortIndex is out of bounds.");
+    return m_output_ports.at(outputName)[outputPortIndex];
 }
 
-std::shared_ptr<InPortPlacePDPD> OpPlacePDPD::get_input_port_pdpd(const std::string& name,
-                                                                  int idx) const
+std::shared_ptr<InPortPlacePDPD> OpPlacePDPD::get_input_port_pdpd(const std::string& inputName,
+                                                                  int inputPortIndex) const
 {
-    return m_input_ports.at(name)[idx];
+    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    return m_input_ports.at(inputName)[inputPortIndex];
 }
 
 const paddle::framework::proto::OpDesc& OpPlacePDPD::get_desc() const
@@ -169,11 +171,15 @@ std::vector<Place::Ptr> OpPlacePDPD::get_consuming_ports() const
 
 Place::Ptr OpPlacePDPD::get_output_port(const std::string& outputName, int outputPortIndex) const
 {
+    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
+                            "outputPortIndex is Out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
 }
 
 Place::Ptr OpPlacePDPD::get_input_port(const std::string& inputName, int inputPortIndex) const
 {
+    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(),
+                            "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
