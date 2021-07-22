@@ -42,7 +42,15 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
         return false;
     }
 
-    const auto resultConstant = NetworkHelper::fold_fake_quantize(fakeQuantize, false);
+    const auto constantShape = fakeQuantize->input(1).get_partial_shape();
+    if (constantShape.is_dynamic() || constantShape.rank().is_dynamic()) {
+        return false;
+    }
+
+    std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(
+        fakeQuantize,
+        false,
+        (constantShape.rank().get_length() < 2) || constantShape[1] != 1ul ? 1ul : 0ul);
     if (is_type<opset1::Constant>(resultConstant)) {
         replace_node(fakeQuantize, resultConstant);
         return true;

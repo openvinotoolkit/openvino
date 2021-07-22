@@ -47,6 +47,9 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     }
 
     auto dequantization = NetworkHelper::getDequantization(multiply, inputIndex);
+    if (dequantization.data.get_node() == nullptr) {
+        return false;
+    }
     if (dequantization.subtractConvert != nullptr) {
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
     }
@@ -176,12 +179,6 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
-
-    if (dequantization.empty()) {
-        return false;
-    }
-
     for (size_t i = 2; i < constShape.size(); ++i) {
         if (constShape[i] != 1) {
             return false;
@@ -189,9 +186,13 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     }
 
     if (updatePrecisions && restrictions.size() > 0) {
-        const element::Type parentPrecision = dequantization.data.get_element_type();
-
         const auto& availablePreisions = restrictions[0].second;
+        if (availablePreisions.empty()) {
+            return false;
+        }
+
+        const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
+        const element::Type parentPrecision = dequantization.data.get_element_type();
         if (std::find(availablePreisions.begin(), availablePreisions.end(), parentPrecision) == availablePreisions.end()) {
             return false;
         }
@@ -219,6 +220,35 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolutio
     }
 
     return (pShape.rank().get_length() == 4ul) || (pShape.rank().get_length() == 5ul);
+}
+
+bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shared_ptr<const Node>& node) {
+    auto getConstantIndex = [](const std::shared_ptr<const Node>& node) -> int {
+        if (is_type<opset1::Constant>(node->get_input_node_shared_ptr(1))) {
+            return 1;
+        }
+        if (is_type<opset1::Constant>(node->get_input_node_shared_ptr(0))) {
+            return 0;
+        }
+        return -1;
+    };
+
+    const int constantIndex = getConstantIndex(node);
+    if (constantIndex == -1) {
+        return false;
+    }
+
+    const Input<const Node> constantInput = node->input(constantIndex);
+    const auto shape = constantInput.get_partial_shape();
+    if (shape.is_dynamic() || shape.rank().is_dynamic()) {
+        return true;
+    }
+
+    if (std::all_of(shape.begin(), shape.end(), [](const Dimension& dimension) { return dimension == 1ul; })) {
+        return true;
+    }
+
+    return false;
 }
 
 void MultiplyToGroupConvolutionTransformation::setGroupSize(const size_t groupSize) {
