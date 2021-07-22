@@ -104,15 +104,15 @@ class MSTeamsCommunicator:
             :type channel_url:              String
 
         """
-        for message in message_queue:
-            title, log_url, text_formatted = self._parse_text(watchdog_log, message)
-            data = self._json_request_content(title, log_url, text_formatted)
-
-            try:
-                requests.post(url=channel_url, json=data)
-            except Exception as ex:
-                raise Exception('!!CRITICAL!! MSTeamsCommunicator: Could not send message '
-                                'due to {}'.format(ex))
+        # for message in message_queue:
+        #     title, log_url, text_formatted = self._parse_text(watchdog_log, message)
+        #     data = self._json_request_content(title, log_url, text_formatted)
+        #
+        #     try:
+        #         requests.post(url=channel_url, json=data)
+        #     except Exception as ex:
+        #         raise Exception('!!CRITICAL!! MSTeamsCommunicator: Could not send message '
+        #                         'due to {}'.format(ex))
 
     def send_message(self, watchdog_log, quiet=False):
         """
@@ -123,6 +123,6 @@ class MSTeamsCommunicator:
             :type watchdog_log:      String
             :type quiet:             Boolean
         """
-        for channel, message_queue in self._queued_messages.items():
-            if not quiet and message_queue:
-                self._send_to_channel(watchdog_log, message_queue, channel)
+        # for channel, message_queue in self._queued_messages.items():
+        #     if not quiet and message_queue:
+        #         self._send_to_channel(watchdog_log, message_queue, channel)
