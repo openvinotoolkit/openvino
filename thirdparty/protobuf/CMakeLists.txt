@@ -85,6 +85,10 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
+if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
+endif()
+
 if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
     message(WARNING "Protobuf in version 3.8.0+ can throw runtime exceptions if LTO is enabled.")
 endif()

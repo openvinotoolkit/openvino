@@ -164,11 +164,6 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
             target_compile_options(${target} ${link_type} -Wno-undef)
         endif()
     endforeach()
-
-    # version checks
-    if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
-        message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
-    endif()
 endif()
 
 #
