@@ -14,20 +14,7 @@
 
 using namespace ngraph;
 using namespace InferenceEngine;
-
-struct Tensor {
-    Tensor() = default;
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
-
-    template <typename T>
-    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, std::initializer_list<T> data_elements): shape {shape}, type {type} {
-        data = CreateBlob(type, std::vector<T>(data_elements));
-    }
-
-    ngraph::Shape shape;
-    ngraph::element::Type type;
-    InferenceEngine::Blob::Ptr data;
-};
+using namespace reference_tests;
 
 // ------------------------------ V0 ------------------------------
 
@@ -93,67 +80,66 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN1_With_Hardcoded_Refs, ReferenceMVN1LayerTest,
     ::testing::Values(
         // across_channels=false, variance=false
-        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
+        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
                    false,
                    1e-9,
-                   Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
-                                                                                             1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4})}),
+                   Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
+                                                                                   1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4}}),
         // across_channels=true, variance=false
-        MVN1Params(Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3})},
-                   emptyReductionAxes,
-                   true,
-                   false,
-                   1e-9,
-                   Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::initializer_list<float>({-3.25, -2.25, -1.25, -0.25, 0.75, 1.75,
-                                                                                             2.75, 3.75, 4.75, -3.25, -2.25, -1.25})}),
+        MVN1Params(
+            Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
+            emptyReductionAxes,
+            true,
+            false,
+            1e-9,
+            Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // across_channels=false, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
+        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    false,
                    true,
                    1e-9,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})}),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // across_channels=true, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
+        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    emptyReductionAxes,
                    true,
                    true,
                    1e-9,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})}),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // reductionAxes, variance=false
-        MVN1Params(Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3})},
-                   {1, 2, 3},
-                   false,
-                   false,
-                   1e-9,
-                   Tensor {{1, 3, 2, 2},
-                           ngraph::element::f32,
-                           std::initializer_list<float>({-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25})}),
+        MVN1Params(
+            Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3}},
+            {1, 2, 3},
+            false,
+            false,
+            1e-9,
+            Tensor {{1, 3, 2, 2}, ngraph::element::f32, std::vector<float> {-3.25, -2.25, -1.25, -0.25, 0.75, 1.75, 2.75, 3.75, 4.75, -3.25, -2.25, -1.25}}),
         // reductionAxes, variance=true
-        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
+        MVN1Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
                    {2, 3},
                    false,
                    true,
                    1e-9,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})})),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}})),
     ReferenceMVN1LayerTest::getTestCaseName);
 
 // ------------------------------ V6 ------------------------------
@@ -221,48 +207,48 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_MVN6_With_Hardcoded_Refs, ReferenceMVN6LayerTest,
     ::testing::Values(
         // variance=false, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
-                   Tensor {Shape {2}, ngraph::element::i64, std::initializer_list<int64_t>({2, 3})},
+        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+                   Tensor {Shape {2}, ngraph::element::i64, std::vector<int64_t> {2, 3}},
                    false,
                    1e-9,
                    ngraph::op::MVNEpsMode::OUTSIDE_SQRT,
-                   Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
-                                                                                             1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4})}),
+                   Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {-4, -3, -2, -1, 0,  1,  2,  3,  4, -4, -3, -2, -1, 0,
+                                                                                   1,  2,  3,  4,  -4, -3, -2, -1, 0, 1,  2,  3,  4}}),
         // variance=true, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
-                   Tensor {Shape {2}, ngraph::element::i64, std::initializer_list<int64_t>({2, 3})},
+        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+                   Tensor {Shape {2}, ngraph::element::i64, std::vector<int64_t> {2, 3}},
                    true,
                    1e-9,
                    ngraph::op::MVNEpsMode::OUTSIDE_SQRT,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})}),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, INSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
-                   Tensor {Shape {2}, ngraph::element::i64, std::initializer_list<int64_t>({2, 3})},
+        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float> {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
+                   Tensor {Shape {2}, ngraph::element::i64, std::vector<int64_t> {2, 3}},
                    true,
                    1e-9,
                    ngraph::op::MVNEpsMode::INSIDE_SQRT,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})}),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}}),
         // variance=true, another reductionAxes, OUTSIDE_SQRT
-        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::initializer_list<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
-                                                                                             6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
-                   Tensor {Shape {3}, ngraph::element::i64, std::initializer_list<int64_t>({1, 2, 3})},
+        MVN6Params(Tensor {{1, 3, 3, 3}, ngraph::element::f32, std::vector<float>({1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                                   6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9})},
+                   Tensor {Shape {3}, ngraph::element::i64, std::vector<int64_t>({1, 2, 3})},
                    true,
                    1e-9,
                    ngraph::op::MVNEpsMode::OUTSIDE_SQRT,
                    Tensor {{1, 3, 3, 3},
                            ngraph::element::f32,
-                           std::initializer_list<float>({-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
-                                                         -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934})})),
+                           std::vector<float> {-1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934,
+                                               -1.5491934, -1.161895, -0.7745967, -0.38729835, 0., 0.38729835, 0.7745967, 1.161895, 1.5491934}})),
     ReferenceMVN6LayerTest::getTestCaseName);
