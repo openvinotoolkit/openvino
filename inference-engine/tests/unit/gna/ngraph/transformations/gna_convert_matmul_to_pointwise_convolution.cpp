@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
+#include "ngraph_functions/builders.hpp"
 
 namespace testing {
 
@@ -127,7 +128,10 @@ protected:
 };
 
 void CreateAdd::updateGraph(Graph& graph) {
-    auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+    auto shape = graph.output->get_output_shape(0);
+    std::vector<size_t> axes(shape.size(), 1);
+    axes.back() = shape.back();
+    auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
     auto add_node = std::make_shared<ngraph::opset7::Add>(graph.output, bias);
     graph.output = add_node;
 }
@@ -191,7 +195,7 @@ Graph createReferenceGraph(bool addConstFakeQuantizeNode, bool insertAddNode, bo
     parent_node = conv_node;
 
     if (insertAddNode) {
-        auto bias = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
+        auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, {1, 8, 1, 1}, {}, true);
         auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
         parent_node = add_node;
     }

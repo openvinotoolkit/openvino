@@ -9,6 +9,8 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/pass/manager.hpp"
 
 #include "layers/gna_permute.hpp"
 #include "backend/gna_limitations.hpp"
@@ -83,10 +85,30 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
     ngraph::copy_runtime_info(transpose_before, conv_node);
 
     std::shared_ptr<ngraph::Node> root_node = matmul_node;
-    if (bias != nullptr) {
-         conv_node = std::make_shared<ngraph::opset7::Add>(conv_node, bias);
-         ngraph::copy_runtime_info(transpose_before, conv_node);
-         root_node = add;
+    if (bias) {
+        auto bias_output_shape = bias->get_output_shape(0);
+        if (bias_output_shape.size() > 4) {
+            gnalog() << "bias output shape is more than 4\n";
+            return false;
+        }
+
+        std::vector<size_t> axes(4, 1);
+        std::transform(bias_output_shape.begin(), bias_output_shape.end(),
+            axes.begin() + (axes.size() - bias_output_shape.size()), [](size_t value) { return value; });
+        auto bias_reshape_constant = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
+            ngraph::Shape{axes.size()}, axes);
+        auto bias_reshape = std::make_shared<ngraph::opset7::Reshape>(bias, bias_reshape_constant, false);
+        auto bias_transpose = std::make_shared<ngraph::opset7::Transpose>(bias_reshape,
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{axes.size()},
+                GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
+        auto bias_function = std::make_shared<ngraph::Function>(bias_transpose, ngraph::ParameterVector{});
+        ngraph::pass::Manager bias_pass_manager;
+        bias_pass_manager.register_pass<ngraph::pass::ConstantFolding>();
+        bias_pass_manager.run_passes(bias_function);
+        auto new_bias = ngraph::as_type_ptr<ngraph::opset7::Constant>(bias_function->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        conv_node = std::make_shared<ngraph::opset7::Add>(conv_node, new_bias);
+        ngraph::copy_runtime_info(transpose_before, conv_node);
+        root_node = add;
     }
 
     if (fq != nullptr) {
