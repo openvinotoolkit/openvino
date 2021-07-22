@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <mutex>
 #include <memory>
 #include <string>
 #include <unordered_set>
+#include <atomic>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
@@ -73,17 +75,11 @@ namespace ngraph
 
         protected:
             element::Type m_element_type;
-
-            // TODO(amprocte): For now we are maintaining both m_shape and m_partial_shape fields,
-            //    with m_shape possibly being invalid (get_shape will throw an exception if it
-            //    is). This is because get_shape() returns a const reference. I think ideally we
-            //    should refactor so that get_shape returns by value.
-            Shape m_shape;
+            mutable std::atomic<bool> shape_changed;
+            mutable std::mutex shape_mutex;
+            mutable Shape m_shape; // TODO: remove along with get_shape
             PartialShape m_partial_shape;
-            Node* m_node{nullptr};
             HostTensorPtr m_lower_value, m_upper_value;
-            size_t m_node_output_number{0};
-
             std::string m_name;
             std::unordered_set<std::string> m_names;
         };
