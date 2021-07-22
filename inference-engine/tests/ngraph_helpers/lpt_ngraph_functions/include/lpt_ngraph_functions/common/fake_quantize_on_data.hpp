@@ -23,7 +23,8 @@ public:
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
-        const ngraph::element::Type outputPrecision = ngraph::element::undefined);
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const std::vector<std::shared_ptr<Variant>>& attributes = {});
 
     virtual ~FakeQuantizeOnData();
 
@@ -37,6 +38,7 @@ public:
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
+    std::vector<std::shared_ptr<Variant>> attributes;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -68,7 +70,8 @@ public:
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
-        const ngraph::element::Type outputPrecision = ngraph::element::undefined);
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const std::vector<std::shared_ptr<Variant>>& attributes = {});
 
     virtual ~FakeQuantizeOnDataWithConstant();
 
@@ -81,6 +84,7 @@ public:
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
+    std::vector<std::shared_ptr<Variant>> attributes;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {

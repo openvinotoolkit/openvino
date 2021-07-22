@@ -5,17 +5,33 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void MultiplyToGroupConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Multiply>(pass, context);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, "MultiplyToGroupConvolutionTransformation", 0);
+
+MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
+    const Params& params,
+    const OperationPrecisionRestriction::PrecisionsByPort& restrictions) : LayerTransformation(params), restrictions(restrictions), groupSize(1ul) {
+    auto matcher = pattern::wrap_type<opset1::Multiply>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyToGroupConvolutionTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -35,7 +51,27 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex);
     }
 
-    const element::Type weightsPrecision = updatePrecisions ? precisionsOnWeights[0] : dequantization.data.get_element_type();
+    element::Type weightsPrecision = element::undefined;
+    if (updatePrecisions) {
+        // try to find restrictions on weights for GroupConvolution
+        if (restrictions.size() > 1ul) {
+            const auto& availablePreisions = restrictions[1].second;
+            if (!availablePreisions.empty()) {
+                weightsPrecision = availablePreisions[0];
+            }
+        }
+
+        // if restrictions are absent precisions attribute is used
+        if (weightsPrecision == element::undefined) {
+            const auto precisionsAttribute = getAttribute<PrecisionsAttributePtr>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
+            const auto precisions = precisionsAttribute == nullptr ?
+                PrecisionsAttribute::defaultPrecisions :
+                precisionsAttribute->get()->sharedValue->precisions;
+            weightsPrecision = precisions[0];
+        }
+    } else {
+        weightsPrecision = dequantization.data.get_element_type();
+    }
 
     const size_t inputChannelsCount = input->get_output_partial_shape(0)[1].get_length();
     const size_t outputChannelsCount = multiply->get_output_partial_shape(0)[1].get_length();
@@ -152,9 +188,11 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         }
     }
 
-    if (updatePrecisions) {
+    if (updatePrecisions && restrictions.size() > 0) {
         const element::Type parentPrecision = dequantization.data.get_element_type();
-        if (std::find(precisionsOnActivations.begin(), precisionsOnActivations.end(), parentPrecision) == precisionsOnActivations.end()) {
+
+        const auto& availablePreisions = restrictions[0].second;
+        if (std::find(availablePreisions.begin(), availablePreisions.end(), parentPrecision) == availablePreisions.end()) {
             return false;
         }
     }
@@ -162,7 +200,11 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+    return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
+}
+
+bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) noexcept {
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
