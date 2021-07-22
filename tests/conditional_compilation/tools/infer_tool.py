@@ -9,6 +9,7 @@
 """
 import argparse
 import logging as log
+import os
 import sys
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def infer(ir_path, device):
     """
     ie = IECore()
 
-    bin_path = ir_path.replace(".xml", ".bin")
+    bin_path = os.path.splitext(ir_path)[0] + '.bin'
     net = ie.read_network(model=ir_path, weights=bin_path)
     exec_net = ie.load_network(net, device)
     res = exec_net.infer(inputs=input_preparation(net))
