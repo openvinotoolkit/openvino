@@ -414,7 +414,8 @@ TEST(PDPD_Places, check_producing_ops)
     }
 }
 
-TEST(PDPD_Places, check_input_output_ports_dy_idx) {
+TEST(PDPD_Places, check_input_output_ports_dy_idx)
+{
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
     auto frontend = m_fem.load_by_framework("pdpd");
@@ -440,7 +441,8 @@ TEST(PDPD_Places, check_input_output_ports_dy_idx) {
     }
 }
 
-TEST(PDPD_Places, check_ops_tensors_by_idx) {
+TEST(PDPD_Places, check_ops_tensors_by_idx)
+{
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
     auto frontend = m_fem.load_by_framework("pdpd");

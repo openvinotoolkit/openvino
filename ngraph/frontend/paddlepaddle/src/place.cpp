@@ -53,14 +53,16 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlacePDPD>>>&
 std::shared_ptr<OutPortPlacePDPD> OpPlacePDPD::get_output_port_pdpd(const std::string& outputName,
                                                                     int outputPortIndex) const
 {
-    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(), "outputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
+                            "outputPortIndex is out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
 }
 
 std::shared_ptr<InPortPlacePDPD> OpPlacePDPD::get_input_port_pdpd(const std::string& inputName,
                                                                   int inputPortIndex) const
 {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(),
+                            "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
