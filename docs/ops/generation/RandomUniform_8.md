@@ -170,8 +170,8 @@ output  = [[65 70 56]
 
 * *output_type*
 
-    * **Description**: the type of the output. Determines generation algorithm and affects resulting values.
-      Values with different precision do not correspond each other.
+    * **Description**: the type of the output. Determines generation algorithm and affects resulting values. 
+      Output numbers generated for different values of *output_type* may be not equal.
     * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
     * **Type**: string
     * **Required**: *Yes*
