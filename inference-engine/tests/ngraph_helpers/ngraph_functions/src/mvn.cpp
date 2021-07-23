@@ -24,6 +24,15 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
     return mvnNode;
 }
 
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
+                                      bool normalizeVariance,
+                                      double eps) {
+    auto mvnNode = std::make_shared<ngraph::op::MVN>(in, axes, normalizeVariance, eps);
+
+    return mvnNode;
+}
+
 std::shared_ptr<Node> makeMVN6(const Output<Node>& in,
                                const Output<Node>& axesNode,
                                bool normalizeVariance,

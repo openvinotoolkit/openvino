@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        LayerTestsDefinitions::mvnParams,
+        LayerTestsDefinitions::mvn1Params,
         CPUSpecificParams,
         fusingSpecificParams,
         Precision, // CNNNetwork input precision
@@ -24,14 +24,14 @@ class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamS
                         virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
-        LayerTestsDefinitions::mvnParams basicParamsSet;
+        LayerTestsDefinitions::mvn1Params basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::MvnLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvnParams>(
+        result << LayerTestsDefinitions::Mvn1LayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvn1Params>(
                 basicParamsSet, 0));
 
         result << "_" << "CNNInpPrc=" << inputPrecision.name();
@@ -45,7 +45,7 @@ public:
     }
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::mvnParams basicParamsSet;
+        LayerTestsDefinitions::mvn1Params basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
@@ -55,13 +55,17 @@ protected:
 
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision netPrecision;
+        ngraph::AxisSet axes;
         bool acrossChanels, normalizeVariance;
         double eps;
-        std::tie(inputShapes, netPrecision, acrossChanels, normalizeVariance, eps, targetDevice) = basicParamsSet;
+        std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = basicParamsSet;
         auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
         auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
+        if (!axes.empty()) {
+             mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
+        }
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
@@ -128,6 +132,8 @@ const std::vector<double> epsilon = {
         0.000000001
 };
 
+const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+
 std::vector<Precision> inpPrc = {Precision::I8, Precision::BF16, Precision::FP32};
 std::vector<Precision> outPrc = {Precision::BF16, Precision::FP32};
 
@@ -162,6 +168,7 @@ const auto Mvn3D = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inputShapes_3D),
             ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(emptyReductionAxes),
             ::testing::ValuesIn(acrossChannels),
             ::testing::ValuesIn(normalizeVariance),
             ::testing::ValuesIn(epsilon),
@@ -177,6 +184,7 @@ const auto Mvn4D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_4D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
                 ::testing::ValuesIn(epsilon),
@@ -192,6 +200,7 @@ const auto Mvn5D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_5D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
                 ::testing::ValuesIn(epsilon),
@@ -216,6 +225,7 @@ const auto Mvn1D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_1D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
                 ::testing::ValuesIn(epsilon),
@@ -232,6 +242,7 @@ const auto Mvn2D = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_2D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::Values(false),
                 ::testing::ValuesIn(normalizeVariance),
                 ::testing::ValuesIn(epsilon),
@@ -248,6 +259,7 @@ const auto Mvn2DTrans = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_2D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::Values(true),
                 ::testing::ValuesIn(normalizeVariance),
                 ::testing::ValuesIn(epsilon),
