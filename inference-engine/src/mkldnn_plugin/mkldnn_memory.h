@@ -90,8 +90,6 @@ public:
 
     std::string serializeFormat() const override;
 
-    bool isDefined() const override;
-
     InferenceEngine::Precision getPrecision() const override;
 
     void setPrecision(InferenceEngine::Precision prc) override;
@@ -108,6 +106,7 @@ private:
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;
     bool isTailCFormat() const;
+    bool isDefinedImp() const override;
 
 private:
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();

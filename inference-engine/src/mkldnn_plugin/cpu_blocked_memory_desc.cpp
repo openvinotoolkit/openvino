@@ -66,7 +66,7 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const Shape
     }
 }
 
-bool BlockedMemoryDesc::isDefined() const {
+bool BlockedMemoryDesc::isDefinedImp() const {
     bool defined = true;
     defined = defined && std::none_of(blockedDims.cbegin(), blockedDims.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
     defined = defined && std::none_of(strides.cbegin(), strides.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });

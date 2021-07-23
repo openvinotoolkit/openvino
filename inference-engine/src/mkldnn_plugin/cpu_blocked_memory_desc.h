@@ -22,8 +22,6 @@ public:
         return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
     }
 
-    bool isDefined() const override;
-
     bool isCompatible(const MemoryDesc& rhs) const override;
 
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
@@ -92,6 +90,7 @@ private:
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size) const;
     bool isTailCFormat() const;
+    bool isDefinedImp() const override;
 
 private:
     InferenceEngine::Precision precision;

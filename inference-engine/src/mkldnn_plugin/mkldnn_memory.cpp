@@ -946,7 +946,7 @@ std::string MKLDNNMemoryDesc::serializeFormat() const {
     return mkldnn::utils::fmt2str(fmt);
 }
 
-bool MKLDNNMemoryDesc::isDefined() const {
+bool MKLDNNMemoryDesc::isDefinedImp() const {
     return desc.data.offset0 != Shape::UNDEFINED_DIM;
 }
 
