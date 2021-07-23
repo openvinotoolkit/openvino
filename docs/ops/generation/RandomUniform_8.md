@@ -21,8 +21,6 @@ counter = seed2
 
 Link to the original paper [Parallel Random Numbers: As Easy as 1, 2, 3](https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
 
-(https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
-
 The result of Philox is calculated by applying a fixed number of *key* and *counter* updating so-called "rounds". 
 This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
 
