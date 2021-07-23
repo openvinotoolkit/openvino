@@ -10,7 +10,7 @@
 
 *RandomUniform* operation generates random numbers from a uniform distribution in the range `[*minval*, *maxval*)`. 
 The generation algorithm is based on underlying random integer generator that uses Philox algorithm. Philox algorithm 
-is counter based pseudo random generator, which produces uint32 values. Single invocation of Philox algorithm returns 
+is a counter-based pseudo-random generator, which produces uint32 values. Single invocation of Philox algorithm returns 
 four result random values, depending on the given *key* and *counter* values. *Key* and *counter* are initialized 
 with *seed* and *seed2* attributes respectively.
 
@@ -19,10 +19,11 @@ key = seed\\
 counter = seed2
 \f]
 
-Link to the original paper [Parallel Random Numbers: As Easy as 1, 2, 3]
+Link to the original paper [Parallel Random Numbers: As Easy as 1, 2, 3](https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
+
 (https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
 
-The result of Philox is calculated by applying a fixed number of *key* and *counter* updating, so-called "rounds". 
+The result of Philox is calculated by applying a fixed number of *key* and *counter* updating so-called "rounds". 
 This implementation uses 4x32_10 version of Philox algorithm, where number of rounds = 10.
 
 Suppose we have *n* which determines *n*-th 4 elements of random sequence.
@@ -171,7 +172,7 @@ output  = [[65 70 56]
 * *output_type*
 
     * **Description**: the type of the output. Determines generation algorithm and affects resulting values. 
-      Output numbers generated for different values of *output_type* may be not equal.
+      Output numbers generated for different values of *output_type* may not be equal.
     * **Range of values**: "i32", "i64", "f16", "bf16", "f32", "f64".
     * **Type**: string
     * **Required**: *Yes*
