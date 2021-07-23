@@ -43,7 +43,6 @@ void descriptor::Tensor::set_element_type(const element::Type& element_type)
 void descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape)
 {
     m_partial_shape = partial_shape;
-    std::lock_guard<std::mutex> guard(shape_mutex);
     m_shape_changed = true;
 }
 
