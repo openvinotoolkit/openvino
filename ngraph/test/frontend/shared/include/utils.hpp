@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <string>
 #include <fstream>
+#include <string>
 #include "backend.hpp"
-#include "ngraph/file_util.hpp"
 #include "ngraph/env_util.hpp"
+#include "ngraph/file_util.hpp"
 
 // Helper functions
 namespace FrontEndTestUtils
@@ -49,17 +49,22 @@ namespace FrontEndTestUtils
         set_test_env("OV_FRONTEND_PATH", fePath.c_str());
     }
 
-    inline bool exists(const std::string& file) {
+    inline bool exists(const std::string& file)
+    {
         std::ifstream str(file, std::ios::in | std::ifstream::binary);
         return str.is_open();
     }
 
-    inline std::string make_model_path(const std::string& modelsRelativePath) {
+    inline std::string make_model_path(const std::string& modelsRelativePath)
+    {
         // First try build path
         auto res = std::string(TEST_MODEL_BUILD_DIR) + "/" + modelsRelativePath;
-        if (exists(res)) {
+        if (exists(res))
+        {
             return res;
-        } else {
+        }
+        else
+        {
             // Install case: if model file does not exist, use base path from env variable
             return std::string(ngraph::getenv_string("FE_TEST_MODELS")) + "/" + modelsRelativePath;
         }
