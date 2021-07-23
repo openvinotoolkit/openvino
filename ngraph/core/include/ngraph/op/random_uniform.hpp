@@ -28,14 +28,14 @@ namespace ngraph
                 /// \param      min_val           Node producing the tensor with minimum value.
                 /// \param      max_val           Node producing the tensor with maximum value.
                 /// \param      out_type          Output type of the tensor.
-                /// \param      op_seed           Global seed value.
-                /// \param      global_seed       Operational seed value.
+                /// \param      global_seed       Global seed value.
+                /// \param      op_seed           Operational seed value.
                 RandomUniform(const Output<Node>& out_shape,
                               const Output<Node>& min_val,
                               const Output<Node>& max_val,
                               const ngraph::element::Type& out_type,
-                              int64_t op_seed,
-                              int64_t global_seed);
+                              int64_t global_seed,
+                              int64_t op_seed);
 
                 void validate_and_infer_types() override;
 
