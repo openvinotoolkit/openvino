@@ -86,7 +86,6 @@ def test_infer(test_id, models, artifacts):
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
     infer_out_dir_cc = artifacts / f"{test_id}_cc" / "inference_result"
-    infer_out_dir_cc.mkdir(parents=True, exist_ok=True)
 
     return_code, output = run_infer(models, infer_out_dir_cc, minimized_pkg)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
@@ -100,9 +99,6 @@ def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # py
 
     infer_out_dir_cc = artifacts / f"{test_id}_cc" / "inference_result"
     infer_out_dir = out / "inference_result/"
-
-    infer_out_dir_cc.mkdir(parents=True, exist_ok=True)
-    infer_out_dir.mkdir(parents=True, exist_ok=True)
 
     return_code, output = run_infer(models, infer_out_dir, openvino_ref)
     assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
