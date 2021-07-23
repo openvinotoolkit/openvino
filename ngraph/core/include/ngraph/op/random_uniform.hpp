@@ -33,7 +33,7 @@ namespace ngraph
                 RandomUniform(const Output<Node>& out_shape,
                               const Output<Node>& min_val,
                               const Output<Node>& max_val,
-                              ngraph::element::Type out_type,
+                              const ngraph::element::Type& out_type,
                               int64_t seed,
                               int64_t seed2);
 
