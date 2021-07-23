@@ -68,6 +68,7 @@ class TimeStatisticsParser:
         self.parse_stats(stats)
         if not self.combined_stats:
             self.combined_stats = self.last_stats.copy()
+            return
         for step_name, duration in self.last_stats.items():
             self.combined_stats[step_name].extend(duration)
 
@@ -99,6 +100,7 @@ class MemoryStatisticsParser:
         self.parse_stats(stats)
         if not self.combined_stats:
             self.combined_stats = self.last_stats.copy()
+            return
         for step_name, vm_values in self.last_stats.items():
             for vm_metric, vm_value in vm_values.items():
                 self.combined_stats[step_name][vm_metric].extend(vm_value)
