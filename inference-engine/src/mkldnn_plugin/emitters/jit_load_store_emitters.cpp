@@ -156,16 +156,27 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
 
-    if (is_zmm && (load_size != 64) && mayiuse(cpu::x64::avx512_core)) {
-        uint64_t mask = 1;
-        mask = (mask << load_size) - mask;
-        h->mov(Reg64(aux_gpr_idxs[0]), mask);
-        h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
-        h->vmovdqu8(zmm | k_mask | T_z, addr(0));
+    if (is_zmm) {
+        switch (load_size) {
+            case 64:
+                h->uni_vmovdqu(zmm, addr(0));
+                break;
+            case 32:
+                h->uni_vmovdqu(ymm, addr(0));
+                break;
+            case 16:
+                h->uni_vmovdqu(xmm, addr(0));
+                break;
+            default:
+                uint64_t mask = 1;
+                mask = (mask << load_size) - mask;
+                h->mov(Reg64(aux_gpr_idxs[0]), mask);
+                h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+                h->vmovdqu8(zmm | k_mask | T_z, addr(0));
+                break;
+        }
     } else {
-        if (load_size == 64) {
-            h->uni_vmovdqu(zmm, addr(0));
-        } else if (load_size == 32) {
+        if (load_size == 32) {
             h->uni_vmovdqu(ymm, addr(0));
         } else if (load_size == 16) {
             h->uni_vmovdqu(xmm, addr(0));
@@ -638,17 +649,27 @@ template <typename Vmm>
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
-        if (is_zmm && (store_size != 64) && mayiuse(cpu::x64::avx512_core)) {
-            uint64_t mask = 1;
-            mask = (mask << store_size) - mask;
-            h->mov(Reg64(aux_gpr_idxs[0]), mask);
-            h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
-            h->vmovdqu8(addr(0), zmm | k_mask);
+        if (is_zmm) {
+            switch (store_size) {
+                case 64:
+                    h->uni_vmovdqu(addr(0), zmm);
+                    break;
+                case 32:
+                    h->uni_vmovdqu(addr(0), ymm);
+                    break;
+                case 16:
+                    h->uni_vmovdqu(addr(0), xmm);
+                    break;
+                default:
+                    uint64_t mask = 1;
+                    mask = (mask << store_size) - mask;
+                    h->mov(Reg64(aux_gpr_idxs[0]), mask);
+                    h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+                    h->vmovdqu8(addr(0), zmm | k_mask);
+                    break;
+            }
         } else {
-            if (store_size == 64) {
-                h->uni_vmovdqu(addr(0), zmm);
-                return;
-            } else if (store_size == 32) {
+            if (store_size == 32) {
                 h->uni_vmovdqu(addr(0), ymm);
                 return;
             } else if (store_size == 16) {
@@ -756,30 +777,50 @@ template <typename Vmm>
             IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_byte_extension.";
 
         auto ymm = Xbyak::Ymm(vmm.getIdx());
+        auto xmm = Xbyak::Xmm(vmm.getIdx());
 
         const auto addr = [&](int bytes_offset) {
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
         if (is_zmm) {
-            if (store_num == 16) { // v_len_elt(16)
-                if (is_signed) {
-                    h->vpmovsdb(addr(0), vmm);
-                } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
-                    h->vpmovusdb(addr(0), vmm);
-                }
-            } else {
-                unsigned int mask = 1;
-                mask = (mask << store_num) - mask;
-                h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
-                if (is_signed) {
-                    h->vpmovsdb(addr(0), vmm | k_mask);
-                } else {
-                    h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
-                    h->vpmovusdb(addr(0), vmm | k_mask);
-                }
+            switch (store_num) {
+                case 16:
+                    if (is_signed) {
+                        h->vpmovsdb(addr(0), vmm);
+                    } else {
+                        h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                        h->vpmovusdb(addr(0), vmm);
+                    }
+                    break;
+                case 8:
+                    if (is_signed) {
+                        h->vpmovsdb(addr(0), ymm);
+                    } else {
+                        h->vpmaxsd(ymm, ymm, Vmm(aux_vec_idxs[0]));
+                        h->vpmovusdb(addr(0), ymm);
+                    }
+                    break;
+                case 4:
+                    if (is_signed) {
+                        h->vpmovsdb(addr(0), xmm);
+                    } else {
+                        h->vpmaxsd(xmm, xmm, Vmm(aux_vec_idxs[0]));
+                        h->vpmovusdb(addr(0), xmm);
+                    }
+                    break;
+                default:
+                    unsigned int mask = 1;
+                    mask = (mask << store_num) - mask;
+                    h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                    h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                    if (is_signed) {
+                        h->vpmovsdb(addr(0), vmm | k_mask);
+                    } else {
+                        h->vpmaxsd(vmm, vmm, Vmm(aux_vec_idxs[0]));
+                        h->vpmovusdb(addr(0), vmm | k_mask);
+                    }
+                    break;
             }
         } else {
             // db only available on avx512, need dw+wb to emulate
@@ -828,6 +869,7 @@ template <typename Vmm>
         if (is_xmm && store_num > 4)
             IE_THROW() << "Store emitter in " << name << " has unexpected number of values to store to xmm in store_dword_to_word_extension.";
 
+        auto xmm = Xbyak::Xmm(vmm.getIdx());
         auto ymm = Xbyak::Ymm(vmm.getIdx());
         auto zmm = Xbyak::Zmm(vmm.getIdx());
 
@@ -844,24 +886,43 @@ template <typename Vmm>
             }
         } else {
             if (is_zmm) {
-                if (store_num == 16) {  // v_len_elt
-                    if (is_signed) {
-                        h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
-                    } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);        // if singed bit is 1, set value as 0.
-                        h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
-                    }
-                } else {
-                    unsigned int mask = 1;
-                    mask = (mask << store_num) - mask;
-                    h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                    h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
-                    if (is_signed) {
-                        h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
-                    } else {
-                        h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
-                        h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
-                    }
+                switch (store_num) {
+                    case 16:
+                        if (is_signed) {
+                            h->vpmovsdw(ptr[reg + offset], vmm);  // singed int32 saturate to signed int16.
+                        } else {
+                            h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);        // if singed bit is 1, set value as 0.
+                            h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
+                        }
+                        break;
+                    case 8:
+                        if (is_signed) {
+                            h->vpmovsdw(ptr[reg + offset], ymm);
+                        } else {
+                            h->vmaxsd(ymm, Vmm(aux_vec_idxs[0]), ymm);
+                            h->vpmovusdw(ptr[reg + offset], ymm);
+                        }
+                        break;
+                    case 4:
+                        if (is_signed) {
+                            h->vpmovsdw(ptr[reg + offset], xmm);
+                        } else {
+                            h->vmaxsd(xmm, Vmm(aux_vec_idxs[0]), xmm);
+                            h->vpmovusdw(ptr[reg + offset], xmm);
+                        }
+                        break;
+                    default:
+                        unsigned int mask = 1;
+                        mask = (mask << store_num) - mask;
+                        h->mov(Reg32(aux_gpr_idxs[0]), mask);
+                        h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                        if (is_signed) {
+                            h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
+                        } else {
+                            h->vmaxsd(vmm, Vmm(aux_vec_idxs[0]), vmm);
+                            h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
+                        }
+                        break;
                 }
             } else {
                 // direct mov_dw available only on avx512, emulate with pack_dw + permute + pure store
