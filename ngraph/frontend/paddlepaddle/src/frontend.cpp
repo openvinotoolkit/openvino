@@ -39,22 +39,21 @@ namespace ngraph
                                       const std::shared_ptr<OpPlacePDPD>& op_place,
                                       const std::map<std::string, CreatorFunction>& CREATORS_MAP)
             {
-                const auto& op = op_place->getDesc();
-                // std::cout << "Making node: " << op->type() << std::endl;
+                const auto& op = op_place->get_desc();
 
-                FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op->type()) != CREATORS_MAP.end(),
+                FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op.type()) != CREATORS_MAP.end(),
                                               "No creator found for ",
-                                              op->type(),
+                                              op.type(),
                                               " node.");
                 pdpd::NamedInputs named_inputs;
-                const auto& input_ports = op_place->getInputPorts();
+                const auto& input_ports = op_place->get_input_ports();
                 for (const auto& name_to_ports : input_ports)
                 {
                     for (const auto& port : name_to_ports.second)
                     {
-                        const auto& var_desc = port->getSourceTensorPDPD()->getDesc();
-                        if (nodes.count(var_desc->name()))
-                            named_inputs[name_to_ports.first].push_back(nodes.at(var_desc->name()));
+                        const auto& var_desc = port->get_source_tensor_pdpd()->get_desc();
+                        if (nodes.count(var_desc.name()))
+                            named_inputs[name_to_ports.first].push_back(nodes.at(var_desc.name()));
                         else
                             // return empty map when not all inputs exist. It usually means that
                             // these nodes are not used because model inputs were overwritten
@@ -64,7 +63,7 @@ namespace ngraph
 
                 try
                 {
-                    return CREATORS_MAP.at(op->type())(
+                    return CREATORS_MAP.at(op.type())(
                         NodeContext(DecoderPDPDProto(op_place), named_inputs));
                 }
                 catch (...)
@@ -118,20 +117,20 @@ namespace ngraph
             for (const auto& _inp_place : model->get_inputs())
             {
                 const auto& inp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_inp_place);
-                const auto& var = inp_place->getDesc();
-                const auto& shape = inp_place->getPartialShape();
-                const auto& type = inp_place->getElementType();
+                const auto& var = inp_place->get_desc();
+                const auto& shape = inp_place->get_partial_shape();
+                const auto& type = inp_place->get_element_type();
                 auto param = std::make_shared<Parameter>(type, shape);
-                param->set_friendly_name(var->name());
-                param->output(0).get_tensor().add_names({var->name()});
-                nodes_dict[var->name()] = param;
+                param->set_friendly_name(var.name());
+                param->output(0).get_tensor().add_names({var.name()});
+                nodes_dict[var.name()] = param;
                 parameter_nodes.push_back(param);
             }
 
             const auto& op_places = model->getOpPlaces();
             for (const auto& op_place : op_places)
             {
-                const auto& op_type = op_place->getDesc()->type();
+                const auto& op_type = op_place->get_desc().type();
                 if (op_type == "feed" || op_type == "fetch")
                 {
                     // inputs and outputs are stored in the model already
@@ -145,16 +144,16 @@ namespace ngraph
                     // set layer name by the name of first output var
                     if (!named_outputs.empty())
                     {
-                        const auto& first_output_var = op_place->getOutputPorts()
+                        const auto& first_output_var = op_place->get_output_ports()
                                                            .begin()
                                                            ->second.at(0)
-                                                           ->getTargetTensorPDPD()
-                                                           ->getDesc();
+                                                           ->get_target_tensor_pdpd()
+                                                           ->get_desc();
                         auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                        node->set_friendly_name(first_output_var->name());
+                        node->set_friendly_name(first_output_var.name());
                     }
 
-                    const auto& out_ports = op_place->getOutputPorts();
+                    const auto& out_ports = op_place->get_output_ports();
                     for (const auto& name_to_outputs : named_outputs)
                     {
                         const auto& ports = out_ports.at(name_to_outputs.first);
@@ -164,12 +163,12 @@ namespace ngraph
                             "the number of outputs of the ngraph node.");
                         for (size_t idx = 0; idx < ports.size(); ++idx)
                         {
-                            const auto& var = ports[idx]->getTargetTensorPDPD()->getDesc();
-                            name_to_outputs.second[idx].get_tensor().set_names({var->name()});
+                            const auto& var = ports[idx]->get_target_tensor_pdpd()->get_desc();
+                            name_to_outputs.second[idx].get_tensor().set_names({var.name()});
                             // if nodes_dict already has node mapped to this tensor name it usually
                             // means that it was overwritten using setTensorValue
-                            if (!nodes_dict.count(var->name()))
-                                nodes_dict[var->name()] = name_to_outputs.second[idx];
+                            if (!nodes_dict.count(var.name()))
+                                nodes_dict[var.name()] = name_to_outputs.second[idx];
                         }
                     }
                 }
@@ -178,8 +177,8 @@ namespace ngraph
             for (const auto& _outp_place : model->get_outputs())
             {
                 const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
-                auto var = outp_place->getDesc();
-                auto input_var_name = var->name();
+                auto var = outp_place->get_desc();
+                auto input_var_name = var.name();
                 auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
                 result->set_friendly_name(input_var_name + "/Result");
                 result_nodes.push_back(result);

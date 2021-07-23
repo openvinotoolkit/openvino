@@ -16,7 +16,8 @@ foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_fuzzer(${test_name} ${test_source})
 
-    target_link_libraries(${test_name} PRIVATE IE::inference_engine cnpy zlib)
+    target_link_libraries(${test_name} PRIVATE IE::inference_engine cnpy zlib ${NGRAPH_LIBRARIES}
+            ngraph::frontend_manager)
 
     add_dependencies(fuzz ${test_name})
 
