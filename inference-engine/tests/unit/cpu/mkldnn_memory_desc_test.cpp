@@ -4,12 +4,15 @@
 
 #include <utility>
 #include <gtest/gtest.h>
+#include <gmock/gmock-matchers.h>
 
 #include "mkldnn_memory.h"
 #include "cpu_memory_desc_utils.h"
+#include "nodes/common/blocked_desc_creator.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace testing;
 
 TEST(MemDescTest, Conversion) {
     // Check if conversion keep desc structure
@@ -137,6 +140,127 @@ TEST(MemDescTest, BlockedConversion) {
 TEST(MemDescTest, ComaptibleWithFormat) {
     GTEST_SKIP();
 }
+
+TEST(MKLDNNMemDescTest, KeepOrder) {
+    using mkldnn::memory;
+    std::vector<size_t> dims = {7, 3, 1, 5};
+    memory::data_type dataType = memory::data_type::u8;
+    MKLDNNMemoryDesc descPalanar(dims, dataType);
+    ASSERT_THAT(descPalanar.getOrder(), ElementsAre(0, 1, 2, 3));
+
+    MKLDNNMemoryDesc descTailC(dims, dataType, memory::format_tag::acdb);
+    ASSERT_THAT(descTailC.getOrder(), ElementsAre(0, 2, 3, 1));
+
+    MKLDNNMemoryDesc descBlockedC(dims, dataType, memory::format_tag::aBcd16b);
+    ASSERT_THAT(descBlockedC.getOrder(), ElementsAre(0, 1, 2, 3, 1));
+
+    MKLDNNMemoryDesc descWeightBlocked(dims, dataType, memory::format_tag::ABcd16b16a2b);
+    ASSERT_THAT(descWeightBlocked.getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
+
+    auto dnnDims = MKLDNNExtensionUtils::convertToDnnlDims(dims);
+
+    memory::desc mkldnnDescPlanar(dnnDims, dataType, memory::format_tag::abcd);
+    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescPlanar).getOrder(), ElementsAre(0, 1, 2, 3));
+
+    memory::desc mkldnnDescTailC(dnnDims, dataType, memory::format_tag::acdb);
+    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescTailC).getOrder(), ElementsAre(0, 2, 3, 1));
+
+    memory::desc mkldnnDescBlockedC(dnnDims, dataType, memory::format_tag::aBcd16b);
+    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescBlockedC).getOrder(), ElementsAre(0, 1, 2, 3, 1));
+
+    memory::desc mkldnnDescWeightBlocked(dnnDims, dataType, memory::format_tag::ABcd16b16a2b);
+    ASSERT_THAT(MKLDNNMemoryDesc(mkldnnDescWeightBlocked).getOrder(), ElementsAre(0, 1, 2, 3, 1, 0, 1));
+}
+
+TEST(MemDescTest, UndefinedState) {
+    ngraph::PartialShape ngraphShape({{16}, {-1, -1}, {20, 30}, {7}});
+    MKLDNNPlugin::Shape pluginShape(ngraphShape);
+    MKLDNNMemoryDesc memDesc(pluginShape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nChw8c);
+
+    ASSERT_FALSE(memDesc.isDefined());
+
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(memDesc.cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+
+    auto definedDesc = memDesc.cloneWithNewDims({16, 15, 25, 7});
+
+    ASSERT_TRUE(definedDesc->isDefined());
+
+    auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nCsp8c);
+    auto blockedDesc = creator->createDesc(Precision::FP32, pluginShape);
+
+    ASSERT_FALSE(blockedDesc.isDefined());
+
+    ASSERT_TRUE(blockedDesc.isCompatible(memDesc));
+
+    ASSERT_THROW(blockedDesc.cloneWithNewDims({16, 7, 40, 7}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(blockedDesc.cloneWithNewDims({16, 7, 25}), InferenceEngine::ParameterMismatch);
+    ASSERT_THROW(blockedDesc.cloneWithNewDims({16, 7, 25, 5}), InferenceEngine::ParameterMismatch);
+
+    auto definedBlockedDesc = blockedDesc.cloneWithNewDims({16, 15, 25, 7});
+
+    ASSERT_TRUE(definedBlockedDesc->isDefined());
+
+    ASSERT_FALSE(memDesc.isCompatible(*definedDesc));
+    ASSERT_FALSE(memDesc.isCompatible(*definedBlockedDesc));
+
+    ASSERT_TRUE(definedBlockedDesc->isCompatible(*definedDesc));
+}
+
+TEST(MemDescTest, MemSize) {
+    constexpr size_t undefSize = MemoryDesc::UNDEFINED_SIZE;
+    static const auto dnnlDataType = mkldnn::memory::data_type::f32;
+    static const Precision iePrc = Precision::FP32;
+
+
+    ngraph::PartialShape ngraphShapeUndef({{16}, {-1, -1}, {20, 30}, {7}});
+    MKLDNNPlugin::Shape pluginShapeUndef(ngraphShapeUndef);
+
+    auto creator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
+    auto blockedDescUndef = creator->createDesc(iePrc, pluginShapeUndef);
+
+    ASSERT_EQ(blockedDescUndef.getCurrentSize(), undefSize);
+    ASSERT_EQ(blockedDescUndef.getMaxMemSize(), undefSize);
+
+    MKLDNNMemoryDesc memDescUndef(pluginShapeUndef, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+
+    ASSERT_EQ(memDescUndef.getCurrentSize(), undefSize);
+    ASSERT_EQ(memDescUndef.getMaxMemSize(), undefSize);
+
+    ngraph::PartialShape ngraphShapeDefUpperBound({{16}, {7, 14}, {20, 30}, {7}});
+    MKLDNNPlugin::Shape pluginShapeDefUpperBound(ngraphShapeDefUpperBound);
+
+    auto blockedDescDefUpper = creator->createDesc(iePrc, pluginShapeDefUpperBound);
+
+    ASSERT_EQ(blockedDescDefUpper.getCurrentSize(), undefSize);
+    auto maxElementsCount = std::accumulate(pluginShapeDefUpperBound.getMaxDims().begin(),
+                                            pluginShapeDefUpperBound.getMaxDims().end(),
+                                            1, std::multiplies<size_t>());
+    ASSERT_EQ(blockedDescDefUpper.getMaxMemSize(), maxElementsCount * iePrc.size());
+
+    MKLDNNMemoryDesc memDescDefUpper(pluginShapeDefUpperBound, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+
+    ASSERT_EQ(memDescDefUpper.getCurrentSize(), undefSize);
+    ASSERT_EQ(memDescDefUpper.getMaxMemSize(), maxElementsCount * MKLDNNExtensionUtils::sizeOfDataType(dnnlDataType));
+
+    ngraph::PartialShape ngraphShapeDefined({{16}, {16}, {10}, {7}});
+    MKLDNNPlugin::Shape pluginShapeDefined(ngraphShapeDefined);
+
+    auto blockedDescDefined = creator->createDesc(iePrc, pluginShapeDefined);
+
+    ASSERT_NE(blockedDescDefined.getCurrentSize(), undefSize);
+    ASSERT_NE(blockedDescDefined.getMaxMemSize(), undefSize);
+    ASSERT_EQ(blockedDescDefined.getCurrentSize(), blockedDescDefined.getMaxMemSize());
+
+    MKLDNNMemoryDesc memDescDefined(pluginShapeDefined, dnnlDataType, mkldnn::memory::format_tag::nhwc);
+
+    ASSERT_NE(memDescDefined.getCurrentSize(), undefSize);
+    ASSERT_NE(memDescDefined.getMaxMemSize(), undefSize);
+    ASSERT_EQ(memDescDefined.getCurrentSize(), memDescDefined.getMaxMemSize());
+    ASSERT_EQ(blockedDescDefined.getCurrentSize(), memDescDefined.getCurrentSize());
+}
+
 
 TEST(isSameMethodTest, CheckTensorWithSameStrides) {
     auto isSameDataFormat = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {

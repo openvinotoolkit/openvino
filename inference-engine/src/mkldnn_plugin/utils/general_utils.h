@@ -134,4 +134,21 @@ inline InferenceEngine::Precision getMaxPrecision(std::vector<InferenceEngine::P
     return InferenceEngine::Precision::UNSPECIFIED;
 }
 
+inline std::string dim2str(size_t dim) {
+    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
+}
+
+inline std::string dims2str(const std::vector<size_t>& dims) {
+    std::stringstream output;
+    output << "{";
+
+    auto itr = dims.begin();
+    do {
+        output << dim2str(*itr);
+    } while (++itr != dims.end() && output << ", ");
+
+    output << "}";
+    return output.str();
+}
+
 }  // namespace MKLDNNPlugin

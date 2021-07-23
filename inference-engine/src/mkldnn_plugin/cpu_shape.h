@@ -13,15 +13,15 @@
 
 namespace MKLDNNPlugin {
 
-inline std::string dim2str(size_t dim);
-
 class Shape {
 public:
     Shape() = default;
 
     explicit Shape(const ngraph::PartialShape& shape) {
         minDims = shape.get_min_shape();
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](size_t x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -120,53 +120,20 @@ public:
     }
 
     ngraph::PartialShape toPartialShape() const {
-        std::vector<ngraph::Dimension> nGraphDims;
+        using ngraph::Dimension;
+        std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
-            nGraphDims.emplace_back(minDims[i], maxDims[i]);
+            Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : minDims[i];
+            Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
+            nGraphDims.emplace_back(minDim, maxDim);
         }
         return ngraph::PartialShape(nGraphDims);
     }
 
-    bool isCompatible(const std::vector<size_t>& vecDims) const {
-        if (getRank() != vecDims.size()) {
-            return false;
-        }
+    bool isCompatible(const std::vector<size_t>& vecDims) const;
 
-        auto comparator = [](size_t lhs, size_t rhs) {
-            return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
-        };
-
-        if (!std::equal(getDims().begin(), getDims().end(), vecDims.begin(), comparator)) {
-            return false;
-        }
-
-        if (!std::equal(getMaxDims().begin(), getMaxDims().end(), vecDims.begin(), [](size_t lhs, size_t rhs) { return lhs >= rhs; })) {
-            return false;
-        }
-
-        if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](size_t lhs, size_t rhs) { return lhs <= rhs; })) {
-            return false;
-        }
-        return true;
-    }
-
-    std::string toString() const {
-        std::stringstream output;
-        output << "{";
-
-        size_t i = 0;
-        do {
-            if (dims[i] == Shape::UNDEFINED_DIM) {
-                output << dim2str(minDims[i]) << " - " << dim2str(maxDims[i]);
-            } else {
-                output << dims[i];
-            }
-        } while (++i < dims.size() && output << ", ");
-
-        output << "}";
-        return output.str();
-    }
+    std::string toString() const;
 
     bool operator == (const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
@@ -197,21 +164,4 @@ private:
     std::vector<size_t> maxDims;
     std::vector<size_t> dims;
 };
-
-inline std::string dim2str(size_t dim) {
-    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
-}
-
-inline std::string dims2str(const std::vector<size_t>& dims) {
-    std::stringstream output;
-    output << "{";
-
-    auto itr = dims.begin();
-    do {
-         output << dim2str(*itr);
-    } while (++itr != dims.end() && output << ", ");
-
-    output << "}";
-    return output.str();
-}
 }  // namespace MKLDNNPlugin

@@ -81,8 +81,6 @@ public:
 
     size_t getMaxMemSize() const override;
 
-    std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const override;
-
 private:
     size_t getElementOffset(size_t elemNumber) const override;
     size_t getMemSizeImp() const override;
@@ -91,6 +89,7 @@ private:
     bool isBlockedCFormat(size_t blk_size) const;
     bool isTailCFormat() const;
     bool isDefinedImp() const override;
+    std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const override;
 
 private:
     InferenceEngine::Precision precision;

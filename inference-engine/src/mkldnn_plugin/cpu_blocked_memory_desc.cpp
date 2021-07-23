@@ -4,7 +4,6 @@
 
 #include "cpu_blocked_memory_desc.h"
 #include "mkldnn_memory.h"
-#include "utils/cpu_utils.hpp"
 
 using namespace MKLDNNPlugin;
 
@@ -261,15 +260,7 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     return result.str();
 }
 
-std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDims(const std::vector<size_t> &dims) const {
-    // TODO [DS]: phase 2 : move to the base class
-    if (!getShape().isCompatible(dims)) {
-        IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
-            " is incompatible with provided dimensions: " << dims2str(dims) << ".";
-    }
-
-    // TODO [DS]: phase 2 : end code frame to be moved
-
+std::unique_ptr<MemoryDesc> BlockedMemoryDesc::cloneWithNewDimsImp(const std::vector<size_t> &dims) const {
     std::vector<size_t> newBlockedDims(order.size());
 
     for (size_t i = 0; i < dims.size(); ++i) {

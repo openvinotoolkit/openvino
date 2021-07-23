@@ -42,12 +42,19 @@ public:
     virtual std::unique_ptr<MemoryDesc> clone() const = 0;
 
     // clone descriptor with new dims. Throws an exception if some of the new dims conflicts with the internal shape (i.e. its defined dims ,rank, upper bounds)
-    virtual std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const = 0;
+    std::unique_ptr<MemoryDesc> cloneWithNewDims(const std::vector<size_t>& dims) const {
+        if (!getShape().isCompatible(dims)) {
+            IE_THROW(ParameterMismatch) << "Can not clone with new dims. Descriptor's shape: " << getShape().toString() <<
+                                        " is incompatible with provided dimensions: " << dims2str(dims) << ".";
+        }
+
+        return cloneWithNewDimsImp(dims);
+    }
 
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
     // Checks that all dimensions, offsets, strides, etc are defined (!= UNDEFINED_DIM)
-    virtual bool isDefined() const {
+    bool isDefined() const {
         if (descStatus::Unknown == status) {
             status = isDefinedImp() ? descStatus::Defined : descStatus::Undefined;
         }
@@ -108,6 +115,8 @@ protected:
     virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
     virtual bool isDefinedImp() const = 0;
+
+    virtual std::unique_ptr<MemoryDesc> cloneWithNewDimsImp(const std::vector<size_t>& dims) const = 0;
 
     MemoryDescType type;
     Shape shape;
