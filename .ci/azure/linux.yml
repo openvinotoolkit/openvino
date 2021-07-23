@@ -90,6 +90,9 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running nGraph unit tests dependent on Python frameworks
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test.txt
+      # For MO unit tests
+      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
@@ -151,6 +154,12 @@ jobs:
   - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+
+  - script: |
+      export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
+      . $(SETUPVARS) -pyver 3.6 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+    displayName: 'Model Optimizer UT'
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
