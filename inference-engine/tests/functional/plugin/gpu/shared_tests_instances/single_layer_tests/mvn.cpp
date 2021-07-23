@@ -9,6 +9,8 @@
 
 using namespace LayerTestsDefinitions;
 
+const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+
 const std::vector<std::vector<size_t>> inputShapes = {
     {1, 32, 17},
     {1, 37, 9},
@@ -41,13 +43,14 @@ const std::vector<double> epsilon = {
 const auto MvnCases = ::testing::Combine(
     ::testing::ValuesIn(inputShapes),
     ::testing::Values(InferenceEngine::Precision::FP32),
+    ::testing::ValuesIn(emptyReductionAxes),
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
     ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN, MvnLayerTest, MvnCases, MvnLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN, Mvn1LayerTest, MvnCases, Mvn1LayerTest::getTestCaseName);
 
 std::vector<InferenceEngine::Precision> dataPrecisions = {
     InferenceEngine::Precision::FP32,
