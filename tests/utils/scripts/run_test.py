@@ -43,6 +43,7 @@ def run_test(args: dict, log=None):
     cmd_common = prepare_executable_cmd(args)
 
     # Run executable and collect statistics
+    stats_parser = StatisticsParser()
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
@@ -58,15 +59,15 @@ def run_test(args: dict, log=None):
         os.unlink(tmp_stats_path)
 
         # Parse and combine raw data
-        StatisticsParser().append_stats(raw_data)
+        stats_parser.append_stats(raw_data)
 
-        log.debug("Statistics after run of executable #{}: {}".format(run_iter, StatisticsParser().executor.last_stats))
+        log.debug("Statistics after run of executable #{}: {}".format(run_iter, stats_parser.executor.last_stats))
 
     # Aggregate results
-    StatisticsParser().aggregate_stats()
-    log.debug("Aggregated statistics after full run: {}".format(StatisticsParser().executor.aggregated_stats))
+    stats_parser.aggregate_stats()
+    log.debug("Aggregated statistics after full run: {}".format(stats_parser.executor.aggregated_stats))
 
-    return 0, "", StatisticsParser().executor.aggregated_stats, StatisticsParser().executor.combined_stats
+    return 0, "", stats_parser.executor.aggregated_stats, stats_parser.executor.combined_stats
 
 
 def check_positive_int(val):
