@@ -75,9 +75,24 @@ namespace ngraph
 
         protected:
             element::Type m_element_type;
-            mutable std::atomic<bool> shape_changed;
+
+            // TODO: remove along with get_shape
+            // Initially there was ngraph::Shape m_shape only available to keep shape information.
+            // Support for dynamic shapes required transition to ngraph::PartialShape.
+            // To smoothly transition to ngraph::PartialShape we introduced m_partial_shape
+            // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
+            // in set_partial_shape which dramatically affected performance of ngraph::Function
+            // validation. Since we have started the transition to ngraph::PartialShape and reduced
+            // ngraph::Shape usage the only user of m_shape was get_shape method with signature:
+            // const Shape& descriptor::Tensor::get_shape() const
+            // It was decided to move m_shape and m_partial_shape synchronization point there and
+            // to keep methods signature backward compatible we made m_shape mutable and used mutex
+            // to avoid race condition.
             mutable std::mutex shape_mutex;
-            mutable Shape m_shape; // TODO: remove along with get_shape
+            mutable bool m_shape_changed;
+            mutable Shape m_shape;
+            // TODO: end
+
             PartialShape m_partial_shape;
             HostTensorPtr m_lower_value, m_upper_value;
             std::string m_name;

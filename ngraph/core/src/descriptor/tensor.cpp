@@ -14,7 +14,7 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
     : m_element_type(element_type)
     , m_partial_shape(pshape)
     , m_name(name)
-    , shape_changed(true)
+    , m_shape_changed(true)
 {
 }
 
@@ -24,7 +24,7 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
                            size_t node_output_number)
     : m_element_type(element_type)
     , m_partial_shape(pshape)
-    , shape_changed(true)
+    , m_shape_changed(true)
 {
 }
 
@@ -43,7 +43,8 @@ void descriptor::Tensor::set_element_type(const element::Type& element_type)
 void descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape)
 {
     m_partial_shape = partial_shape;
-    shape_changed = true;
+    std::lock_guard<std::mutex> guard(shape_mutex);
+    m_shape_changed = true;
 }
 
 void descriptor::Tensor::invalidate_values()
@@ -72,12 +73,14 @@ const Shape& descriptor::Tensor::get_shape() const
 {
     if (m_partial_shape.is_static())
     {
-        if (shape_changed)
+        if (m_shape_changed)
         {
-            shape_mutex.lock();
-            m_shape = m_partial_shape.to_shape();
-            shape_mutex.unlock();
-            shape_changed = false;
+            std::lock_guard<std::mutex> guard(shape_mutex);
+            if (m_shape_changed) // double check after mutex lock
+            {
+                m_shape = m_partial_shape.to_shape();
+                m_shape_changed = false;
+            }
         }
         return m_shape;
     }
