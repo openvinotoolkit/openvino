@@ -150,7 +150,7 @@ struct IEExecNetwork {
 
     void createInferRequests(int num_requests);
 
-    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
+    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (issue 28996)
     std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
@@ -159,7 +159,7 @@ struct IECore {
     explicit IECore(const std::string& xmlConfigFile = std::string());
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string& deviceName);
     InferenceEnginePython::IENetwork readNetwork(const std::string& modelPath, const std::string& binPath);
-    InferenceEnginePython::IENetwork readNetwork(const std::string& model, const uint8_t* bin, size_t bin_size);
+    InferenceEnginePython::IENetwork readNetwork(const std::string& model, const uint8_t* bin = nullptr, size_t bin_size = 0);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string& deviceName,
                                                                       const std::map<std::string, std::string>& config, int num_requests);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetworkFromFile(const std::string& modelPath, const std::string& deviceName,
@@ -172,6 +172,7 @@ struct IECore {
     void unregisterPlugin(const std::string& deviceName);
     void registerPlugins(const std::string& xmlConfigFile);
     void addExtension(const std::string& ext_lib_path, const std::string& deviceName);
+    void addExtension(const std::string& ext_lib_path);
     std::vector<std::string> getAvailableDevices();
     PyObject* getMetric(const std::string& deviceName, const std::string& name);
     PyObject* getConfig(const std::string& deviceName, const std::string& name);

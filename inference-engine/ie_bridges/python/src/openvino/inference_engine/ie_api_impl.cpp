@@ -580,6 +580,12 @@ void InferenceEnginePython::IECore::addExtension(const std::string& ext_lib_path
     actual.AddExtension(extension, deviceName);
 }
 
+void InferenceEnginePython::IECore::addExtension(const std::string& ext_lib_path) {
+    auto extension_ptr = std::make_shared<InferenceEngine::Extension>(ext_lib_path);
+    auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
+    actual.AddExtension(extension);
+}
+
 std::vector<std::string> InferenceEnginePython::IECore::getAvailableDevices() {
     return actual.GetAvailableDevices();
 }

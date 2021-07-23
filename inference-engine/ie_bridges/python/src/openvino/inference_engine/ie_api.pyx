@@ -324,17 +324,21 @@ cdef class IECore:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
     cpdef IENetwork read_network(self, model: [str, bytes, os.PathLike], weights: [str, bytes, os.PathLike] = "", init_from_buffer: bool = False):
-        cdef uint8_t*bin_buffer
+        cdef uint8_t* bin_buffer
         cdef string weights_
         cdef string model_
         cdef IENetwork net = IENetwork()
         cdef size_t bin_size
         if init_from_buffer:
             model_ = bytes(model)
-            bin_buffer = <uint8_t*> weights
-            bin_size = len(weights)
-            with nogil:
-                net.impl = self.impl.readNetwork(model_, bin_buffer, bin_size)
+            if not weights:
+                with nogil:
+                    net.impl = self.impl.readNetwork(model_)
+            else:
+                bin_buffer = <uint8_t *> weights
+                bin_size = len(weights)
+                with nogil:
+                    net.impl = self.impl.readNetwork(model_, bin_buffer, bin_size)
         else:
             weights_ = "".encode()
             model = os.fspath(model)
@@ -507,8 +511,11 @@ cdef class IECore:
     #  ie = IECore()
     #  ie.add_extension(extension_path="/some_dir/libcpu_extension_avx2.so", device_name="CPU")
     #  ```
-    def add_extension(self, extension_path: str, device_name: str):
-        self.impl.addExtension(extension_path.encode(), device_name.encode())
+    def add_extension(self, extension_path: str, device_name: str = ""):
+        if not device_name:
+            self.impl.addExtension(extension_path.encode())
+        else:
+            self.impl.addExtension(extension_path.encode(), device_name.encode())
 
     ## Gets a general runtime metric for dedicated hardware. Enables to request common device properties,
     #  which are `ExecutableNetwork` agnostic, such as device name, temperature, and other devices-specific values.

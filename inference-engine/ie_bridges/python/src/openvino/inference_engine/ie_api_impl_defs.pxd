@@ -202,8 +202,9 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IECore() nogil except +
         IECore(const string & xml_config_file) nogil except +
         map[string, Version] getVersions(const string & deviceName) except +
+        IENetwork readNetwork(const string& modelPath) nogil except +
         IENetwork readNetwork(const string& modelPath, const string& binPath) nogil except +
-        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) nogil except +
+        IENetwork readNetwork(const string& modelPath,uint8_t* bin, size_t bin_size) nogil except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
@@ -217,6 +218,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void unregisterPlugin(const string & deviceName) except +
         void registerPlugins(const string & xmlConfigFile) except +
         void addExtension(const string & ext_lib_path, const string & deviceName) except +
+        void addExtension(const string & ext_lib_path) except +
         vector[string] getAvailableDevices() nogil except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +

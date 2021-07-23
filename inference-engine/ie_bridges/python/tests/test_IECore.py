@@ -8,6 +8,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from queue import Queue
+import numpy as np
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
 from conftest import model_path, plugins_path, model_onnx_path
@@ -277,3 +278,73 @@ def test_load_network_release_gil(device):
     # Assert there were never any long gil locks
     assert message_queue.qsize() == 0, \
         f"More than 0 GIL locks occured! Latency: {message_queue.get()})"
+
+
+def test_add_extension():
+    model = bytes(b"""<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="2,2,2,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="operation" id="1" type="Template" version="custom_opset">
+            <data  add="11"/>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+
+    ie = IECore()
+    if platform == "win32":
+        ie.add_extension(extension_path="template_extension.dll")
+    else:
+        ie.add_extension(extension_path="libtemplate_extension.so")
+    network = ie.read_network(model=model, init_from_buffer=True)
+    assert isinstance(network, IENetwork)
+
+    input_blob = next(iter(network.input_info))
+    n, c, h, w = network.input_info[input_blob].input_data.shape
+
+    input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
+    expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]), shape = (n, c, h, w), dtype=int)
+
+    exec_network = ie.load_network(network, "CPU")
+    computed = exec_network.infer(inputs={input_blob : input_values})
+    output_blob = next(iter(network.outputs))
+    assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
