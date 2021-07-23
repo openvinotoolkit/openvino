@@ -5,10 +5,8 @@ import os
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-import ngraph as ng
 from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
-from openvino.inference_engine import IENetwork
 
 
 #       in1        in2        in3
@@ -177,9 +175,20 @@ def setup_module():
         test_models_names.append(name)
 
 
+def teardown_module():
+    for name in test_models_names:
+        os.remove(name)
+
+
+def skip_if_onnx_frontend_is_disabled():
+    front_ends = fem.get_available_front_ends()
+    if "onnx" not in front_ends:
+        pytest.skip()
+
+
 # Function to compare ng Functions (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
-def comare_functions(current, expected):
+def comare_functions(current, expected):  # noqa: C901 the function is too complex
     result = True
     msg = ""
     if current.get_friendly_name() != expected.get_friendly_name():
@@ -197,7 +206,7 @@ def comare_functions(current, expected):
 
     for i in range(len(current_ops)):
         if (current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()
-            and current_ops[i].get_type_name() != "Constant"): # const have different names
+                and current_ops[i].get_type_name() != "Constant"):  # const have different names
             result = False
             msg += "Not equal op name. "
             msg += f"Current: {current_ops[i].get_friendly_name()}, "
@@ -223,16 +232,12 @@ def comare_functions(current, expected):
     return result
 
 
-def teardown_module():
-    for name in test_models_names:
-        os.remove(name)
-
-
 def test_extract_subgraph():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="add_out").get_input_port(inputPortIndex=0)  # in1
@@ -241,7 +246,7 @@ def test_extract_subgraph():
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("extract_subgraph.onnx")
+    expected_model = fe.load("extract_subgraph.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -249,10 +254,11 @@ def test_extract_subgraph():
 
 
 def test_extract_subgraph_2():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="add_out")
@@ -260,7 +266,7 @@ def test_extract_subgraph_2():
     model.extract_subgraph(inputs=[], outputs=[place1, place2])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("extract_subgraph_2.onnx")
+    expected_model = fe.load("extract_subgraph_2.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -268,10 +274,11 @@ def test_extract_subgraph_2():
 
 
 def test_extract_subgraph_3():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
@@ -280,7 +287,7 @@ def test_extract_subgraph_3():
     model.extract_subgraph(inputs=[place1], outputs=[place2, place3])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("extract_subgraph_3.onnx")
+    expected_model = fe.load("extract_subgraph_3.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -288,10 +295,11 @@ def test_extract_subgraph_3():
 
 
 def test_extract_subgraph_4():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=0)
@@ -303,7 +311,7 @@ def test_extract_subgraph_4():
     model.extract_subgraph(inputs=[place1, place2, place3], outputs=[place4, place5, place6])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("extract_subgraph_4.onnx")
+    expected_model = fe.load("extract_subgraph_4.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -311,10 +319,11 @@ def test_extract_subgraph_4():
 
 
 def test_override_all_outputs():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="add_out")
@@ -322,7 +331,7 @@ def test_override_all_outputs():
     model.override_all_outputs(outputs=[place1, place2])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("test_override_all_outputs.onnx")
+    expected_model = fe.load("test_override_all_outputs.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -330,17 +339,18 @@ def test_override_all_outputs():
 
 
 def test_override_all_outputs_2():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="out4")
     model.override_all_outputs(outputs=[place1])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("test_override_all_outputs_2.onnx")
+    expected_model = fe.load("test_override_all_outputs_2.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -348,10 +358,11 @@ def test_override_all_outputs_2():
 
 
 def test_override_all_inputs():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_operation_name_and_input_port(
@@ -362,7 +373,7 @@ def test_override_all_inputs():
     model.override_all_inputs(inputs=[place1, place2, place3, place4])
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("test_override_all_inputs.onnx")
+    expected_model = fe.load("test_override_all_inputs.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -370,10 +381,11 @@ def test_override_all_inputs():
 
 
 def test_override_all_inputs_exceptions():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
@@ -391,10 +403,11 @@ def test_override_all_inputs_exceptions():
 
 
 def test_is_input_output():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in2")
@@ -416,10 +429,11 @@ def test_is_input_output():
 
 
 def test_set_partial_shape():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
@@ -430,7 +444,7 @@ def test_set_partial_shape():
     model.set_partial_shape(place3, PartialShape([4, 6]))
     result_func = fe.convert(model)
 
-    expected_model = fe.load_from_file("test_partial_shape.onnx")
+    expected_model = fe.load("test_partial_shape.onnx")
     expected_func = fe.convert(expected_model)
 
     res = comare_functions(result_func, expected_func)
@@ -438,10 +452,11 @@ def test_set_partial_shape():
 
 
 def test_get_partial_shape():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
@@ -460,19 +475,21 @@ def test_get_partial_shape():
 
 
 def test_get_inputs():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     in_names = [place.get_names()[0] for place in model.get_inputs()]
-    assert in_names== ["in1", "in2", "in3"]
+    assert in_names == ["in1", "in2", "in3"]
 
 
 def test_get_outputs():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     out_names = [place.get_names()[0] for place in model.get_outputs()]
@@ -480,10 +497,11 @@ def test_get_outputs():
 
 
 def test_is_equal():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
@@ -512,10 +530,11 @@ def test_is_equal():
 
 
 def test_get_place_by_tensor_name():
+    skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework="onnx")
     assert fe
 
-    model = fe.load_from_file("input_model.onnx")
+    model = fe.load("input_model.onnx")
     assert model
 
     place1 = model.get_place_by_tensor_name(tensorName="out2")

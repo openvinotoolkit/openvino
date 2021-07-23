@@ -11,7 +11,7 @@ namespace ngraph
 {
     namespace frontend
     {
-        class FRONTEND_API InputModelONNX : public InputModel
+        class InputModelONNX : public InputModel
         {
         public:
             InputModelONNX(const std::string& path);

@@ -11,7 +11,7 @@ namespace ngraph
 {
     namespace frontend
     {
-        class FRONTEND_API PlaceInputEdgeONNX : public Place
+        class PlaceInputEdgeONNX : public Place
         {
         public:
             PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
