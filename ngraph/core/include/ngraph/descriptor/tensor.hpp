@@ -85,8 +85,7 @@ namespace ngraph
             // ngraph::Shape usage the only user of m_shape was get_shape method with signature:
             // const Shape& descriptor::Tensor::get_shape() const
             // It was decided to move m_shape and m_partial_shape synchronization point there and
-            // to keep methods signature backward compatible we made m_shape mutable and used mutex
-            // to avoid race condition.
+            // to keep methods signature backward compatible.
             mutable std::mutex shape_mutex;
             mutable bool m_shape_changed;
             mutable Shape m_shape;
