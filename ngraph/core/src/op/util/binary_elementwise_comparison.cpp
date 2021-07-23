@@ -10,6 +10,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::BinaryElementwiseComparison, "BinaryElementwiseComparison", 0);
+
 op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const AutoBroadcastSpec& autob)
     : m_autob(autob)
 {

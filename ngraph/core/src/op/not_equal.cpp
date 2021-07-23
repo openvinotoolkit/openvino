@@ -51,7 +51,7 @@ namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0,
                            const Output<Node>& arg1,

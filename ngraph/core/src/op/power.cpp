@@ -54,7 +54,7 @@ namespace power
 
 // ------------------------------ v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Power, "Power", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Power, "Power", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::Power::Power(const Output<Node>& arg0,
                      const Output<Node>& arg1,

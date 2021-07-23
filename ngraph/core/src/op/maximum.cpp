@@ -58,7 +58,7 @@ namespace maximumop
 
 // ------------------------------------ v1 -------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Maximum, "Maximum", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Maximum, "Maximum", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::Maximum::Maximum(const Output<Node>& arg0,
                          const Output<Node>& arg1,

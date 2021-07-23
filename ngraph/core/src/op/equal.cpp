@@ -51,7 +51,7 @@ namespace equal
 
 //------------------------------- v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Equal::Equal(const Output<Node>& arg0,
                      const Output<Node>& arg1,
