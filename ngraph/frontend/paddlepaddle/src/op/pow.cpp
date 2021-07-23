@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "pow.hpp"
-#include <ngraph/builder/make_constant.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
@@ -27,8 +26,8 @@ namespace ngraph
                     }
                     else
                     {
-                        factor_node = builder::make_constant(
-                            dtype, Shape{1}, node.get_attribute<float>("factor"));
+                        factor_node = ngraph::opset6::Constant::create(
+                            dtype, Shape{1}, {node.get_attribute<float>("factor")});
                     }
 
                     return node.default_single_output_mapping(
