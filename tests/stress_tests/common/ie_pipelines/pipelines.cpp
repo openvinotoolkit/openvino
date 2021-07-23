@@ -4,7 +4,7 @@
 
 #include "pipelines.h"
 #include "../utils.h"
-#include "../ie_utils.h"
+#include "common_utils.h"
 
 #include <iostream>
 #include <string>

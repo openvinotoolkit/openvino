@@ -3,7 +3,7 @@
 //
 
 #include "../common/tests_utils.h"
-#include "../common/ie_utils.h"
+#include "common_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
 
