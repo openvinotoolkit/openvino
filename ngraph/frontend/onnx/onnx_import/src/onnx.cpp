@@ -19,8 +19,8 @@ namespace ngraph
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            ONNX_NAMESPACE::ModelProto model_proto{onnx_common::parse_from_istream(stream)};
-
+            auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>(
+                onnx_common::parse_from_istream(stream));
             return detail::import_onnx_model(model_proto, model_path);
         }
 
@@ -56,6 +56,11 @@ namespace ngraph
         {
             return OperatorsBridge::is_operator_registered(
                 op_name, version, domain == "ai.onnx" ? "" : domain);
+        }
+
+        std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function)
+        {
+            return detail::convert_decoded_function(function);
         }
 
     } // namespace onnx_import

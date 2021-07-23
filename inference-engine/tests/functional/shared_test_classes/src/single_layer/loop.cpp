@@ -140,6 +140,47 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result0, result1, result2}, params, "loop");
     }
 
+    std::string StaticShapeLoopTest::getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj) {
+        bool unrolling;
+        bool static_iter_num;
+        bool static_continue_cond;
+        int64_t max_iter_num;
+        int64_t dynamic_exit;
+        int64_t axis;
+        int64_t start_value;
+        InferenceEngine::SizeVector data_shape;
+        InferenceEngine::Precision data_prc;
+        std::string targetDevice;
+        auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
+        std::map<std::string, std::string> configuration;
+        std::tie(
+            unrolling,
+            static_continue_cond,
+            args_papck,
+            start_value,
+            data_shape,
+            data_prc,
+            targetDevice,
+            configuration) = obj.param;
+
+        std::ostringstream result;
+        result << "unrolling=" << std::to_string(unrolling) << "_";
+        result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
+        result << "static_continue_cond=" << std::to_string(static_continue_cond) << "_";
+        result << "max_iter_num=" << std::to_string(max_iter_num) << "_";
+        result << "dynamic_exit=" << std::to_string(dynamic_exit) << "_";
+        result << "axis=" << std::to_string(axis) << "_";
+        result << "start_value=" << std::to_string(start_value) << "_";
+        result << "max_iter_num=" << std::to_string(max_iter_num) << "_";
+        result << "IS=" << CommonTestUtils::vec2str(data_shape) << "_";
+        result << "netPRC=" << std::to_string(data_prc) << "_";
+        result << "targetDevice=" << targetDevice << "_";
+
+        auto res_str = result.str();
+        std::replace(res_str.begin(), res_str.end(), '-', '_');
+        return res_str;
+    }
+
     void StaticShapeLoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
@@ -150,7 +191,8 @@ namespace LayerTestsDefinitions {
             start_value,
             data_shape,
             data_prc,
-            targetDevice) = GetParam();
+            targetDevice,
+            configuration) = GetParam();
 
         const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(data_prc);
         const auto ngShape = ngraph::Shape{data_shape};
