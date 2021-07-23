@@ -250,7 +250,7 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
         })),
         [](ngraph::pattern::Matcher &m) -> bool {
         auto node = m.get_match_root();
-        remark(1) << "Match root"
+        remark(1) << "Match root (Start): "
                   << node->get_friendly_name()
                   << " " << node
                   << " Creating new snippet - no input subgraphs found" << std::endl;
@@ -279,7 +279,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     ngraph::graph_rewrite_callback continuation_callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
         auto node = m.get_match_root();
 
-        remark(1) << "Match root " << node->get_friendly_name() << " " << node << std::endl;
+        remark(1) << "Match root (Attach): " << node->get_friendly_name() << " " << node << std::endl;
 
         // inputs that are already subgraphs
         std::unordered_set<std::shared_ptr<Node>> input_subgraphs;
@@ -301,21 +301,26 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             return false;
         };
 
-        auto get_input_index = [](const Output<Node>& found) -> size_t {
-            for (auto& input : found.get_target_inputs()) {
-                remark(13) << input.get_node() << " " << input.get_source_output() << " vs "
-                    << found << found.get_node() << " : " << input.get_index() << " " << found.get_index() << std::endl;
-            }
-
-            for (auto& input : found.get_target_inputs()) {
-                remark(13) << input.get_node() << " " << input.get_source_output() << " vs "
-                    << found << " : " << input.get_index() << " " << found.get_index() << std::endl;
-                if (ov::as_type_ptr<op::Subgraph>(input.get_node()->shared_from_this()) != nullptr && input.get_source_output() == found) {
-                    return input.get_index();
-                }
-            }
-            return 0;
-        };
+        // Todo: remove this after a benchmark run
+        // This function relies on the assumption that the order of inputs can't change.
+        // It seems however that this doesn't hold if the StartSubgraph matcher is active, since it replaces nodes.
+//        auto get_input_index = [](const Output<Node>& found) -> size_t {
+//            for (auto& input : found.get_target_inputs()) {
+//                remark(13) << input.get_node() << " " << input.get_source_output() << " vs "
+//                    << found << found.get_node() << " : " << input.get_index() << " " << found.get_index() << std::endl;
+//            }
+//            size_t found_index = 0;
+//            for (auto& input : found.get_target_inputs()) {
+//                remark(13) << input.get_node() << " " << input.get_source_output() << " vs "
+//                    << found << " : " << input.get_index() << " " << found.get_index() << std::endl;
+//                if (as_type_ptr<op::Subgraph>(input.get_node()->shared_from_this()) != nullptr && input.get_source_output() == found) {
+//                    found_index = input.get_index();
+//                    //return input.get_index();
+//                }
+//            }
+//            remark(13) << "Found index: " << found_index << std::endl;
+//            return found_index;
+//        };
 
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
@@ -338,11 +343,29 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
-
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
                         if (found != external_inputs.end()) {
-                            auto current_input_index = get_input_index(*found);
+                            // If a subgraph input is already in external_inputs then there must be a corresponding parameter in body_parameters
+                            // If so, then we should replace the input with the parameter
+                            // todo: It seems that that there is a 1:1 match between external_inputs and body_parameters.
+                            //  Should we use a vector/map of paris then? Or at least state this explicitly?
+                            size_t current_input_index = body_parameters.size();
+                            size_t estimated_index = found - external_inputs.begin();
+                            for (size_t p_ind=0; p_ind <  body_parameters.size(); p_ind++) {
+                                const auto & p = body_parameters[p_ind];
+                                if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name()) {
+                                    current_input_index = p_ind;
+                                    break;
+                                }
+                            }
+                            // Todo: remove this check after a benchmark run
+                            if ((estimated_index - current_input_index) != 0)
+                                std::cerr << "ATTACH_WARNING: The proposed index algorithm is not working" << std::endl;
+
+                            if (current_input_index == body_parameters.size())
+                                std::cerr << "ATTACH_WARNING: An input parameter in external_inputs, but not in body parameters!" << std::endl;
+
                             // Handling the case if multiple inputs referencing the same parameter comes from one subgraph => it's not introduced by SS.
                             // It might be better to keep track if body parameter relationship rather than that
                             if (current_input_index < body_parameters.size()) {
@@ -529,7 +552,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
-            return is_lo(n) && has_supported_in_out(n) && has_subgraph_as_input(n);
+            return AppropriateForSubgraph(n) && has_subgraph_as_input(n);
         })),
         continuation_callback);
 }
