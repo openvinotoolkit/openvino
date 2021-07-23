@@ -113,8 +113,8 @@ def test_verify(test_id, models, openvino_ref, artifacts, tolerance=1e-6):  # py
         out_file = f"{infer_out_dir / Path(model).name}.npz"
         out_file_cc = f"{infer_out_dir_cc / Path(model).name}.npz"
 
-        reference_results = dict(np.load(out_file, allow_pickle=True))
-        inference_results = dict(np.load(out_file_cc, allow_pickle=True))
+        reference_results = dict(np.load(out_file))
+        inference_results = dict(np.load(out_file_cc))
         assert sorted(reference_results.keys()) == sorted(
             inference_results.keys()
         ), "Results have different number of layers"
