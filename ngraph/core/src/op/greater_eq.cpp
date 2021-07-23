@@ -51,7 +51,10 @@ namespace greater_equalop
 
 //---------------------------------- v1 ----------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1, op::util::BinaryElementwiseComparison);
+NGRAPH_RTTI_DEFINITION(op::v1::GreaterEqual,
+                       "GreaterEqual",
+                       1,
+                       op::util::BinaryElementwiseComparison);
 
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,
