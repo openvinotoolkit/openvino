@@ -230,6 +230,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/asinh.cpp
@@ -300,6 +301,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
@@ -370,7 +372,6 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -450,7 +451,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
@@ -487,7 +487,6 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
@@ -613,16 +612,16 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 
