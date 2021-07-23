@@ -55,8 +55,10 @@
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
 #include "to_string_utils.h"
-#include "gpu/register_gpu.hpp"
 #include "runtime/cldnn_itt.hpp"
+#include "impls/ocl/register.hpp"
+#include "impls/cpu/register.hpp"
+#include "impls/common/register.hpp"
 
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -126,7 +128,9 @@ program_impl::~program_impl() {
 void program_impl::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
-        gpu::register_implementations_gpu();
+        common::register_implementations();
+        cpu::register_implementations();
+        ocl::register_implementations();
         is_initialized = true;
     }
 }
@@ -941,14 +945,17 @@ bool program_impl::extract_and_remove(program_node& node) {
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
-    for (const auto user : node.users) {
+    for (const auto& user : node.users) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
         }
-        if (node.dependencies.front()->is_type<loop>()) {
-            loop_node& loop = *node.dependencies.front();
-            loop.update_primitive_map(node.id(), user->id());
+
+        for (auto& dep : node.dependencies) {
+            if (dep->is_type<loop>()) {
+                loop_node& loop = *dep;
+                loop.update_primitive_map(node.id(), user->id());
+            }
         }
     }
     input.users.remove(&node);

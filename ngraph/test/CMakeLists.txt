@@ -156,7 +156,7 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
-    type_prop/matrix_nms.cpp    
+    type_prop/matrix_nms.cpp
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
@@ -176,6 +176,7 @@ set(SRC
     type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
+    type_prop/prior_box_clustered.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -206,6 +207,7 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sign.cpp
     type_prop/sin.cpp
     type_prop/sinh.cpp
     type_prop/softmax.cpp
@@ -228,6 +230,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/asinh.cpp
@@ -277,6 +280,7 @@ set(SRC
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/prior_box.cpp
+    visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/reduce_l1.cpp
@@ -297,9 +301,11 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sign.cpp
     visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
@@ -366,7 +372,6 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -402,6 +407,7 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/deformable_convolution_opset8.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
@@ -413,6 +419,7 @@ set(MULTI_TEST_SRC
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
+    backend/fake_quantize.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -444,7 +451,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
@@ -456,6 +462,7 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
@@ -480,12 +487,10 @@ set(MULTI_TEST_SRC
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
@@ -528,7 +533,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
@@ -589,6 +594,10 @@ endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
+                                        ${CMAKE_DL_LIBS}
+                                        ie_backend
+                                        interpreter_backend
+                                        Threads::Threads
                                         openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
@@ -603,41 +612,18 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-if(NOT WIN32)
-    target_link_libraries(unit-test PRIVATE pthread)
-endif()
-target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
-
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
-endif()
-
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-# So many type_prop tests these days that we need to set /bigobj flag for MSVC.
-# We should probably split up type_prop.cpp.
-if (MSVC)
-    target_compile_options(unit-test PRIVATE "/bigobj")
-endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
-
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
-
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_editor)
-endif()
-
-target_link_libraries(unit-test PRIVATE interpreter_backend)
 
 install(TARGETS unit-test
         RUNTIME DESTINATION tests
@@ -645,9 +631,8 @@ install(TARGETS unit-test
         EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
-target_link_libraries(unit-test PRIVATE cnpy)
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
+target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###

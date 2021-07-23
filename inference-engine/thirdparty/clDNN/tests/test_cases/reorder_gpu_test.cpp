@@ -2315,7 +2315,7 @@ public:
         return all_test_params;
     }
 
-    virtual bool is_format_supported(cldnn::format format)
+    bool is_format_supported(cldnn::format format) override
     {
         return (    (format == cldnn::format::yxfb) ||
                     (format == cldnn::format::byxf) ||
@@ -2348,7 +2348,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs)
+    memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {

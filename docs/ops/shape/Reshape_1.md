@@ -21,14 +21,13 @@ If `special_zero` is set to `true` index of `0` cannot be larger than the rank o
   * **Description**: *special_zero* controls how zero values in `shape` are interpreted. If *special_zero* is `false`, then `0` is interpreted as-is which means that output shape will contain a zero dimension at the specified location. Input and output tensors are empty in this case. If *special_zero* is `true`, then all zeros in `shape` implies the copying of corresponding dimensions from `data.shape` into the output shape *(left aligned)*.
   * **Range of values**: `false` or `true`
   * **Type**: `boolean`
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: `data` a tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: `data` a tensor of type *T* and arbitrary shape. **Required.**
 
-*   **2**: `shape` 1D tensor of type *T_SHAPE* describing output shape. **Required**.
+*   **2**: `shape` 1D tensor of type *T_SHAPE* describing output shape. **Required.**
 
 **Outputs**:
 

@@ -37,7 +37,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         poolLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
