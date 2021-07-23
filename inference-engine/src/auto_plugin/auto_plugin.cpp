@@ -284,21 +284,21 @@ DeviceName AutoInferencePlugin::SelectDevice(const std::vector<DeviceName>& meta
             CPU.push_back(item);
             continue;
         }
-        if (item.find("GPU.1") == 0) {
-            // dGPU found
-            dGPU.push_back(item);
-            continue;
-        } else if (item.find("GPU.0") == 0 || item.find("GPU") == 0) {
-            // iGPU found
-            iGPU.push_back(item);
-            continue;
-        }
         if (item.find("MYRIAD") == 0) {
             MYRIAD.push_back(item);
             continue;
         }
         if (item.find("VPUX") == 0) {
             VPUX.push_back(item);
+            continue;
+        }
+        if (item.find("GPU") == 0) {
+            auto gpuFullDeviceName = GetCore()->GetMetric(item, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            if (gpuFullDeviceName.find("iGPU") != std::string::npos) {
+                iGPU.push_back(item);
+            } else if (gpuFullDeviceName.find("dGPU") != std::string::npos) {
+                dGPU.push_back(item);
+            }
             continue;
         }
     }
@@ -335,17 +335,50 @@ DeviceName AutoInferencePlugin::SelectDevice(const std::vector<DeviceName>& meta
     } else if (!MYRIAD.empty()) {
         for (auto&& item : MYRIAD) {
             std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            // If this device supports "FP16" in "OPTIMIZATION_CAPABILITIES", supports FP32 at the same time (Currently for MYRIAD only)
-            auto supportFP16 = std::find(capability.begin(), capability.end(), "FP16");
-            if (supportFP16 != capability.end()) {
-                capability.insert(capability.begin(), "FP32");
-            }
             auto supportNetwork = std::find(capability.begin(), capability.end(), networkPrecision);
             if (supportNetwork != capability.end()) {
                 return item;
             }
         }
     }
+
+    // If network is FP32 but there is no device support FP32, offload FP32 network to device support FP16.
+    if (networkPrecision == "FP32") {
+        if (!dGPU.empty()) {
+            for (auto&& item : dGPU) {
+                std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
+                if (supportNetwork != capability.end()) {
+                    return item;
+                }
+            }
+        } else if (!VPUX.empty()) {
+            for (auto&& item : VPUX) {
+                std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
+                if (supportNetwork != capability.end()) {
+                    return item;
+                }
+            }
+        } else if (!iGPU.empty()) {
+            for (auto&& item : iGPU) {
+                std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
+                if (supportNetwork != capability.end()) {
+                    return item;
+                }
+            }
+        } else if (!MYRIAD.empty()) {
+            for (auto&& item : MYRIAD) {
+                std::vector<std::string> capability = GetCore()->GetMetric(item, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+                auto supportNetwork = std::find(capability.begin(), capability.end(), "FP16");
+                if (supportNetwork != capability.end()) {
+                    return item;
+                }
+            }
+        }
+    }
+
     if (CPU.empty()) {
         IE_THROW() << "Cannot select any device";
     }
