@@ -415,7 +415,6 @@ def pytest_runtest_makereport(item, call):
 
     Submit tests' data to a database.
     """
-
     run_id = item.config.getoption("db_submit")
     if not run_id:
         yield
@@ -423,6 +422,7 @@ def pytest_runtest_makereport(item, call):
 
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
+    data["references"] = item._request.test_info["orig_instance"].get("references", {}).copy()
     data["raw_results"] = item._request.test_info["raw_results"].copy()
     data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
