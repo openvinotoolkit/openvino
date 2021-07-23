@@ -60,6 +60,7 @@ class TimeMetricsComparator:
 
 
 class MemoryMetricsComparator:
+    vm_metrics_to_compare = {"vmrss", "vmhw"}
 
     def __init__(self, values):
         self.status = 0
@@ -70,6 +71,8 @@ class MemoryMetricsComparator:
         log = DummyLogger() if not log else log
         for step_name, vm_records in reference.items():
             for vm_metric, stat_metrics in vm_records.items():
+                if vm_metric not in self.vm_metrics_to_compare:
+                    continue
                 for stat_metric_name, reference_val in stat_metrics.items():
                     if self.values[step_name][vm_metric][stat_metric_name] > reference_val * REFS_FACTOR:
                         log.error(f"Comparison failed for '{step_name}' step for '{vm_metric}' for"
