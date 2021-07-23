@@ -40,12 +40,6 @@ Interval::size_type Interval::size() const
     }
     return m_max_val - m_min_val + 1;
 }
-
-bool Interval::empty() const
-{
-    return m_min_val == s_max;
-}
-
 bool Interval::operator==(const Interval& interval) const
 {
     return m_min_val == interval.m_min_val && m_max_val == interval.m_max_val;
@@ -116,19 +110,9 @@ Interval& Interval::operator&=(const Interval& interval)
     return *this = *this & interval;
 }
 
-bool Interval::contains(value_type value) const
-{
-    return m_min_val <= value && value <= m_max_val;
-}
-
 bool Interval::contains(const Interval& interval) const
 {
     return contains(interval.m_min_val) && contains(interval.m_max_val);
-}
-
-Interval::value_type Interval::clip(value_type value)
-{
-    return std::max(value_type(0), std::min(s_max, value));
 }
 
 Interval::value_type Interval::clip_add(value_type a, value_type b)

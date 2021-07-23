@@ -47,10 +47,13 @@ struct element_type_hash
 };
 
 typedef unordered_map<element::Type_t, const TypeInfo, element_type_hash> element_types_map_t;
-
-static const element_types_map_t& get_type_info_map()
+namespace
 {
-    static element_types_map_t s_type_info_map{
+    struct ElementTypes
+    {
+        static const element_types_map_t map;
+    };
+    const element_types_map_t ElementTypes::map{
         {element::Type_t::undefined,
          TypeInfo(
              std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
@@ -72,7 +75,10 @@ static const element_types_map_t& get_type_info_map()
         {element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
         {element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
     };
-    return s_type_info_map;
+} // namespace
+static const element_types_map_t& get_type_info_map()
+{
+    return ElementTypes::map;
 };
 
 std::vector<const element::Type*> element::Type::get_known_types()
