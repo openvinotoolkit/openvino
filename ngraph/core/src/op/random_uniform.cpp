@@ -15,8 +15,8 @@ op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
                                      const Output<Node>& min_val,
                                      const Output<Node>& max_val,
                                      const ngraph::element::Type& out_type,
-                                     int64_t global_seed,
-                                     int64_t op_seed)
+                                     uint64_t global_seed,
+                                     uint64_t op_seed)
     : Op({out_shape, min_val, max_val})
     , m_output_type(out_type)
     , m_global_seed(global_seed)

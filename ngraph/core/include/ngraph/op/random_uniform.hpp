@@ -34,8 +34,8 @@ namespace ngraph
                               const Output<Node>& min_val,
                               const Output<Node>& max_val,
                               const ngraph::element::Type& out_type,
-                              int64_t global_seed,
-                              int64_t op_seed);
+                              uint64_t global_seed,
+                              uint64_t op_seed);
 
                 void validate_and_infer_types() override;
 
