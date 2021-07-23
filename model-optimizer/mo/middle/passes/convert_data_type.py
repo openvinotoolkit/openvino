@@ -72,6 +72,13 @@ def np_data_type_to_precision(np_data_type):
     raise Error('Data type "{}" is not supported'.format(np_data_type))
 
 
+def np_data_type_to_str(np_data_type):
+    for type_str, (np_t, _, _) in SUPPORTED_DATA_TYPES.items():
+        if np_t == np_data_type:
+            return type_str
+    raise Error('Data type "{}" is not supported'.format(np_data_type))
+
+
 def np_data_type_to_destination_type(np_data_type):
     for np_t, _, destination_type in SUPPORTED_DATA_TYPES.values():
         if np_t == np_data_type:

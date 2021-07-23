@@ -80,6 +80,10 @@ void op::v8::RandomUniform::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           min_element_type == max_element_type,
                           "'min_val' should have the same type as 'max_val'.");
+    NODE_VALIDATION_CHECK(
+        this,
+        min_element_type == get_out_type(),
+        "'min_val' and 'max_val' should have the same type as 'out_type' attribute.");
 
     if (const auto& const_min = get_constant_from_source(input_value(1)))
     {
@@ -188,7 +192,6 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
     runtime::reference::random_uniform(out_shape,
                                        inputs[1]->get_data_ptr<const char>(),
                                        inputs[2]->get_data_ptr<const char>(),
-                                       inputs[1]->get_element_type(),
                                        out,
                                        inputs[0]->get_shape(),
                                        get_out_type(),

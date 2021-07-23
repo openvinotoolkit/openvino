@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type, np_data_type_to_str
 from mo.ops.op import Op
 
 
@@ -27,6 +27,7 @@ class RandomUniform(Op):
             'seed': 0,
             'seed2': 0,
             'output_type': np.float32,
+            'force_precision_in_ports': {1: None, 2: None},
         }, attrs)
 
     def backend_attrs(self):
@@ -40,8 +41,15 @@ class RandomUniform(Op):
 
     @staticmethod
     def infer(node: Node):
+        assert node.has_valid('output_type')
+        type_str = np_data_type_to_str(node['output_type'])
+        node['force_precision_in_ports'] = {1: type_str, 2: type_str}
+
         out_shape = node.in_node(0).value
         node.out_node().shape = out_shape
+
+        node.in_node(1)['correct_data_type'] = True
+        node.in_node(2)['correct_data_type'] = True
 
 
 class AttributedRandomUniform(Op):

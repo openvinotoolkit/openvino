@@ -13,10 +13,6 @@ namespace ngraph
     {
         namespace reference
         {
-            std::vector<int64_t> get_min_max_int(ngraph::element::Type elem_type,
-                                                 const char* min_val,
-                                                 const char* max_val);
-
             std::pair<uint32_t, uint32_t> split_high_low(uint64_t value)
             {
                 uint32_t low = static_cast<uint32_t>(value);
@@ -119,114 +115,9 @@ namespace ngraph
                 res[3] = res2.second;
             }
 
-            std::vector<double> get_min_max_float(ngraph::element::Type elem_type,
-                                                  const char* min_val,
-                                                  const char* max_val)
-            {
-                if (elem_type == ngraph::element::Type_t::i32 ||
-                    elem_type == ngraph::element::Type_t::i64)
-                {
-                    std::vector<int64_t> min_max = get_min_max_int(elem_type, min_val, max_val);
-                    std::vector<double> min_max_double(2);
-                    min_max_double[0] = static_cast<double>(min_max[0]);
-                    min_max_double[1] = static_cast<double>(min_max[1]);
-                    return min_max_double;
-                }
-
-                std::vector<double> res(2);
-                switch (elem_type)
-                {
-                case ngraph::element::Type_t::f32:
-                {
-                    float mn[1];
-                    float mx[1];
-                    memcpy(mn, min_val, elem_type.size());
-                    memcpy(mx, max_val, elem_type.size());
-                    res[0] = static_cast<double>(mn[0]);
-                    res[1] = static_cast<double>(mx[0]);
-                    break;
-                }
-                case ngraph::element::Type_t::f16:
-                {
-                    float16 mn[1];
-                    float16 mx[1];
-                    memcpy(mn, min_val, elem_type.size());
-                    memcpy(mx, max_val, elem_type.size());
-                    res[0] = static_cast<double>(mn[0]);
-                    res[1] = static_cast<double>(mx[0]);
-                    break;
-                }
-                case ngraph::element::Type_t::bf16:
-                {
-                    bfloat16 mn[1];
-                    bfloat16 mx[1];
-                    memcpy(mn, min_val, elem_type.size());
-                    memcpy(mx, max_val, elem_type.size());
-                    res[0] = static_cast<double>(mn[0]);
-                    res[1] = static_cast<double>(mx[0]);
-                    break;
-                }
-                case ngraph::element::Type_t::f64:
-                {
-                    memcpy(res.data(), min_val, elem_type.size());
-                    memcpy(res.data() + 1, max_val, elem_type.size());
-                    break;
-                }
-                default:
-                    throw ngraph_error("Unsupported type of RandomUniform: " +
-                                       elem_type.get_type_name());
-                }
-                return res;
-            }
-
-            std::vector<int64_t> get_min_max_int(ngraph::element::Type elem_type,
-                                                 const char* min_val,
-                                                 const char* max_val)
-            {
-                if (elem_type != ngraph::element::Type_t::i32 &&
-                    elem_type != ngraph::element::Type_t::i64)
-                {
-                    std::vector<double> min_max = get_min_max_float(elem_type, min_val, max_val);
-                    std::vector<int64_t> min_max_int64(2);
-                    min_max_int64[0] = static_cast<int64_t>(min_max[0]);
-                    min_max_int64[1] = static_cast<int64_t>(min_max[1]);
-                    return min_max_int64;
-                }
-
-                std::vector<int64_t> res(2);
-                switch (elem_type)
-                {
-                case ngraph::element::Type_t::i32:
-                {
-                    int32_t mn[1];
-                    int32_t mx[1];
-                    memcpy(mn, min_val, elem_type.size());
-                    memcpy(mx, max_val, elem_type.size());
-                    res[0] = mn[0];
-                    res[1] = mx[0];
-                    break;
-                }
-                case ngraph::element::Type_t::i64:
-                {
-                    int64_t mn[1];
-                    int64_t mx[1];
-                    memcpy(mn, min_val, elem_type.size());
-                    memcpy(mx, max_val, elem_type.size());
-                    res[0] = mn[0];
-                    res[1] = mx[0];
-                    break;
-                }
-                default:
-                    throw ngraph_error("Unsupported type of RandomUniform: " +
-                                       elem_type.get_type_name());
-                }
-                return res;
-            }
-
             void random_uniform(const uint64_t* out_shape,
                                 const char* min_val,
                                 const char* max_val,
-                                ngraph::element::Type min_max_type,
                                 char* out,
                                 const Shape& out_shape_shape,
                                 ngraph::element::Type elem_type,
@@ -258,12 +149,16 @@ namespace ngraph
                     {
                         float res_float[4];
                         std::transform(res.data(), res.data() + 4, res_float, uint32_to_float);
-                        std::vector<double> minmax =
-                            get_min_max_float(min_max_type, min_val, max_val);
-                        std::transform(
-                            res.data(), res.data() + 4, res_float, [&minmax](const uint32_t& elem) {
-                                return uint32_to_float(elem) * (minmax[1] - minmax[0]) + minmax[0];
-                            });
+                        float mn[1];
+                        float mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
+                        std::transform(res.data(),
+                                       res.data() + 4,
+                                       res_float,
+                                       [&mn, &mx](const uint32_t& elem) {
+                                           return uint32_to_float(elem) * (mx[0] - mn[0]) + mn[0];
+                                       });
 
                         memcpy(out + k * elem_type.size(),
                                res_float,
@@ -274,15 +169,15 @@ namespace ngraph
                     {
                         float16 res_float16[4];
                         std::transform(res.data(), res.data() + 4, res_float16, uint32_to_float16);
-                        std::vector<double> minmax =
-                            get_min_max_float(min_max_type, min_val, max_val);
+                        float16 mn[1];
+                        float16 mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
                         std::transform(res.data(),
                                        res.data() + 4,
                                        res_float16,
-                                       [&minmax](const uint32_t& elem) {
-                                           return uint32_to_float16(elem) *
-                                                      (minmax[1] - minmax[0]) +
-                                                  minmax[0];
+                                       [&mn, &mx](const uint32_t& elem) {
+                                           return uint32_to_float16(elem) * (mx[0] - mn[0]) + mn[0];
                                        });
                         memcpy(out + k * elem_type.size(),
                                res_float16,
@@ -292,15 +187,16 @@ namespace ngraph
                     case ngraph::element::Type_t::bf16:
                     {
                         bfloat16 res_bfloat16[4];
-                        std::vector<double> minmax =
-                            get_min_max_float(min_max_type, min_val, max_val);
+                        bfloat16 mn[1];
+                        bfloat16 mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
                         std::transform(res.data(),
                                        res.data() + 4,
                                        res_bfloat16,
-                                       [&minmax](const uint32_t& elem) {
-                                           return uint32_to_bfloat16(elem) *
-                                                      (minmax[1] - minmax[0]) +
-                                                  minmax[0];
+                                       [&mn, &mx](const uint32_t& elem) {
+                                           return uint32_to_bfloat16(elem) * (mx[0] - mn[0]) +
+                                                  mn[0];
                                        });
                         memcpy(out + k * elem_type.size(),
                                res_bfloat16,
@@ -310,12 +206,14 @@ namespace ngraph
                     case ngraph::element::Type_t::f64:
                     {
                         double res_double[2];
-                        std::vector<double> minmax =
-                            get_min_max_float(min_max_type, min_val, max_val);
-                        res_double[0] =
-                            uint32_to_double(res[0], res[1]) * (minmax[1] - minmax[0]) + minmax[0];
-                        res_double[1] =
-                            uint32_to_double(res[2], res[3]) * (minmax[1] - minmax[0]) + minmax[0];
+                        res_double[0] = uint32_to_double(res[0], res[1]);
+                        res_double[1] = uint32_to_double(res[2], res[3]);
+                        double mn[1];
+                        double mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
+                        res_double[0] = uint32_to_double(res[0], res[1]) * (mx[0] - mn[0]) + mn[0];
+                        res_double[1] = uint32_to_double(res[2], res[3]) * (mx[0] - mn[0]) + mn[0];
                         memcpy(out + k * elem_type.size(),
                                res_double,
                                std::min((size_t)2, elem_count - k) * elem_type.size());
@@ -324,11 +222,13 @@ namespace ngraph
                     case ngraph::element::Type_t::i32:
                     {
                         int res_int[4];
-                        std::vector<int64_t> minmax =
-                            get_min_max_int(min_max_type, min_val, max_val);
+                        int mn[1];
+                        int mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
                         std::transform(
-                            res.data(), res.data() + 4, res_int, [&minmax](const uint32_t& elem) {
-                                return elem % (minmax[1] - minmax[0]) + minmax[0];
+                            res.data(), res.data() + 4, res_int, [&mn, &mx](const uint32_t& elem) {
+                                return elem % (mx[0] - mn[0]) + mn[0];
                             });
                         memcpy(out + k * elem_type.size(),
                                res_int,
@@ -338,12 +238,12 @@ namespace ngraph
                     case ngraph::element::Type_t::i64:
                     {
                         int64_t res_int64[2];
-                        std::vector<int64_t> minmax =
-                            get_min_max_int(min_max_type, min_val, max_val);
-                        res_int64[0] =
-                            uint32_to_uint64(res[0], res[1]) % (minmax[1] - minmax[0]) + minmax[0];
-                        res_int64[1] =
-                            uint32_to_uint64(res[2], res[3]) % (minmax[1] - minmax[0]) + minmax[0];
+                        int64_t mn[1];
+                        int64_t mx[1];
+                        memcpy(mn, min_val, elem_type.size());
+                        memcpy(mx, max_val, elem_type.size());
+                        res_int64[0] = uint32_to_uint64(res[0], res[1]) % (mx[0] - mn[0]) + mn[0];
+                        res_int64[1] = uint32_to_uint64(res[2], res[3]) % (mx[0] - mn[0]) + mn[0];
                         memcpy(out + k * elem_type.size(),
                                res_int64,
                                std::min((size_t)2, elem_count - k) * elem_type.size());

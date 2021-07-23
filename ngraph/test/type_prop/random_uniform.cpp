@@ -168,6 +168,32 @@ TEST(type_prop, random_uniform_invalid_min_max_val_type_case1)
     }
 }
 
+TEST(type_prop, random_uniform_invalid_min_max_val_type_case2)
+{
+    auto out_shape = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
+    auto min_val = make_shared<opset8::Constant>(element::f32, Shape{}, 0.f);
+    auto max_val = make_shared<opset8::Constant>(element::f32, Shape{}, 1.f);
+
+    try
+    {
+        auto r =
+            make_shared<opset8::RandomUniform>(out_shape, min_val, max_val, element::i32, 120, 100);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Unexpected pass with invalid min and max value type.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string(
+                "'min_val' and 'max_val' should have the same type as 'out_type' attribute."));
+    }
+    catch (...)
+    {
+        FAIL() << "Check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, random_uniform_invalid_min_max_values_case1)
 {
     auto out_shape = opset8::Constant::create(element::i64, Shape{4}, {2, 3, 4, 5});
