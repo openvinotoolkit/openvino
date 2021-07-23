@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Main entry-point to run timetests tests.
+"""Main entry-point to run tests tests.
 
 Default run:
-$ pytest test_timetest.py
+$ pytest test_test.py
 
 Options[*]:
 --test_conf     Path to test config
---exe           Path to timetest binary to execute
+--exe           Path to test binary to execute
 --niter         Number of times to run executable
 
 [*] For more information see conftest.py
@@ -24,12 +24,12 @@ from path_utils import expand_env_vars
 from test_runner.comparators import MetricsComparator
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
-                  prepare_db_info):
+def test(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
+         prepare_db_info):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
-    :param executable: timetest executable to run
+    :param executable: test executable to run
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
     :param model_cache_dir: directory to store IE model cache
@@ -55,7 +55,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "device": instance["device"]["name"],
         "niter": niter
     }
-    logging.info("Run timetest once to generate any cache")
+    logging.info("Run test once to generate any cache")
     retcode, msg, _, _ = run_test({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"
     if cl_cache_dir:
@@ -66,7 +66,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
     retcode, msg, aggr_stats, raw_stats = run_test(exe_args, log=logging)
     assert retcode == 0, f"Run of executable failed: {msg}"
 
-    # Add timetest results to submit to database and save in new test conf as references
+    # Add test results to submit to database and save in new test conf as references
     test_info["results"] = aggr_stats
     test_info["raw_results"] = raw_stats
 

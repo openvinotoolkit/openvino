@@ -14,7 +14,7 @@ DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 PRODUCT_NAME = 'dldt'   # product name from build manifest
 
 
-def upload_timetest_data(data, db_url, db_name, db_collection):
+def upload_data(data, db_url, db_name, db_collection):
     """ Upload timetest data to database."""
     client = MongoClient(db_url)
     collection = client[db_name][db_collection]
