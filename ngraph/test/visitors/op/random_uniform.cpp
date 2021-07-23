@@ -30,7 +30,7 @@ TEST(attributes, random_uniform_op)
 
     const auto expected_attr_count = 3;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-    EXPECT_EQ(g_random_uniform->get_seed(), random_uniform->get_seed());
-    EXPECT_EQ(g_random_uniform->get_seed2(), random_uniform->get_seed2());
+    EXPECT_EQ(g_random_uniform->get_global_seed(), random_uniform->get_global_seed());
+    EXPECT_EQ(g_random_uniform->get_op_seed(), random_uniform->get_op_seed());
     EXPECT_EQ(g_random_uniform->get_out_type(), random_uniform->get_out_type());
 }

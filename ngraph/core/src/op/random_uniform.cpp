@@ -15,13 +15,13 @@ NGRAPH_RTTI_DEFINITION(op::v8::RandomUniform, "RandomUniform", 8);
 op::v8::RandomUniform::RandomUniform(const Output<Node>& out_shape,
                                      const Output<Node>& min_val,
                                      const Output<Node>& max_val,
-                                     ngraph::element::Type out_type,
-                                     int64_t seed,
-                                     int64_t seed2)
+                                     const ngraph::element::Type& out_type,
+                                     int64_t global_seed,
+                                     int64_t op_seed)
     : Op({out_shape, min_val, max_val})
     , m_output_type(out_type)
-    , m_seed(seed)
-    , m_seed2(seed2)
+    , m_global_seed(global_seed)
+    , m_op_seed(op_seed)
 {
     constructor_validate_and_infer_types();
 }
@@ -126,8 +126,8 @@ bool op::v8::RandomUniform::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v8_RandomUniform_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
-    visitor.on_attribute("seed", m_seed);
-    visitor.on_attribute("seed2", m_seed2);
+    visitor.on_attribute("op_seed", m_op_seed);
+    visitor.on_attribute("global_seed", m_global_seed);
     return true;
 }
 
@@ -136,7 +136,7 @@ shared_ptr<Node> op::v8::RandomUniform::clone_with_new_inputs(const OutputVector
     NGRAPH_OP_SCOPE(v8_Roll_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v8::RandomUniform>(
-        new_args[0], new_args[1], new_args[2], m_output_type, m_seed, m_seed2);
+        new_args[0], new_args[1], new_args[2], m_output_type, m_global_seed, m_op_seed);
 }
 
 bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
@@ -194,7 +194,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
                                        out,
                                        inputs[0]->get_shape(),
                                        get_out_type(),
-                                       get_seed(),
-                                       get_seed2());
+                                       get_global_seed(),
+                                       get_op_seed());
     return true;
 }

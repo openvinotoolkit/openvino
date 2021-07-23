@@ -28,14 +28,14 @@ namespace ngraph
                 /// \param      min_val           Node producing the tensor with minimum value.
                 /// \param      max_val           Node producing the tensor with maximum value.
                 /// \param      out_type          Output type of the tensor.
-                /// \param      seed              Global seed value.
-                /// \param      seed2             Operational seed value.
+                /// \param      op_seed              Global seed value.
+                /// \param      global_seed             Operational seed value.
                 RandomUniform(const Output<Node>& out_shape,
                               const Output<Node>& min_val,
                               const Output<Node>& max_val,
                               const ngraph::element::Type& out_type,
-                              int64_t seed,
-                              int64_t seed2);
+                              int64_t op_seed,
+                              int64_t global_seed);
 
                 void validate_and_infer_types() override;
 
@@ -52,20 +52,20 @@ namespace ngraph
                 }
 
                 /// \return The global seed value.
-                const uint64_t& get_seed() const { return m_seed; }
-                void set_seed(const uint64_t& seed) { m_seed = seed; }
+                uint64_t get_global_seed() const { return m_global_seed; }
+                void set_global_seed(const uint64_t& seed) { m_global_seed = seed; }
 
                 /// \return The operational seed value.
-                const uint64_t& get_seed2() const { return m_seed2; }
-                void set_seed2(const uint64_t& seed2) { m_seed2 = seed2; }
+                uint64_t get_op_seed() const { return m_op_seed; }
+                void set_op_seed(const uint64_t& seed2) { m_op_seed = seed2; }
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
             protected:
                 ngraph::element::Type m_output_type;
-                uint64_t m_seed;
-                uint64_t m_seed2;
+                uint64_t m_global_seed;
+                uint64_t m_op_seed;
             };
         } // namespace v8
     }     // namespace op
