@@ -267,7 +267,6 @@ static auto argmax_rank(const std::vector<DataConfig>& conf) -> size_t {
         }
         i++;
     }
-    std::cout << "max_rank_out_desc " << max_rank_out_desc << " max_rank_out_desc_idx " << max_rank_out_desc_idx << std::endl;
     return max_rank_out_desc_idx;
 }
 
@@ -308,7 +307,6 @@ void MKLDNNSnippetNode::define_shedule() {
     auto initDims = [this, config](size_t tensorRank) {
         // assume all input sizes are even
         size_t inputNum = getParentEdges().size();
-        std::cout << "inputNum = " << inputNum << std::endl;
 
         dims_in.resize(inputNum);
         for (int i = 0; i < inputNum; i++) {
@@ -324,7 +322,6 @@ void MKLDNNSnippetNode::define_shedule() {
             auto inOrder = config.inConfs[i].desc.getBlockingDesc().getOrder();
             size_t startOff = outOrder.size() != config.outConfs[max_rank_out_desc_idx].desc.getDims().size() &&
                               outOrder.back() != inOrder.back() ? 1 : 0;
-            std::cout << "startOff = " << startOff << std::endl;
             for (int j = 0; j < rank; j++) {
                 dims_in[i][dims_in[i].size() - 1 - j - startOff]
                 = config.inConfs[i].desc.getBlockingDesc().getBlockDims()[rank - 1 - j];
@@ -333,7 +330,6 @@ void MKLDNNSnippetNode::define_shedule() {
 
         // assume all output sizes are even
         size_t outputNum = config.outConfs.size();//getChildEdges().size();
-        std::cout << "outputNum = " << outputNum << std::endl;
 
         dims_out.resize(outputNum);
         for (int i = 0; i < outputNum; i++) {
