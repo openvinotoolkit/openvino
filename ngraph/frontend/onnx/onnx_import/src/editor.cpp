@@ -329,7 +329,7 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
         {
             onnx_shapes.infer_shapes();
         }
-        catch(const std::exception& e)
+        catch (const std::exception& e)
         {
             NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
             return PartialShape::dynamic();
@@ -386,10 +386,13 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
     const auto& graph = m_pimpl->m_model_proto->graph();
     std::vector<std::string> inputs;
     inputs.reserve(graph.input_size() - graph.initializer_size());
-    for(const auto& in : graph.input())
+    for (const auto& in : graph.input())
     {
-        if(std::find_if(graph.initializer().begin(), graph.initializer().end(),
-            [&in](const TensorProto& initializer){return initializer.name() == in.name();}) == graph.initializer().end())
+        if (std::find_if(graph.initializer().begin(),
+                         graph.initializer().end(),
+                         [&in](const TensorProto& initializer) {
+                             return initializer.name() == in.name();
+                         }) == graph.initializer().end())
         {
             inputs.push_back(in.name());
         }
