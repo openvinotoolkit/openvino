@@ -7,11 +7,11 @@
 #include <frontend_manager/frontend_manager.hpp>
 
 #ifdef _WIN32
-const char FileSeparator[] = "\\";
-const char PathSeparator[] = ";";
+static const char FileSeparator[] = "\\";
+static const char PathSeparator[] = ";";
 #else
-const char FileSeparator[] = "/";
-const char PathSeparator[] = ":";
+static const char FileSeparator[] = "/";
+static const char PathSeparator[] = ":";
 #endif // _WIN32
 
 namespace ngraph
@@ -23,8 +23,8 @@ namespace ngraph
         class PluginHandle
         {
         public:
-            PluginHandle(std::function<void()> callOnDestruct)
-                : m_callOnDestruct(callOnDestruct)
+            PluginHandle(std::function<void()> call_on_destruct)
+                : m_call_on_destruct(call_on_destruct)
             {
             }
 
@@ -38,31 +38,31 @@ namespace ngraph
 
             ~PluginHandle()
             {
-                if (m_callOnDestruct)
+                if (m_call_on_destruct)
                 {
-                    m_callOnDestruct();
+                    m_call_on_destruct();
                 }
             }
 
         private:
-            std::function<void()> m_callOnDestruct;
+            std::function<void()> m_call_on_destruct;
         };
 
         struct PluginData
         {
             PluginData(PluginHandle&& h, FrontEndPluginInfo&& info)
-                : m_libHandle(std::move(h))
-                , m_pluginInfo(info)
+                : m_lib_handle(std::move(h))
+                , m_plugin_info(info)
             {
             }
 
             PluginHandle
-                m_libHandle; // Shall be destroyed when plugin is not needed anymore to free memory
-            FrontEndPluginInfo m_pluginInfo;
+                m_lib_handle; // Shall be destroyed when plugin is not needed anymore to free memory
+            FrontEndPluginInfo m_plugin_info;
         };
 
         // Searches for available plugins in a specified directory
-        std::vector<PluginData> loadPlugins(const std::string& dirName);
+        std::vector<PluginData> load_plugins(const std::string& dir_name);
 
     } // namespace frontend
 } // namespace ngraph

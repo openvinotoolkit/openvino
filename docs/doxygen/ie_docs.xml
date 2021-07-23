@@ -177,6 +177,7 @@ limitations under the License.
                 <tab type="user" title="HSigmoid-5" url="@ref openvino_docs_ops_activation_HSigmoid_5"/>
                 <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
                 <tab type="user" title="IDFT-7" url="@ref openvino_docs_ops_signals_IDFT_7"/>
+                <tab type="user" title="If-8" url="@ref openvino_docs_ops_condition_If_8"/>
                 <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
                 <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
                 <tab type="user" title="LRN-1" url="@ref openvino_docs_ops_normalization_LRN_1"/>
