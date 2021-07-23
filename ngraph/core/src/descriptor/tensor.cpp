@@ -72,7 +72,8 @@ const Shape& descriptor::Tensor::get_shape() const
 {
     if (m_partial_shape.is_static())
     {
-        if (shape_changed) {
+        if (shape_changed)
+        {
             shape_mutex.lock();
             m_shape = m_partial_shape.to_shape();
             shape_mutex.unlock();

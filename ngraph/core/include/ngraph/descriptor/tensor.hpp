@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <mutex>
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_set>
-#include <atomic>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
