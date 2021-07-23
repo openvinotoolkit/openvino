@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "input_model.hpp"
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <input_model.hpp>
-#include <place.hpp>
+#include "place.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;

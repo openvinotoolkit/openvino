@@ -15,27 +15,15 @@ namespace ngraph
         {
         public:
             PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
-                               const onnx_editor::ONNXModelEditor& editor)
-                : m_edge{edge}
-                , m_editor{editor}
-            {
-            }
+                               const onnx_editor::ONNXModelEditor& editor);
 
-            onnx_editor::InputEdge get_input_edge() const { return m_edge; }
+            onnx_editor::InputEdge get_input_edge() const;
 
-            bool is_input() const override { return m_editor.is_input(m_edge); }
+            bool is_input() const override;
 
-            bool is_output() const override { return false; }
+            bool is_output() const override;
 
-            bool is_equal(Place::Ptr another) const override
-            {
-                if(const auto in_edge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(another))
-                {
-                    const auto& editor_edge = in_edge->get_input_edge();
-                    return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
-                }
-                return false;
-            }
+            bool is_equal(Place::Ptr another) const override;
 
         private:
             onnx_editor::InputEdge m_edge;
@@ -46,27 +34,15 @@ namespace ngraph
         {
         public:
             PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
-                                const onnx_editor::ONNXModelEditor& editor)
-                : m_edge{edge}
-                , m_editor{editor}
-            {
-            }
+                                const onnx_editor::ONNXModelEditor& editor);
 
-            onnx_editor::OutputEdge get_output_edge() const { return m_edge; }
+            onnx_editor::OutputEdge get_output_edge() const;
 
-            bool is_input() const override { return false; }
+            bool is_input() const override;
 
-            bool is_output() const override { return m_editor.is_output(m_edge); }
+            bool is_output() const override;
 
-            bool is_equal(Place::Ptr another) const override
-            {
-                if(const auto out_edge = std::dynamic_pointer_cast<PlaceOutputEdgeONNX>(another))
-                {
-                    const auto& editor_edge = out_edge->get_output_edge();
-                    return (editor_edge.m_node_idx == m_edge.m_node_idx) && (editor_edge.m_port_idx == m_edge.m_port_idx);
-                }
-                return false;
-            }
+            bool is_equal(Place::Ptr another) const override;
 
         private:
             onnx_editor::OutputEdge m_edge;
@@ -76,63 +52,21 @@ namespace ngraph
         class PlaceTensorONNX : public Place
         {
         public:
-            PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor)
-                : m_name(name)
-                , m_editor(editor)
-            {
-            }
+            PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor);
 
-            std::vector<std::string> get_names() const override { return {m_name}; }
+            std::vector<std::string> get_names() const override;
 
-            Place::Ptr get_producing_port() const override
-            {
-                return std::make_shared<PlaceOutputEdgeONNX>(m_editor.find_output_edge(m_name),
-                                                             m_editor);
-            }
+            Place::Ptr get_producing_port() const override;
 
-            std::vector<Place::Ptr> get_consuming_ports() const override
-            {
-                std::vector<Place::Ptr> ret;
-                auto edges = m_editor.find_output_consumers(m_name);
-                std::transform(edges.begin(),
-                               edges.end(),
-                               std::back_inserter(ret),
-                               [this](const onnx_editor::InputEdge& edge) {
-                                   return std::make_shared<PlaceInputEdgeONNX>(edge,
-                                                                               this->m_editor);
-                               });
-                return ret;
-            }
+            std::vector<Place::Ptr> get_consuming_ports() const override;
 
-            Ptr get_input_port(int input_port_index) const override
-            {
-                return std::make_shared<PlaceInputEdgeONNX>(
-                    m_editor.find_input_edge(onnx_editor::EditorOutput(m_name),
-                                             onnx_editor::EditorInput(input_port_index)),
-                    m_editor);
-            }
+            Ptr get_input_port(int input_port_index) const override;
 
-            bool is_input() const override
-            {
-                const auto inputs = m_editor.model_inputs();
-                return std::find(std::begin(inputs), std::end(inputs), m_name) != std::end(inputs);
-            }
+            bool is_input() const override;
 
-            bool is_output() const override
-            {
-                const auto outputs = m_editor.model_outputs();
-                return std::find(std::begin(outputs), std::end(outputs), m_name) !=
-                       std::end(outputs);
-            }
+            bool is_output() const override;
 
-            bool is_equal(Place::Ptr another) const override
-            {
-                if(const auto tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(another))
-                {
-                    return m_name == tensor->get_names().at(0);
-                }
-                return false;
-            }
+            bool is_equal(Place::Ptr another) const override;
 
         private:
             std::string m_name;
