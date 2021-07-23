@@ -75,7 +75,7 @@ void op::v8::RandomUniform::validate_and_infer_types()
         }
     }
 
-    element::Type min_element_type = get_input_element_type(1);
+    const element::Type& min_element_type = get_input_element_type(1);
     element::Type max_element_type = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
                           min_element_type == max_element_type,
