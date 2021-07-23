@@ -37,8 +37,7 @@ size_t getVmRSSInKB();
 size_t getVmHWMInKB();
 size_t getThreadsNum();
 
-template<typename Function, typename ... Args>
-int run_in_processes(const int &numprocesses, Function const &function, Args ... args);
+int run_in_processes(const int &numprocesses, const std::function<void()> &function);
 
 template<typename Function, typename ... Args>
 inline void run_in_threads(const int &numthreads, Function const &function, Args ... args) {
