@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <limits>
+
 #include "ngraph/op/util/max_pool_base.hpp"
 
 namespace ngraph
@@ -95,8 +97,9 @@ namespace ngraph
                         const Shape& kernel,
                         const op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT,
-                        const element::Type& index_element_type = element::i32,
-                        const uint64_t axis = 0);
+                        const element::Type& index_element_type = element::i64,
+                        const int64_t axis = 0,
+                        const float pads_value = -std::numeric_limits<float>::infinity());
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -104,7 +107,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                /// \return The dilations.
+                /// \return The pooling filter's dilations.
                 const Strides& get_dilations() const noexcept { return m_dilations; }
                 void set_dilations(const Strides& dilations) { m_dilations = dilations; }
 
@@ -118,10 +121,19 @@ namespace ngraph
                     m_index_element_type = index_element_type;
                 }
 
+                // \return The 'axis' attribute value.
+                int64_t get_axis() const { return m_axis; }
+                void set_axis(const int64_t axis) { m_axis = axis; }
+
+                // \return The value stored in the padding cells.
+                float get_pads_value() const { return m_pads_value; }
+                void set_pads_value(const float pads_value) { m_pads_value = pads_value; }
+
             private:
                 Strides m_dilations;
                 element::Type m_index_element_type{element::i32};
-                uint64_t m_axis;
+                int64_t m_axis{0};
+                float m_pads_value{-std::numeric_limits<float>::infinity()};
             };
         } // namespace v8
     }     // namespace op

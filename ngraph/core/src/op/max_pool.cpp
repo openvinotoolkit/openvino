@@ -183,11 +183,13 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const op::RoundingType rounding_type,
                          const PadType& auto_pad,
                          const element::Type& index_element_type,
-                         const uint64_t axis)
+                         const int64_t axis,
+                         const float pads_value)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
     , m_dilations{dilations}
     , m_index_element_type{index_element_type}
     , m_axis{axis}
+    , m_pads_value{pads_value}
 {
     constructor_validate_and_infer_types();
 }
@@ -204,6 +206,7 @@ bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("index_element_type", m_index_element_type);
     visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("pads_value", m_pads_value);
     return true;
 }
 
@@ -212,6 +215,11 @@ void op::v8::MaxPool::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
 
     MaxPoolBase::validate_and_infer_types();
+
+    const auto input_shape = get_input_partial_shape(0);
+    if (input_shape.rank().is_static()) {
+        m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
+    }
 
     const PartialShape output_shape = infer_output_shape(m_dilations);
 
@@ -232,5 +240,6 @@ shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_rounding_type,
                                     m_auto_pad,
                                     m_index_element_type,
-                                    m_axis);
+                                    m_axis,
+                                    m_pads_value);
 }
