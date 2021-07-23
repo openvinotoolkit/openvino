@@ -52,10 +52,10 @@ class Pooling(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
-            'version': 'opset1',
+            'version': 'opset8',
             'infer': self.infer,
             'in_ports_count': 1,
-            'out_ports_count': 1,
+            'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2
         }, attrs)
 
     def backend_attrs(self):
@@ -70,6 +70,9 @@ class Pooling(Op):
 
             'rounding_type',
             ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
+
+            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+            'pads_value'
         ]
 
     @staticmethod
@@ -104,14 +107,20 @@ class Pooling(Op):
             node['window'] = np.zeros(len(input_shape), dtype=np.int64)
             node.window[node.spatial_dims] = input_spatial_shape
 
+        if not node.has_valid('dilation'):
+            node['dilation'] = np.ones(len(input_shape))
+
         window_spatial_shape = node.window[node.spatial_dims]
         stride_spatial = node.stride[node.spatial_dims]
+        dilation_spatial = node.dilation[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)
 
         if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
-            node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input_spatial_shape,
-                                                                                       window_spatial_shape,
-                                                                                       stride_spatial, node.auto_pad)
+            node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input=input_spatial_shape,
+                                                                                       window=window_spatial_shape,
+                                                                                       stride=stride_spatial,
+                                                                                       auto_pad=node.auto_pad,
+                                                                                       dilation=dilation_spatial)
             pad = np.zeros((len(input_shape), 2), dtype=np.int64)
             pad[node.spatial_dims] = node.pad_spatial_shape
             node.pad = pad
@@ -123,7 +132,8 @@ class Pooling(Op):
             if node.soft_get('pooling_convention') == 'full' or node.soft_get('rounding_type') == 'ceil':
                 rounding = np.ceil
 
-            padded_spatial_shape = input_spatial_shape + pad_spatial_shape - window_spatial_shape
+            padded_spatial_shape = input_spatial_shape + pad_spatial_shape - ((window_spatial_shape - 1) *
+                                                                              dilation_spatial + 1)
             if np.any(padded_spatial_shape < 0):
                 raise Error("Data after padding has dimension less than window size. " +
                             "Possible reason of error is incorrectly specified model input shape(s).")
@@ -141,10 +151,14 @@ class Pooling(Op):
 
         output_shape = input_shape.copy()
         output_shape[node.spatial_dims] = node.output_spatial_shape
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
+
+        if len(node.out_ports()) == 2 and not node.out_port(1).disconnected():
+            node.out_port(1).data.set_shape(output_shape)
 
         # Add permute_attrs
         PermuteAttrs.create_permute_attrs(node, attrs=[('pad', 'input:0'),
                                                        ('stride', 'input:0'),
                                                        ('window', 'input:0'),
-                                                       ('spatial_dims', 'input:0')])
+                                                       ('spatial_dims', 'input:0'),
+                                                       ('dilation', 'input:0')])

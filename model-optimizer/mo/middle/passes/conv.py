@@ -27,6 +27,7 @@ def pad_op_transform(graph: Graph, match: dict):
         if fill_value is None or fill_value != 0.0:
             log.info('The pad node "{}" with non-zero fill value cannot be fused.'.format(pad_op.soft_get('name')))
             return
+        op['pads_value'] = fill_value
 
     input_tensor_dims = len(match['pad_output'].shape)
     for in_port in [1, 2]:

@@ -92,9 +92,8 @@ def common_onnx_pool_extractor(node):
     strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
     final_strides = np.array([1, 1, *[x for x in strides]], dtype=np.int64) if strides is not None else None
 
-    dilations = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
-    assert dilations is None or np.all(dilations == 1),\
-        'Node {} has "dilations" attribute with values not equal to 1s which is not supported'.format(node.id)
+    dilation = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
+    final_dilation = np.array([1, 1, *[x for x in dilation]], dtype=np.int64) if dilation is not None else None
 
     # exclude_pad = True only when count_include_pad == 0
     exclude_pad = onnx_attr(node, 'count_include_pad', 'i', default=0) == 0
@@ -127,12 +126,15 @@ def common_onnx_pool_extractor(node):
         'global_pool': global_pooling,
         'output_spatial_shape': None,
         'rounding_type': rt,
+        'dilation': final_dilation,
 
         'spatial_dims': None,
         'channel_dims': np.array([1], dtype=np.int64),
         'batch_dims': np.array([0], dtype=np.int64),
         'layout': 'NCHW',
 
-        'pooling_convention': pooling_convention
+        'pooling_convention': pooling_convention,
+
+        'remove_values_output': True
     }
     return attrs
