@@ -15,7 +15,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using ComparisonTypes = ngraph::helpers::ComparisonTypes;
 
-
+namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
 namespace {
 TEST_P(ReferenceComparisonLayerTest, LessCompareWithHardcodedRefs) {
@@ -27,30 +27,36 @@ std::vector<RefComparisonParams> generateComparisonParams(const element::Type& t
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<RefComparisonParams> compParams {
         // 1D // 2D // 3D // 4D
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 2}, PartialShape {2, 2}, type, element::boolean,
-                std::vector<T> {0, 12, 23, 0},
-                std::vector<T> {0, 12, 23, 0},
-                std::vector<char> {0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 3}, PartialShape {2, 3}, type, element::boolean,
-                std::vector<T> {0, 6, 45, 1, 21, 21},
-                std::vector<T> {1, 18, 23, 1, 19, 21},
-                std::vector<char> {1, 1, 0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {1}, PartialShape {1},  type, element::boolean,
-                std::vector<T> {53},
-                std::vector<T> {53},
-                std::vector<char> {0}),
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 4}, PartialShape {2, 4}, type, element::boolean,
-                std::vector<T> {0, 12, 23, 0, 1, 5, 11, 8},
-                std::vector<T> {0, 12, 23, 0, 10, 5, 11, 8},
-                std::vector<char> {0, 0, 0, 0, 1, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {3, 1, 2}, PartialShape {1, 2, 1}, type, element::boolean,
-                std::vector<T> {2, 1, 4, 1, 3, 1},
-                std::vector<T> {1, 1},
-                std::vector<char> {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
-        RefComparisonParams(ComparisonTypes::LESS, PartialShape {2, 1, 2, 1}, PartialShape {1, 2, 1}, type, element::boolean,
-                std::vector<T> {2, 1, 4, 1},
-                std::vector<T> {1, 1},
-                std::vector<char> {0, 0, 0, 0})};
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{2, 2}, type, std::vector<T> {0, 12, 23, 0}})
+            .input2({{2, 2}, type, std::vector<T> {0, 12, 23, 0}})
+            .expected({{2, 2}, element::boolean, std::vector<char> {0, 0, 0, 0}}),
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{2, 3}, type, std::vector<T> {0, 6, 45, 1, 21, 21}})
+            .input2({{2, 3}, type, std::vector<T> {1, 18, 23, 1, 19, 21}})
+            .expected({{2, 3}, element::boolean, std::vector<char> {1, 1, 0, 0, 0, 0}}),
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{1}, type, std::vector<T> {53}})
+            .input2({{1}, type, std::vector<T> {53}})
+            .expected({{1}, element::boolean, std::vector<char> {0}}),
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{2, 4}, type, std::vector<T> {0, 12, 23, 0, 1, 5, 11, 8}})
+            .input2({{2, 4}, type, std::vector<T> {0, 12, 23, 0, 10, 5, 11, 8}})
+            .expected({{2, 4}, element::boolean, std::vector<char> {0, 0, 0, 0, 1, 0, 0, 0}}),
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{3, 1, 2}, type, std::vector<T> {2, 1, 4, 1, 3, 1}})
+            .input2({{1, 2, 1}, type, std::vector<T> {1, 1}})
+            .expected({{3, 2, 2}, element::boolean, std::vector<char> {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
+        Builder {}
+            .compType(ComparisonTypes::LESS)
+            .input1({{2, 1, 2, 1}, type, std::vector<T> {2, 1, 4, 1}})
+            .input2({{1, 2, 1}, type, std::vector<T> {1, 1}})
+            .expected({{2, 1, 2, 1}, element::boolean, std::vector<char> {0, 0, 0, 0}})};
     return compParams;
 }
 
@@ -73,3 +79,4 @@ std::vector<RefComparisonParams> generateComparisonCombinedParams() {
 INSTANTIATE_TEST_SUITE_P(smoke_Comparison_With_Hardcoded_Refs, ReferenceComparisonLayerTest, ::testing::ValuesIn(generateComparisonCombinedParams()),
                          ReferenceComparisonLayerTest::getTestCaseName);
 } // namespace ComparisonOpsRefTestDefinitions
+} // namespace reference_tests

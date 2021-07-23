@@ -8,50 +8,44 @@
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/ngraph.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <vector>
 
 #include "base_reference_test.hpp"
 #include "ngraph_functions/builders.hpp"
 
+namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
+
 struct RefComparisonParams {
-    template <class IT, class OT>
-    RefComparisonParams(const ngraph::helpers::ComparisonTypes comp, const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2,
-                        const ngraph::element::Type& iType, const ngraph::element::Type& oType, const std::vector<IT>& iValues1,
-                        const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
-        : comparisonType(comp),
-          pshape1(input_shape1),
-          pshape2(input_shape2),
-          inType(iType),
-          outType(oType),
-          inputData1(CreateBlob(iType, iValues1)),
-          inputData2(CreateBlob(iType, iValues2)),
-          refData(CreateBlob(oType, oValues)) {}
-    ngraph::helpers::ComparisonTypes comparisonType;
-    ngraph::PartialShape pshape1;
-    ngraph::PartialShape pshape2;
-    ngraph::element::Type inType;
-    ngraph::element::Type outType;
-    InferenceEngine::Blob::Ptr inputData1;
-    InferenceEngine::Blob::Ptr inputData2;
-    InferenceEngine::Blob::Ptr refData;
+    ngraph::helpers::ComparisonTypes compType;
+    Tensor input1;
+    Tensor input2;
+    Tensor expected;
+};
+
+struct Builder : ParamsBuilder<RefComparisonParams> {
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, compType);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input1);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, input2);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, expected);
 };
 
 class ReferenceComparisonLayerTest : public testing::TestWithParam<RefComparisonParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         const auto& params = GetParam();
-        function = CreateFunction(params.comparisonType, params.pshape1, params.pshape2, params.inType, params.outType);
-        inputData = {params.inputData1, params.inputData2};
-        refOutData = {params.refData};
+        function = CreateFunction(params.compType, params.input1.shape, params.input2.shape, params.input1.type, params.expected.type);
+        inputData = {params.input1.data, params.input2.data};
+        refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RefComparisonParams>& obj) {
         const auto& param = obj.param;
         std::ostringstream result;
-        result << "comparisonType=" << param.comparisonType << "_";
-        result << "inpt_shape1=" << param.pshape1 << "_";
-        result << "inpt_shape2=" << param.pshape2 << "_";
-        result << "iType=" << param.inType << "_";
-        result << "oType=" << param.outType;
+        result << "comparisonType=" << param.compType << "_";
+        result << "inpt_shape1=" << param.input1.shape << "_";
+        result << "inpt_shape2=" << param.input2.shape << "_";
+        result << "iType=" << param.input1.type << "_";
+        result << "oType=" << param.expected.type;
         return result.str();
     }
 
@@ -66,3 +60,4 @@ private:
     }
 };
 }  // namespace ComparisonOpsRefTestDefinitions
+}  // namespace reference_tests
