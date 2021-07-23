@@ -144,8 +144,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v8_Roll_evaluate);
     const uint64_t* out_shape;
-    std::vector<uint64_t> out_shape_uint64;
-    out_shape_uint64.resize(shape_size(inputs[0]->get_shape()));
+    std::vector<uint64_t> out_shape_uint64(shape_size(inputs[0]->get_shape()));
 
     if (inputs[0]->get_element_type() == element::Type_t::u64)
     {
