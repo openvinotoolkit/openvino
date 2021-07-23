@@ -125,14 +125,6 @@ def niter(request):
 # -------------------- CLI options --------------------
 
 
-@pytest.fixture(scope="session")
-def test_exe_field(request):
-    """Fixture function use to map DB fields according to DB name."""
-    db_name = request.config.getoption("db_name")
-    return {'timetests': "timetest",
-            'memcheck': "memory_exe"}[db_name]
-
-
 @pytest.fixture(scope="function")
 def temp_dir(pytestconfig):
     """Create temporary directory for test purposes.
@@ -239,14 +231,14 @@ def validate_test_case(request, test_info):
 
 
 @pytest.fixture(scope="function")
-def prepare_db_info(request, test_info, executable, niter, manifest_metadata, test_exe_field):
+def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     """Fixture for preparing and validating data to submit to a database.
 
     Fixture prepares data and metadata to submit to a database. One of the steps
     is parsing of build information from build manifest. After preparation,
     it checks if data contains required properties.
     """
-    FIELDS_FOR_ID = ['run_id', test_exe_field, 'model', 'device', 'niter']
+    FIELDS_FOR_ID = ['run_id', "test_exe", 'model', 'device', 'niter']
 
     run_id = request.config.getoption("db_submit")
     if not run_id:
@@ -263,7 +255,7 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata, te
     info = {
         # results will be added immediately before uploading to DB in `pytest_runtest_makereport`
         "run_id": run_id,
-        test_exe_field: str(executable.stem),
+        "test_exe": str(executable.stem),
         "model": request.node.funcargs["instance"]["model"],
         "device": request.node.funcargs["instance"]["device"],
         "niter": niter,
@@ -300,17 +292,17 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata, te
                 "required": ["path", "name", "precision", "framework"]
             },
             "run_id": {"type": "string"},
-            %test_exe_field%: {"type": "string"},
+            "test_exe": {"type": "string"},
             "niter": {"type": "integer"},
             "test_name": {"type": "string"},
             "results": {"type": "object"},
             "os": {"type": "string"},
             "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", %test_exe_field%, "niter", "test_name", "os", "_id"],
+        "required": ["device", "model", "run_id", "test_exe", "niter", "test_name", "os", "_id"],
         "additionalProperties": true
     }
-    """.replace("%test_exe_field%", test_exe_field)
+    """
     schema = json.loads(schema)
 
     try:
