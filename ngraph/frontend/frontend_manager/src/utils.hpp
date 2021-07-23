@@ -4,7 +4,6 @@
 
 #include <string>
 #include "frontend_manager/frontend_manager_defs.hpp"
-#include "ngraph/partial_shape.hpp"
 
 namespace ngraph
 {

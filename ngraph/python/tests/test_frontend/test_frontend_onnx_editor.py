@@ -188,7 +188,7 @@ def skip_if_onnx_frontend_is_disabled():
 
 # Function to compare ng Functions (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
-def comare_functions(current, expected):  # noqa: C901 the function is too complex
+def compare_functions(current, expected):  # noqa: C901 the function is too complex
     result = True
     msg = ""
     if current.get_friendly_name() != expected.get_friendly_name():
@@ -249,7 +249,7 @@ def test_extract_subgraph():
     expected_model = fe.load("extract_subgraph.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -269,7 +269,7 @@ def test_extract_subgraph_2():
     expected_model = fe.load("extract_subgraph_2.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -290,7 +290,7 @@ def test_extract_subgraph_3():
     expected_model = fe.load("extract_subgraph_3.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -314,7 +314,7 @@ def test_extract_subgraph_4():
     expected_model = fe.load("extract_subgraph_4.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -334,7 +334,7 @@ def test_override_all_outputs():
     expected_model = fe.load("test_override_all_outputs.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -353,7 +353,7 @@ def test_override_all_outputs_2():
     expected_model = fe.load("test_override_all_outputs_2.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -376,7 +376,7 @@ def test_override_all_inputs():
     expected_model = fe.load("test_override_all_inputs.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
@@ -447,7 +447,7 @@ def test_set_partial_shape():
     expected_model = fe.load("test_partial_shape.onnx")
     expected_func = fe.convert(expected_model)
 
-    res = comare_functions(result_func, expected_func)
+    res = compare_functions(result_func, expected_func)
     assert res
 
 
