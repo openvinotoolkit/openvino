@@ -15,7 +15,7 @@ static SetTypeFEParam getTestData_relu()
 {
     SetTypeFEParam res;
     res.m_frontEndName = PDPD;
-    res.m_modelsPath = std::string(TEST_PDPD_MODELS);
+    res.m_modelsPath = std::string(TEST_PDPD_MODELS_DIRNAME);
     res.m_modelName = "relu/relu.pdmodel";
     return res;
 }

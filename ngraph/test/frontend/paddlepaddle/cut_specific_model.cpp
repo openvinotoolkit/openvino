@@ -15,7 +15,7 @@ static CutModelParam getTestData_2in_2out()
 {
     CutModelParam res;
     res.m_frontEndName = PDPD;
-    res.m_modelsPath = std::string(TEST_PDPD_MODELS);
+    res.m_modelsPath = std::string(TEST_PDPD_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pdmodel";
     res.m_oldInputs = {"inputX1", "inputX2"};
     res.m_newInputs = {"add1.tmp_0"};

@@ -25,7 +25,7 @@ void FrontEndElementTypeTest::SetUp()
 void FrontEndElementTypeTest::initParamTest()
 {
     m_param = GetParam();
-    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
+    m_param.m_modelName = FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
 void FrontEndElementTypeTest::doLoadFromFile()
