@@ -4,9 +4,9 @@
 
 #include <onnx/onnx_pb.h>
 
-#include "core/model.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/onnx_framework_node.hpp"
+#include "onnx_framework_node.hpp"
+#include "onnx_import/core/model.hpp"
 #include "ops_bridge.hpp"
 
 namespace ngraph
@@ -32,8 +32,8 @@ namespace ngraph
             throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
         }
 
-        Model::Model(std::unique_ptr<ONNX_NAMESPACE::ModelProto>&& model_proto)
-            : m_model_proto{std::move(model_proto)}
+        Model::Model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
+            : m_model_proto{model_proto}
         {
             // Walk through the elements of opset_import field and register operator sets
             // for each domain. An exception UnknownDomain() will raise if the domain is
