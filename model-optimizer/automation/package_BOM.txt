@@ -29,7 +29,6 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
-extensions/back/LayoutChangeForEinsum.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
@@ -597,6 +596,7 @@ extensions/middle/InsertSelect.py
 extensions/middle/InterpolateSequenceToInterpolate.py
 extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
+extensions/middle/LayoutChangeForEinsum.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MakeKaldiConstReshapable.py
