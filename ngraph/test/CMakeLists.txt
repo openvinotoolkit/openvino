@@ -231,6 +231,7 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
     visitors/op/asinh.cpp
@@ -373,7 +374,6 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -452,7 +452,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
