@@ -42,7 +42,7 @@ namespace ngraph
             const onnx_editor::ONNXModelEditor& m_editor;
         };
 
-        class FRONTEND_API PlaceOutputEdgeONNX : public Place
+        class PlaceOutputEdgeONNX : public Place
         {
         public:
             PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
@@ -73,7 +73,7 @@ namespace ngraph
             const onnx_editor::ONNXModelEditor& m_editor;
         };
 
-        class FRONTEND_API PlaceTensorONNX : public Place
+        class PlaceTensorONNX : public Place
         {
         public:
             PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor)
