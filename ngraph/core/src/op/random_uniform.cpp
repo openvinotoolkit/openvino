@@ -148,7 +148,7 @@ bool op::v8::RandomUniform::evaluate(const HostTensorVector& outputs,
 
     if (inputs[0]->get_element_type() == element::Type_t::u64)
     {
-        out_shape = (uint64_t*)inputs[0]->get_data_ptr<const char>();
+        out_shape = inputs[0]->get_data_ptr<const uint64_t>();
     }
     else if (inputs[0]->get_element_type() == element::Type_t::i32)
     {
