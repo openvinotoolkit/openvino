@@ -24,7 +24,7 @@ from path_utils import expand_env_vars
 from test_runner.comparators import MetricsComparator
 
 
-def test(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
+def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, validate_test_case,
          prepare_db_info):
     """Parameterized test.
 
@@ -33,13 +33,12 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, 
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
     :param model_cache_dir: directory to store IE model cache
-    :param test_info: custom `test_info` field of built-in `request` pytest fixture
     :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     :param validate_test_case: custom pytest fixture. Should be declared as test argument to be enabled
     :param prepare_db_info: custom pytest fixture. Should be declared as test argument to be enabled
     """
     # Prepare model to get model_path
-    model_path = instance["model"].get("path")
+    model_path = instance["instance"]["model"].get("path")
     assert model_path, "Model path is empty"
     model_path = Path(expand_env_vars(model_path))
 
@@ -52,7 +51,7 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, 
     exe_args = {
         "executable": Path(executable),
         "model": Path(model_path),
-        "device": instance["device"]["name"],
+        "device": instance["instance"]["device"]["name"],
         "niter": niter
     }
     logging.info("Run test once to generate any cache")
@@ -67,9 +66,9 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, 
     assert retcode == 0, f"Run of executable failed: {msg}"
 
     # Add test results to submit to database and save in new test conf as references
-    test_info["results"] = aggr_stats
-    test_info["raw_results"] = raw_stats
-
+    instance["results"] = aggr_stats
+    instance["raw_results"] = raw_stats
+    # TODO: add --strict_compare key to compare for memory and not compare for time
     # Compare with references
     metrics_comparator = MetricsComparator(aggr_stats)
     metrics_comparator.compare_with(instance["references"])

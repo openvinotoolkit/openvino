@@ -34,7 +34,7 @@ UTILS_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(UTILS_DIR))
 
 from scripts.run_test import check_positive_int
-from test_runner.utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
+from test_runner.utils import upload_data, metadata_from_manifest, query_timeline, DATABASES, DB_COLLECTIONS
 from platform_utils import get_os_name, get_os_version, get_cpu_info
 
 
@@ -355,41 +355,45 @@ def manifest_metadata(request):
     yield manifest_meta
 
 
-# @pytest.fixture(scope="session", autouse=True)
-# def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collection, args.timeline_report
-#     """ Create memcheck timeline HTML report for records.
-#     """
-#     yield
-#     report_path = pytestconfig.getoption('timeline_report')
-#     if report_path:
-#         records = pytestconfig.session_info
-#         records.sort(
-#             key=lambda item: f"{item['status']}{item['device']}{item['model_name']}{item['test_name']}")
-#         timelines = query_timeline(records, db_url, db_collection)
-#         import jinja2  # pylint: disable=import-outside-toplevel
-#         env = jinja2.Environment(
-#             loader=jinja2.FileSystemLoader(
-#                 searchpath=os.path.join(abs_path('.'), 'memcheck-template')),
-#             autoescape=False)
-#         template = env.get_template('timeline_report.html')
-#         template.stream(records=records, timelines=timelines).dump(output_path)
+@pytest.fixture(scope="session", autouse=True)
+def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collection, args.timeline_report
+    """ Create memcheck timeline HTML report for records.
+    """
+    yield
+    report_path = pytestconfig.getoption('timeline_report')
+    if report_path:
+        db_url = pytestconfig.getoption("db_url")
+        db_name = pytestconfig.getoption("db_name")
+        db_collection = pytestconfig.getoption("db_collection")
+
+        records = [rec["db"] for rec in pytestconfig.session_info]
+        records.sort(
+            key=lambda item: f"{item['status']}{item['device']['name']}{item['model']['name']}{item['test_name']}")
+        timelines = query_timeline(records, db_url, db_name, db_collection)
+        import jinja2  # pylint: disable=import-outside-toplevel
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(
+                searchpath=Path().absolute() / 'memcheck-template'),
+            autoescape=False)
+        template = env.get_template('timeline_report.html')
+        template.stream(records=records, timelines=timelines).dump(report_path)
 
 
-# @pytest.fixture(scope="session", autouse=True)
-# def prepare_tconf_with_refs(pytestconfig):
-#     """Fixture for preparing test config based on original test config
-#     with timetests results saved as references.
-#     """
-#     yield
-#     new_tconf_path = pytestconfig.getoption('dump_refs')
-#     if new_tconf_path:
-#         logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
-#         upd_cases = pytestconfig.orig_cases.copy()
-#         for record in pytestconfig.session_info:
-#             rec_i = upd_cases.index(record["orig_instance"])
-#             upd_cases[rec_i]["references"] = record["results"]
-#         with open(new_tconf_path, "w") as tconf:
-#             yaml.safe_dump(upd_cases, tconf)
+@pytest.fixture(scope="session", autouse=True)
+def prepare_tconf_with_refs(pytestconfig):
+    """Fixture for preparing test config based on original test config
+    with timetests results saved as references.
+    """
+    yield
+    new_tconf_path = pytestconfig.getoption('dump_refs')
+    if new_tconf_path:
+        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
+        upd_cases = pytestconfig.orig_cases.copy()
+        for record in pytestconfig.session_info:
+            rec_i = upd_cases.index(record["orig_instance"])
+            upd_cases[rec_i]["references"] = record["results"]
+        with open(new_tconf_path, "w") as tconf:
+            yaml.safe_dump(upd_cases, tconf)
 
 
 def pytest_generate_tests(metafunc):
