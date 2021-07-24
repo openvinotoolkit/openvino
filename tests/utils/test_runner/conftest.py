@@ -248,6 +248,7 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
     # add test info
     info = {
         # results will be added immediately before uploading to DB in `pytest_runtest_makereport`.
+        **instance["orig_instance"],  # TODO: think about use `instance` instead of `orig_instance`
         "run_id": run_id,
         "test_exe": str(executable.stem),
         "niter": niter,
@@ -256,7 +257,6 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "cpu_info": get_cpu_info(),
         "status": "not_finished",
         "error_msg": "",
-        **instance["orig_instance"],     # TODO: think about use `instance` instead of `orig_instance`
         "results": {},
         "raw_results": {},
         "references": instance["instance"].get("references", {}),   # upload actual references that were used
@@ -294,11 +294,17 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
             "test_exe": {"type": "string"},
             "niter": {"type": "integer"},
             "test_name": {"type": "string"},
-            "results": {"type": "object"},
             "os": {"type": "string"},
+            "cpu_info": {"type": "string"},
+            "status": {"type": "string"},
+            "error_msg": {"type": "string"},
+            "results": {"type": "object"},
+            "raw_results": {"type": "object"},
+            "references": {"type": "object"},
             "_id": {"type": "string"}
         },
-        "required": ["device", "model", "run_id", "test_exe", "niter", "test_name", "os", "_id"],
+        "required": ["device", "model", "run_id", "test_exe", "niter", "test_name", "os", "cpu_info", 
+                     "status", "error_msg", "results", "raw_results", "references", "_id"],
         "additionalProperties": true
     }
     """
