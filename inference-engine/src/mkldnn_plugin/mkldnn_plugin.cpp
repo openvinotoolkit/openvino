@@ -83,6 +83,7 @@
 #include <low_precision/low_precision.hpp>
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
+#include <low_precision/reshape.hpp>
 
 #include <ie_algorithm.hpp>
 
@@ -359,6 +360,97 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
+        });
+        lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ReshapeTransformation>([](const_node_ptr& node) -> bool {
+            // TODO: story 38439
+            const ngraph::PartialShape inputShape = node->get_input_partial_shape(0);
+            if (inputShape.rank().is_dynamic()) {
+                return true;
+            }
+            const size_t inputRank = inputShape.rank().get_length();
+
+            const ngraph::PartialShape outputShape = node->get_output_partial_shape(0);
+            const size_t outputRank = outputShape.rank().get_length();
+
+            const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
+            const ngraph::Shape multiplyShape = dequantization.multiply == nullptr ? ngraph::Shape{} : dequantization.multiply->input(1).get_shape();
+            const ngraph::Shape subtractShape = dequantization.subtract == nullptr ? ngraph::Shape{} : dequantization.subtractConstant->get_shape();
+
+            if ((inputRank == 4ul) && (outputRank == 2ul)) {
+                auto checkSpatialDimensions = [](const ngraph::Shape& dequantizationConstShape) {
+                    for (size_t i = (dequantizationConstShape.size() - 2); i < dequantizationConstShape.size(); ++i) {
+                        if (dequantizationConstShape[i] != 1ul) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+                if (((subtractShape.size() >= 3ul) && (!checkSpatialDimensions(subtractShape))) ||
+                    ((multiplyShape.size() >= 3ul) && (!checkSpatialDimensions(multiplyShape)))) {
+                    return true;
+                }
+
+                if (inputShape[1].is_dynamic() || outputShape[1].is_dynamic()) {
+                    return true;
+                }
+
+                for (size_t i = 2; i < inputRank; ++i) {
+                    if (inputShape[i].is_dynamic()) {
+                        return true;
+                    }
+                }
+
+                // custom validation for Layout::NCHW => Layout::NC
+                const size_t inputChannelsCount = inputShape[1].get_length();
+                const size_t outputChannelsCount = outputShape[1].get_length();
+
+                auto getChannelVolume = [](const ngraph::PartialShape& shape) {
+                    size_t volume = 1ul;
+                    for (int i = 2; i < shape.rank().get_length(); ++i) {
+                        volume = volume * shape[i].get_length();
+                    }
+                    return volume;
+                };
+
+                if ((inputShape[0] != outputShape[0]) || ((inputChannelsCount * getChannelVolume(inputShape)) != outputChannelsCount)) {
+                    return true;
+                }
+            } else {
+                if (ngraph::shape_size(subtractShape) > 1 || ngraph::shape_size(multiplyShape) > 1) {
+                    for (size_t i = 0; i < 2ul; ++i) {
+                        if (inputShape[i] != outputShape[i]) {
+                            return false;
+                        }
+                    }
+                }
+
+                auto getLastNotBroadcastedChannel = [](const ngraph::Shape& shape) -> size_t {
+                    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
+                        if (shape[i] != 1ul) {
+                            return i;
+                        }
+                    }
+                    return 0;
+                };
+
+                auto getFirstChangedChannel = [](const ngraph::PartialShape& shape1, const ngraph::PartialShape& shape2) -> size_t {
+                    const size_t minSize = std::min(shape1.rank().get_length(), shape2.rank().get_length());
+                    size_t i = 0;
+                    for (; i < minSize; ++i) {
+                        if (shape1[i] != shape2[i]) {
+                            return i;
+                        }
+                    }
+                    return i;
+                };
+
+                const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
+                const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
+                if (lastNotBroadcastedChannel >= firstChangedChannel) {
+                    return false;
+                }
+            }
+            return false;
         });
         lptManager.run_passes(nGraphFunc);
     }

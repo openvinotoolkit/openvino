@@ -186,26 +186,6 @@ bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const
     return true;
 }
 
-size_t getLastNotBroadcastedChannel(const Shape& shape) {
-    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
-        if (shape[i] != 1ul) {
-            return i;
-        }
-    }
-    return 0;
-}
-
-size_t getFirstChangedChannel(const PartialShape& shape1, const PartialShape& shape2) {
-    const size_t minSize = std::min(shape1.rank().get_length(), shape2.rank().get_length());
-    size_t i = 0;
-    for (; i < minSize; ++i) {
-        if (shape1[i] != shape2[i]) {
-            return i;
-        }
-    }
-    return i;
-}
-
 bool ReshapeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformed(context, op)) {
         return false;
@@ -256,14 +236,6 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputPShape, outputPShape);
 }
 
-size_t getChannelVolume(const PartialShape& shape) {
-    size_t volume = 1ul;
-    for (int i = 2; i < shape.rank().get_length(); ++i) {
-        volume = volume * shape[i].get_length();
-    }
-    return volume;
-}
-
 bool ReshapeTransformation::canBeTransformed(
     const ngraph::Shape& subtractShape,
     const ngraph::Shape& multiplyShape,
@@ -274,70 +246,6 @@ bool ReshapeTransformation::canBeTransformed(
 
     if ((inputRank < 2ul) || (outputRank < 2ul) || (inputShape[0] != outputShape[0])) {
         return false;
-    }
-
-    // TODO: story 38439
-    if ((inputRank == 4ul) && (outputRank == 2ul)) {
-        auto checkSpatialDimensions = [](const Shape& dequantizationConstShape) {
-            for (size_t i = (dequantizationConstShape.size() - 2); i < dequantizationConstShape.size(); ++i) {
-                if (dequantizationConstShape[i] != 1ul) {
-                    return false;
-                }
-            }
-            return true;
-        };
-
-        if (((subtractShape.size() >= 3ul) && (!checkSpatialDimensions(subtractShape))) ||
-            ((multiplyShape.size() >= 3ul) && (!checkSpatialDimensions(multiplyShape)))) {
-            return false;
-        }
-
-        if (inputRank > 1ul) {
-            if (inputShape[1].is_dynamic()) {
-                return false;
-            }
-        } else {
-            if (inputShape[0].is_dynamic()) {
-                return false;
-            }
-        }
-
-        if (outputRank > 1ul) {
-            if (outputShape[1].is_dynamic()) {
-                return false;
-            }
-        } else {
-            if (outputShape[0].is_dynamic()) {
-                return false;
-            }
-        }
-
-        // custom validation for Layout::NCHW => Layout::NC
-        const size_t inputChannelsCount = inputRank > 1ul ? inputShape[1].get_length() : inputShape[0].get_length();
-        const size_t outputChannelsCount = outputRank > 1ul ? outputShape[1].get_length() : outputShape[0].get_length();
-        for (size_t i = 2; i < inputRank; ++i) {
-            if (inputShape[i].is_dynamic()) {
-                return false;
-            }
-        }
-
-        if ((inputShape[0] != outputShape[0]) || ((inputChannelsCount * getChannelVolume(inputShape)) != outputChannelsCount)) {
-            return false;
-        }
-    } else {
-        if (ngraph::shape_size(subtractShape) > 1 || ngraph::shape_size(multiplyShape) > 1) {
-            for (size_t i = 0; i < 2ul; ++i) {
-                if (inputShape[i] != outputShape[i]) {
-                    return false;
-                }
-            }
-        }
-
-        const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
-        const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
-        if (lastNotBroadcastedChannel >= firstChangedChannel) {
-            return false;
-        }
     }
 
     return true;

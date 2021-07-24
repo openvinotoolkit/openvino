@@ -17,8 +17,6 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<ReshapeTransformationParam> params = {
@@ -52,13 +50,13 @@ const std::vector<ReshapeTransformationParam> params = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(params)),
-    ReshapeTransformation::getTestCaseName);
+//INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
+//    ::testing::Combine(
+//        ::testing::ValuesIn(netPrecisions),
+//        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+//        ::testing::ValuesIn(trasformationParamValues),
+//        ::testing::ValuesIn(params)),
+//    ReshapeTransformation::getTestCaseName);
 }  // namespace
 
 
