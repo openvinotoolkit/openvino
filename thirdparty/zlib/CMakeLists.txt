@@ -2,16 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-PROJECT(zlib)
-
 if(NOT WIN32)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-endif()
-
-
-if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  /MP /wd4996  /W3")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        #266: function "XXX" declared implicitly
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable=266")
+    endif()
+elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  /wd4996  /W3")
 endif()
 
 set(TARGET_NAME "zlib")
@@ -48,7 +46,6 @@ set(lib_hdrs
 
 set(lib_ext_hdrs "zlib/zlib.h" "zlib/zconf.h")
 add_library(${TARGET_NAME} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})
-
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/zlib"
                                                  "${CMAKE_CURRENT_SOURCE_DIR}/zlib/..")

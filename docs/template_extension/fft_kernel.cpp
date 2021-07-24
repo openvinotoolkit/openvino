@@ -66,6 +66,7 @@ InferenceEngine::StatusCode FFTImpl::init(InferenceEngine::LayerConfig& config, 
             IE_THROW() << "Operation supports only FP32 precisions!";
         }
     } catch (InferenceEngine::Exception& ex) {
+        error = ex.what();
         if (resp) {
             strncpy(resp->msg, error.c_str(), sizeof(resp->msg) - 1);
             resp->msg[sizeof(resp->msg) - 1] = 0;

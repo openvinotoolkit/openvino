@@ -327,7 +327,7 @@ namespace ngraph
             {
                 ng_node_vector = ng_node_factory(onnx_node);
             }
-            catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& exc)
+            catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure&)
             {
                 // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
                 throw;
