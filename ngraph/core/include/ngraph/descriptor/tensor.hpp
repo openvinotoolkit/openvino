@@ -87,7 +87,7 @@ namespace ngraph
             // It was decided to move m_shape and m_partial_shape synchronization point there and
             // to keep methods signature backward compatible.
             mutable std::mutex shape_mutex;
-            mutable bool m_shape_changed;
+            mutable std::atomic_bool m_shape_changed;
             mutable Shape m_shape;
             // TODO: end
 

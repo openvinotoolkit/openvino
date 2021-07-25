@@ -72,7 +72,7 @@ const Shape& descriptor::Tensor::get_shape() const
 {
     if (m_partial_shape.is_static())
     {
-        if (m_shape_changed)
+        if (m_shape_changed.load(std::memory_order_relaxed))
         {
             std::lock_guard<std::mutex> guard(shape_mutex);
             if (m_shape_changed) // double check after mutex lock
