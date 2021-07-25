@@ -17,6 +17,8 @@
 #pragma once
 
 #include <core/graph.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/graph_util.hpp>
 #include <ngraph/visibility.hpp>
 #include <ngraph_ops/framework_node.hpp>
 #include <onnx_import/core/node.hpp>
@@ -41,19 +43,32 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXFrameworkNode(const onnx_import::Node& node)
+            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                              const onnx_import::Node& node)
                 : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size())
                 , m_node(node)
+                , m_graph(graph)
             {
             }
 
-            ONNXFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
+            ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                              const onnx_import::Node& node,
+                              const OutputVector& inputs)
                 : FrameworkNode(inputs, node.get_outputs_size())
                 , m_node(node)
+                , m_graph(graph)
             {
             }
 
-            const onnx_import::Node& get_onnx_node() const { return m_node; }
+            OutputVector get_ng_nodes() const
+            {
+                OutputVector ng_nodes{m_graph->make_ng_nodes(m_node)};
+                if (ng_nodes.size() > get_output_size())
+                {
+                    ng_nodes.resize(get_output_size());
+                }
+                return ng_nodes;
+            }
 
             virtual std::shared_ptr<Node>
                 clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -68,8 +83,11 @@ namespace ngraph
                 return true;
             }
 
-        private:
+        protected:
             onnx_import::Node m_node;
+
+        private:
+            std::shared_ptr<onnx_import::Graph> m_graph;
         };
 
         class ONNXSubgraphFrameworkNode : public ONNXFrameworkNode
@@ -77,19 +95,18 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
 
-            ONNXSubgraphFrameworkNode(const onnx_import::Node& node, const OutputVector& inputs)
-                : ONNXFrameworkNode(node, inputs)
+            ONNXSubgraphFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
+                                      const onnx_import::Node& node,
+                                      const OutputVector& inputs)
+                : ONNXFrameworkNode(graph, node, inputs)
             {
             }
 
-            void infer_inputs_from_parent()
-            {
-                get_onnx_node().get_subgraph()->infer_inputs_from_parent();
-            }
+            void infer_inputs_from_parent() { m_node.get_subgraph()->infer_inputs_from_parent(); }
 
             std::shared_ptr<Function> get_subgraph_body() const
             {
-                auto subgraph = get_onnx_node().get_subgraph();
+                auto subgraph = m_node.get_subgraph();
                 return std::make_shared<Function>(subgraph->get_ng_outputs(),
                                                   subgraph->get_ng_parameters(),
                                                   subgraph->get_name());

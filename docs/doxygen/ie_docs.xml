@@ -221,6 +221,7 @@ limitations under the License.
                 <tab type="user" title="PriorBox-1" url="@ref openvino_docs_ops_detection_PriorBox_1"/>
                 <tab type="user" title="Proposal-1" url="@ref openvino_docs_ops_detection_Proposal_1"/>
                 <tab type="user" title="Proposal-4" url="@ref openvino_docs_ops_detection_Proposal_4"/>
+                <tab type="user" title="RandomUniform-8" url="@ref openvino_docs_ops_generation_RandomUniform_8"/>
                 <tab type="user" title="Range-1" url="@ref openvino_docs_ops_generation_Range_1"/>
                 <tab type="user" title="Range-4" url="@ref openvino_docs_ops_generation_Range_4"/>
                 <tab type="user" title="ReadValue-3" url="@ref openvino_docs_ops_infrastructure_ReadValue_3"/>

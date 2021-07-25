@@ -17,22 +17,34 @@ const std::vector<bool> normalizeVariance = {true, false};
 const std::vector<std::vector<size_t>> inputShapes = {{1, 10, 5, 7, 8},
                                                       {1, 3, 8, 9, 49}};
 
+const std::vector<ngraph::AxisSet> axes = {{1, 2, 3}, {2, 3}};
 const std::vector<bool> acrossChannels = {true, false};
+const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+const std::vector<bool> emptyAcrossChannels = {{}};
 
 const std::vector<double> epsilon = {0.000000001};
 
-const auto MvnCases = ::testing::Combine(
+const auto MvnAcrossChannels = ::testing::Combine(
     ::testing::ValuesIn(inputShapes), ::testing::ValuesIn(dataPrecisions),
-    ::testing::ValuesIn(acrossChannels), ::testing::ValuesIn(normalizeVariance),
-    ::testing::ValuesIn(epsilon),
+    ::testing::ValuesIn(emptyReductionAxes), ::testing::ValuesIn(acrossChannels),
+    ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-TEST_P(MvnLayerTest, Serialize) {
+const auto MvnReductionAxes = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes), ::testing::ValuesIn(dataPrecisions),
+    ::testing::ValuesIn(axes), ::testing::ValuesIn(emptyAcrossChannels),
+    ::testing::ValuesIn(normalizeVariance), ::testing::ValuesIn(epsilon),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+TEST_P(Mvn1LayerTest, Serialize) {
     Serialize();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN, MvnLayerTest, MvnCases,
-                        MvnLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_across_channels, Mvn1LayerTest, MvnAcrossChannels,
+                        Mvn1LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsMVN_reduction_axes, Mvn1LayerTest, MvnReductionAxes,
+                        Mvn1LayerTest::getTestCaseName);
 
 // ------------------- MVN-6 -------------------------------------------------
 

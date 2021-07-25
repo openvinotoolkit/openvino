@@ -5,7 +5,11 @@
 #include <ie_core.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/shape.hpp>
+#include <ngraph/type/element_type.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+
+namespace reference_tests {
 
 class CommonReferenceTest {
 public:
@@ -51,3 +55,55 @@ InferenceEngine::Blob::Ptr CreateBlob(const ngraph::element::Type& element_type,
     return blob;
 }
 
+///
+/// Class which should help to build data for single input
+///
+struct Tensor {
+    Tensor() = default;
+
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const InferenceEngine::Blob::Ptr& data): shape {shape}, type {type}, data {data} {}
+
+    template <typename T>
+    Tensor(const ngraph::Shape& shape, ngraph::element::Type type, const std::vector<T>& data_elements)
+        : Tensor {shape, type, CreateBlob(type, data_elements)} {}
+
+    ngraph::Shape shape;
+    ngraph::element::Type type;
+    InferenceEngine::Blob::Ptr data;
+};
+
+///
+/// Class which should helps build test parameters.
+///
+/// e.g.:
+/// struct Params {
+///     Tensor i,o;
+///     int mul;
+/// };
+/// struct TestParamsBuilder : ParamsBuilder<Params>
+///     REFERENCE_TESTS_ADD_SET_PARAM(TestParamsBuilder, i);
+///     REFERENCE_TESTS_ADD_SET_PARAM(TestParamsBuilder, o);
+///     REFERENCE_TESTS_ADD_SET_PARAM(TestParamsBuilder, mul);
+/// };
+///
+/// const Params p = TestParamsBuilder{}
+///                  .i(Tensor{{0}, i32, {1}})
+///                  .o(Tensor{{0}, i32, {1}})
+///                  .mul(10);
+template <typename Params>
+class ParamsBuilder {
+protected:
+    Params params;
+
+public:
+    operator Params() const {
+        return params;
+    }
+};
+#define REFERENCE_TESTS_ADD_SET_PARAM(builder_type, param_to_set) \
+    builder_type& param_to_set(decltype(params.param_to_set) t) { \
+        params.param_to_set = std::move(t);                       \
+        return *this;                                             \
+    }
+
+}  // namespace reference_tests

@@ -4,6 +4,7 @@
 VERIFIED_OP_REFERENCES = [
     'Abs-1',
     'Acos-1',
+    'Acosh-3',
     'Add-1',
     'Asin-1',
     'Asinh-3',
@@ -56,6 +57,7 @@ VERIFIED_OP_REFERENCES = [
     'LSTMSequence-5',
     'LogSoftmax-5',
     'Loop-5',
+    'MVN-1',
     'MVN-6',
     'Maximum-1',
     'MaxPool-1',
