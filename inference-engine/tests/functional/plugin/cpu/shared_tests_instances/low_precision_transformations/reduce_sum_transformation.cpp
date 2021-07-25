@@ -90,7 +90,7 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceSumTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, ReduceSumTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
