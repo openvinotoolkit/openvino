@@ -55,7 +55,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
@@ -69,7 +69,7 @@ std::wstring multiByteCharToWString(const char* str) {
     return result;
 #endif  // _WIN32
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
