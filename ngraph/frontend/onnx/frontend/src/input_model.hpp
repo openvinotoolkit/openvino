@@ -35,7 +35,7 @@ namespace ngraph
                                   const std::vector<Place::Ptr>& outputs) override;
 
         private:
-            onnx_editor::ONNXModelEditor m_editor;
+            std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
         };
 
     } // namespace frontend

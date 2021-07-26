@@ -9,7 +9,7 @@ using namespace ngraph;
 using namespace ngraph::frontend;
 
 PlaceInputEdgeONNX::PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
-                                       const onnx_editor::ONNXModelEditor& editor)
+                                       std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge}
     , m_editor{editor}
 {
@@ -22,7 +22,7 @@ onnx_editor::InputEdge PlaceInputEdgeONNX::get_input_edge() const
 
 bool PlaceInputEdgeONNX::is_input() const
 {
-    return m_editor.is_input(m_edge);
+    return m_editor->is_input(m_edge);
 }
 
 bool PlaceInputEdgeONNX::is_output() const
@@ -42,7 +42,7 @@ bool PlaceInputEdgeONNX::is_equal(Place::Ptr another) const
 }
 
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
-                                         const onnx_editor::ONNXModelEditor& editor)
+                                         std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge}
     , m_editor{editor}
 {
@@ -60,7 +60,7 @@ bool PlaceOutputEdgeONNX::is_input() const
 
 bool PlaceOutputEdgeONNX::is_output() const
 {
-    return m_editor.is_output(m_edge);
+    return m_editor->is_output(m_edge);
 }
 
 bool PlaceOutputEdgeONNX::is_equal(Place::Ptr another) const
@@ -75,7 +75,7 @@ bool PlaceOutputEdgeONNX::is_equal(Place::Ptr another) const
 }
 
 PlaceTensorONNX::PlaceTensorONNX(const std::string& name,
-                                 const onnx_editor::ONNXModelEditor& editor)
+                                 std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_name(name)
     , m_editor(editor)
 {
@@ -88,13 +88,13 @@ std::vector<std::string> PlaceTensorONNX::get_names() const
 
 Place::Ptr PlaceTensorONNX::get_producing_port() const
 {
-    return std::make_shared<PlaceOutputEdgeONNX>(m_editor.find_output_edge(m_name), m_editor);
+    return std::make_shared<PlaceOutputEdgeONNX>(m_editor->find_output_edge(m_name), m_editor);
 }
 
 std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_ports() const
 {
     std::vector<Place::Ptr> ret;
-    auto edges = m_editor.find_output_consumers(m_name);
+    auto edges = m_editor->find_output_consumers(m_name);
     std::transform(edges.begin(),
                    edges.end(),
                    std::back_inserter(ret),
@@ -107,20 +107,20 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_ports() const
 Place::Ptr PlaceTensorONNX::get_input_port(int input_port_index) const
 {
     return std::make_shared<PlaceInputEdgeONNX>(
-        m_editor.find_input_edge(onnx_editor::EditorOutput(m_name),
-                                 onnx_editor::EditorInput(input_port_index)),
+        m_editor->find_input_edge(onnx_editor::EditorOutput(m_name),
+                                  onnx_editor::EditorInput(input_port_index)),
         m_editor);
 }
 
 bool PlaceTensorONNX::is_input() const
 {
-    const auto inputs = m_editor.model_inputs();
+    const auto inputs = m_editor->model_inputs();
     return std::find(std::begin(inputs), std::end(inputs), m_name) != std::end(inputs);
 }
 
 bool PlaceTensorONNX::is_output() const
 {
-    const auto outputs = m_editor.model_outputs();
+    const auto outputs = m_editor->model_outputs();
     return std::find(std::begin(outputs), std::end(outputs), m_name) != std::end(outputs);
 }
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include <frontend_manager/place.hpp>
 #include <onnx_editor/editor.hpp>
 
@@ -15,7 +16,7 @@ namespace ngraph
         {
         public:
             PlaceInputEdgeONNX(const onnx_editor::InputEdge& edge,
-                               const onnx_editor::ONNXModelEditor& editor);
+                               std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
             onnx_editor::InputEdge get_input_edge() const;
 
@@ -27,14 +28,14 @@ namespace ngraph
 
         private:
             onnx_editor::InputEdge m_edge;
-            const onnx_editor::ONNXModelEditor& m_editor;
+            const std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
         };
 
         class PlaceOutputEdgeONNX : public Place
         {
         public:
             PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
-                                const onnx_editor::ONNXModelEditor& editor);
+                                std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
             onnx_editor::OutputEdge get_output_edge() const;
 
@@ -46,13 +47,13 @@ namespace ngraph
 
         private:
             onnx_editor::OutputEdge m_edge;
-            const onnx_editor::ONNXModelEditor& m_editor;
+            std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
         };
 
         class PlaceTensorONNX : public Place
         {
         public:
-            PlaceTensorONNX(const std::string& name, const onnx_editor::ONNXModelEditor& editor);
+            PlaceTensorONNX(const std::string& name, std::shared_ptr<onnx_editor::ONNXModelEditor> editor);
 
             std::vector<std::string> get_names() const override;
 
@@ -70,7 +71,7 @@ namespace ngraph
 
         private:
             std::string m_name;
-            const onnx_editor::ONNXModelEditor& m_editor;
+            std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
         };
     } // namespace frontend
 
