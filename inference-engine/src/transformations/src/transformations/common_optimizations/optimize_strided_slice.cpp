@@ -9,6 +9,7 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
@@ -244,8 +245,10 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
 
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-    bool rewritten = UselessStridedSliceEraser().run_on_function(f);
-    rewritten |= SharedStridedSliceEraser().run_on_function(f);
-    rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
-    return rewritten;
+    pass::Manager manager;
+    manager.register_pass<UselessStridedSliceEraser>();
+    manager.register_pass<SharedStridedSliceEraser>();
+    manager.register_pass<GroupedStridedSliceOptimizer>();
+    manager.run_passes(f);
+    return false;
 }

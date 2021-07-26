@@ -66,6 +66,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/set_cache_ops.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -121,6 +122,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
 
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+
+    manager.register_pass<ngraph::pass::SetCacheOps>(true);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
@@ -323,6 +327,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         });
     }
 
+    manager.register_pass<ngraph::pass::SetCacheOps>(false);
     manager.run_passes(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;

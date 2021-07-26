@@ -26,10 +26,13 @@ bool ngraph::pass::SharedShapeOf::run_on_function(std::shared_ptr<ngraph::Functi
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::Node>>> source_to_shape_of;
     for (const auto & node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
-            if (auto sub_graph = sub_graph_node->get_function())
-                graph_rewritten |= run_on_function(sub_graph);
-
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                auto status = run_on_function(sub_graph);
+                if (status) sub_graph->reset_cached_ops();
+                graph_rewritten |= status;
+            }
+        }
         if (is_type<ngraph::opset1::ShapeOf>(node) || is_type<ngraph::opset3::ShapeOf>(node))
             source_to_shape_of[node->input_value(0)].push_back(node);
     }
@@ -195,7 +198,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSu
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
-    ngraph::pass::Manager manager;
+    ngraph::pass::Manager manager(get_pass_config());
     manager.register_pass<ngraph::pass::EliminateGatherUnsqueeze>();
     manager.register_pass<ngraph::pass::SharedShapeOf>();
     manager.register_pass<ngraph::pass::GroupedGatherElimination>();

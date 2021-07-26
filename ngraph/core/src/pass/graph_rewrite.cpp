@@ -139,7 +139,8 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
     // This lambda preforms execution of particular MatcherPass on given node.
     // It automatically handles nodes registered by MatcherPass during transformation and set
     // transformation callback.
-    auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass, std::shared_ptr<Node> node) -> bool {
+    auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass,
+                                std::shared_ptr<Node> node) -> uint64_t {
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
@@ -152,7 +153,7 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
-        bool status = m_pass->apply(node);
+        uint64_t status = m_pass->apply(node);
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
@@ -180,9 +181,14 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                run_on_function(sub_graph);
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+        {
+            if (auto sub_graph = sub_graph_node->get_function())
+            {
+                // TODO: use return value
+                if (run_on_function(sub_graph)) {
+                    sub_graph->reset_cached_ops();
+                }
             }
         }
         // Temporary keep this GraphRewrite property for backward compatibility
@@ -212,10 +218,20 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
             // TODO: type_to_matcher with just collected list of matchers to enable
             // fast processing at the next time when node with the same type will be processed
 
-            for (size_t matcher_index : matcher_passes_to_run) {
-                if (run_matcher_pass(m_matchers[matcher_index], node)) {
+            for (size_t matcher_index : matcher_passes_to_run)
+            {
+                auto status = run_matcher_pass(m_matchers[matcher_index], node);
+
+                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION)) {
+                    m_enable_shape_inference = true;
+                }
+
+                if (status & static_cast<uint64_t>(MatcherPass::Status::FUNCTION_CHANGED))
+                {
                     rewritten = true;
-                    break;
+                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER))) {
+                        break;
+                    }
                 }
             }
         }
@@ -226,9 +242,18 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
                 if (pass_config->is_disabled(m_pass->get_type_info()))
                     continue;
 
-                if (run_matcher_pass(m_pass, node)) {
+                auto status = run_matcher_pass(m_pass, node);
+
+                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION)) {
+                    m_enable_shape_inference = true;
+                }
+
+                if (status & static_cast<uint64_t>(MatcherPass::Status::FUNCTION_CHANGED))
+                {
                     rewritten = true;
-                    break;
+                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER))) {
+                        break;
+                    }
                 }
             }
         }
@@ -299,7 +324,7 @@ void pass::RecurrentGraphRewrite::add_matcher(const std::shared_ptr<pattern::Rec
     m_matchers.push_back(std::make_shared<MatcherPass>(
         "Recurrent matcher",
         nullptr,
-        [m, callback](const std::shared_ptr<Node>& node) {
+        [m, callback](const std::shared_ptr<Node>& node) -> uint64_t {
             NGRAPH_DEBUG << "Running recurrent matcher on " << node;
             if (m->match(node->output(0))) {
                 NGRAPH_DEBUG << "Recurrent matcher matched " << m.get();

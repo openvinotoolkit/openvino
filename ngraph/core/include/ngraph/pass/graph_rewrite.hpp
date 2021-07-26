@@ -11,6 +11,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
+<<<<<<< HEAD
 namespace ngraph {
 using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
 using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
@@ -44,6 +45,12 @@ namespace pass {
 class NGRAPH_API MatcherPass : public ngraph::pass::PassBase {
 public:
     NGRAPH_RTTI_DECLARATION;
+
+    enum class Status : uint64_t {
+        FUNCTION_CHANGED = 1 << 0,
+        USE_NEXT_MATCHER = 1 << 1,
+        ENABLE_SHAPE_PROPAGATION  = 1 << 2,
+    };
 
     MatcherPass() = default;
 

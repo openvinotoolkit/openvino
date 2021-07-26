@@ -48,9 +48,13 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
             }
         } else {
             // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
-            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-                if (const auto& sub_graph = sub_graph_node->get_function()) {
-                    rewritten |= run_on_function(sub_graph);
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+            {
+                if (const auto& sub_graph = sub_graph_node->get_function())
+                {
+                    auto status = run_on_function(sub_graph);
+                    if (status) sub_graph->reset_cached_ops();
+                    rewritten |= status;
                 }
             }
         }

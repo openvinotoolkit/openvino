@@ -169,7 +169,7 @@ Function::Function(const OutputVector& results, const string& name) : Function(r
 
 void Function::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraph, "Function::prerequirements");
-
+    m_cached_ops = std::make_shared<NodeVector>();
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
         m_parameters = auto_detect_parameters(ordered_ops);
@@ -225,6 +225,12 @@ void Function::validate_nodes_and_infer_types() const {
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
 
+    if (m_cache_ordered_ops) {
+        if (!m_cached_ops->empty()) {
+            return *m_cached_ops;
+        }
+    }
+
     vector<shared_ptr<Node>> nodes;
     for (auto& r : get_results()) {
         nodes.push_back(r);
@@ -236,7 +242,8 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
         nodes.push_back(param);
     }
 
-    return m_topological_sorter(nodes);
+    *m_cached_ops = m_topological_sorter(nodes);
+    return *m_cached_ops;
 }
 
 void Function::map_unordered_ops(std::function<void(Node*)> f) const {

@@ -3,6 +3,7 @@
 //
 
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/set_cache_ops.hpp>
 #include "convert_matmul_to_fc_or_gemm.hpp"
 #include "fc_bias_fusion.hpp"
 #include "reshape_fc_fusion.hpp"
@@ -20,6 +21,8 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ngraph::pass::SetCacheOps>(true);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<Reshape1DConvolution>();
     manager.register_pass<Reshape1DGroupConvolution>();
@@ -43,6 +46,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     }
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ngraph::pass::SetCacheOps>(false);
     manager.run_passes(nGraphFunc);
 }
 

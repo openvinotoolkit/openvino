@@ -88,10 +88,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
                 continue;
             }
 
-            if (dynamic_pointer_cast<Validate>(pass)) {
-                if (function_changed) {
-                    function_pass->run_on_function(func);
-                    function_changed = false;
+            if (dynamic_pointer_cast<Validate>(pass))
+            {
+                if (function_changed)
+                {
+                    function_changed = function_pass->run_on_function(func);
                 }
             } else {
                 function_changed = function_pass->run_on_function(func);
@@ -102,13 +103,20 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
-            for (shared_ptr<Node> n : func->get_ops()) {
+
+            for (auto && n : func->get_ordered_ops())
+            {
                 function_changed |= node_pass->run_on_node(n);
             }
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        if (m_visualize) {
+        if (function_changed) {
+            func->reset_cached_ops();
+        }
+
+        if (m_visualize)
+        {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
             std::string index_str = std::to_string(index);

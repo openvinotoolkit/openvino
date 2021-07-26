@@ -125,7 +125,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
     auto reduce_or_squeeze_label = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, opset6::Squeeze>(
             {fq_label, pattern::wrap_type<opset6::Constant>()});
 
-    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) -> uint64_t {
         auto &pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
@@ -169,7 +169,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         ngraph::replace_node(fq, new_transpose);
         // The root node (reduction) left unchanged during current matcher pass.
         // We return false here for further MatcherPasses to be applicable for this node as a root node
-        return false;
+        return static_cast<uint64_t>(Status::FUNCTION_CHANGED) | static_cast<uint64_t>(Status::USE_NEXT_MATCHER);
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_or_squeeze_label, matcher_name);

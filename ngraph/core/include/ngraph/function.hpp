@@ -228,6 +228,8 @@ public:
     /// \param variable Variable to delete
     void remove_variable(const VariablePtr& variable);
 
+    void reset_cached_ops() { m_cached_ops->clear(); }
+
     /// \brief Return a list of function's variables.
     const VariableVector& get_variables() const {
         return m_variables;
@@ -262,6 +264,9 @@ private:
     SinkVector m_sinks;
     ParameterVector m_parameters;
     VariableVector m_variables;
+
+    bool m_cache_ordered_ops{false};
+    std::shared_ptr<NodeVector> m_cached_ops;
 };
 
 template <>
