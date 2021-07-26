@@ -27,7 +27,8 @@ void FrontEndLoadFromTest::SetUp()
 
 TEST_P(FrontEndLoadFromTest, testLoadFromFilePath)
 {
-    std::string model_path = m_param.m_modelsPath + m_param.m_file;
+    std::string model_path =
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_file);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
@@ -44,8 +45,10 @@ TEST_P(FrontEndLoadFromTest, testLoadFromFilePath)
 
 TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles)
 {
-    std::string model_path = m_param.m_modelsPath + m_param.m_files[0];
-    std::string weights_path = m_param.m_modelsPath + m_param.m_files[1];
+    std::string model_path =
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[0]);
+    std::string weights_path =
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_files[1]);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
@@ -62,8 +65,9 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoFiles)
 
 TEST_P(FrontEndLoadFromTest, testLoadFromStream)
 {
-    auto ifs = std::make_shared<std::ifstream>(m_param.m_modelsPath + m_param.m_stream,
-                                               std::ios::in | std::ifstream::binary);
+    auto ifs = std::make_shared<std::ifstream>(
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_stream),
+        std::ios::in | std::ifstream::binary);
     auto is = std::dynamic_pointer_cast<std::istream>(ifs);
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
@@ -81,10 +85,12 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream)
 
 TEST_P(FrontEndLoadFromTest, testLoadFromTwoStreams)
 {
-    auto model_ifs = std::make_shared<std::ifstream>(m_param.m_modelsPath + m_param.m_streams[0],
-                                                     std::ios::in | std::ifstream::binary);
-    auto weights_ifs = std::make_shared<std::ifstream>(m_param.m_modelsPath + m_param.m_streams[1],
-                                                       std::ios::in | std::ifstream::binary);
+    auto model_ifs = std::make_shared<std::ifstream>(
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[0]),
+        std::ios::in | std::ifstream::binary);
+    auto weights_ifs = std::make_shared<std::ifstream>(
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[1]),
+        std::ios::in | std::ifstream::binary);
     auto model_is = std::dynamic_pointer_cast<std::istream>(model_ifs);
     auto weights_is = std::dynamic_pointer_cast<std::istream>(weights_ifs);
 
