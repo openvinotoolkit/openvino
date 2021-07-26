@@ -6,7 +6,7 @@
 #include "ngraph/opsets/opset1.hpp"
 
 using Type =
-    ::testing::Types<BinaryOperatorType<ngraph::opset1::SquaredDifference, ngraph::element::f32>>;
+    ::testing::Types<BinaryOperatorType<ngraph::opset1::LogicalOr, ngraph::element::boolean>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
                                BinaryOperatorVisitor,

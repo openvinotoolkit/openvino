@@ -56,7 +56,7 @@ namespace minimumop
 
 // ------------------------------ v1 -------------------------------------------
 
-constexpr NodeTypeInfo op::v1::Minimum::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Minimum, "Minimum", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::Minimum::Minimum(const Output<Node>& arg0,
                          const Output<Node>& arg1,

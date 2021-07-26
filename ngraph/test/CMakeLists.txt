@@ -234,6 +234,7 @@ set(SRC
     visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/add.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
@@ -253,16 +254,23 @@ set(SRC
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
     visitors/op/gelu.cpp
+    visitors/op/greater_equal.cpp
+    visitors/op/greater.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
+    visitors/op/less_equal.cpp
+    visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/logical_or.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -270,17 +278,22 @@ set(SRC
     visitors/op/matmul.cpp
     visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
+    visitors/op/maximum.cpp
+    visitors/op/minimum.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/multiclass_nms.cpp
+    visitors/op/multiply.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
+    visitors/op/not_equal.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
+    visitors/op/power.cpp
     visitors/op/prior_box.cpp
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
@@ -314,10 +327,11 @@ set(SRC
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
+    visitors/op/sqrt.cpp
     visitors/op/squared_difference.cpp
     visitors/op/squeeze.cpp
-    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/subtract.cpp
     visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp

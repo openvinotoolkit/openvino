@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API FloorMod : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"FloorMod", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs an uninitialized addition operation
                 FloorMod()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY){};
