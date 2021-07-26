@@ -83,6 +83,15 @@ jobs:
     path: testdata
 
   - script: |
+      python3 -m pip install --upgrade pip
+      rem For running Python API tests
+      python3 -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
+      rem For running nGraph unit tests dependent on Python frameworks
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test.txt
+      rem For MO unit tests
+      python3 -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
+      python3 -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
+      rem Speed up build
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
