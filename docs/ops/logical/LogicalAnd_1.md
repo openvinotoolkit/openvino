@@ -12,7 +12,7 @@ After broadcasting *LogicalAnd* does the following with the input tensors *a* an
 
 \f[
 o_{i} = a_{i} and b_{i}
-\f]z
+\f]
 
 **Attributes**:
 
