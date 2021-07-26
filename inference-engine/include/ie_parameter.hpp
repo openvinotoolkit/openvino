@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include <ngraph/ngraph.hpp>
 
 namespace InferenceEngine {
 

@@ -18,7 +18,7 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 
-#include <ngraph/ngraph.hpp>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 

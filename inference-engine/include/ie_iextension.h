@@ -19,7 +19,7 @@
 #include "ie_layouts.h"
 #include "ie_blob.h"
 #include "ie_version.hpp"
-#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset.hpp>
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
