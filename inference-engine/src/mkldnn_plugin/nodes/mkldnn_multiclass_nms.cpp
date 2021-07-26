@@ -35,7 +35,7 @@ bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<ngraph:
         const auto& atrri = nms->get_attrs();
         const auto& sortType = atrri.sort_result_type;
         if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Doest not support SortResultType";
+            errorMessage = "Does not support SortResultType mode: " + ngraph::as_string(sortType);
             return false;
         }
     } catch (...) {
@@ -56,7 +56,7 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (getOriginalInputsNumber() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-    if (getOriginalOutputsNumber() < 1 || nms->get_output_size() > 3)
+    if (getOriginalOutputsNumber() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
     auto& atrri = nms->get_attrs();
@@ -90,8 +90,6 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (boxes_dims[1] != scores_dims[2])
         IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
-    outputShape_SELECTEDINDICES = outDims[NMS_SELECTEDINDICES].ToSizeVector();
-    outputShape_SELECTEDOUTPUTS = outDims[NMS_SELECTEDOUTPUTS].ToSizeVector();
     const SizeVector& valid_outputs_dims = outDims[NMS_SELECTEDNUM].ToSizeVector();
     if (valid_outputs_dims.size() != 1)
         IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
@@ -126,16 +124,12 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM), supportedIntOutputPrecision, "selected_num", outType);
 
-    std::vector<DataConfigurator> inDataConf(NMS_SCORES + 1, {TensorDescCreatorTypes::ncsp, Precision::FP32});
-
-    std::vector<DataConfigurator> outDataConf;
-    outDataConf.reserve(getOriginalOutputsNumber());
-    for (int i = 0; i < getOriginalOutputsNumber(); ++i) {
-        Precision outPrecision = i == NMS_SELECTEDOUTPUTS ? Precision::FP32 : Precision::I32;
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, outPrecision);
-    }
-
-    addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                          {TensorDescCreatorTypes::ncsp, Precision::I32},
+                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                         impl_desc_type::ref_any);
 }
 
 void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
@@ -157,8 +151,6 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getDesc().getBlockingDesc().getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getDesc().getBlockingDesc().getStrides();
-
-    std::vector<size_t> numBoxperBatch(num_batches);
 
     if ((nms_eta >= 0) && (nms_eta < 1)) {
         nmsWithEta(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
@@ -277,8 +269,6 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         output_offset += selectedBoxesNum_perBatch;
         original_offset += real_boxes;
     }
-
-    return;
 }
 
 bool MKLDNNMultiClassNmsNode::created() const {

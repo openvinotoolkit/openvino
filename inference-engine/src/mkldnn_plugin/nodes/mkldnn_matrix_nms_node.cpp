@@ -60,7 +60,7 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     if (getOriginalInputsNumber() != 2)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
 
-    if (getOriginalOutputsNumber() < 1 || getOriginalOutputsNumber() > 3)
+    if (getOriginalOutputsNumber() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
     if (!(inDims[NMS_BOXES][0] == inDims[NMS_SCORES][0] && inDims[NMS_BOXES][1] == inDims[NMS_SCORES][2])) {
