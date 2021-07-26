@@ -33,12 +33,12 @@ bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Nod
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
         if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Doest not support SortResultType";
+            errorMessage = "Doest not support SortResultType " + ngraph::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
         if (!one_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
-            errorMessage = "Does not support DcayFunction";
+            errorMessage = "Does not support DcayFunction " + ngraph::as_string(decayType);
             return false;
         }
     } catch (...) {
@@ -63,10 +63,8 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     if (getOriginalOutputsNumber() < 1 || getOriginalOutputsNumber() > 3)
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    if (matrix_nms->get_input_shape(NMS_BOXES)[1] != matrix_nms->get_input_shape(NMS_SCORES)[2]) {
-        IE_THROW() << errorPrefix
-                   << "Input Box Dimension 1: " + std::to_string(matrix_nms->get_input_shape(NMS_BOXES)[1]) +
-                          " doesn't match Score Dimension 2: " + std::to_string(matrix_nms->get_input_shape(NMS_SCORES)[2]);
+    if (!(inDims[NMS_BOXES][0] == inDims[NMS_SCORES][0] && inDims[NMS_BOXES][1] == inDims[NMS_SCORES][2])) {
+        IE_THROW() << errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
@@ -158,15 +156,7 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
-
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", outType);
-
     std::vector<DataConfigurator> inDataConf(NMS_SCORES + 1, {TensorDescCreatorTypes::ncsp, Precision::FP32});
-
     std::vector<DataConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
     for (int i = 0; i < getOriginalOutputsNumber(); ++i) {
@@ -174,7 +164,10 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
         outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, outPrecision);
     }
 
-    addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+        {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::I32}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+        impl_desc_type::ref_any);
 }
 
 bool MKLDNNMatrixNmsNode::created() const {
@@ -346,17 +339,15 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
         startOffset += m_numPerBatch[i];
     }
 
-    m_filteredBoxes.resize(startOffset);
-
     if (m_sortResultAcrossBatch) { /* sort across batch */
         if (m_sortResultType == MatrixNmsSortResultType::SCORE) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
+            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batchIndex < r.batchIndex) ||
                        (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex < r.classIndex) ||
                        (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex == r.classIndex && l.index < r.index);
             });
         } else if (m_sortResultType == MatrixNmsSortResultType::CLASSID) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
+            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
                 return (l.classIndex < r.classIndex) || (l.classIndex == r.classIndex && l.batchIndex < r.batchIndex) ||
                        (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score > r.score) ||
                        (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score == r.score && l.index < r.index);
