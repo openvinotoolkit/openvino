@@ -100,13 +100,13 @@ def prepare_ir(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
     fem = argv.feManager
-    new_front_ends = []
+    ngraph_front_ends = []
     if fem is not None:  # in future, check of 'use_legacy_frontend' in argv can be added here
-        new_front_ends = fem.get_available_front_ends()
+        ngraph_front_ends = fem.get_available_front_ends()
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
-        frameworks = list(set(frameworks + new_front_ends))
+        frameworks = list(set(frameworks + ngraph_front_ends))
         if argv.framework not in frameworks:
             raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
@@ -173,7 +173,7 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    use_legacy_fe = argv.framework not in new_front_ends
+    use_legacy_fe = argv.framework not in ngraph_front_ends
     # For C++ frontends there is no specific python installation requirements, thus check only generic ones
     ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
     if ret_code:
@@ -267,7 +267,7 @@ def prepare_ir(argv: argparse.Namespace):
     ngraph_function = None
 
     # In future check of use_legacy_frontend option can be added here
-    if argv.feManager is None or argv.framework not in new_front_ends:
+    if argv.feManager is None or argv.framework not in ngraph_front_ends:
         graph = unified_pipeline(argv)
     else:
         ngraph_function = moc_pipeline(argv)
