@@ -138,14 +138,36 @@ namespace ngraph
                             {
                                 for (int pw = 0; pw < pooled_w; pw++)
                                 {
-                                    T in_y =
-                                        (pooled_h > 1)
-                                            ? (ph * roi_height_scale + roi_h_start * (height - 1))
-                                            : 0.5 * (roi_h_start + roi_h_end) * (height - 1);
-                                    T in_x =
-                                        (pooled_w > 1)
-                                            ? (pw * roi_width_scale + roi_w_start * (width - 1))
-                                            : 0.5 * (roi_w_end + roi_w_start) * (width - 1);
+                                    // because of nonalgebraic character of floating point
+                                    // operation, some proposals can cause violation of inequality:
+                                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) *
+                                    // (pooled_h - 1)
+                                    // <= (end_h - start_h) * (input_h - 1),
+                                    // and as result excess of right limit for proposal value
+                                    // if the border case (current_h == pooled_h - 1)
+                                    // will not be handled explicitly
+                                    T in_y, in_x;
+                                    if (pooled_h > 1)
+                                    {
+                                        in_y =
+                                            ((ph == pooled_h - 1) ? (height - 1) * roi_h_end
+                                                                  : (ph * roi_height_scale +
+                                                                     roi_h_start * (height - 1)));
+                                    }
+                                    else
+                                    {
+                                        in_y = 0.5 * (roi_h_start + roi_h_end) * (height - 1);
+                                    }
+                                    if (pooled_w > 1)
+                                    {
+                                        in_x = ((pw == pooled_w - 1) ? (width - 1) * roi_w_end
+                                                                     : (pw * roi_width_scale +
+                                                                        roi_w_start * (width - 1)));
+                                    }
+                                    else
+                                    {
+                                        in_x = 0.5 * (roi_w_end + roi_w_start) * (width - 1);
+                                    }
 
                                     const size_t pool_index =
                                         roi_num * channels * pooled_h * pooled_w +
