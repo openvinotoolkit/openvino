@@ -521,7 +521,7 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, FLAGS_iscale);
+        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, FLAGS_iscale, FLAGS_imean);
 
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------

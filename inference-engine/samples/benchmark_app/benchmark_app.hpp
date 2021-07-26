@@ -147,7 +147,13 @@ static constexpr char iop_message[] = "Optional. Specifies precision for input a
                                       "                                             Overwrites precision from ip and op options for "
                                       "specified layers.";
 
-static constexpr char input_image_scale_message[] = "Optional. Use input image scale. Input is divided by scale.";
+static constexpr char input_image_scale_message[] = "Optional. Scale values to be used for the input image per channel.\n"
+                                                    "Values to be provided in the R, G, B format. Can be defined for desired input of the model.\n"
+                                                    "Input is divided by scale. Example: -iscale \"255 255 255\"\n";
+
+static constexpr char input_image_mean_message[] = "Optional. Mean values to be used for the input image per channel.\n"
+                                                    "Values to be provided in the R, G, B format. Can be defined for desired input of the model,\n"
+                                                    "Example: -imean \"255 255 255\"\n";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -261,8 +267,11 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
-/// @brief Define flag for using input image scale. Input is divided by scale. <br>
-DEFINE_double(iscale, 1, input_image_scale_message);
+/// @brief Define flag for using input image scale <br>
+DEFINE_string(iscale, "", input_image_scale_message);
+
+/// @brief Define flag for using input image mean <br>
+DEFINE_string(imean, "", input_image_mean_message);
 
 /**
  * @brief This function show a help message
@@ -310,4 +319,5 @@ static void showUsage() {
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
+    std::cout << "    -imean                     " << input_image_mean_message << std::endl;
 }

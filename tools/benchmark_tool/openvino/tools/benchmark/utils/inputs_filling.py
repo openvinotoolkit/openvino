@@ -9,8 +9,8 @@ from glob import glob
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
-def set_inputs(paths_to_input, batch_size, app_input_info, requests):
-  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
+def set_inputs(paths_to_input, batch_size, app_input_info, requests, iscale, imean):
+  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests, iscale, imean)
   for i in range(len(requests)):
     inputs = requests[i].input_blobs
     for k, v in requests_input_data[i].items():
@@ -18,12 +18,22 @@ def set_inputs(paths_to_input, batch_size, app_input_info, requests):
             raise Exception(f"No input with name {k} found!")
         inputs[k].buffer[:] = v
 
-def get_inputs(paths_to_input, batch_size, app_input_info, requests):
+def get_inputs(paths_to_input, batch_size, app_input_info, requests, iscale, imean):
     input_image_sizes = {}
     for key in sorted(app_input_info.keys()):
         info = app_input_info[key]
         if info.is_image:
             input_image_sizes[key] = (info.width, info.height)
+
+    input_scale = (1.0, 1.0, 1.0)
+    input_mean = (0.0, 0.0, 0.0)
+
+    if iscale:
+        x = np.array(iscale.split(" "))
+        input_scale = x.astype(np.float)
+    if imean:
+        x = np.array(imean.split(" "))
+        input_mean = x.astype(np.float)
 
     images_count = len(input_image_sizes.keys())
     binaries_count = len(app_input_info) - images_count
@@ -78,7 +88,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
                 # input is image
                 if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
-                                                           len(keys), info)
+                                                           len(keys), info, input_scale, input_mean)
                     continue
 
             # input is binary
@@ -122,10 +132,13 @@ def get_files_by_extensions(paths_to_input, extensions):
 
     return input_files
 
-def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info):
+def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info, iscale, imean):
     shape = info.shape
     images = np.ndarray(shape)
     image_index = request_id * batch_size * input_size + input_id
+
+    scale_mean = (not np.array_equal(iscale,(1.0, 1.0, 1.0)) or not np.array_equal(imean,(0.0, 0.0, 0.0)))
+
     for b in range(batch_size):
         image_index %= len(image_paths)
         image_filename = image_paths[image_index]
@@ -135,8 +148,20 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
         if image.shape[:-1] != new_im_size:
             logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
             image = cv2.resize(image, new_im_size)
+
+        if scale_mean:
+            blue, green, red = cv2.split(image)
+            blue = np.divide(blue, iscale[0])
+            green = np.divide(green, iscale[1])
+            red = np.divide(red, iscale[2])
+            blue = np.add(blue, imean[0])
+            green = np.add(green, imean[1])
+            red = np.add(red, imean[2])
+            image = cv2.merge([blue, green, red])
+
         if info.layout in ['NCHW', 'CHW']:
             image = image.transpose((2, 0, 1))
+
         images[b] = image
 
         image_index += input_size

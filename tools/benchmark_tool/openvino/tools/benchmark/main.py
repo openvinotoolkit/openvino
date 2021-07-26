@@ -305,7 +305,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests, args.input_scale, args.input_mean)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
