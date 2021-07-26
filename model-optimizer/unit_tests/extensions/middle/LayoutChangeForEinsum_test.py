@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.back.LayoutChangeForEinsum import LayoutChangeForEinsum
+from extensions.middle.LayoutChangeForEinsum import LayoutChangeForEinsum
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect
@@ -47,7 +47,7 @@ class LayoutChangeForEinsumTests(unittest.TestCase):
                                 # this input does not require additional transpose
                                 # since the corresponding subscript can be adjusted
                                 'placeholder_2_d': {'shape': np.array([3, 8, 5, 7])},
-                                # [3, 5, 10, 12] - NHWC, [3, 12, 5, 10] - NCHW
+                                # [3, 8, 10, 12] - NHWC, [3, 12, 8, 10] - NCHW
                                 # the third input must be transposed to NHWC layout
                                 # since ellipsis covers multiple dimensions in the end
                                 # the corresponding subscript is not changed
@@ -60,7 +60,7 @@ class LayoutChangeForEinsumTests(unittest.TestCase):
                                 # and additional transpose to NCHW will be inserted
                                 'einsum_d': {'shape': np.array([2, 12, 7, 8, 10])},
                             }, nodes_with_edges_only=True)
-        graph.graph['fw'] = 'tf'
+        graph.graph['layout'] = 'NHWC'
 
         graph_ref = build_graph(nodes_attributes,
                                 [*connect('placeholder_3', '0:transpose_1'),
@@ -75,6 +75,49 @@ class LayoutChangeForEinsumTests(unittest.TestCase):
                                  'placeholder_2_d': {'shape': np.array([3, 8, 5, 7])},
                                  'einsum': {'equation': "abc,becd,bc...->ade..."},
                                  'einsum_d': {'shape': np.array([2, 12, 7, 8, 10])}
+                                 })
+
+        LayoutChangeForEinsum().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_no_adjustment_layout_einsum(self):
+        graph = build_graph(nodes_attributes,
+                            [*connect('placeholder_1', '0:einsum'),
+                             *connect('placeholder_2', '1:einsum'),
+                             *connect('placeholder_3', '2:einsum'),
+                             *connect('einsum', 'output')],
+                            {  # this input stays as is since it is of a rank equal to 3
+                                'placeholder_1_d': {'shape': np.array([2, 3, 5])},
+                                # [3, 5, 7, 8] - NHWC
+                                # this input does not require additional transpose
+                                # since the corresponding layout is correct
+                                'placeholder_2_d': {'shape': np.array([3, 5, 7, 8])},
+                                # [3, 8, 10, 12] - NHWC
+                                # this input does not require additional transpose
+                                # since the corresponding layout is correct
+                                'placeholder_3_d': {'shape': np.array([3, 8, 10, 12])},
+                                # equation is still for NHWC layout
+                                'einsum': {'equation': "abc,bcde,bc...->ade...",
+                                           'correct_in_data_layout': [0, 1, 2],
+                                           'correct_out_data_layout': [0]},
+                                # [2, 7, 8, 10, 12] - NHWC
+                                # this output does not require additional transpose
+                                # since the corresponding layout is correct
+                                'einsum_d': {'shape': np.array([2, 7, 8, 10, 12])},
+                            }, nodes_with_edges_only=True)
+        graph.graph['layout'] = 'NHWC'
+
+        graph_ref = build_graph(nodes_attributes,
+                                [*connect('placeholder_1', '0:einsum'),
+                                 *connect('placeholder_2', '1:einsum'),
+                                 *connect('placeholder_3', '2:einsum'),
+                                 *connect('einsum', 'output')],
+                                {'placeholder_1_d': {'shape': np.array([2, 3, 5])},
+                                 'placeholder_2_d': {'shape': np.array([3, 5, 7, 8])},
+                                 'placeholder_3_d': {'shape': np.array([3, 8, 10, 12])},
+                                 'einsum': {'equation': "abc,bcde,bc...->ade..."},
+                                 'einsum_d': {'shape': np.array([2, 7, 8, 10, 12])}
                                  })
 
         LayoutChangeForEinsum().find_and_replace_pattern(graph)

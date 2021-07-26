@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <frontend_manager/place.hpp>
 #include <ngraph/env_util.hpp>
 #include <ngraph/except.hpp>
 
@@ -169,35 +170,35 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const
 //----------- InputModel ---------------------------
 std::vector<Place::Ptr> InputModel::get_inputs() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_inputs);
+    return {};
 }
 
 std::vector<Place::Ptr> InputModel::get_outputs() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_outputs);
+    return {};
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_tensor_name);
+    return nullptr;
 }
 
 Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name);
+    return nullptr;
 }
 
 Place::Ptr InputModel::get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                   int input_port_index)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_input_port);
+    return nullptr;
 }
 
 Place::Ptr
     InputModel::get_place_by_operation_name_and_output_port(const std::string& operation_name,
                                                             int output_port_index)
 {
-    FRONT_END_NOT_IMPLEMENTED(get_place_by_operation_name_and_output_port);
+    return nullptr;
 }
 
 void InputModel::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
@@ -304,82 +305,88 @@ std::vector<std::string> Place::get_names() const
 
 std::vector<Place::Ptr> Place::get_consuming_operations() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
+    return {};
 }
 
 std::vector<Place::Ptr> Place::get_consuming_operations(int output_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_consuming_operations);
+    return {};
+}
+
+std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName,
+                                                        int outputPortIndex) const
+{
+    return {};
 }
 
 Place::Ptr Place::get_target_tensor() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+    return nullptr;
 }
 
 Place::Ptr Place::get_target_tensor(int output_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_target_tensor);
+    return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
+    return nullptr;
 }
 
 Place::Ptr Place::get_producing_operation(int input_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_producing_operation);
+    return nullptr;
 }
 
 Place::Ptr Place::get_producing_port() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_producing_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(int input_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& input_name) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_input_port(const std::string& input_name, int input_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_input_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(int output_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& output_name) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 Place::Ptr Place::get_output_port(const std::string& output_name, int output_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_output_port);
+    return nullptr;
 }
 
 std::vector<Place::Ptr> Place::get_consuming_ports() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_consuming_ports);
+    return {};
 }
 
 bool Place::is_input() const
@@ -404,12 +411,47 @@ bool Place::is_equal_data(Ptr another) const
 
 Place::Ptr Place::get_source_tensor() const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
+    return nullptr;
 }
 
 Place::Ptr Place::get_source_tensor(int input_port_index) const
 {
-    FRONT_END_NOT_IMPLEMENTED(get_source_tensor);
+    return nullptr;
+}
+
+Place::Ptr Place::get_source_tensor(const std::string& inputName, int inputPortIndex) const
+{
+    return nullptr;
+}
+
+Place::Ptr Place::get_source_tensor(const std::string& inputName) const
+{
+    return nullptr;
+}
+
+Place::Ptr Place::get_target_tensor(const std::string& outputPortName) const
+{
+    return nullptr;
+}
+
+Place::Ptr Place::get_target_tensor(const std::string& outputPortName, int outputPortIndex) const
+{
+    return nullptr;
+}
+
+Place::Ptr Place::get_producing_operation(const std::string& inputName) const
+{
+    return nullptr;
+}
+
+Place::Ptr Place::get_producing_operation(const std::string& inputName, int inputPortIndex) const
+{
+    return nullptr;
+}
+
+std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const
+{
+    return {};
 }
 
 constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<std::istream>>::type_info;
