@@ -367,8 +367,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
         auto& param = params[i];
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
-        auto& shape = param->get_partial_shape();
-        shape = inputShapes.at(param->get_friendly_name());
+        param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
         parameter_replaced = true;
     }
     if (parameter_replaced)
