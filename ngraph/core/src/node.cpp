@@ -210,7 +210,7 @@ descriptor::Output& Node::get_output_descriptor(size_t position)
             make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
         m_outputs.emplace_back(this, i, tensor_descriptor);
     }
-    return m_outputs.at(position);
+    return m_outputs[position];
 }
 
 void Node::set_argument(size_t position, const Output<Node>& argument)
