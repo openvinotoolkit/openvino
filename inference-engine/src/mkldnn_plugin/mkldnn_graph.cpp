@@ -313,33 +313,34 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
-
+    // std::cout << "1" << std::endl;
     SortTopologically();
     InitNodes();
-
+    // std::cout << "2" << std::endl;
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
-
+    // std::cout << "3" << std::endl;
     InitDescriptors();
     RemoveDroppedEdges();
-
+    // std::cout << "4" << std::endl;
     InitOptimalPrimitiveDescriptors();
-
+    // std::cout << "5" << std::endl;
     InitEdges();
-
+    // std::cout << "6" << std::endl;
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
-
+    // std::cout << "7" << std::endl;
     Allocate();
-
+    // std::cout << "8" << std::endl;
     CreatePrimitives();
-
+    // std::cout << "9" << std::endl;
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
     }
 #endif
     ExecuteConstantNodesOnly();
+    // std::cout << "10" << std::endl;
 }
 
 void MKLDNNGraph::InitNodes() {
@@ -484,7 +485,7 @@ void MKLDNNGraph::InitEdges() {
 
             if (insertReorder) {
                 std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                             MKLDNNExtensionUtils::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                             MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
                                              edge->getChild()->getName();
                 std::string layerName = basicLayerName;
                 int idx = 0;
@@ -593,7 +594,7 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            int64_t e_size = edge->getDesc().getMemSize();  // size in bytes (from the beginning of data to the last element)
+            int64_t e_size = edge->getDesc().getCurrentSize();  // size in bytes (from the beginning of data to the last element)
             if (e_size == MemoryDesc::UNDEFINED_SIZE) {
                 IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
@@ -690,8 +691,6 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
 
     auto input = inputNodesMap.find(name);
     if (input != inputNodesMap.end()) {
-        MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getShape();
-
         const void *ext_data_ptr = in->cbuffer();
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
@@ -707,7 +706,8 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         // todo: make sure 'name' exists in this map...
         if (_normalizePreprocMap.find(name) != _normalizePreprocMap.end()) {
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                _normalizePreprocMap[name].NormalizeImage(outDims, reinterpret_cast<float *>(inter_data_ptr),
+                _normalizePreprocMap[name].NormalizeImage(input->second->getChildEdgeAt(0)->getShape(),
+                                                          reinterpret_cast<float *>(inter_data_ptr),
                                                           in->getTensorDesc().getLayout());
             } else {
                 IE_THROW() << "Mean image of type " << in->getTensorDesc().getPrecision().name() << " is unsupported";

@@ -244,13 +244,13 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
         std::swap(weightDims[withGroups + 0], weightDims[withGroups + 1]);
         internalBlobs.push_back(createWeiBlobAsIO(weightDims));
         auto format = getParentEdgeAt(0)->getShape().getRank() == 5 ? dnnl::memory::format_tag::ndhwc : dnnl::memory::format_tag::nhwc;
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType, format);
-        MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, format);
+        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, format);
+        MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, format);
         createDescriptor({&in_candidate}, {&out_candidate});
     } else {
         for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
-            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType, format);
-            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, format);
+            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, format);
+            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, format);
             createDescriptor({&in_candidate}, {&out_candidate});
         }
     }
@@ -403,7 +403,7 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<const MemoryDes
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx == 2) {
         auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticMklDims(), dataType,
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(), dataType,
                                              MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(2)->getShape().getRank()));
     }
 
@@ -433,7 +433,7 @@ InferenceEngine::Precision MKLDNNDeconvolutionNode::getRuntimePrecision() const 
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNDeconvolutionNode, Deconvolution);

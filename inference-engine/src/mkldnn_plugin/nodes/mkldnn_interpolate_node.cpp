@@ -1916,16 +1916,16 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     auto axesType = MKLDNNExtensionUtils::IEPrecisionToDataType(Precision::I32);
 
     auto pushDesc = [&](memory::format_tag dataFormat, impl_desc_type implDetail) {
-        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(),
+        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(),
                                                                                    inputDataType, dataFormat);
-        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticMklDims(),
+        config.inConfs[TARGET_SHAPE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(TARGET_SHAPE_ID)->getShape().getStaticDims(),
                                                                              targetShapeType, memory::format_tag::x);
-        config.inConfs[SCALES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticMklDims(), scalesType,
+        config.inConfs[SCALES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(SCALES_ID)->getShape().getStaticDims(), scalesType,
                                                                        memory::format_tag::x);
         if (isAxesSpecified)
-            config.inConfs[AXES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticMklDims(), axesType,
+            config.inConfs[AXES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES_ID)->getShape().getStaticDims(), axesType,
                                                                          memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, dataFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, dataFormat);
         supportedPrimitiveDescriptors.push_back({config, implDetail});
     };
 
@@ -2011,10 +2011,10 @@ void MKLDNNInterpolateNode::createPrimitive() {
     jcp.ID = srcDimPad5d[2];
     jcp.spatial_dim_size = spatialDimSize;
 
-    if (getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp)) {
+    if (getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
         jcp.layout = InterpolateLayoutType::planar;
-    } else if (getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c) ||
-               getChildEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c)) {
+    } else if (getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
+               getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c)) {
         jcp.layout = InterpolateLayoutType::block;
     } else {
         jcp.layout = InterpolateLayoutType::by_channel;

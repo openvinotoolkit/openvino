@@ -101,8 +101,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         outputDataType = memory::data_type::bf16;
     }
 
-    const auto inDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
-    const auto outDims = getChildEdgeAt(0)->getShape().getStaticMklDims();
+    const auto inDims = getParentEdgeAt(0)->getShape().getStaticDims();
+    const auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
 
     if (inDims.size() == 3) {
         weightsDims = InferenceEngine::SizeVector({static_cast<size_t>(outDims[2]), static_cast<size_t>(inDims[2])});
@@ -114,8 +114,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     biasesDims.push_back(weightsDims[0]);
 
     for (auto format : getAvailableFormatsForDims(getParentEdgeAt(0)->getShape())) {
-        auto in_candidate = mkldnn::memory::desc(inDims, inputDataType, format);
-        auto out_candidate = mkldnn::memory::desc(outDims, outputDataType, mkldnn::memory::format_tag::any);
+        auto in_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(inDims), inputDataType, format);
+        auto out_candidate = mkldnn::memory::desc(MKLDNNExtensionUtils::convertToDnnlDims(outDims), outputDataType, mkldnn::memory::format_tag::any);
 
         createDescriptorInternal(in_candidate, out_candidate);
     }
@@ -269,7 +269,8 @@ void MKLDNNFullyConnectedNode::createDescriptorInternal(const mkldnn::memory::de
     mkldnn::memory::desc wgh_candidate(MKLDNNDims(weightsDims), wdt, mkldnn::memory::format_tag::any);
 
     if (withBiases) {
-        mkldnn::memory::desc bias_candidate(inputShapes[BIAS_ID].getStaticMklDims(), bdt, mkldnn::memory::format_tag::any);
+        mkldnn::memory::desc bias_candidate(MKLDNNExtensionUtils::convertToDnnlDims(inputShapes[BIAS_ID].getStaticDims()), bdt,
+                                            mkldnn::memory::format_tag::any);
         MKLDNNDescriptor desc(std::shared_ptr<inner_product_forward::desc>(
                 new inner_product_forward::desc(prop_kind::forward_scoring, in_candidate, wgh_candidate,
                                                 bias_candidate, out_candidate)));
@@ -291,7 +292,7 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn
     auto desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1)) : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
     if (getParentEdgeAt(idx)->getShape().getRank() == 3) {
-        desc = MKLDNNMemoryDesc(getParentEdgeAt(idx)->getShape().getStaticMklDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+        desc = MKLDNNMemoryDesc(getParentEdgeAt(idx)->getShape().getStaticDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                 MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
     }
     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
@@ -300,7 +301,7 @@ std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNFullyConnectedNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
     if (getChildEdgeAt(idx)->getShape().getRank() == 3) {
-        desc = MKLDNNMemoryDesc(getChildEdgeAt(idx)->getShape().getStaticMklDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+        desc = MKLDNNMemoryDesc(getChildEdgeAt(idx)->getShape().getStaticDims(), MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
                                 MKLDNNMemory::GetPlainFormatByRank(getChildEdgeAt(idx)->getShape().getRank()));
     }
     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::move(desc));
@@ -317,7 +318,7 @@ InferenceEngine::Precision MKLDNNFullyConnectedNode::getRuntimePrecision() const
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNFullyConnectedNode, FullyConnected);

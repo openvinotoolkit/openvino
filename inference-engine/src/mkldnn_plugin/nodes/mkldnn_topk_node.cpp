@@ -86,12 +86,12 @@ void MKLDNNTopKNode::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
-    outDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
+    outDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
     for (int i = 1; i < getOriginalOutputsNumber(); ++i)
-        outDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
+        outDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
-                          {GeneralLayout::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::I32}},
                          outDataConf,
                          impl_desc_type::ref_any);
 }

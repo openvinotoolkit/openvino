@@ -121,19 +121,19 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 
-    std::vector<GeneralLayout> supportedTypes;
+    std::vector<LayoutType> supportedTypes;
     if (nDims > 2) {
         auto canUseBlocked = [=](const size_t block) {
             return srcDims[1] % block == 0 && (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
         };
 
-        supportedTypes.push_back(GeneralLayout::nspc);
+        supportedTypes.push_back(LayoutType::nspc);
         if (canUseBlocked(8lu))
-            supportedTypes.push_back(GeneralLayout::nCsp8c);
+            supportedTypes.push_back(LayoutType::nCsp8c);
         if (canUseBlocked(16lu))
-            supportedTypes.push_back(GeneralLayout::nCsp16c);
+            supportedTypes.push_back(LayoutType::nCsp16c);
     }
-    supportedTypes.push_back(GeneralLayout::ncsp);
+    supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
@@ -159,8 +159,8 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
 
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
-    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c) ||
-                           getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c);
+    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                           getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
     const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
@@ -219,7 +219,7 @@ void MKLDNNSpaceToDepthNode::createPrimitive() {
         }
 
         reshapeAndSetPermOrder(orderShiftForBlocks, orderShiftForDims, firstSpatialOrder, dstBlockedDims);
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc)) {
+    } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
         srcDims.push_back(srcDims[1]);
         dstDims.push_back(dstDims[1]);
         srcDims.erase(srcDims.begin() + 1);

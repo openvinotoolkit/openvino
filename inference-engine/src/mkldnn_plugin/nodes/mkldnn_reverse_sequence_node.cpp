@@ -83,9 +83,9 @@ void MKLDNNReverseSequenceNode::initSupportedPrimitiveDescriptors() {
     if (lengthsPrecision != Precision::I32 && lengthsPrecision != Precision::FP32)
         lengthsPrecision = Precision::I32;
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
-                          {GeneralLayout::ncsp, lengthsPrecision}},
-                         {{GeneralLayout::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, lengthsPrecision}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 

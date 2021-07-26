@@ -59,13 +59,13 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
+    inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
     for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{GeneralLayout::ncsp, Precision::I32},
-                          {GeneralLayout::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 

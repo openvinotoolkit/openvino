@@ -12,19 +12,17 @@
 namespace MKLDNNPlugin {
 
 enum MemoryDescType {
-    Undef,
     Blocked,
     Mkldnn
 };
 
-enum class GeneralLayout : unsigned {
-    nspc,       // general per channels format
-    ncsp,        // general planar
-    nCsp8c,     // general channels blocked by 8
+enum class LayoutType : unsigned {
+    nspc,      // general per channels format
+    ncsp,      // general planar
+    nCsp8c,    // general channels blocked by 8
     nCsp16c    // general channels blocked by 16
 };
 
-// TODO [DS]: Seems like should be pure class
 class MemoryDesc {
 public:
     MemoryDescType getType() const {
@@ -43,21 +41,20 @@ public:
 
     virtual std::unique_ptr<MemoryDesc> clone() const = 0;
 
-    // InitTensorsAreEqual
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
     // Checks that all dimensions, offsets, strides, etc are defined (!= UNDEFINED_DIM)
     virtual bool isDefined() const = 0;
 
-    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
-    virtual size_t getOffset(size_t elemNumber) const = 0;
-
-    virtual bool checkGeneralLayout(GeneralLayout layoutType) const = 0;
+    virtual bool hasLayoutType(LayoutType layoutType) const = 0;
 
     virtual std::string serializeFormat() const = 0;
 
-    // Get minimal required memory size in bytes. Can be undefined
-    size_t getMemSize() const {
+    /**
+     * @brief Get minimal required memory size in bytes.
+     * @return return minimal required memory size in bytes or UNDEFINED_SIZE in case undefined descriptor
+     */
+    size_t getCurrentSize() const {
         size_t retVal = UNDEFINED_SIZE;
         if (isDefined()) {
             retVal = getMemSizeImp();
@@ -85,9 +82,9 @@ public:
         return casted;
     }
 
-protected:
-    MemoryDesc() : shape(std::vector<size_t>()), type(Undef) {}
+    static constexpr size_t UNDEFINED_SIZE = std::numeric_limits<size_t>::max();
 
+protected:
     MemoryDesc(const Shape& shape, MemoryDescType type)
             : shape(shape), type(type) {}
 
@@ -96,12 +93,15 @@ protected:
 
     virtual size_t getMemSizeImp() const = 0;
 
-public:
-    static constexpr size_t UNDEFINED_SIZE = std::numeric_limits<size_t>::max();
+    // Get offset to the n'th element. Returns physical index of the element by the logical one considering padding, layout, blocking etc.
+    virtual size_t getElementOffset(size_t elemNumber) const = 0;
 
-protected:
     MemoryDescType type;
     Shape shape;
+
+    friend class BlobDumper;
+    // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
+    friend class MKLDNNSplitNode;
 };
 
 using MemoryDescPtr = std::unique_ptr<MemoryDesc>;

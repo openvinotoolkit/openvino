@@ -21,6 +21,8 @@ namespace MKLDNNPlugin {
 class BlobDumper {
     MKLDNNMemoryPtr memory;
 
+    void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const;
+
 public:
     BlobDumper() = default;
     BlobDumper(const MKLDNNMemoryDesc &desc) {

@@ -48,6 +48,8 @@ public:
     const MemoryDesc& getInput() { return *input; }
     const MemoryDesc& getOutput() { return *output; }
 
+    static std::string getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc);
+
 private:
     std::unique_ptr<MemoryDesc> input;
     std::unique_ptr<MemoryDesc> output;

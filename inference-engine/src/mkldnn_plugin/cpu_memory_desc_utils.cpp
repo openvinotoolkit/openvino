@@ -349,7 +349,7 @@ BlockedMemoryDesc MemoryDescUtils::convertToBlockedDescriptor(const MemoryDesc &
 
 MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const MKLDNNMemoryDesc& desc) {
     if (desc.getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(desc);
+        IE_THROW() << "applyUndefinedOffset doesn't support not dnnl_blocked MKLDNNMemoryDesc";
 
     mkldnn::memory::desc retDesc = desc;
     retDesc.data.offset0 = Shape::UNDEFINED_DIM;
@@ -365,7 +365,7 @@ MemoryDescPtr MemoryDescUtils::applyUndefinedOffset(const BlockedMemoryDesc &des
     size_t offsetPadding = Shape::UNDEFINED_DIM;
 
     return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(desc.getPrecision(), desc.getShape().getDims(), desc.getBlockDims(),
-                                                  desc.getOrder(), offsetPadding, offsetPaddingToData, strides);
+                                                        desc.getOrder(), offsetPadding, offsetPaddingToData, strides);
 }
 
 MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
@@ -378,8 +378,9 @@ MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
         mkldnn::memory::desc retDesc = *mkldnnDesc;
         retDesc.data.offset0 = 0;
         return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(retDesc);
+    } else {
+        IE_THROW() << "resetOffset support Blocked and Mkldnn descpriptors only";
     }
-    return desc->clone();
 }
 
 InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {

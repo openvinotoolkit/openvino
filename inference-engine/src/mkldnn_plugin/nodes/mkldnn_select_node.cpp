@@ -129,10 +129,10 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
     if (inputPrecisionSize != 1 && inputPrecisionSize != 2 && inputPrecisionSize != 4 && inputPrecisionSize != 8)
         IE_THROW() << errorPrefix << " has unsupported precision: " << inputPrecision << " on 'Then' and 'Else' inputs";
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, conditionPrecision},
-                          {GeneralLayout::ncsp, inputPrecision},
-                          {GeneralLayout::ncsp, inputPrecision}},
-                         {{GeneralLayout::ncsp, inputPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, conditionPrecision},
+                          {LayoutType::ncsp, inputPrecision},
+                          {LayoutType::ncsp, inputPrecision}},
+                         {{LayoutType::ncsp, inputPrecision}},
                          impl_desc_type::ref_any);
 }
 

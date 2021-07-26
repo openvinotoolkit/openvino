@@ -1091,23 +1091,23 @@ MKLDNNFakeQuantizeNode::MKLDNNFakeQuantizeNode(const std::shared_ptr<ngraph::Nod
     }
 }
 
-std::vector<GeneralLayout> MKLDNNFakeQuantizeNode::getDataFormats() const {
+std::vector<LayoutType> MKLDNNFakeQuantizeNode::getDataFormats() const {
     // Special case for first FQ in the network
     if (getParentEdgesAtPort(0)[0]->getShape().getStaticDims()[getAxis()] == 3) {
-        return { GeneralLayout::ncsp };
+        return { LayoutType::ncsp };
     } else {
         if (isBinarization()) {
-            return { GeneralLayout::nspc };
+            return { LayoutType::nspc };
         } else {
             if (one_of(getParentEdgesAtPort(0)[0]->getShape().getRank(), 4, 5)) {
                 if (getAxis() == 1) {
-                    auto blkFormat = mayiuse(cpu::x64::avx512_common) ? GeneralLayout::nCsp16c : GeneralLayout::nCsp8c;
-                    return { blkFormat, GeneralLayout::nspc, GeneralLayout::ncsp };
+                    auto blkFormat = mayiuse(cpu::x64::avx512_common) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+                    return { blkFormat, LayoutType::nspc, LayoutType::ncsp };
                 } else {
-                    return { GeneralLayout::ncsp };
+                    return { LayoutType::ncsp };
                 }
             } else {
-                return { GeneralLayout::ncsp };
+                return { LayoutType::ncsp };
             }
         }
     }
@@ -1194,7 +1194,7 @@ void MKLDNNFakeQuantizeNode::initSupportedPrimitiveDescriptors() {
                 auto descCreator = BlockedDescCreator::getCommonCreators().at(fmt);
                 dataConfig.desc = descCreator->createUniqueDesc(getInputPrecision(), getParentEdgeAt(i)->getShape().getStaticDims());
             } else {
-                auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+                auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
                 dataConfig.desc = descCreator->createUniqueDesc(Precision::FP32, getParentEdgeAt(i)->getShape().getStaticDims());
             }
             config.inConfs.push_back(dataConfig);
@@ -1227,7 +1227,7 @@ void MKLDNNFakeQuantizeNode::createPrimitive() {
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     jqp.d_str = dstDesc.getStrides();
 
-    jqp.is_planar = srcDesc.checkGeneralLayout(GeneralLayout::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
+    jqp.is_planar = srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5);
 
     jqp.op_type = getAlgorithm();
 
@@ -1462,8 +1462,8 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     auto& srcDesc = srcMemory->GetDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
 
-    bool is_blk_format = !srcDesc.checkGeneralLayout(GeneralLayout::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
-    int blk_size = (srcDesc.checkGeneralLayout(GeneralLayout::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
+    bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5);
+    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3, 4, 5))
                     ? 1 : mayiuse(cpu::x64::avx512_common) ? 16 : 8;
 
     auto src_type_size = jqp.src_prc.size();
@@ -1475,7 +1475,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
         s_str[1] /= blk_size;
     }
 
-    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
@@ -1490,7 +1490,7 @@ void MKLDNNFakeQuantizeNode::executeQuantization() {
     const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
-    if (srcDesc.checkGeneralLayout(GeneralLayout::ncsp) && srcDesc.getShape().getRank() == 3) {
+    if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
         parallel_nd(N, CB, D, [&](int n, int cb, int d) {
             auto arg = jit_quantize_call_args();
 

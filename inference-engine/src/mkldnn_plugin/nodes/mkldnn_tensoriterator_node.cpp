@@ -26,7 +26,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
         const auto prec = InferenceEngine::details::convertPrecision(op->get_input_element_type(i));
 
         PortConfig data_conf {};
-        auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         data_conf.desc = descCreator->createUniqueDesc(prec, dims);
         config.inConfs.push_back(data_conf);
     }
@@ -36,7 +36,7 @@ static NodeConfig make_plain_config(const std::shared_ptr<ngraph::Node>& op) {
         const auto prec = InferenceEngine::details::convertPrecision(op->get_output_element_type(i));
 
         PortConfig data_conf {};
-        auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         data_conf.desc = descCreator->createUniqueDesc(prec, dims);
         config.outConfs.push_back(data_conf);
     }

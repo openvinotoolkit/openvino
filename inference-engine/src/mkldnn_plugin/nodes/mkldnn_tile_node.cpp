@@ -86,7 +86,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " has unsupported input precision: " << precision;
     }
 
-    auto descCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
+    auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
 
     NodeConfig config;
     config.dynBatchSupport = true;
@@ -133,13 +133,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c)) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c)) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp16c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */

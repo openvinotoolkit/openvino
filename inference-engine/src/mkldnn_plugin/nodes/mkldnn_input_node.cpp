@@ -246,7 +246,7 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
 }
 
 void MKLDNNInputNode::cloneBlobIfRequired() {
-    MKLDNNDims dims(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
+    std::vector<size_t> dims(constOp->get_shape().empty() ? ngraph::Shape(1, 1) : constOp->get_shape());
     const auto prec = convertPrecision(constOp->get_element_type());
     const size_t size = dims.size();
     MKLDNNMemoryDesc memDesc(dims, MKLDNNExtensionUtils::IEPrecisionToDataType(prec));
@@ -397,15 +397,15 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
             precision = Precision::FP32;
         }
 
-        outPortConfs.push_back({GeneralLayout::ncsp, precision});
+        outPortConfs.push_back({LayoutType::ncsp, precision});
         if (!getParentEdges().empty()) {
-            inPortConfs.push_back({GeneralLayout::ncsp, precision, true});
+            inPortConfs.push_back({LayoutType::ncsp, precision, true});
         }
     } else if (getType() == Output) {
         precision = getOriginalInputPrecisionAtPort(0);
         if (precision == Precision::U16) precision = Precision::FP32;
 
-        inPortConfs.push_back({GeneralLayout::ncsp, precision});
+        inPortConfs.push_back({LayoutType::ncsp, precision});
     }
 
     addSupportedPrimDesc(inPortConfs,

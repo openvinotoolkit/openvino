@@ -42,10 +42,10 @@ namespace MKLDNNPlugin {
 class MKLDNNMemoryDesc : public MemoryDesc {
 public:
     /** Construct a tensor desc with plain layout format (like ND C array) */
-    MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType);
+    MKLDNNMemoryDesc(const std::vector<size_t>& _dims, mkldnn::memory::data_type dataType);
 
     /** Construct a tensor desc with specified layout format tag. Any and Undef is not supported */
-    MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
+    MKLDNNMemoryDesc(const std::vector<size_t>& _dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc);
 
@@ -59,9 +59,6 @@ public:
     mkldnn::memory::data_type getDataType() const {
         return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
     }
-
-    size_t GetElementSize() const;
-    size_t getOffset(size_t elemNumber) const override;
 
     MKLDNNDims getDims() const {
         return MKLDNNDims(desc.data.dims, desc.data.ndims);
@@ -87,7 +84,7 @@ public:
         return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(*this);
     }
 
-    bool checkGeneralLayout(GeneralLayout layoutType) const override;
+    bool hasLayoutType(LayoutType layoutType) const override;
 
     std::string serializeFormat() const override;
 
@@ -102,6 +99,7 @@ public:
     bool isCompatible(const MKLDNNMemoryDesc& rhs) const;
 
 private:
+    size_t getElementOffset(size_t elemNumber) const override;
     size_t getMemSizeImp() const override;
     bool isPlainFormat() const;
     bool isBlockedCFormat(size_t blk_size = UNREACHABLE_DIM) const;

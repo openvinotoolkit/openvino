@@ -33,21 +33,44 @@ public:
         initDims();
     }
 
-    // TODO [DS]: Added for migration period. Should be deleted once we will get rid of MKLDNNDims.
-    explicit Shape(const MKLDNNDims& shape) {
-        minDims = shape.ToSizeVector();
-        maxDims = shape.ToSizeVector();
-        type = ShapeType::Static;
-
-        initDims();
-    }
-
+    /**
+     * @brief 
+     * for static shape
+     * maxDims = [2, 3, 4, 5]
+     * minDims = [2, 3, 4, 5]
+     * dims = [2, 3, 4, 5]
+     * @return return lower bound of shape = [2, 3, 4, 5]
+     * for dynamic shape
+     * maxDims = [6, 6, 6, 6]
+     * minDims = [1, 1, 1, 1]
+     * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
+     * @return return lower bound of shape = [1, 1, 1, 1]
+     */
     const std::vector<size_t>& getMinDims() const {
         return minDims;
     }
+
+    /**
+     * @brief 
+     * for static shape
+     * maxDims = [2, 3, 4, 5]
+     * minDims = [2, 3, 4, 5]
+     * dims = [2, 3, 4, 5]
+     * @return return upper bound of shape = [2, 3, 4, 5]
+     * for dynamic shape
+     * maxDims = [6, 6, 6, 6]
+     * minDims = [1, 1, 1, 1]
+     * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
+     * @return return upper bound of shape = [6, 6, 6, 6]
+     */
     const std::vector<size_t>& getMaxDims() const {
         return maxDims;
     }
+
+    /**
+     * @brief return defined shape or throw exception for dynamic case 
+     * @return return shape
+     */
     const std::vector<size_t>& getStaticDims() const {
         if (type != ShapeType::Static) {
             IE_THROW() << "Cannot get dims for non static shape";
@@ -56,11 +79,19 @@ public:
         return minDims;
     }
 
-    mkldnn::memory::dims getStaticMklDims() const {
-        auto& staticDims = getStaticDims();
-        return mkldnn::memory::dims(staticDims.begin(), staticDims.end());
-    }
-
+    /**
+     * @brief 
+     * for static shape
+     * maxDims = [2, 3, 4, 5]
+     * minDims = [2, 3, 4, 5]
+     * dims = [2, 3, 4, 5]
+     * @return return defined shape = [2, 3, 4, 5]
+     * for dynamic shape
+     * maxDims = [2, 3, 6, 6]
+     * minDims = [2, 3, 1, 1]
+     * dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
+     * @return return shape with defined and undefined dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
+     */
     const std::vector<size_t>& getDims() const {
         return dims;
     }
@@ -95,11 +126,6 @@ public:
         return ngraph::PartialShape(nGraphDims);
     }
 
-    // TODO [DS]: Added for migration period. Should be deleted once we will get rid of MKLDNNDims.
-    operator MKLDNNDims() const {
-        return MKLDNNDims(getStaticDims());
-    }
-
     bool operator == (const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
     }
@@ -129,25 +155,5 @@ private:
     std::vector<size_t> maxDims;
     std::vector<size_t> dims;
 };
-
-inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
-    return (lhs == rhs && lhs != Shape::UNDEFINED_DIM && rhs != Shape::UNDEFINED_DIM);
-}
-
-inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
-    return (lhs == Shape::UNDEFINED_DIM || rhs == Shape::UNDEFINED_DIM || lhs == rhs);
-}
-
-inline bool isEqualOrUndefined(const std::vector<size_t> lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    for (size_t i = 0; i < lhs.size(); i++) {
-        if (i != skipAxis && !dimsEqualWeak(lhs[i], rhs[i]))
-            return false;
-    }
-
-    return true;
-}
 
 }  // namespace MKLDNNPlugin

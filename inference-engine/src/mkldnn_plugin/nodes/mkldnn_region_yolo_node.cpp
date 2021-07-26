@@ -291,8 +291,8 @@ void MKLDNNRegionYoloNode::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, input_prec}},
-                         {{GeneralLayout::ncsp, output_prec}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_prec}},
+                         {{LayoutType::ncsp, output_prec}},
                          impl_type);
 }
 

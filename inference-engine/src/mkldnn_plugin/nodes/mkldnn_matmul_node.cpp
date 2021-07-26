@@ -138,7 +138,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     config.dynBatchSupport = true;
 
-    auto createDataConfig = [](const mkldnn::memory::dims& dims, memory::data_type dataType) -> PortConfig {
+    auto createDataConfig = [](const std::vector<size_t>& dims, memory::data_type dataType) -> PortConfig {
         PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
@@ -146,9 +146,9 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
         return dataConfig;
     };
 
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType0));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape().getStaticMklDims(), inputDataType1));
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape().getStaticMklDims(), outputDataType));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType0));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape().getStaticDims(), inputDataType1));
+    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::gemm_any);
 }
@@ -290,7 +290,7 @@ int MKLDNNMatMulNode::getMaxBatch() {
 }
 
 InferenceEngine::Precision MKLDNNMatMulNode::getRuntimePrecision() const {
-    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
+    return getMaxPrecision(getInputPrecisions());
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatMulNode, MatMul);

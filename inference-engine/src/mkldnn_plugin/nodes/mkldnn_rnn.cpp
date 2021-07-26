@@ -260,19 +260,19 @@ void MKLDNNRNN::initCell(const std::shared_ptr<ngraph::Node>& op) {
     Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
+    std::vector<size_t> D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
-    if (in_data_dims != D_shape.ToSizeVector()
-        || in_h_state_dims != S_shape.ToSizeVector()
-        || out_h_state_dims != S_shape.ToSizeVector())
+    if (in_data_dims != D_shape
+        || in_h_state_dims != S_shape
+        || out_h_state_dims != S_shape)
         IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
 
     if (S == 2) {
         auto in_c_state_dims = op->get_input_shape(2);
         auto out_c_state_dims = op->get_output_shape(1);
 
-        if (in_c_state_dims != S_shape.ToSizeVector()
-            || out_c_state_dims != S_shape.ToSizeVector())
+        if (in_c_state_dims != S_shape
+            || out_c_state_dims != S_shape)
             IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
     }
 }
@@ -281,15 +281,15 @@ void MKLDNNRNN::fillCellDesc() {
     runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    MKLDNNDims S_4D_shape {L, D, N, SC};
+    std::vector<size_t> S_4D_shape {L, D, N, SC};
 
     // layer input plus states
     in_data_d.reserve(S + 1);
     out_data_d.reserve(S + 1);
 
     // Shapes and Attributes are correct. Can start internal stuff initialization.
-    in_data_d.emplace_back(MKLDNNDims{T, N, DC}, dataType, memory::format_tag::tnc);
-    out_data_d.emplace_back(MKLDNNDims{T, N, SC}, dataType, memory::format_tag::tnc);
+    in_data_d.emplace_back(std::vector<size_t>{T, N, DC}, dataType, memory::format_tag::tnc);
+    out_data_d.emplace_back(std::vector<size_t>{T, N, SC}, dataType, memory::format_tag::tnc);
 
     in_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
     out_data_d.emplace_back(S_4D_shape, dataType, memory::format_tag::ldnc);
@@ -299,16 +299,16 @@ void MKLDNNRNN::fillCellDesc() {
         out_data_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d   = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d   = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
     // Add 5th input
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
     // Expected shapes
-    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
+    std::vector<size_t> D_shape {N, DC}, S_shape {N, SC}, WShape {SC * G, DC}, RShape {SC * G, SC}, BShape {SC * Gb};
     std::vector<MKLDNNMemoryDesc> in_candidate, out_candidate;
     in_candidate.reserve(6);
 
@@ -386,24 +386,24 @@ void MKLDNNRNN::fillSeqDesc() {
     runtimePrecision = getOriginalInputPrecisionAtPort(0);
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    MKLDNNDims S_4D_shape {L, D, N, SC};
+    std::vector<size_t> S_4D_shape {L, D, N, SC};
 
     // Try to create descriptor and corresponding configuration
-    in_data_d.emplace_back(MKLDNNDims{in_data_dims},  dataType, memory::format_tag::tnc);
-    out_data_d.emplace_back(MKLDNNDims{out_data_dims}, dataType, memory::format_tag::tnc);
+    in_data_d.emplace_back(std::vector<size_t>{in_data_dims},  dataType, memory::format_tag::tnc);
+    out_data_d.emplace_back(std::vector<size_t>{out_data_dims}, dataType, memory::format_tag::tnc);
 
-    in_data_d.emplace_back(MKLDNNDims{S_4D_shape}, dataType, memory::format_tag::ldnc);
-    out_data_d.emplace_back(MKLDNNDims{S_4D_shape}, dataType, memory::format_tag::ldnc);
+    in_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, dataType, memory::format_tag::ldnc);
+    out_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, dataType, memory::format_tag::ldnc);
 
     if (haveCellState(cell_type)) {
-        in_data_d.emplace_back(MKLDNNDims{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
-        out_data_d.emplace_back(MKLDNNDims{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
+        in_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
+        out_data_d.emplace_back(std::vector<size_t>{S_4D_shape}, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    w_data_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
-    w_state_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_data_d  = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo);
+    w_state_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo);
 
-    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(MKLDNNDims{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
+    w_bias_d = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(std::vector<size_t>{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo);
 
     copyWeightsData();
 
@@ -411,17 +411,17 @@ void MKLDNNRNN::fillSeqDesc() {
     in_candidate.reserve(7);
 
     if (nativeOrder)
-        in_candidate.emplace_back(inputShapes[RNNInOutKind::Layer].getStaticMklDims(), dataType, memory::format_tag::tnc);
+        in_candidate.emplace_back(inputShapes[RNNInOutKind::Layer].getStaticDims(), dataType, memory::format_tag::tnc);
     else
-        in_candidate.emplace_back(MKLDNNDims{N, T, DC}, dataType, memory::format_tag::ntc);
+        in_candidate.emplace_back(std::vector<size_t>{N, T, DC}, dataType, memory::format_tag::ntc);
 
-    in_candidate.emplace_back(MKLDNNDims{N, D, SC}, dataType, memory::format_tag::ntc); // initial hidden state
+    in_candidate.emplace_back(std::vector<size_t>{N, D, SC}, dataType, memory::format_tag::ntc); // initial hidden state
     if (haveCellState(cell_type))
-        in_candidate.emplace_back(MKLDNNDims{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc); // initial cell state
-    in_candidate.emplace_back(MKLDNNDims{N}, memory::data_type::s32, memory::format_tag::x); // sequence lengths
-    in_candidate.emplace_back(MKLDNNDims{D, G * SC, DC}, memory::data_type::f32, memory::format_tag::ntc); // W
-    in_candidate.emplace_back(MKLDNNDims{D, G * SC, SC}, memory::data_type::f32, memory::format_tag::ntc); // R
-    in_candidate.emplace_back(MKLDNNDims{D, Gb * SC}, memory::data_type::f32, memory::format_tag::nc); // B
+        in_candidate.emplace_back(std::vector<size_t>{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc); // initial cell state
+    in_candidate.emplace_back(std::vector<size_t>{N}, memory::data_type::s32, memory::format_tag::x); // sequence lengths
+    in_candidate.emplace_back(std::vector<size_t>{D, G * SC, DC}, memory::data_type::f32, memory::format_tag::ntc); // W
+    in_candidate.emplace_back(std::vector<size_t>{D, G * SC, SC}, memory::data_type::f32, memory::format_tag::ntc); // R
+    in_candidate.emplace_back(std::vector<size_t>{D, Gb * SC}, memory::data_type::f32, memory::format_tag::nc); // B
 
     std::vector<MKLDNNMemoryDesc> out_candidate;
     out_candidate.reserve(3);
@@ -430,12 +430,12 @@ void MKLDNNRNN::fillSeqDesc() {
         out_candidate.emplace_back(out_data_d[RNNInOutKind::Layer]);
     } else {
         // TODO reorder ntc -> ndtc does not work, thus use tnc(plain) + transformation reshape-transpose-reshape for now.
-        out_candidate.emplace_back(MKLDNNDims{T, N, SC}, dataType, memory::format_tag::tnc);
+        out_candidate.emplace_back(std::vector<size_t>{T, N, SC}, dataType, memory::format_tag::tnc);
     }
 
-    out_candidate.emplace_back(MKLDNNDims{N, D, SC}, dataType, memory::format_tag::ntc);
+    out_candidate.emplace_back(std::vector<size_t>{N, D, SC}, dataType, memory::format_tag::ntc);
     if (haveCellState(cell_type))
-        out_candidate.emplace_back(MKLDNNDims{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc);
+        out_candidate.emplace_back(std::vector<size_t>{N, D, SC}, memory::data_type::f32, memory::format_tag::ntc);
 
     std::vector<const MemoryDesc*> in_candidate_ptrs(in_candidate.size());
     std::vector<const MemoryDesc*> out_candidate_ptrs(out_candidate.size());
@@ -716,7 +716,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
             args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
         }
     } else {
-        ptrdiff_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
+        size_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
                 args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();

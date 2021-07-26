@@ -67,32 +67,32 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{GeneralLayout::nspc, precision},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp}},
-                         {{GeneralLayout::nspc, precision}},
+    addSupportedPrimDesc({{LayoutType::nspc, precision},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp}},
+                         {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
-    addSupportedPrimDesc({{GeneralLayout::ncsp, precision},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp}},
-                         {{GeneralLayout::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] % 8 == 0) {
-        addSupportedPrimDesc({{GeneralLayout::nCsp8c, precision},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp}},
-                             {{GeneralLayout::nCsp8c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp}},
+                             {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] % 16 == 0) {
-        addSupportedPrimDesc({{GeneralLayout::nCsp16c, precision},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp}},
-                             {{GeneralLayout::nCsp16c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp}},
+                             {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
 }
@@ -112,15 +112,15 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const bool blocked = getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c) ||
-                         getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c);
+    const bool blocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                         getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D  = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc)) {
+    if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -173,7 +173,7 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
-            if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc)) {
+            if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }

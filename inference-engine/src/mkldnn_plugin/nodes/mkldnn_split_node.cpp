@@ -106,11 +106,11 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     }
 
     //Set plain and tailC formats
-    std::vector<GeneralLayout> tdCreatorTypes{ GeneralLayout::ncsp, GeneralLayout::nspc };
+    std::vector<LayoutType> tdCreatorTypes{ LayoutType::ncsp, LayoutType::nspc };
 
     //Support channel blocked format
     if (srcShape.getRank() > 2) {
-        for (auto item : { std::make_pair(8lu, GeneralLayout::nCsp8c), std::make_pair(16lu, GeneralLayout::nCsp16c) }) {
+        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
             SizeVector blkDims = srcShape.getStaticDims();
             if (blkDims[channelsPos] % item.first)
                 continue;
@@ -157,10 +157,10 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
 
-        if (itr->first == GeneralLayout::ncsp) {
+        if (itr->first == LayoutType::ncsp) {
             // at least the plain layout can be optimized inplace.
             pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
-        } else if (itr->first == GeneralLayout::nCsp8c || itr->first == GeneralLayout::nCsp16c) {
+        } else if (itr->first == LayoutType::nCsp8c || itr->first == LayoutType::nCsp16c) {
             if (axis < 2) {
                 pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
             }
@@ -210,7 +210,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(INPUTS_NUM);
         config.inConfs[0].inPlace = -1;
         config.inConfs[0].constant = false;
-        config.inConfs[0].desc = creatorsMap.at(GeneralLayout::nspc)->createUniqueDesc(inpPrecision, srcShape.getStaticDims());
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createUniqueDesc(inpPrecision, srcShape.getStaticDims());
         config.inConfs[1].inPlace = -1;
         config.inConfs[1].constant = true;
         config.inConfs[1].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(axisPrecision, SizeVector{1});
@@ -223,7 +223,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < outputShapes.size(); i++) {
             config.outConfs[i].inPlace = -1;
             config.outConfs[i].constant = false;
-            config.outConfs[i].desc = creatorsMap.at(GeneralLayout::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i].getStaticDims());
+            config.outConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createUniqueDesc(inpPrecision, outputShapes[i].getStaticDims());
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
@@ -243,11 +243,11 @@ void MKLDNNSplitNode::createPrimitive() {
     auto& memDesc = getParentEdgeAt(0)->getMemoryPtr()->GetDesc();
 
     canUseOptimizedNspc2Ncsp = false;
-    if (axis == 1 && one_of(memDesc.getShape().getRank(), 4, 5) && memDesc.checkGeneralLayout(GeneralLayout::nspc)) {
+    if (axis == 1 && one_of(memDesc.getShape().getRank(), 4, 5) && memDesc.hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < getChildEdges().size(); i++) {
             auto& childMemDesc = getChildEdgeAt(i)->getMemoryPtr()->GetDesc();
-            if (!childMemDesc.checkGeneralLayout(GeneralLayout::ncsp))
+            if (!childMemDesc.hasLayoutType(LayoutType::ncsp))
                 canUseOptimizedNspc2Ncsp = false;
         }
     }
@@ -390,7 +390,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
     if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
         for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
             auto& pd = supportedPrimitiveDescriptors[i];
-            if (pd.getConfig().inConfs[0].desc->checkGeneralLayout(GeneralLayout::ncsp) &&
+            if (pd.getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp) &&
                 impl_desc_type::ref == pd.getImplementationType()) {
                     selectPrimitiveDescriptorByIndex(static_cast<int>(i));
                 return;
@@ -562,7 +562,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
         }
-        auto srcPtr = srcData + srcMem.GetDesc().getOffset(sIdx) * dataSize;
+        auto srcPtr = srcData + srcMem.GetDesc().getElementOffset(sIdx) * dataSize;
 
         const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;

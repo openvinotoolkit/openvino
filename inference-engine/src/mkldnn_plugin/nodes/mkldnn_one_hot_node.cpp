@@ -89,11 +89,11 @@ void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
     }
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, input_precision},
-                          {GeneralLayout::ncsp, input_precision},
-                          {GeneralLayout::ncsp, output_precision},
-                          {GeneralLayout::ncsp, output_precision}},
-                         {{GeneralLayout::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, output_precision},
+                          {LayoutType::ncsp, output_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 

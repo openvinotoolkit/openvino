@@ -16,7 +16,7 @@ class BlockedDescCreator {
 public:
     typedef std::shared_ptr<BlockedDescCreator> CreatorPtr;
     typedef std::shared_ptr<const BlockedDescCreator> CreatorConstPtr;
-    typedef std::map<GeneralLayout, CreatorConstPtr> CreatorsMap;
+    typedef std::map<LayoutType, CreatorConstPtr> CreatorsMap;
     typedef std::function<bool(const CreatorsMap::value_type&)> Predicate;
 
 public:
@@ -24,7 +24,7 @@ public:
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap &map, unsigned rank);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<GeneralLayout>& supportedTypes);
+    makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes);
     static std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
     makeFilteredRange(const CreatorsMap& map, Predicate predicate);
     virtual BlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const = 0;

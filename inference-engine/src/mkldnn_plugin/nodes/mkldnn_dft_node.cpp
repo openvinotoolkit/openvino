@@ -93,12 +93,12 @@ void MKLDNNDFTNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators({{GeneralLayout::ncsp, Precision::FP32},
-                                                       {GeneralLayout::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
+                                                       {LayoutType::ncsp, Precision::I32}});
     if (getOriginalInputsNumber() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({GeneralLayout::ncsp,  Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
 
-    addSupportedPrimDesc(inDataConfigurators, {{GeneralLayout::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
 }
 
 namespace {
