@@ -68,9 +68,9 @@ TEST(MemDescTest, isPlainCheck) {
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blckd_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
 
-    ASSERT_TRUE(MKLDNNMemoryDesc(plain_tdesc).checkGeneralLayout(GeneralLayout::ncsp));
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).checkGeneralLayout(GeneralLayout::ncsp));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).checkGeneralLayout(GeneralLayout::ncsp));
+    ASSERT_TRUE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).hasLayoutType(LayoutType::ncsp));
 }
 
 TEST(MemDescTest, isBlockedCCheck) {
@@ -83,17 +83,17 @@ TEST(MemDescTest, isBlockedCCheck) {
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
     const MKLDNNMemoryDesc plain_mdesc(plain_tdesc);
     const MKLDNNMemoryDesc tailc_mdesc(tailc_tdesc);
-    ASSERT_FALSE(plain_mdesc.checkGeneralLayout(GeneralLayout::nCsp8c) || plain_mdesc.checkGeneralLayout(GeneralLayout::nCsp16c));
-    ASSERT_FALSE(tailc_mdesc.checkGeneralLayout(GeneralLayout::nCsp8c) || tailc_mdesc.checkGeneralLayout(GeneralLayout::nCsp16c));
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_tdesc).checkGeneralLayout(GeneralLayout::nCsp8c));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).checkGeneralLayout(GeneralLayout::nCsp16c));
+    ASSERT_FALSE(plain_mdesc.hasLayoutType(LayoutType::nCsp8c) || plain_mdesc.hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_FALSE(tailc_mdesc.hasLayoutType(LayoutType::nCsp8c) || tailc_mdesc.hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nCsp16c));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc blck8_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
     dnnl::memory::desc blck8_permCD_crop_tdesc = blck8_permCD_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_crop_tdesc).checkGeneralLayout(GeneralLayout::nCsp8c));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_crop_tdesc).checkGeneralLayout(GeneralLayout::nCsp8c));
+    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
 }
 
 TEST(MemDescTest, isTailCCheck) {
@@ -104,18 +104,18 @@ TEST(MemDescTest, isTailCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::bcda};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).checkGeneralLayout(GeneralLayout::nspc));
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).checkGeneralLayout(GeneralLayout::nspc));
-    ASSERT_TRUE(MKLDNNMemoryDesc(tailc_tdesc).checkGeneralLayout(GeneralLayout::nspc));
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_tdesc).checkGeneralLayout(GeneralLayout::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_TRUE(MKLDNNMemoryDesc(tailc_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nspc));
 
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).checkGeneralLayout(GeneralLayout::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nspc));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc tailc_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_crop_tdesc).checkGeneralLayout(GeneralLayout::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_crop_tdesc).hasLayoutType(LayoutType::nspc));
 }
 
 TEST(MemDescTest, constructWithPlainFormat) {

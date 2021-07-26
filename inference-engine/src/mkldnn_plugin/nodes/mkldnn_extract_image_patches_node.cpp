@@ -409,8 +409,8 @@ void MKLDNNExtractImagePatchesNode::initSupportedPrimitiveDescriptors() {
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
         IE_THROW() << errorPrefix << "has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, precision}},
-                         {{GeneralLayout::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 

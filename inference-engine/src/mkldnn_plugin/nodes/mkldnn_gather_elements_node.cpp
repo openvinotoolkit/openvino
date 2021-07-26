@@ -86,9 +86,9 @@ void MKLDNNGatherElementsNode::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, inDataPrecision},
-                          {GeneralLayout::ncsp, Precision::I32}},
-                         {{GeneralLayout::ncsp, inDataPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
 

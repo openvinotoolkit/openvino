@@ -32,13 +32,13 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inputConfigurators;
     inputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        inputConfigurators.emplace_back(GeneralLayout::ncsp, convertPrecision(ngraphOp->get_input_element_type(i)), inputShapes[i]);
+        inputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ngraphOp->get_input_element_type(i)), inputShapes[i]);
     }
 
     std::vector<PortConfigurator> outputConfigurators;
     outputConfigurators.reserve(inputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        outputConfigurators.emplace_back(GeneralLayout::ncsp, convertPrecision(ngraphOp->get_output_element_type(i)), outputShapes[i]);
+        outputConfigurators.emplace_back(LayoutType::ncsp, convertPrecision(ngraphOp->get_output_element_type(i)), outputShapes[i]);
     }
 
     addSupportedPrimDesc(inputConfigurators, outputConfigurators, impl_desc_type::ref);

@@ -70,10 +70,10 @@ private:
 } // namespace
 
 const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
-    static const CreatorsMap map{ { GeneralLayout::nspc, CreatorConstPtr(new PerChannelCreator) },
-                                { GeneralLayout::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
-                                { GeneralLayout::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
-                                { GeneralLayout::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
+    static const CreatorsMap map{ { LayoutType::nspc, CreatorConstPtr(new PerChannelCreator) },
+                                { LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
+                                { LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
+                                { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
     return map;
 }
 
@@ -92,7 +92,7 @@ BlockedDescCreator::makeFilteredRange(const CreatorsMap &map, unsigned int rank)
 }
 
 std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator>
-BlockedDescCreator::makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<GeneralLayout>& supportedTypes) {
+BlockedDescCreator::makeFilteredRange(const CreatorsMap& map, unsigned rank, const std::vector<LayoutType>& supportedTypes) {
     unsigned bitMask = 0ul;
     for (auto& item : supportedTypes) {
         bitMask |= 1 << static_cast<unsigned>(item);

@@ -766,10 +766,10 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
     auto pushDesc = [&](memory::format_tag format) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), inputDataType, format);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES)->getShape().getStaticMklDims(), memory::data_type::s32,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticDims(), inputDataType, format);
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXES)->getShape().getStaticDims(), memory::data_type::s32,
                                                                memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticMklDims(), outputDataType, format);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA)->getShape().getStaticDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
@@ -833,10 +833,10 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
         jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
 
         jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-        if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp)) {
+        if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
             jcp.is_nchw = true;
-        } else if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c) ||
-                  getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c)) {
+        } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                  getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
             jcp.is_blk = true;
         } else {
             jcp.is_nhwc = true;

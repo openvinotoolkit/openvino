@@ -29,7 +29,7 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
     }
 
     if (std::any_of(blockedDims.begin() + dims.size(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
-        IE_THROW() << "BlockedMemoryDesc do not support undefined blocks.";
+        IE_THROW() << "BlockedMemoryDesc doesn't support undefined blockedDims.";
     }
 
     this->order = order;
@@ -59,6 +59,10 @@ BlockedMemoryDesc::BlockedMemoryDesc(InferenceEngine::Precision prc, const std::
     } else {
         this->strides = strides;
     }
+
+    if (!everyone_is(this->order.size(), this->blockedDims.size(), this->offsetPaddingToData.size(), this->strides.size())) {
+        IE_THROW() << "Order, blocked dims, offset padding to data and strides must have equals size";
+    }
 }
 
 bool BlockedMemoryDesc::isDefined() const {
@@ -87,25 +91,30 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 
-    if (!isEqualOrUndefined(this->getBlockDims(), rhs.getBlockDims())) {
+    if (!dimsEqualWeak(this->getBlockDims(), rhs.getBlockDims())) {
         return false;
     }
 
-    if (!isEqualOrUndefined(this->getOffsetPaddingToData(), rhs.getOffsetPaddingToData())) {
+    if (!dimsEqualWeak(this->getOffsetPaddingToData(), rhs.getOffsetPaddingToData())) {
         return false;
     }
 
+    // this check needed to avoid inserting unnecessary reorders if the memory is used in place and the batch size is equal to 1
     size_t skipAxis = this->getShape().getRank() > 0 && this->getShape().getDims().front() == 1 ? 0 :
             Shape::UNDEFINED_DIM; //ignore batch axis if batch size == 1
-    if (!isEqualOrUndefined(this->getStrides(), rhs.getStrides(), skipAxis)) {
+    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides(), skipAxis)) {
         return false;
     }
 
-    if (!isEqualOrUndefined(this->getOrder(), rhs.getOrder())) {
+    if (!dimsEqualWeak(this->getOrder(), rhs.getOrder())) {
         return false;
     }
 
     return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
+}
+
+bool BlockedMemoryDesc::isCompatible(const MKLDNNMemoryDesc& rhs) const {
+    return rhs.isCompatible(*this);
 }
 
 size_t BlockedMemoryDesc::getMemSizeImp() const {
@@ -113,14 +122,6 @@ size_t BlockedMemoryDesc::getMemSizeImp() const {
     for (int j = 0; j < getBlockDims().size(); j++)
         e_size += (getBlockDims()[j] - 1) * getStrides()[j];
 
-    // In some cases computational formula above doesn't work properly (e.g. for OhIw8o4i layout).
-    // This WA allows to limit the size of allocated memory from below.
-    // TODO: need to properly investigate the root cause of incorrect computations
-    int64_t min_size = 1;
-    for (int64_t dim : getBlockDims()) {
-        min_size *= dim;
-    }
-    e_size = std::max(e_size, min_size);
 
     e_size *= getPrecision() == InferenceEngine::Precision::BIN ? 1 : getPrecision().size();
 
@@ -147,7 +148,7 @@ size_t BlockedMemoryDesc::getOffset(const InferenceEngine::SizeVector& v) const 
     return offset;
 }
 
-size_t BlockedMemoryDesc::getOffset(size_t elemNumber) const {
+size_t BlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
     auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
@@ -161,15 +162,15 @@ size_t BlockedMemoryDesc::getOffset(size_t elemNumber) const {
     return getOffset(pos);
 }
 
-bool BlockedMemoryDesc::checkGeneralLayout(GeneralLayout layoutType) const {
+bool BlockedMemoryDesc::hasLayoutType(LayoutType layoutType) const {
     switch (layoutType) {
-        case GeneralLayout::ncsp:
+        case LayoutType::ncsp:
             return isPlainFormat();
-        case GeneralLayout::nspc:
+        case LayoutType::nspc:
             return isTailCFormat();
-        case GeneralLayout::nCsp8c:
+        case LayoutType::nCsp8c:
             return isBlockedCFormat(8);
-        case GeneralLayout::nCsp16c:
+        case LayoutType::nCsp16c:
             return isBlockedCFormat(16);
         default:
             return false;
@@ -243,4 +244,36 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     }
 
     return result.str();
+}
+
+MemoryDescPtr BlockedMemoryDesc::clone() const {
+    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
+}
+
+InferenceEngine::Precision BlockedMemoryDesc::getPrecision() const {
+    return precision;
+}
+
+void BlockedMemoryDesc::setPrecision(InferenceEngine::Precision prc) {
+    precision = std::move(prc);
+}
+
+const std::vector<size_t>& BlockedMemoryDesc::getBlockDims() const {
+    return blockedDims;
+}
+
+const std::vector<size_t>& BlockedMemoryDesc::getOrder() const {
+    return order;
+}
+
+const std::vector<size_t>& BlockedMemoryDesc::getOffsetPaddingToData() const {
+    return offsetPaddingToData;
+}
+
+size_t BlockedMemoryDesc::getOffsetPadding() const {
+    return offsetPadding;
+}
+
+const std::vector<size_t>& BlockedMemoryDesc::getStrides() const {
+    return strides;
 }

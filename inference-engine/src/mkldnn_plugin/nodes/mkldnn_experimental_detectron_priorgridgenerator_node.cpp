@@ -53,10 +53,10 @@ void MKLDNNExperimentalDetectronPriorGridGeneratorNode::initSupportedPrimitiveDe
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
-                          {GeneralLayout::ncsp, Precision::FP32},
-                          {GeneralLayout::ncsp, Precision::FP32}},
-                         {{GeneralLayout::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 

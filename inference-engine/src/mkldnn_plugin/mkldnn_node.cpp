@@ -673,10 +673,9 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     // Compare by partial layout descriptor (without particular strides values)
     auto areCompatible = [](const MemoryDesc& desc, mkldnn::memory::format_tag fmt) -> bool {
-        MKLDNNMemoryDesc fmt_tdesc = MKLDNNMemoryDesc{
-            MKLDNNDims(desc.getShape().getStaticDims()),
-            MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
-            fmt};
+        MKLDNNMemoryDesc fmt_tdesc = MKLDNNMemoryDesc{desc.getShape().getStaticDims(),
+                                                      MKLDNNExtensionUtils::IEPrecisionToDataType(desc.getPrecision()),
+                                                      fmt};
 
         return desc.isCompatible(fmt_tdesc);
 // TODO [DS]: code clean up

@@ -118,14 +118,14 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i) {
         Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
-        inDataConf.emplace_back(GeneralLayout::ncsp, inPrecision);
+        inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(getOriginalOutputsNumber());
     for (int i = 0; i < getOriginalOutputsNumber(); ++i) {
         Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
-        outDataConf.emplace_back(GeneralLayout::ncsp, outPrecision);
+        outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);

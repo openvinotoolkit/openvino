@@ -77,74 +77,18 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
     }
 }
 
-InferenceEngine::TensorDesc MKLDNNExtensionUtils::getUninitTensorDesc(const InferenceEngine::TensorDesc &desc) {
-    std::vector<size_t> notInitArr;
-    std::vector<size_t> zeroArr;
-    for (size_t i = 0; i < desc.getBlockingDesc().getBlockDims().size(); i++) {
-        notInitArr.push_back(std::numeric_limits<size_t>::max());
-        zeroArr.push_back(0);
+InferenceEngine::SizeVector MKLDNNExtensionUtils::convertToSizeVector(const mkldnn::memory::dims& dims) {
+    InferenceEngine::SizeVector size;
+    for (auto i : dims) {
+        size.push_back(i);
     }
-    // MKLDNN doesn't support offset_padding_to_data[i] != 0 (assert(src_d_blk.offset_padding_to_data[d] == 0);)
-    return desc.getLayout() == InferenceEngine::Layout::ANY ? desc :
-           InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(),
-                                       {desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder(),
-                                        std::numeric_limits<size_t>::max(), zeroArr, notInitArr});
+    return size;
 }
 
-bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
-    if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
-        return false;
-    if (desc1.getLayout() == InferenceEngine::Layout::SCALAR && desc2.getLayout() == InferenceEngine::Layout::SCALAR)
-        return true;
-    if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)
-        return true;
-    bool batch1 = desc1.getDims()[0] == 1;
-    const auto& in1Block = desc1.getBlockingDesc();
-    const auto& in2Block = desc2.getBlockingDesc();
-    size_t uninitNum = std::numeric_limits<size_t>::max();
-    if (in1Block.getBlockDims().size() != in2Block.getBlockDims().size())
-        return false;
-    for (size_t i = 0; i < in1Block.getBlockDims().size(); i++) {
-        if (in1Block.getBlockDims()[i] != in2Block.getBlockDims()[i] &&
-                in1Block.getBlockDims()[i] != uninitNum && in2Block.getBlockDims()[i] != uninitNum)
-            return false;
-        if (in1Block.getOffsetPaddingToData()[i] != in2Block.getOffsetPaddingToData()[i] &&
-                in1Block.getOffsetPaddingToData()[i] != uninitNum && in2Block.getOffsetPaddingToData()[i] != uninitNum)
-            return false;
-        if (i >= batch1 && in1Block.getStrides()[i] != in2Block.getStrides()[i] &&
-                in1Block.getStrides()[i] != uninitNum && in2Block.getStrides()[i] != uninitNum)
-            return false;
-        if (in1Block.getOrder()[i] != in2Block.getOrder()[i] &&
-                in1Block.getOrder()[i] != uninitNum && in2Block.getOrder()[i] != uninitNum)
-            return false;
+std::vector<dnnl::memory::dim> MKLDNNExtensionUtils::convertToDnnlDims(const InferenceEngine::SizeVector& dims) {
+    std::vector<dnnl::memory::dim> size;
+    for (auto i : dims) {
+        size.push_back(i);
     }
-    return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
-        in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
-}
-
-std::string MKLDNNExtensionUtils::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {
-    std::string inArgs, outArgs;
-    if (parentDesc.getPrecision() != childDesc.getPrecision()) {
-        inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
-        outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
-    }
-    auto formatSrc = parentDesc.serializeFormat();
-    auto formatDst = childDesc.serializeFormat();
-    if (formatSrc != formatDst || one_of(std::string("undef"), formatSrc, formatDst)) {
-        inArgs += (inArgs.empty() ? "" : "_") + formatSrc;
-        outArgs += (outArgs.empty() ? "" : "_") + formatDst;
-    }
-    return inArgs + "_" + outArgs;
-}
-
-InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<InferenceEngine::Precision> precisions) {
-    if (!precisions.empty()) {
-        std::sort(precisions.begin(), precisions.end(),
-                  [](const InferenceEngine::Precision &lhs, const InferenceEngine::Precision &rhs) {
-                      return lhs.size() > rhs.size();
-                  });
-        return precisions[0];
-    }
-
-    return InferenceEngine::Precision::UNSPECIFIED;
+    return size;
 }

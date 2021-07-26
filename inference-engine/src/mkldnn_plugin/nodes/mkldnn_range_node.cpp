@@ -76,16 +76,16 @@ void MKLDNNRangeNode::initSupportedPrimitiveDescriptors() {
             getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
         inDataConf.reserve(getOriginalInputsNumber());
         for (int i = 0; i < getOriginalInputsNumber(); ++i)
-            inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
+            inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         outDataConf.reserve(1);
-        outDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
+        outDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     } else {
         inDataConf.reserve(getOriginalInputsNumber());
         for (int i = 0; i < getOriginalInputsNumber(); ++i)
-            inDataConf.emplace_back(GeneralLayout::ncsp);
+            inDataConf.emplace_back(LayoutType::ncsp);
         outDataConf.reserve(1);
-        outDataConf.emplace_back(GeneralLayout::ncsp);
+        outDataConf.emplace_back(LayoutType::ncsp);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
 }

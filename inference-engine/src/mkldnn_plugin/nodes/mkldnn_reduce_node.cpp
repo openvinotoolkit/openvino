@@ -1474,11 +1474,11 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
     auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag outFormat, memory::data_type inDataType,
             memory::data_type outDataType, impl_desc_type impl_type) {
-        config.inConfs[REDUCE_DATA].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_DATA)->getShape().getStaticMklDims(),
+        config.inConfs[REDUCE_DATA].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_DATA)->getShape().getStaticDims(),
                                                                                        inDataType, inFormat);
-        config.inConfs[REDUCE_INDEXES].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_INDEXES)->getShape().getStaticMklDims(),
+        config.inConfs[REDUCE_INDEXES].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(REDUCE_INDEXES)->getShape().getStaticDims(),
                                                                             memory::data_type::s32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), outDataType, outFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outDataType, outFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -1526,7 +1526,7 @@ void MKLDNNReduceNode::createPrimitive() {
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp);
+    planar_layout = getParentEdgeAt(REDUCE_DATA)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp);
 
     auto jcp = jit_reduce_config_params();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());

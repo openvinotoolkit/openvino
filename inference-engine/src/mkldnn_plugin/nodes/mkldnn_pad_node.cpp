@@ -131,16 +131,16 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(), dataType,
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType,
                                                                              memoryFormat);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_BEGIN_ID)->getShape().getStaticMklDims(),
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_BEGIN_ID)->getShape().getStaticDims(),
                                                                              memory::data_type::s32, memory::format_tag::x);
-        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_END_ID)->getShape().getStaticMklDims(),
+        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PADS_END_ID)->getShape().getStaticDims(),
                                                                              memory::data_type::s32, memory::format_tag::x);
         if (isPadValueSpecified)
-            config.inConfs[3].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PAD_VALUE_ID)->getShape().getStaticMklDims(),
+            config.inConfs[3].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(PAD_VALUE_ID)->getShape().getStaticDims(),
                                                                                  memory::data_type::f32, memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(DATA_ID)->getShape().getStaticMklDims(), dataType, memoryFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType, memoryFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
@@ -193,8 +193,8 @@ void MKLDNNPadNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c) ||
-            getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c)) {
+    if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
+            getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);

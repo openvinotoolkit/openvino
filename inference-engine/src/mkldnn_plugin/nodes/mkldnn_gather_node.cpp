@@ -75,10 +75,10 @@ void MKLDNNGatherNode::initSupportedPrimitiveDescriptors() {
         return;
 
     Precision dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    addSupportedPrimDesc({{GeneralLayout::ncsp, dataPrecision},
-                          {GeneralLayout::ncsp, Precision::I32},
-                          {GeneralLayout::ncsp, Precision::I32}},
-                         {{GeneralLayout::ncsp, dataPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, dataPrecision}},
                          impl_desc_type::ref_any);
 }
 

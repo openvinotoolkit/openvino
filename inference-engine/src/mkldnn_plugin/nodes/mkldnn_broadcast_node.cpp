@@ -60,9 +60,9 @@ void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
 
     Precision prec = getOriginalInputPrecisionAtPort(BROADCAST_INPUT);
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, prec},
-                          {GeneralLayout::ncsp, Precision::I32}},
-                         {{GeneralLayout::ncsp, prec}},
+    addSupportedPrimDesc({{LayoutType::ncsp, prec},
+                          {LayoutType::ncsp, Precision::I32}},
+                         {{LayoutType::ncsp, prec}},
                          impl_desc_type::ref_any);
 }
 

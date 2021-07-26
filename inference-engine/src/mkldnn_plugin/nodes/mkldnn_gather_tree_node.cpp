@@ -65,11 +65,11 @@ void MKLDNNGatherTreeNode::initSupportedPrimitiveDescriptors() {
             IE_THROW() << errorPrefix << " has incorrect input/output data precision. Must be the same.";
     }
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, precision},
-                            {GeneralLayout::ncsp, precision},
-                            {GeneralLayout::ncsp, precision},
-                            {GeneralLayout::ncsp, precision}},
-                         {{GeneralLayout::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                            {LayoutType::ncsp, precision},
+                            {LayoutType::ncsp, precision},
+                            {LayoutType::ncsp, precision}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 

@@ -201,15 +201,15 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     }
 
     auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag idxFormat, memory::format_tag updateFormat, memory::format_tag outFormat) {
-        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticMklDims(), dataType, inFormat);
-        config.inConfs[INDICES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(INDICES_ID)->getShape().getStaticMklDims(), indicesType,
+        config.inConfs[DATA_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(DATA_ID)->getShape().getStaticDims(), dataType, inFormat);
+        config.inConfs[INDICES_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(INDICES_ID)->getShape().getStaticDims(), indicesType,
                                                                                       idxFormat);
-        config.inConfs[UPDATE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(UPDATE_ID)->getShape().getStaticMklDims(), dataType,
+        config.inConfs[UPDATE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(UPDATE_ID)->getShape().getStaticDims(), dataType,
                                                                                      updateFormat);
         if (axisRelaxed)
-            config.inConfs[AXIS_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXIS_ID)->getShape().getStaticMklDims(),
+            config.inConfs[AXIS_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(AXIS_ID)->getShape().getStaticDims(),
                 MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec), memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(), dataType, outFormat);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), dataType, outFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 

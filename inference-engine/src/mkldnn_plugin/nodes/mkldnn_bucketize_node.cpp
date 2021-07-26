@@ -80,9 +80,9 @@ void MKLDNNBucketizeNode::initSupportedPrimitiveDescriptors() {
         output_precision = Precision::I32;
     }
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, input_precision},
-                          {GeneralLayout::ncsp, boundaries_precision}},
-                         {{GeneralLayout::ncsp, output_precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
+                          {LayoutType::ncsp, boundaries_precision}},
+                         {{LayoutType::ncsp, output_precision}},
                          impl_desc_type::ref_any);
 }
 

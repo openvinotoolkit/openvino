@@ -79,12 +79,12 @@ void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
-    inDataConf.emplace_back(GeneralLayout::ncsp, dataPrecision);
+    inDataConf.emplace_back(LayoutType::ncsp, dataPrecision);
     for (int i = 1; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::I32);
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::I32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{GeneralLayout::ncsp, dataPrecision}},
+                         {{LayoutType::ncsp, dataPrecision}},
                          impl_desc_type::ref_any);
 }
 

@@ -67,32 +67,32 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
-    addSupportedPrimDesc({{GeneralLayout::nspc, precision},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp}},
-                         {{GeneralLayout::nspc, precision}},
+    addSupportedPrimDesc({{LayoutType::nspc, precision},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp}},
+                         {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
-    addSupportedPrimDesc({{GeneralLayout::ncsp, precision},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp},
-                          {GeneralLayout::ncsp}},
-                         {{GeneralLayout::ncsp, precision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp},
+                          {LayoutType::ncsp}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] % 8 == 0) {
-        addSupportedPrimDesc({{GeneralLayout::nCsp8c, precision},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp}},
-                             {{GeneralLayout::nCsp8c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp}},
+                             {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] % 16 == 0) {
-        addSupportedPrimDesc({{GeneralLayout::nCsp16c, precision},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp},
-                              {GeneralLayout::ncsp}},
-                             {{GeneralLayout::nCsp16c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp},
+                              {LayoutType::ncsp}},
+                             {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
 }
@@ -114,14 +114,14 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
-    const bool blocked = srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c);
+    const bool blocked = srcDesc.hasLayoutType(LayoutType::nCsp8c) || srcDesc.hasLayoutType(LayoutType::nCsp16c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D = getShape5D(inDims);
     auto outShape5D = getShape5D(outDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -169,7 +169,7 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-            if (srcDesc.checkGeneralLayout(GeneralLayout::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
+            if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4, 5)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }

@@ -111,7 +111,7 @@ public:
 
 private:
     void init() override;
-    std::vector<GeneralLayout> getDataFormats() const;
+    std::vector<LayoutType> getDataFormats() const;
     void executeReference();
     void executeBinarization();
     void executeQuantization();

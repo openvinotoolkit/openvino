@@ -118,10 +118,10 @@ void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(getOriginalInputsNumber());
     for (int i = 0; i < getOriginalInputsNumber(); ++i)
-        inDataConf.emplace_back(GeneralLayout::ncsp, Precision::FP32);
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
-                         {{GeneralLayout::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 

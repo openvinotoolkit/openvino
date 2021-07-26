@@ -742,14 +742,14 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
     if (inputsNum == 2) {
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticMklDims(), memory::data_type::s32,
+        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::s32,
                                                                MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(1)->getShape().getRank()));
         config.inConfs[1].constant = true;
     }
 
     auto pushDesc = [&](memory::format_tag format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), inputDataType, format);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(), outputDataType, format);
+        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, format);
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), outputDataType, format);
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
@@ -811,7 +811,7 @@ void MKLDNNMVNNode::createPrimitive() {
     jcp.dst_prc = selectedPD->getConfig().outConfs[0].desc->getPrecision();
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.src_prc));
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.dst_prc));
-    jcp.planar_layout = selectedPD->getConfig().inConfs[0].desc->checkGeneralLayout(GeneralLayout::ncsp);
+    jcp.planar_layout = selectedPD->getConfig().inConfs[0].desc->hasLayoutType(LayoutType::ncsp);
     jcp.normalize_variance = normalizeVariance_;
     jcp.across_channels = acrossChannels_;
     int N = 0;
@@ -916,7 +916,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
         if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
             IE_THROW() << "MVN layer with name '" << getName() << "' doesn't create kernel to execute on sse41 above platform.";
         }
-        if (getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp)) {
+        if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp)) {
             mvn_pln(src_data, dst_data, dim);
         } else {
             mvn_blk(src_data, dst_data, dim);
@@ -1170,7 +1170,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
     size_t N = 1; size_t C = 1; size_t D = 1; size_t H = 1; size_t W = 1;
     std::tie(N, C, D, H, W) = shape5D;
 
-    bool is_nhwc = getParentEdgeAt(0)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc);
+    bool is_nhwc = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc);
 
     size_t CB = div_up(C, blk_size);
 

@@ -81,17 +81,17 @@ static MKLDNNMemoryDesc parse_header(IEB_HEADER &header) {
     for (int i = 0; i < header.ndims; i++)
         dims[i] = header.dims[i];
 
-    return MKLDNNMemoryDesc{MKLDNNDims(dims), prc, MKLDNNMemory::GetPlainFormatByRank(dims.size()) };
+    return MKLDNNMemoryDesc{dims, prc, MKLDNNMemory::GetPlainFormatByRank(dims.size()) };
 }
 
-static void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) {
+void BlobDumper::prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const {
     const auto &desc = memory->GetDesc();
     size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
     data.resize(size);
 
     // check if it already plain
-    if (desc.checkGeneralLayout(GeneralLayout::ncsp)) {
+    if (desc.hasLayoutType(LayoutType::ncsp)) {
         cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->GetPtr()), size);
         return;
     }
@@ -105,14 +105,14 @@ static void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_
             auto *pln_blob_ptr = reinterpret_cast<int32_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int32_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                pln_blob_ptr[i] = blob_ptr[desc.getOffset(i)];
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
         case Precision::BF16: {
             auto *pln_blob_ptr = reinterpret_cast<int16_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int16_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                pln_blob_ptr[i] = blob_ptr[desc.getOffset(i)];
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
         case Precision::I8:
@@ -120,7 +120,7 @@ static void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_
             auto *pln_blob_ptr = reinterpret_cast<int8_t*>(data.data());
             auto *blob_ptr = reinterpret_cast<const int8_t *>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                pln_blob_ptr[i] = blob_ptr[desc.getOffset(i)];
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
         }
         default:
@@ -167,13 +167,13 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
         case Precision::FP32 : {
             auto *blob_ptr = reinterpret_cast<const float*>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                stream << blob_ptr[desc.getOffset(i)] << std::endl;
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
         case Precision::BF16: {
             auto *blob_ptr = reinterpret_cast<const int16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
-                int i16n = blob_ptr[desc.getOffset(i)];
+                int i16n = blob_ptr[desc.getElementOffset(i)];
                 i16n = i16n << 16;
                 float fn = *(reinterpret_cast<const float *>(&i16n));
                 stream << fn << std::endl;
@@ -183,19 +183,19 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
         case Precision::I32: {
             auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                stream << blob_ptr[desc.getOffset(i)] << std::endl;
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
         case Precision::I8: {
             auto *blob_ptr = reinterpret_cast<const int8_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                stream << static_cast<int>(blob_ptr[desc.getOffset(i)]) << std::endl;
+                stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
         case Precision::U8: {
             auto *blob_ptr = reinterpret_cast<const uint8_t*>(ptr);
             for (size_t i = 0; i < data_size; i++)
-                stream << static_cast<int>(blob_ptr[desc.getOffset(i)]) << std::endl;
+                stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << std::endl;
             break;
         }
         default:

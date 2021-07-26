@@ -58,9 +58,9 @@ void MKLDNNCTCGreedyDecoderNode::initSupportedPrimitiveDescriptors() {
     if (seqLenPrecision != Precision::FP32 && seqLenPrecision != Precision::BF16)
         IE_THROW() << errorPrefix << "has unsupported 'sequence_length' input precision: " << seqLenPrecision;
 
-    addSupportedPrimDesc({{GeneralLayout::ncsp, Precision::FP32},
-                          {GeneralLayout::ncsp, Precision::FP32}},
-                         {{GeneralLayout::ncsp, Precision::FP32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 

@@ -90,7 +90,7 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     const auto &parentShape = getParentEdgeAt(0)->getShape();
-    const auto parentStaticDims = parentShape.getStaticMklDims();
+    const auto parentStaticDims = parentShape.getStaticDims();
 
     for (auto format : getAvailableFormatsForDims(parentShape)) {
         auto in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(parentStaticDims, inputDataType, format);
@@ -100,7 +100,7 @@ void MKLDNNLrnNode::getSupportedDescriptors() {
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNLrnNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     if (idx > 0) {
-        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticMklDims(),
+        return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(idx)->getShape().getStaticDims(),
                                              MKLDNNExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisions()[idx]),
                                              MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(idx)->getShape().getRank()));
     } else {

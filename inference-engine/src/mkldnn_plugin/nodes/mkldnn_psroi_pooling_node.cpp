@@ -139,27 +139,27 @@ void MKLDNNPSROIPoolingNode::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = getOriginalInputPrecisionAtPort(0) == Precision::BF16 ? Precision::BF16 : Precision::FP32;
 
     if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
-        std::vector<std::pair<GeneralLayout, GeneralLayout>> dataFomats{
-            {GeneralLayout::ncsp, GeneralLayout::ncsp},
-            {GeneralLayout::nspc, GeneralLayout::nspc},
-            {GeneralLayout::nCsp16c, GeneralLayout::nCsp16c},
-            {GeneralLayout::nCsp8c, GeneralLayout::nCsp8c}
+        std::vector<std::pair<LayoutType, LayoutType>> dataFomats{
+            {LayoutType::ncsp, LayoutType::ncsp},
+            {LayoutType::nspc, LayoutType::nspc},
+            {LayoutType::nCsp16c, LayoutType::nCsp16c},
+            {LayoutType::nCsp8c, LayoutType::nCsp8c}
         };
 
         for (const auto &df : dataFomats) {
-            addSupportedPrimDesc({{df.first, dataPrecision}, {GeneralLayout::ncsp, Precision::FP32}},
+            addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, Precision::FP32}},
                                  {{df.second, dataPrecision}},
                                  impl_type);
         }
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
-        addSupportedPrimDesc({{GeneralLayout::ncsp, dataPrecision}, {GeneralLayout::ncsp, Precision::FP32}},
-                             {{GeneralLayout::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, Precision::FP32}},
+                             {{LayoutType::ncsp, dataPrecision}},
                              impl_type);
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
-        addSupportedPrimDesc({{GeneralLayout::ncsp, dataPrecision},
-                              {GeneralLayout::ncsp, Precision::FP32},
-                              {GeneralLayout::ncsp, Precision::FP32}},
-                             {{GeneralLayout::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                              {LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::FP32}},
+                             {{LayoutType::ncsp, dataPrecision}},
                              impl_type);
     }
 }
@@ -188,8 +188,8 @@ void MKLDNNPSROIPoolingNode::unpackParams(const BlockedMemoryDesc& srcDesc, cons
                                           int& inBlockSize, int& outBlockSize,
                                           int& outBlockCount,
                                           unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
-    const bool inpIsBlk = srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c);
-    const bool outIsBlk = dstDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || dstDesc.checkGeneralLayout(GeneralLayout::nCsp8c);
+    const bool inpIsBlk = srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c);
+    const bool outIsBlk = dstDesc.hasLayoutType(LayoutType::nCsp16c) || dstDesc.hasLayoutType(LayoutType::nCsp8c);
     int expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
     int expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
     auto inBlkDims = srcDesc.getBlockDims();
@@ -271,7 +271,7 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
             dstData[dstIndex] = outSum / binArea;
         }
     };
-    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc)) {
         parallel_for2d(nh, nw, [&](int h, int w) {
             const int binOffsetOutput = n * nc * nh * nw;
             const int binOffsetInput = roiBatchInd * channels * height * width;
@@ -280,10 +280,10 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
                 avgPsroi(c, h, w, 0, 0, binOffsetInput + gc, binOffsetOutput + c);
             }
         });
-    } else if (srcDesc.checkGeneralLayout(GeneralLayout::ncsp)) {
+    } else if (srcDesc.hasLayoutType(LayoutType::ncsp)) {
         parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
             const int gc = (c * groupSize + h) * groupSize + w;
-            const int outputBlockResidual = (dstDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : c % inBlockSize);
+            const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
             const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
             const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
             const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
@@ -295,8 +295,8 @@ void MKLDNNPSROIPoolingNode::executeAverage(const inputType *srcData, outputType
             int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
             for (int c = cStart; c < cEnd; c++) {
                 const int gc = (c * groupSize + h) * groupSize + w;
-                const int inputBlockResidual = (srcDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : gc % inBlockSize);
-                const int outputBlockResidual = (dstDesc.checkGeneralLayout(GeneralLayout::ncsp) ? 0 : c % inBlockSize);
+                const int inputBlockResidual = (srcDesc.hasLayoutType(LayoutType::ncsp) ? 0 : gc % inBlockSize);
+                const int outputBlockResidual = (dstDesc.hasLayoutType(LayoutType::ncsp) ? 0 : c % inBlockSize);
                 const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                 const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
                 const int binOffsetInput = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
@@ -337,13 +337,13 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
             const float inY = nh > 1 ? (h * heightScale + boxYmin * (height - 1)) : 0.5f * (boxYmin + boxYmax) * (height - 1);
             for (size_t binX = 0; binX < spatialBinsX; binX++) {
                 size_t gc = c + (binY * spatialBinsX + binX) * nc;
-                if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
+                if (srcDesc.hasLayoutType(LayoutType::nspc)) {
                     binOffIn = roiBatchInd * channels * height * width + gc;
                     inBlkRes = 0;
                 } else {  // nchw, nChw16c, nChw8c
                     const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                     binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
-                    inBlkRes = ((srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c))
+                    inBlkRes = ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))
                                 ? gc % inBlockSize : 0);
                 }
                 const auto *bottomData = srcData + binOffIn;
@@ -384,14 +384,14 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
         dstData[dstIndex] = accum;
     };
 
-    if (srcDesc.checkGeneralLayout(GeneralLayout::nspc)) {
+    if (srcDesc.hasLayoutType(LayoutType::nspc)) {
         const int binOffsetOutput = currentRoi * nc * nh * nw;
         parallel_for2d(nh, nw, [&](int h, int w) {
             for (int c = 0; c < nc; c++) {
                 bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
             }
         });
-    } else if (srcDesc.checkGeneralLayout(GeneralLayout::ncsp)) {
+    } else if (srcDesc.hasLayoutType(LayoutType::ncsp)) {
         parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
             bilinearPsroi(c, h, w, 0, (currentRoi * outputChannelsPadding + c) * binCount);
         });
@@ -402,7 +402,7 @@ void MKLDNNPSROIPoolingNode::executeBilinear(const inputType *srcData, outputTyp
             for (int c = cStart; c < cEnd; c++) {
                 const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
                 const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
-                const int outputBlockResidual = ((srcDesc.checkGeneralLayout(GeneralLayout::nCsp16c) || srcDesc.checkGeneralLayout(GeneralLayout::nCsp8c))
+                const int outputBlockResidual = ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))
                                                  ? c % inBlockSize : 0);
                 bilinearPsroi(c, h, w, outputBlockResidual, binOffsetOutput);
             }

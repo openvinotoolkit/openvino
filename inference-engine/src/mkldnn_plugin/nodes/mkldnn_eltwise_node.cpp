@@ -1776,7 +1776,7 @@ InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);

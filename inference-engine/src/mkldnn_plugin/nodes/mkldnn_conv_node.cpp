@@ -244,9 +244,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         if (eltwisePrecision == Precision::BF16)
             eltwisePrecision = Precision::FP32;
-        in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticMklDims(),
+        in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(),
                                                      inputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
-        out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticMklDims(),
+        out_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(),
                                                       outputDataType, ndims == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc);
         createDescriptor({ in_candidate.get() }, { out_candidate.get() });
     } else {
@@ -285,8 +285,8 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
             memory::format_tag nCsp16c = ndims == 4 ? memory::format_tag::nChw16c : memory::format_tag::nCdhw16c;
             memory::format_tag nCsp8c = ndims == 4 ? memory::format_tag::nChw8c : memory::format_tag::nCdhw8c;
 
-            auto inputDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
-            auto outputDims = getChildEdgeAt(0)->getShape().getStaticMklDims();
+            auto inputDims = getParentEdgeAt(0)->getShape().getStaticDims();
+            auto outputDims = getChildEdgeAt(0)->getShape().getStaticDims();
 
             if (IC == 1 && groupOC == 1) {
                 in_candidate = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(inputDims, inputDataType, ncsp);
@@ -395,10 +395,11 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                if (isGrouped)
-                    dataConfig.desc = getSrcMemDesc(itpd, i);
+                auto srcDesc = getSrcMemDesc(itpd, i);
+                if (isGrouped || srcDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
+                    dataConfig.desc = std::move(srcDesc);
                 else
-                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getSrcMemDesc(itpd, i));
+                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*srcDesc);
 
                 config.inConfs.push_back(dataConfig);
             }
@@ -407,8 +408,9 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                 auto biasPrc = memory::data_type::f32;
 
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
+                std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
+                                                   static_cast<size_t>(dw_conv_kernel[X_AXIS])});
+                std::vector<size_t> dwBiasesDims(static_cast<size_t>(dw_conv_oc));
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
@@ -428,10 +430,11 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                 dataConfig.constant = false;
 
-                if (isGrouped)
-                    dataConfig.desc = getDstMemDesc(itpd, i);
+                auto dstDesc = getDstMemDesc(itpd, i);
+                if (isGrouped || dstDesc->getFormatKind() != dnnl_format_kind_t::dnnl_blocked)
+                    dataConfig.desc = std::move(dstDesc);
                 else
-                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*getDstMemDesc(itpd, i));
+                    dataConfig.desc = MemoryDescUtils::applyUndefinedOffset(*dstDesc);
 
                 config.outConfs.push_back(dataConfig);
 
@@ -592,8 +595,9 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                 auto biasPrc = memory::data_type::f32;
 
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
+                std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
+                                                   static_cast<size_t>(dw_conv_kernel[X_AXIS])});
+                std::vector<size_t> dwBiasesDims(static_cast<size_t>(dw_conv_oc));
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
@@ -700,8 +704,8 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
     auto dstMemDesc = MKLDNNMemoryDesc {convDesc->data.dst_desc};
     auto srcDataType = convDesc->data.src_desc.data_type;
     auto dstDataType = convDesc->data.dst_desc.data_type;
-    bool isPlanarFloatConv = srcMemDesc.checkGeneralLayout(GeneralLayout::ncsp)
-                             && dstMemDesc.checkGeneralLayout(GeneralLayout::ncsp)
+    bool isPlanarFloatConv = srcMemDesc.hasLayoutType(LayoutType::ncsp)
+                             && dstMemDesc.hasLayoutType(LayoutType::ncsp)
                              && srcDataType == memory::data_type::f32
                              && dstDataType == memory::data_type::f32;
 
@@ -747,7 +751,7 @@ InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
         }
     }
 
-    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
+    return getMaxPrecision(inputPrecisions);
 }
 
 bool MKLDNNConvolutionNode::isNspcAvailable() const {

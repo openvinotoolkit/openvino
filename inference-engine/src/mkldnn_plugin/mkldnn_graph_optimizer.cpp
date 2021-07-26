@@ -3580,7 +3580,7 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
         reorderOutDesc->setPrecision(inPrec);
 
         std::string reorderlayerName = parentParentNode->getName() + "_" +
-                MKLDNNExtensionUtils::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
+                MKLDNNReorderNode::getReorderArgs(*reorderInDesc, *reorderOutDesc) + "_" + "fake";
 
         MKLDNNEdgePtr edge;
         for (auto &childEdge : parentParentNode->getChildEdges()) {
@@ -3601,7 +3601,7 @@ void MKLDNNGraphOptimizer::MergeTransposeAndReorder(MKLDNNGraph &graph) {
             auto reorderOutDesc2 = outDesc->clone();
 
             std::string reorderLayerName2 = reorderNode->getName() + "_" +
-                                    MKLDNNExtensionUtils::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
+                                    MKLDNNReorderNode::getReorderArgs(*reorderInDesc2, *reorderOutDesc2) + "_" + childChildNode->getName();
 
             graph.InsertReorder(reorderNode->getChildEdgeAt(0), reorderLayerName2, *reorderInDesc2, *reorderOutDesc2, false);
         }

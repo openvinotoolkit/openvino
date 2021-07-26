@@ -225,30 +225,30 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     }
     config.outConfs.resize(1);
 
-    std::vector<GeneralLayout> supportedTypes;
+    std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && params.equalDims) {
         auto canUseBlocked = [=](const size_t blockSize) {
             return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
         };
 
-        supportedTypes.push_back(GeneralLayout::nspc);
+        supportedTypes.push_back(LayoutType::nspc);
         if (canUseBlocked(8lu))
-            supportedTypes.push_back(GeneralLayout::nCsp8c);
+            supportedTypes.push_back(LayoutType::nCsp8c);
         if (canUseBlocked(16lu))
-            supportedTypes.push_back(GeneralLayout::nCsp16c);
+            supportedTypes.push_back(LayoutType::nCsp16c);
     }
-    supportedTypes.push_back(GeneralLayout::ncsp);
+    supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].desc = itr->second->createUniqueDesc(dataPrecision, getParentEdgeAt(DATA_ID)->getShape().getStaticDims());
-        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticMklDims(), beginDataType,
+        config.inConfs[BEGIN_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(BEGIN_ID)->getShape().getStaticDims(), beginDataType,
                                                                       mkldnn::memory::format_tag::x);
-        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticMklDims(), endDataType,
+        config.inConfs[END_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(END_ID)->getShape().getStaticDims(), endDataType,
                                                                     mkldnn::memory::format_tag::x);
         if (hasStrides)
-            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticMklDims(),
+            config.inConfs[STRIDE_ID].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(STRIDE_ID)->getShape().getStaticDims(),
                                                               MKLDNNExtensionUtils::IEPrecisionToDataType(stridePrecision),
                                                               mkldnn::memory::format_tag::x);
 
@@ -276,7 +276,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 
     if (params.parametersAreConstant) {
         size_t realNDims = params.dstDims.size();
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp))
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;
@@ -289,9 +289,9 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 }
 
 void MKLDNNStridedSliceNode::orderParametersByLayouts() {
-    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nspc);
-    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp8c) ||
-                                 getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::nCsp16c);
+    const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc);
+    const bool isBlockedLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                                 getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
     auto srcOrder = getParentEdgeAt(DATA_ID)->getMemory().GetDescWithType<BlockedMemoryDesc>().getOrder();
 
     if (isBlockedLayout) {
@@ -580,7 +580,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
         if (srcDims.size() > 3 && params.equalDims && ellipsisMaskCounter != 0)
             addHiddenDims(srcDims.size());
 
-        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().checkGeneralLayout(GeneralLayout::ncsp))
+        if (!getParentEdgeAt(DATA_ID)->getMemory().GetDesc().hasLayoutType(LayoutType::ncsp))
             orderParametersByLayouts();
 
         SizeVector newSrcDims, newDstDims;

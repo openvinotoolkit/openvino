@@ -7,6 +7,9 @@
 #include "cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
+
+class MKLDNNMemoryDesc;
+
 class BlockedMemoryDesc : public MemoryDesc {
 public:
     BlockedMemoryDesc(InferenceEngine::Precision prc, const std::vector<size_t>& dims);
@@ -15,9 +18,7 @@ public:
                       const std::vector<size_t>& order, size_t offsetPadding = 0, const std::vector<size_t>& offsetPaddingToData = {},
                       const std::vector<size_t>& strides = {});
 
-    MemoryDescPtr clone() const override {
-        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
-    }
+    MemoryDescPtr clone() const override;
 
     bool isDefined() const override;
 
@@ -25,61 +26,48 @@ public:
 
     bool isCompatible(const BlockedMemoryDesc& rhs) const;
 
-    InferenceEngine::Precision getPrecision() const override {
-        return precision;
-    }
+    bool isCompatible(const MKLDNNMemoryDesc& rhs) const;
 
-    void setPrecision(InferenceEngine::Precision prc) override {
-        precision = std::move(prc);
-    }
+    InferenceEngine::Precision getPrecision() const override;
 
-    const std::vector<size_t>& getBlockDims() const {
-        return blockedDims;
-    }
+    void setPrecision(InferenceEngine::Precision prc) override;
+
+    const std::vector<size_t>& getBlockDims() const;
 
     /**
      * @brief Returns the vector of order
      *
      * @return order
      */
-    const std::vector<size_t>& getOrder() const {
-        return order;
-    }
+    const std::vector<size_t>& getOrder() const;
 
     /**
      * @brief Returns the per-dimension offset vector
      *
      * @return offsets
      */
-    const std::vector<size_t>& getOffsetPaddingToData() const {
-        return offsetPaddingToData;
-    }
+    const std::vector<size_t>& getOffsetPaddingToData() const;
 
     /**
      * @brief Returns the offset to the current memory block
      *
      * @return offset
      */
-    size_t getOffsetPadding() const {
-        return offsetPadding;
-    }
+    size_t getOffsetPadding() const;
 
     /**
      * @brief Returns strides for each dimension
      *
      * @return strides
      */
-    const std::vector<size_t>& getStrides() const {
-        return strides;
-    }
+    const std::vector<size_t>& getStrides() const;
 
-    size_t getOffset(size_t elemNumber) const override;
-
-    bool checkGeneralLayout(GeneralLayout layoutType) const override;
+    bool hasLayoutType(LayoutType layoutType) const override;
 
     std::string serializeFormat() const override;
 
 private:
+    size_t getElementOffset(size_t elemNumber) const override;
     size_t getMemSizeImp() const override;
     size_t getOffset(const InferenceEngine::SizeVector& v) const;
     bool isPlainFormat() const;

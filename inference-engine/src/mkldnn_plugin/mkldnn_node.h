@@ -207,11 +207,11 @@ static std::string NameFromType(Type type) {
 
 class PortConfigurator {
 public:
-    PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
 
-    PortConfigurator(MKLDNNPlugin::GeneralLayout blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
                      bool constant = false, int inPlace = -1) :
             blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
 
@@ -222,7 +222,7 @@ public:
     int inPlace = -1;
 
 private:
-    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::GeneralLayout blockedDescType) {
+    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::LayoutType blockedDescType) {
         auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
         if (creators.find(blockedDescType) == creators.end()) {
             IE_THROW() << "Cannot find tensor descriptor creator";

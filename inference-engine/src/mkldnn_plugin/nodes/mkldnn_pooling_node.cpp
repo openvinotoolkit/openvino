@@ -113,8 +113,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     effective_pad_begin = data_pad_begin;
     effective_pad_end.resize(data_pad_end.size());
 
-    auto parentDims = getParentEdgeAt(0)->getShape().getStaticMklDims();
-    auto childDims = getChildEdgeAt(0)->getShape().getStaticMklDims();
+    auto parentDims = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto childDims = getChildEdgeAt(0)->getShape().getStaticDims();
     const size_t inputRank = getParentEdgeAt(0)->getShape().getRank();
 
     if ((inputRank < 4) || (inputRank > 5))

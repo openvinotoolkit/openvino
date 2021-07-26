@@ -978,7 +978,7 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
 //        auto weiFormat = implType == impl_desc_type::jit_avx512 ? memory::format_tag::OhIw16o32i : memory::format_tag::OhIw8o32i;
 
         //activation
-        auto nspcCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::nspc);
+        auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
         config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(0)->getShape().getStaticDims());
 
         //weights
@@ -1000,8 +1000,8 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, implType});
     } else {
         // reference implementation
-        auto weiCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::ncsp);
-        auto nspcCreator = BlockedDescCreator::getCommonCreators().at(GeneralLayout::nspc);
+        auto weiCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+        auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
 
         config.inConfs[0].desc = nspcCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(0)->getShape().getStaticDims());
         config.inConfs[1].desc = weiCreator->createUniqueDesc(Precision::BIN, getParentEdgeAt(1)->getShape().getStaticDims());
