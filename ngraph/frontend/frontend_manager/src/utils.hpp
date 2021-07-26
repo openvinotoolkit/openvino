@@ -9,6 +9,6 @@ namespace ngraph
 {
     namespace frontend
     {
-        FRONTEND_API std::string getFrontendLibraryPath();
+        FRONTEND_API std::string get_frontend_library_path();
     } // namespace frontend
 } // namespace ngraph

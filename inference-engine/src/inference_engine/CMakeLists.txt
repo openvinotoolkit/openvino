@@ -120,11 +120,12 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                      $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+                                                      $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:ngraph::frontend_manager,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -161,7 +162,7 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph ngraph::frontend_manager inference_engine_transformations)
+                                             ngraph ngraph::frontend_manager::static inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -201,7 +202,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph ngraph::frontend_manager
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph ngraph::frontend_manager::static
                                                inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
@@ -228,7 +229,14 @@ list(APPEND core_components ngraph)
 list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
                       "IE_PARALLEL_CMAKE")
 
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
+# define variables for InferenceEngineConfig.cmake
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    set(IE_TBB_DIR "${TBB_DIR}")
+    list(APPEND PATH_VARS "IE_TBB_DIR")
+endif()
+
+# install only downloaded TBB, system one is not installed
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
@@ -248,8 +256,6 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             COMPONENT tbb)
 
     set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
-    set(IE_TBB_DIR "${TBB_DIR}")
-    list(APPEND PATH_VARS "IE_TBB_DIR")
 
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"

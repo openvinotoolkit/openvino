@@ -24,7 +24,6 @@ if (ENABLE_CLDNN)
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
     set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
-    set(GPU_DEBUG_CONFIG OFF CACHE BOOL "Enable debug config feature")
     add_subdirectory(clDNN)
 endif()
 
@@ -42,12 +41,14 @@ function(ie_add_mkldnn)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        # xbyak compilation fails
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+    endif()
     if(CMAKE_COMPILER_IS_GNUCXX)
         ie_add_compiler_flags(-Wno-undef)
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            # xbyak compilation fails
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-        endif()
+    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
     endif()
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)

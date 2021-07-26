@@ -380,7 +380,6 @@ class MOCK_API FrontEndMockPy : public FrontEnd
 public:
     FrontEndMockPy() {}
 
-
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
     {
         m_stat.m_convert_model++;
