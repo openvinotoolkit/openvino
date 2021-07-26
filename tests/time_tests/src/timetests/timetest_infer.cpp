@@ -5,7 +5,7 @@
 #include <inference_engine.hpp>
 #include <iostream>
 
-#include "common.h"
+#include "common_utils.h"
 #include "timetests_helper/timer.h"
 #include "timetests_helper/utils.h"
 using namespace InferenceEngine;
