@@ -100,7 +100,7 @@ TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
         FLOAT16(2), FLOAT16(10), FLOAT16(7), FLOAT16(3), FLOAT16(3), FLOAT16(10), FLOAT16(6), FLOAT16(1), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 8, 3), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 2, 8, 3), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d2235_i2235_a3) {
@@ -178,7 +178,7 @@ TEST(gather_elements_gpu_fp16, d2235_i2235_a3) {
         FLOAT16(9), FLOAT16(9), FLOAT16(0),
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 3, 5), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 2, 3, 5), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
@@ -277,7 +277,7 @@ TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
         FLOAT16(3), FLOAT16(3), FLOAT16(2), FLOAT16(3), FLOAT16(3), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(1, 3, 5, 9), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(1, 3, 5, 9), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
@@ -350,7 +350,7 @@ TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
         FLOAT16(1), FLOAT16(7), FLOAT16(10), FLOAT16(0), FLOAT16(9), FLOAT16(4), FLOAT16(5), FLOAT16(5), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(1, 2, 8, 2, 3), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(1, 2, 8, 2, 3), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d25441_i22441_an4) {
@@ -442,7 +442,7 @@ TEST(gather_elements_gpu_fp16, d25441_i22441_an4) {
         FLOAT16(6), FLOAT16(5), FLOAT16(10), FLOAT16(8), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 4, 4, 1), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 2, 4, 4, 1), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
@@ -582,7 +582,7 @@ TEST(gather_elements_gpu_fp16, d32843_i12843_a0) {
         FLOAT16(7), FLOAT16(4), FLOAT16(6), FLOAT16(8), FLOAT16(2), FLOAT16(7), FLOAT16(3), FLOAT16(5), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(1, 2, 8, 4, 3), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(1, 2, 8, 4, 3), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
@@ -985,7 +985,7 @@ TEST(gather_elements_gpu_fp16, d223442_i226442_a5) {
         FLOAT16(3), FLOAT16(3), FLOAT16(7), FLOAT16(8), FLOAT16(3), FLOAT16(8), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(2, 2, 6, 4, 4, 2), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 2, 6, 4, 4, 2), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d124251_i124221_an3) {
@@ -1040,7 +1040,7 @@ TEST(gather_elements_gpu_fp16, d124251_i124221_an3) {
         FLOAT16(2), FLOAT16(0), FLOAT16(5), FLOAT16(8), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(1, 2, 4, 2, 2, 1), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(1, 2, 4, 2, 2, 1), axis);
 }
 
 TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
@@ -1137,5 +1137,5 @@ TEST(gather_elements_gpu_fp16, d233113_i233115_a2) {
         FLOAT16(5), FLOAT16(6), FLOAT16(3), 
     };
 
-    DoTest(engine,input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis);
+    DoTest(engine, input0, input1, expected_results, tensor(2, 3, 3, 1, 1, 5), axis);
 }

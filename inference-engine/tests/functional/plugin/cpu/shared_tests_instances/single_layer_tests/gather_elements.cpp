@@ -4,7 +4,8 @@
 
 #include <vector>
 
-#include "shared_test_classes/single_layer/gather_elements.hpp"
+#include "single_layer_tests/gather_elements.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
