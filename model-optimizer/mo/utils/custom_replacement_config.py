@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import fastjsonschema as json_validate
 import json
 import logging as log
 import os
@@ -9,7 +10,8 @@ from re import compile, match
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
-from mo.utils.utils import refer_to_faq_msg
+from mo.utils.json_schema import schema_dict
+from mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
 
 
 class CustomReplacementDescriptor(object):
@@ -297,12 +299,12 @@ class CustomReplacementDescriptorScope(CustomReplacementDescriptor):
                 log.debug("Node {} doesn't have output edges. Consider it output".format(node_name))
                 output_tensors.add((generate_pattern_for_node(graph, pattern, node_name), 0))
 
-        if not self.has('inputs'):
+        if not self.has('inputs') or len(self._replacement_desc['inputs']) == 0:
             self._replacement_desc['inputs'] = [[{'node': desc[0], 'port': desc[1]} for desc in inp]
                                                 for inp in sorted(input_nodes_mapping.values())]
             log.debug('Updated inputs of sub-graph for instance "{}"'.format(self.instances))
 
-        if not self.has('outputs'):
+        if not self.has('outputs') or len(self._replacement_desc['outputs']) == 0:
             self._replacement_desc['outputs'] = [{'node': node, 'port': port} for node, port in sorted(output_tensors)]
             log.debug('Updated outputs of sub-graph for instance "{}"'.format(self.instances))
 
@@ -342,13 +344,8 @@ def parse_custom_replacement_config_file(file_name: str):
     if not os.path.exists(file_name):
         raise Error("Custom replacements configuration file '{}' does not exist. ".format(file_name) +
                     refer_to_faq_msg(69))
-    try:
-        with open(file_name, 'r') as f:
-            data = json.load(f)
-    except Exception as exc:
-        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(file_name, exc) +
-                    refer_to_faq_msg(70)) from exc
 
+    data = load_and_validate_json_config(file_name)
     result = list()
     validation_errors = list()
     for attrs in data:
@@ -394,3 +391,22 @@ def generate_pattern_for_node(graph: Graph, sub_graph_pattern: str, node_name: s
 
     raise RuntimeError('The pattern that uniquely identifies node "{}" using sub-graph pattern "{}" has not been found'.
                        format(node_name, sub_graph_pattern))
+
+
+def load_and_validate_json_config(config_file_name: str):
+    """
+    Reads and validate custom replacement configuration file config_file_name.
+    :param config_file_name: name of the file to read from.
+    :return: A dictionary serialized from json config file.
+    """
+
+    try:
+        with open(config_file_name, 'r') as f:
+            json_config = json.load(f)
+            validator = json_validate.compile(schema_dict)
+            validator(json_config)
+    except Exception as e:
+        raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, e) +
+                    refer_to_faq_msg(70)) from e
+
+    return json_config

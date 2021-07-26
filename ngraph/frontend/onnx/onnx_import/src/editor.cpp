@@ -187,19 +187,20 @@ namespace
 /// \brief A helper class used to hold the ModelProto object as its field
 struct onnx_editor::ONNXModelEditor::Impl
 {
-    ONNX_NAMESPACE::ModelProto m_model_proto;
+    std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
     EdgeMapper m_edge_mapper;
     bool m_is_mapper_updated = false;
 
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{onnx_common::parse_from_file(model_path)}
+        : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(
+              onnx_common::parse_from_file(model_path))}
     {
     }
 
-    void infer_shapes() { ONNX_NAMESPACE::shape_inference::InferShapes(m_model_proto); }
-    void remove_shape_inference_info() { m_model_proto.mutable_graph()->clear_value_info(); }
+    void infer_shapes() { ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto.get()); }
+    void remove_shape_inference_info() { m_model_proto->mutable_graph()->clear_value_info(); }
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
@@ -222,7 +223,7 @@ void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) c
         throw ngraph_error("Could not open the file: " + out_file_path);
     };
 
-    if (!m_pimpl->m_model_proto.SerializeToOstream(&out_file))
+    if (!m_pimpl->m_model_proto->SerializeToOstream(&out_file))
     {
         throw ngraph_error("Could not serialize the model to: " + out_file_path);
     }
@@ -235,7 +236,7 @@ void onnx_editor::ONNXModelEditor::serialize(const std::string& out_file_path) c
 void onnx_editor::ONNXModelEditor::set_input_types(
     const std::map<std::string, element::Type_t>& input_types)
 {
-    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_types)
     {
@@ -256,7 +257,7 @@ void onnx_editor::ONNXModelEditor::set_input_types(
 void onnx_editor::ONNXModelEditor::set_input_shapes(
     const std::map<std::string, ngraph::PartialShape>& input_shapes)
 {
-    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input_desc : input_shapes)
     {
@@ -283,7 +284,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
 
     m_pimpl->infer_shapes();
 
-    SubgraphExtractor editor{*(m_pimpl->m_model_proto.mutable_graph())};
+    SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
     editor.add_new_inputs(inputs);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
@@ -294,7 +295,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 {
-    const auto& graph = m_pimpl->m_model_proto.graph();
+    const auto& graph = m_pimpl->m_model_proto->graph();
 
     std::vector<std::string> inputs_and_initializers;
     inputs_and_initializers.reserve(graph.input_size() + graph.initializer_size());
@@ -314,7 +315,7 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 
 std::string onnx_editor::ONNXModelEditor::model_string() const
 {
-    return m_pimpl->m_model_proto.SerializeAsString();
+    return m_pimpl->m_model_proto->SerializeAsString();
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const
@@ -325,7 +326,7 @@ std::shared_ptr<Function> onnx_editor::ONNXModelEditor::get_function() const
 void onnx_editor::ONNXModelEditor::set_input_values(
     const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
 {
-    auto onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+    auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
 
     for (const auto& input : input_values)
     {
@@ -354,7 +355,7 @@ void onnx_editor::ONNXModelEditor::update_mapper_if_needed() const
 {
     if (!m_pimpl->m_is_mapper_updated)
     {
-        m_pimpl->m_edge_mapper = EdgeMapper(m_pimpl->m_model_proto.graph());
+        m_pimpl->m_edge_mapper = EdgeMapper(m_pimpl->m_model_proto->graph());
     }
     m_pimpl->m_is_mapper_updated = true;
 }
@@ -390,4 +391,9 @@ bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorN
 {
     update_mapper_if_needed();
     return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
+}
+
+std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode()
+{
+    return onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path);
 }
