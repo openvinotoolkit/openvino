@@ -32,6 +32,7 @@ VERIFIED_OP_REFERENCES = [
     'DetectionOutput-1',
     'Divide-1',
     'Equal-1',
+    'Erf-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',
     'ExperimentalDetectronPriorGridGenerator-6',
