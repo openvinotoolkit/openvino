@@ -161,6 +161,7 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLUWithoutReplaceParameter) {
 
     {
         auto& shape = ngraph->get_parameters()[0]->get_partial_shape();
+        // Change shapes values
         shape = {1, 3, 25, 25};
 
         ngraph->validate_nodes_and_infer_types();
