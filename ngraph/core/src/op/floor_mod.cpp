@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::FloorMod::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::FloorMod, "FloorMod", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::FloorMod::FloorMod(const Output<Node>& arg0,
                            const Output<Node>& arg1,
@@ -97,5 +97,6 @@ bool op::v1::FloorMod::has_evaluate() const
 bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_FloorMod_visit_attributes);
+    BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }

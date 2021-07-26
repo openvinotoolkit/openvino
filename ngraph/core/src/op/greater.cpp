@@ -51,7 +51,7 @@ namespace greaterop
 
 //-------------------------------------- v1 ------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Greater, "Greater", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Greater, "Greater", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Greater::Greater(const Output<Node>& arg0,
                          const Output<Node>& arg1,

@@ -55,6 +55,8 @@ namespace ngraph
                                             const AutoBroadcastSpec& autob = AutoBroadcastSpec());
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }

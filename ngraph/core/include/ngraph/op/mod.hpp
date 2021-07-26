@@ -17,8 +17,8 @@ namespace ngraph
             class NGRAPH_API Mod : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Mod", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a Mod node.
                 Mod()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)

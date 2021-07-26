@@ -51,7 +51,7 @@ namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0,
                            const Output<Node>& arg1,
@@ -95,5 +95,6 @@ bool op::v1::NotEqual::has_evaluate() const
 bool op::v1::NotEqual::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_NotEqual_visit_attributes);
+    BinaryElementwiseComparison::visit_attributes(visitor);
     return true;
 }
