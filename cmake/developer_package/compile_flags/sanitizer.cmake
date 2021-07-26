@@ -34,7 +34,7 @@ endif()
 # common sanitizer options
 if (DEFINED SANITIZER_COMPILER_FLAGS)
     # ensure sumbols are present
-    set(SANITIZER_COMPILER_FLAGS "-g -fno-omit-frame-pointer")
+    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
     # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
 

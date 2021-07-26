@@ -26,7 +26,7 @@
 
 namespace
 {
-    std::string getPathName(const std::string& s)
+    std::string get_path_name(const std::string& s)
     {
         size_t i = s.rfind(FileSeparator, s.length());
         if (i != std::string::npos)
@@ -39,30 +39,30 @@ namespace
 
 } // namespace
 
-static std::string _getFrontendLibraryPath()
+static std::string _get_frontend_library_path()
 {
 #ifdef _WIN32
     CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                 GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            reinterpret_cast<LPSTR>(ngraph::frontend::getFrontendLibraryPath),
+                            reinterpret_cast<LPSTR>(ngraph::frontend::get_frontend_library_path),
                             &hm))
     {
         FRONT_END_INITIALIZATION_CHECK(false, "GetModuleHandle returned ", GetLastError());
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
-    return getPathName(std::string(ie_library_path));
+    return get_path_name(std::string(ie_library_path));
 #elif defined(__APPLE__) || defined(__linux__)
     Dl_info info;
-    dladdr(reinterpret_cast<void*>(ngraph::frontend::getFrontendLibraryPath), &info);
-    return getPathName(std::string(info.dli_fname)).c_str();
+    dladdr(reinterpret_cast<void*>(ngraph::frontend::get_frontend_library_path), &info);
+    return get_path_name(std::string(info.dli_fname)).c_str();
 #else
 #error "Unsupported OS"
 #endif // _WIN32
 }
 
-std::string ngraph::frontend::getFrontendLibraryPath()
+std::string ngraph::frontend::get_frontend_library_path()
 {
-    return _getFrontendLibraryPath();
+    return _get_frontend_library_path();
 }
