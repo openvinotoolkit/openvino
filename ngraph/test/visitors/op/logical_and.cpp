@@ -27,6 +27,8 @@ TEST(attributes, logical_and_op)
     auto logical_and = make_shared<opset1::LogicalAnd>(x1, x2, auto_broadcast);
     NodeBuilder builder(logical_and);
     auto g_logical_and = as_type_ptr<opset1::LogicalAnd>(builder.create());
+    const auto expected_attr_count = 1;
 
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(g_logical_and->get_autob(), logical_and->get_autob());
 }
