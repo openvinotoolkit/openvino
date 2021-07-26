@@ -122,6 +122,7 @@ set(SRC
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
+    type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -252,6 +253,7 @@ set(SRC
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/erf.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor.cpp
@@ -415,7 +417,6 @@ set(MULTI_TEST_SRC
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
-    backend/erf.in.cpp
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
