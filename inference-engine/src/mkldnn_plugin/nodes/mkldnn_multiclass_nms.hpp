@@ -53,8 +53,6 @@ private:
     float nms_eta = 0.0f;
     bool normalized = true;
 
-    InferenceEngine::SizeVector outputShape_SELECTEDINDICES;
-    InferenceEngine::SizeVector outputShape_SELECTEDOUTPUTS;
     std::string errorPrefix;
 
     std::vector<std::vector<size_t>> numFiltBox;
