@@ -161,8 +161,8 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
 
         resultSharedValue->preferablePrecisions.insert(sharedValue->preferablePrecisions.begin(), sharedValue->preferablePrecisions.end());
 
-        const auto resultSize = abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
-        const auto size = abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
+        const auto resultSize = std::abs(resultSharedValue->minInterval.high - resultSharedValue->minInterval.low);
+        const auto size = std::abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
         if (resultSize > size) {
             resultSharedValue->minInterval = sharedValue->minInterval;
 

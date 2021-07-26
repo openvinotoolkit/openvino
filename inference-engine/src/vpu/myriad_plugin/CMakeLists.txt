@@ -23,7 +23,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_COMPILER_IS_GNUCXX)
     target_compile_options(${TARGET_NAME}
         PRIVATE
             -Wall)

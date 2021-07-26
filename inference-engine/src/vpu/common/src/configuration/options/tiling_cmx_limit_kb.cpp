@@ -18,7 +18,7 @@ void TilingCMXLimitKBOption::validate(const std::string& value) {
     int intValue;
     try {
         intValue = std::stoi(value);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 
@@ -54,7 +54,7 @@ TilingCMXLimitKBOption::value_type TilingCMXLimitKBOption::parse(const std::stri
     int intValue;
     try {
         intValue = std::stoi(value);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         VPU_THROW_FORMAT(R"(unexpected {} option value "{}", must be a number)", key(), value);
     }
 

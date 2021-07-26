@@ -325,7 +325,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
                               plugin.ImportNetwork(networkStream, config);
                 networkIsImported = true;
             });
-        } catch (const HeaderException& ex) {
+        } catch (const HeaderException&) {
             // For these exceptions just remove old cache and set that import didn't work
             cacheManager->removeCacheEntry(blobId);
             networkIsImported = false;

@@ -3257,7 +3257,7 @@ static inline void v_set(v_uint8x64& val_0, v_uint8x64& val_1,
                                   *reinterpret_cast<int64_t*>(&tmp[4 * (*(mapsx + x + 3 * shift + 7))]));
 }
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
 
 int _mm512_cvtsi512_si32(__m512i a)
 {

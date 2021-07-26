@@ -851,7 +851,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
 
         try {
             serializeFunc(xml_file, bin_file);
-        } catch (const ngraph::CheckFailure& e) {
+        } catch (const ngraph::CheckFailure&) {
             // optimization decission was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure

@@ -127,7 +127,7 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
                 statusCode = [&] {
                     try {
                         std::rethrow_exception(exceptionPtr);
-                    } CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception& ex) {
+                    } CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
                         return GENERAL_ERROR;
                     } catch (...) {
                         return UNEXPECTED;
@@ -148,7 +148,7 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
                 statusCode = [&] {
                     try {
                         std::rethrow_exception(exceptionPtr);
-                    } CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception& ex) {
+                    } CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
                         return GENERAL_ERROR;
                     } catch (...) {
                         return UNEXPECTED;

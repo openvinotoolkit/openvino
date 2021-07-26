@@ -58,6 +58,13 @@ else()
     endif()
 endif()
 
+function(ov_python_disable_intel_warnings target)
+    if(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        # 1292: unknown attribute "fallthrough"
+        target_compile_options(${target} PRIVATE -diag-disable=1292)
+    endif()
+endfunction()
+
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
 add_subdirectory (src/openvino/offline_transformations)

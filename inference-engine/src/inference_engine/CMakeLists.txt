@@ -229,7 +229,14 @@ list(APPEND core_components ngraph)
 list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
                       "IE_PARALLEL_CMAKE")
 
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
+# define variables for InferenceEngineConfig.cmake
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    set(IE_TBB_DIR "${TBB_DIR}")
+    list(APPEND PATH_VARS "IE_TBB_DIR")
+endif()
+
+# install only downloaded TBB, system one is not installed
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
@@ -249,8 +256,6 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             COMPONENT tbb)
 
     set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
-    set(IE_TBB_DIR "${TBB_DIR}")
-    list(APPEND PATH_VARS "IE_TBB_DIR")
 
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
