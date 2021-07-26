@@ -102,8 +102,9 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
     def pass_rc_through(node: Node, reverse_channels: Node):
         r"""
         BEFORE                          AFTER
-          previous_op
-              |
+
+        previous_op
+            |
         ReverseChannels  previous_op     previous_op  previous_op
                      \     /                      \     /
                        Node                         Node
@@ -202,6 +203,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
                      Eltwise                        Eltwise
                                                       |
                                                 ReverseChannels
+
         returns boolean value whatever we should continue propagating current ReverseChannels operation down or not
         """
         before_shape = reverse_channels.out_port(0).data.get_shape()
@@ -296,6 +298,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
     def lift_up_through(node: Node, reverse_channels: Node):
         r"""
         BEFORE                       AFTER
+
                                      previous_op
                                           \
         previous_op  previous_op       ReverseChannels  previous_op
