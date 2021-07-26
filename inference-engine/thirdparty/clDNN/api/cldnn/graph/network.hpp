@@ -94,9 +94,6 @@ public:
     void set_input_data(const primitive_id& id, memory::ptr data);
     void set_output_memory(const primitive_id& id, memory::ptr mem);
 
-    void set_learning_rate(const float lr);
-    float get_learning_rate();
-
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
     const std::vector<std::shared_ptr<const primitive_inst>>& get_outputs() const {
@@ -191,7 +188,6 @@ private:
     bool _internal;
     bool _is_primary_stream;
     bool _reset_arguments;
-    float _learning_rate = static_cast<float>(0.00001);
 
     std::map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<std::shared_ptr<primitive_inst>> _inputs;

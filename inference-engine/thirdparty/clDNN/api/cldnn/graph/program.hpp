@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 #include "cldnn/runtime/engine.hpp"
@@ -25,7 +23,6 @@ class TuningCache;
 namespace cldnn {
 
 struct topology;
-struct primitive_impl;
 struct program_node;
 class layout_optimizer;
 class pass_manager;
@@ -34,9 +31,6 @@ class program_wrapper;
 class kernels_cache;
 
 
-/*
-    cldnn_program implementation
-*/
 struct program {
     using ptr = std::shared_ptr<program>;
     using cptr = std::shared_ptr<const program>;

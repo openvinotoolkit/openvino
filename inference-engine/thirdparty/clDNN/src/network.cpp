@@ -364,10 +364,6 @@ std::shared_ptr<primitive_inst> cldnn::network::find_in_internal_networks(const 
     return nullptr;
 }
 
-void network::set_learning_rate(const float lr) { _learning_rate = lr; }
-
-float network::get_learning_rate() { return _learning_rate; }
-
 std::string network::get_primitive_info(const primitive_id& id) const {
     const auto& node = _program->get_node(id);
     return node.type()->to_string(node);
