@@ -22,7 +22,7 @@
 #endif
 // clang-format on
 
-#include "core/null_node.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "gtest/gtest.h"
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"

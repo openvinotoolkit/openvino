@@ -636,10 +636,13 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
 
-    target_link_libraries(unit-test PRIVATE onnx_importer)
+    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
+    if (LINUX)
+        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+    endif()
 endif()
 
 install(TARGETS unit-test

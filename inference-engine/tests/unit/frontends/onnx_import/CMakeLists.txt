@@ -11,7 +11,7 @@ if (NOT NGRAPH_USE_PROTOBUF_LITE)
             LINK_LIBRARIES
                 gtest
                 gtest_main
-                onnx_importer
+                onnx_ngraph_frontend
             DEFINES
                 ONNX_MODELS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"
             ADD_CPPLINT
