@@ -13,7 +13,7 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if(OV_COMPILER_IS_CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
 endif()
 
@@ -58,11 +58,13 @@ else()
     set(Protobuf_LIBRARIES libprotobuf)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     set(_proto_libs ${Protobuf_LIBRARIES})
     if(TARGET libprotoc)
         list(APPEND _proto_libs libprotoc)
         target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
+        # libprotobuf is always built for protoc
+        target_compile_options(libprotobuf PUBLIC -Wno-undef)
     endif()
     set_target_properties(${_proto_libs} PROPERTIES
         CXX_VISIBILITY_PRESET default
@@ -83,6 +85,10 @@ if(NGRAPH_USE_PROTOBUF_LITE)
         VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
+if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
+endif()
+
 if(ENABLE_LTO AND protobuf_VERSION VERSION_GREATER_EQUAL "3.8")
     message(WARNING "Protobuf in version 3.8.0+ can throw runtime exceptions if LTO is enabled.")
 endif()
@@ -100,5 +106,6 @@ else()
 endif()
 
 set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
+set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
 set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
 set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)

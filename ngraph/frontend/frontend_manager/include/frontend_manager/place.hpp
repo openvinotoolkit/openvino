@@ -87,12 +87,43 @@ namespace ngraph
             /// \note It can be called for any kind of graph place searching for the first consuming
             /// operations.
             ///
+            /// \param output_port_index If place is an operational node it specifies which output
+            /// port should be considered.
+            ///
+            /// \return A vector with all operation node references that consumes data from this
+            /// place
+            virtual std::vector<Ptr> get_consuming_operations(int output_port_index) const;
+
+            /// \brief Returns references to all operation nodes that consume data from this place
+            /// for specified output port
+            ///
+            /// \note It can be called for any kind of graph place searching for the first consuming
+            /// operations.
+            ///
+            /// \param outputName If a given place is itself an operation node, this specifies name
+            /// of output port group
+            ///
+            /// \return A vector with all operation node references that consumes data from this
+            /// place
+            virtual std::vector<Ptr>
+                get_consuming_operations(const std::string& outputPortName) const;
+
+            /// \brief Returns references to all operation nodes that consume data from this place
+            /// for specified output port
+            ///
+            /// \note It can be called for any kind of graph place searching for the first consuming
+            /// operations.
+            ///
+            /// \param outputName If a given place is itself an operation node, this specifies name
+            /// of output port group, each group can have multiple ports
+            ///
             /// \param outputPortIndex If place is an operational node it specifies which output
             /// port should be considered.
             ///
             /// \return A vector with all operation node references that consumes data from this
             /// place
-            virtual std::vector<Ptr> get_consuming_operations(int outputPortIndex) const;
+            virtual std::vector<Ptr> get_consuming_operations(const std::string& outputName,
+                                                              int outputPortIndex) const;
 
             /// \brief Returns a tensor place that gets data from this place; applicable for
             /// operations, output ports and output edges which have only one output port
@@ -101,13 +132,32 @@ namespace ngraph
             virtual Ptr get_target_tensor() const;
 
             /// \brief Returns a tensor place that gets data from this place; applicable for
-            /// operations, output ports and output edges
+            /// operations, output ports and output edges which have only one output port
+            ///
+            /// \param outputName Name of output port group
+            ///
+            /// \return A tensor place which hold the resulting value for this place
+            virtual Ptr get_target_tensor(const std::string& outputName) const;
+
+            /// \brief Returns a tensor place that gets data from this place; applicable for
+            /// operations, output ports and output edges which have only one output port
+            ///
+            /// \param outputName Name of output port group, each group can have multiple ports
             ///
             /// \param outputPortIndex Output port index if the current place is an operation node
             /// and has multiple output ports
             ///
             /// \return A tensor place which hold the resulting value for this place
-            virtual Ptr get_target_tensor(int outputPortIndex) const;
+            virtual Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const;
+
+            /// \brief Returns a tensor place that gets data from this place; applicable for
+            /// operations, output ports and output edges
+            ///
+            /// \param output_port_index Output port index if the current place is an operation node
+            /// and has multiple output ports
+            ///
+            /// \return A tensor place which hold the resulting value for this place
+            virtual Ptr get_target_tensor(int output_port_index) const;
 
             /// \brief Returns a tensor place that supplies data for this place; applicable for
             /// operations, input ports and input edges which have only one input port
@@ -118,10 +168,29 @@ namespace ngraph
             /// \brief Returns a tensor place that supplies data for this place; applicable for
             /// operations, input ports and input edges
             ///
+            /// \param input_port_index Input port index for operational nodes.
+            ///
+            /// \return A tensor place which supplies data for this place
+            virtual Ptr get_source_tensor(int input_port_index) const;
+
+            /// \brief Returns a tensor place that supplies data for this place; applicable for
+            /// operations, input ports and input edges
+            ///
+            /// \param inputName Name of input port group
+            ///
+            /// \return A tensor place which supplies data for this place
+            virtual Ptr get_source_tensor(const std::string& inputName) const;
+
+            /// \brief Returns a tensor place that supplies data for this place; applicable for
+            /// operations, input ports and input edges
+            ///
+            /// \param inputName If a given place is itself an operation node, this specifies name
+            /// of output port group, each group can have multiple ports
+            ///
             /// \param inputPortIndex Input port index for operational nodes.
             ///
             /// \return A tensor place which supplies data for this place
-            virtual Ptr get_source_tensor(int inputPortIndex) const;
+            virtual Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const;
 
             /// \brief Get an operation node place that immediately produces data for this place;
             /// applicable if place has only one input port
@@ -131,13 +200,33 @@ namespace ngraph
 
             /// \brief Get an operation node place that immediately produces data for this place
             ///
+            /// \param input_port_index If a given place is itself an operation node, this specifies
+            /// a port index
+            ///
+            /// \return An operation place that produces data for this place
+            virtual Ptr get_producing_operation(int input_port_index) const;
+
+            /// \brief Get an operation node place that immediately produces data for this place
+            ///
+            /// \param inputName If a given place is itself an operation node, this specifies name
+            /// of output port group
+            ///
+            /// \return An operation place that produces data for this place
+            virtual Ptr get_producing_operation(const std::string& inputName) const;
+
+            /// \brief Get an operation node place that immediately produces data for this place
+            ///
+            /// \param inputName If a given place is itself an operation node, this specifies name
+            /// of output port group, each group can have multiple ports
+            ///
             /// \param inputPortIndex If a given place is itself an operation node, this specifies a
             /// port index
             ///
             /// \return An operation place that produces data for this place
-            virtual Ptr get_producing_operation(int inputPortIndex) const;
+            virtual Ptr get_producing_operation(const std::string& inputName,
+                                                int inputPortIndex) const;
 
-            /// Returns a port that produces data for this place
+            /// \brief Returns a port that produces data for this place
             virtual Ptr get_producing_port() const;
 
             /// \brief For operation node returns reference to an input port; applicable if
@@ -148,28 +237,28 @@ namespace ngraph
 
             /// \brief For operation node returns reference to an input port with specified index
             ///
-            /// \param inputPortIndex Input port index
+            /// \param input_port_index Input port index
             ///
             /// \return Appropriate input port place
-            virtual Ptr get_input_port(int inputPortIndex) const;
+            virtual Ptr get_input_port(int input_port_index) const;
 
             /// \brief For operation node returns reference to an input port with specified name;
             /// applicable if port group has only one input port
             ///
-            /// \param inputName Name of port group
+            /// \param input_name Name of port group
             ///
             /// \return Appropriate input port place
-            virtual Ptr get_input_port(const std::string& inputName) const;
+            virtual Ptr get_input_port(const std::string& input_name) const;
 
             /// \brief For operation node returns reference to an input port with specified name and
             /// index
             ///
-            /// \param inputName Name of port group, each group can have multiple ports
+            /// \param input_name Name of port group, each group can have multiple ports
             ///
-            /// \param inputPortIndex Input port index in a group
+            /// \param input_port_index Input port index in a group
             ///
             /// \return Appropriate input port place
-            virtual Ptr get_input_port(const std::string& inputName, int inputPortIndex) const;
+            virtual Ptr get_input_port(const std::string& input_name, int input_port_index) const;
 
             /// \brief For operation node returns reference to an output port; applicable for
             /// operations with only one output port
@@ -179,28 +268,29 @@ namespace ngraph
 
             /// \brief For operation node returns reference to an output port with specified index
             ///
-            /// \param outputPortIndex Output port index
+            /// \param output_port_index Output port index
             ///
             /// \return Appropriate output port place
-            virtual Ptr get_output_port(int outputPortIndex) const;
+            virtual Ptr get_output_port(int output_port_index) const;
 
             /// \brief For operation node returns reference to an output port with specified name;
             /// applicable if port group has only one output port
             ///
-            /// \param outputName Name of output port group
+            /// \param output_name Name of output port group
             ///
             /// \return Appropriate output port place
-            virtual Ptr get_output_port(const std::string& outputName) const;
+            virtual Ptr get_output_port(const std::string& output_name) const;
 
             /// \brief For operation node returns reference to an output port with specified name
             /// and index
             ///
-            /// \param outputName Name of output port group, each group can have multiple ports
+            /// \param output_name Name of output port group, each group can have multiple ports
             ///
-            /// \param outputPortIndex Output port index
+            /// \param output_port_index Output port index
             ///
             /// \return Appropriate output port place
-            virtual Ptr get_output_port(const std::string& outputName, int outputPortIndex) const;
+            virtual Ptr get_output_port(const std::string& output_name,
+                                        int output_port_index) const;
 
             /// \brief Returns all input ports that consume data flows through this place
             virtual std::vector<Place::Ptr> get_consuming_ports() const;
