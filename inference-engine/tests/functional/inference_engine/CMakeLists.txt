@@ -31,7 +31,11 @@ set(DEPENDENCIES
 )
 
 if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+endif()
+
+if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader")
 endif()
 
 addIeTargetTest(
@@ -58,6 +62,7 @@ endif()
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         PDPD_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader/models/")
+    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
