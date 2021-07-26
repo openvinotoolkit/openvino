@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import fastjsonschema as json_validate
 import json
 import logging as log
 import os
@@ -399,12 +398,18 @@ def load_and_validate_json_config(config_file_name: str):
     :param config_file_name: name of the file to read from.
     :return: A dictionary serialized from json config file.
     """
-
     try:
         with open(config_file_name, 'r') as f:
             json_config = json.load(f)
-            validator = json_validate.compile(schema_dict)
-            validator(json_config)
+            try:
+                import fastjsonschema as json_validate
+
+                validator = json_validate.compile(schema_dict)
+                validator(json_config)
+            except ModuleNotFoundError as e:
+                log.error("Module 'fastjsonschema' for json validation not installed. Please update requirements.",
+                          extra={'is_warning': True})
+
     except Exception as e:
         raise Error("Failed to parse custom replacements configuration file '{}': {}. ".format(config_file_name, e) +
                     refer_to_faq_msg(70)) from e
