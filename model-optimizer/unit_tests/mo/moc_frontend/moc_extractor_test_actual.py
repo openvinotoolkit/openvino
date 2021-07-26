@@ -39,7 +39,7 @@ class TestMainFrontend(unittest.TestCase):
         clear_model_statistic()
         clear_place_statistic()
         self.fe = fem.load_by_framework('mock_mo_ngraph_frontend')
-        self.model = self.fe.load_from_file('abc.bin')
+        self.model = self.fe.load('abc.bin')
 
     # Mock model has 'tensor' tensor place
     @mock_needed

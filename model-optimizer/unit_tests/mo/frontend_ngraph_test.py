@@ -37,7 +37,7 @@ def test_frontends():
 def test_moc_extractor():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
-            './moc_frontend/moc_extractor_test_actual.py', '-s']
+            os.path.join(os.path.dirname(__file__), 'moc_frontend/moc_extractor_test_actual.py'), '-s']
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
