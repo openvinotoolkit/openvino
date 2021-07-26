@@ -217,7 +217,8 @@ void op::v8::MaxPool::validate_and_infer_types()
     MaxPoolBase::validate_and_infer_types();
 
     const auto input_shape = get_input_partial_shape(0);
-    if (input_shape.rank().is_static()) {
+    if (input_shape.rank().is_static())
+    {
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
     }
 
