@@ -45,6 +45,12 @@ class PoolingV2(Op):
         Pooling.pool_infer(node)
 
 
+poolings_map = {
+    'max': {'version': 'opset8', 'out_ports_count': 2},
+    'avg': {'version': 'opset1', 'out_ports_count': 1}
+}
+
+
 class Pooling(Op):
     op = 'Pooling'
 
@@ -52,10 +58,10 @@ class Pooling(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
-            'version': 'opset8',
+            'version': poolings_map[attrs.get('pool_method')]['version'],
             'infer': self.infer,
             'in_ports_count': 1,
-            'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2
+            'out_ports_count': poolings_map[attrs.get('pool_method')]['out_ports_count']
         }, attrs)
 
     def backend_attrs(self):
