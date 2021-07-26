@@ -8,57 +8,52 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather1ToGather7, "ConvertGather1ToGather7", 0);
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGather7ToGather8, "ConvertGather7ToGather8", 0);
+using namespace std;
+using namespace ngraph;
 
-ngraph::pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
+NGRAPH_RTTI_DEFINITION(pass::ConvertGather1ToGather7, "ConvertGather1ToGather7", 0);
+NGRAPH_RTTI_DEFINITION(pass::ConvertGather7ToGather8, "ConvertGather7ToGather8", 0);
+
+shared_ptr<opset8::Gather> build_gather_v8(const shared_ptr<opset7::Gather>& gather_v7_node) {
+        return make_shared<opset8::Gather>(gather_v7_node->input_value(0),
+                                           gather_v7_node->input_value(1),
+                                           gather_v7_node->input_value(2),
+                                           gather_v7_node->get_batch_dims());
+}
+
+shared_ptr<opset7::Gather> build_gather_v7(const shared_ptr<opset1::Gather>& gather_v1_node) {
+    return make_shared<opset7::Gather>(gather_v1_node->input_value(0),
+                                       gather_v1_node->input_value(1),
+                                       gather_v1_node->input_value(2),
+                                       0);
+}
+
+pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     MATCHER_SCOPE(ConvertGather1ToGather7);
 
-    auto gather_v1 = pattern::wrap_type<ngraph::opset1::Gather>();
-
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v1_node = m.get_match_root();
-        if (!gather_v1_node)
-            return false;
-
-        auto data_input = gather_v1_node->input_value(0);
-        auto indices_input = gather_v1_node->input_value(1);
-        auto axis_input = gather_v1_node->input_value(2);
-
-        auto gather_v7  = std::make_shared<ngraph::opset7::Gather>(data_input, indices_input, axis_input, 0);
-        gather_v7->set_friendly_name(gather_v1_node->get_friendly_name());
-        ngraph::copy_runtime_info(gather_v1_node, gather_v7);
-        ngraph::replace_node(gather_v1_node, gather_v7);
-        return true;
+    auto gather_v1 = pattern::wrap_type<opset1::Gather>();
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        return op::util::replace_operation<opset1::Gather, opset7::Gather>(
+                m, [](const shared_ptr<opset1::Gather> &gather_v1_node) { return build_gather_v7(gather_v1_node); });
     };
 
-    auto m = std::make_shared<pattern::Matcher>(gather_v1, matcher_name);
+    auto m = make_shared<pattern::Matcher>(gather_v1, matcher_name);
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
+pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
     MATCHER_SCOPE(ConvertGather7ToGather8);
 
-    auto gather_v7 = pattern::wrap_type<ngraph::opset7::Gather>();
+    auto gather_v7 = pattern::wrap_type<opset7::Gather>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto gather_v1_node = m.get_match_root();
-        if (!gather_v1_node)
-            return false;
-
-        auto data_input = gather_v1_node->input_value(0);
-        auto indices_input = gather_v1_node->input_value(1);
-        auto axis_input = gather_v1_node->input_value(2);
-
-        auto gather_v8  = std::make_shared<ngraph::opset8::Gather>(data_input, indices_input, axis_input, 0);
-        gather_v8->set_friendly_name(gather_v1_node->get_friendly_name());
-        ngraph::copy_runtime_info(gather_v1_node, gather_v8);
-        ngraph::replace_node(gather_v1_node, gather_v8);
-        return true;
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        return op::util::replace_operation<opset7::Gather, opset8::Gather>(
+                m, [](const shared_ptr<opset7::Gather> &gather_v7_node) { return build_gather_v8(gather_v7_node); });
     };
 
-    auto m = std::make_shared<pattern::Matcher>(gather_v7, matcher_name);
+    auto m = make_shared<pattern::Matcher>(gather_v7, matcher_name);
     register_matcher(m, callback);
 }

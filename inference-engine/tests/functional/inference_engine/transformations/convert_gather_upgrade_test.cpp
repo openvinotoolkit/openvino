@@ -57,8 +57,8 @@ TEST(TransformationTests, ConvertGather7toGather8) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
-        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {0});
-        int64_t batch_dims = 0;
+        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        int64_t batch_dims = 1;
         auto gather_v7 = std::make_shared<ngraph::opset7::Gather>(data, indices, axis, batch_dims);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
@@ -73,8 +73,8 @@ TEST(TransformationTests, ConvertGather7toGather8) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3});
         auto indices = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{2, 2});
-        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {0});
-        int64_t batch_dims = 0;
+        auto axis = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {1});
+        int64_t batch_dims = 1;
 
         auto gather_v8 = std::make_shared<ngraph::opset8::Gather>(data, indices, axis, batch_dims);
 
