@@ -55,6 +55,11 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 
+if(NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        PDPD_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader/models/")
+endif()
+
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"
 )
@@ -209,7 +214,7 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS -Werror-all -Werror -Wall)
+                                                 FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()

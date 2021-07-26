@@ -35,7 +35,7 @@ void FrontEndFuzzyOpTest::SetUp()
 void FrontEndFuzzyOpTest::initParamTest()
 {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
-    m_modelFile = m_pathToModels + m_modelFile;
+    m_modelFile = FrontEndTestUtils::make_model_path(m_pathToModels + m_modelFile);
 }
 
 void FrontEndFuzzyOpTest::doLoadFromFile()
@@ -44,7 +44,7 @@ void FrontEndFuzzyOpTest::doLoadFromFile()
     ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_modelFile));
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
     ASSERT_NE(m_inputModel, nullptr);
 }
 

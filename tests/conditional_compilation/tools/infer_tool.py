@@ -64,10 +64,14 @@ def cli_parser():
     parser.add_argument('-d', dest='device', required=True, help='Target device to infer on')
     parser.add_argument('-r', dest='out_path', required=True, type=Path,
                         help='Dumps results to the output file')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='Increase output verbosity')
     args = parser.parse_args()
     ir_path = args.ir_path
     device = args.device
     out_path = args.out_path
+    if args.verbose:
+        log.getLogger().setLevel(log.DEBUG)
     return ir_path, device, out_path
 
 
@@ -80,6 +84,6 @@ if __name__ == "__main__":
         np.savez(out_path / f"{Path(model).name}.npz", **result)
 
         log.info("Path for inference results: {}".format(out_path))
-        log.info("Inference results:")
-        log.info(result)
-        log.info("SUCCESS!")
+        log.debug("Inference results:")
+        log.debug(result)
+        log.debug("SUCCESS!")

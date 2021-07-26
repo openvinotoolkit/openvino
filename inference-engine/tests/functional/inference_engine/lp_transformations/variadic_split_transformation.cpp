@@ -40,7 +40,7 @@ public:
     ngraph::PartialShape inputShape;
     std::int64_t axis;
     std::vector<size_t> splitLengths;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
