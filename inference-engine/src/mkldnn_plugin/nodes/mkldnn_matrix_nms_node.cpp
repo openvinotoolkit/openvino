@@ -33,7 +33,7 @@ bool MKLDNNMatrixNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Nod
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
         if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
-            errorMessage = "Doest not support SortResultType " + ngraph::as_string(sortType);
+            errorMessage = "Does not support SortResultType mode: " + ngraph::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
@@ -66,16 +66,6 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     if (!(inDims[NMS_BOXES][0] == inDims[NMS_SCORES][0] && inDims[NMS_BOXES][1] == inDims[NMS_SCORES][2])) {
         IE_THROW() << errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
-    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
-
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
-    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
-
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
-
     const SizeVector& boxes_dims = op->get_input_shape(NMS_BOXES);
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];
@@ -156,18 +146,20 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
     const std::vector<Precision> supportedFloatPrecision = {Precision::FP32};
     const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
 
-    std::vector<DataConfigurator> inDataConf(NMS_SCORES + 1, {TensorDescCreatorTypes::ncsp, Precision::FP32});
-    std::vector<DataConfigurator> outDataConf;
-    outDataConf.reserve(getOriginalOutputsNumber());
-    for (int i = 0; i < getOriginalOutputsNumber(); ++i) {
-        Precision outPrecision = i == NMS_SELECTED_OUTPUTS ? Precision::FP32 : Precision::I32;
-        outDataConf.emplace_back(TensorDescCreatorTypes::ncsp, outPrecision);
-    }
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", inType);
 
-    addSupportedPrimDesc(
-        {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-        {{TensorDescCreatorTypes::ncsp, Precision::FP32}, {TensorDescCreatorTypes::ncsp, Precision::I32}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
-        impl_desc_type::ref_any);
+    checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", inType);
+
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
+
+    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
+                          {TensorDescCreatorTypes::ncsp, Precision::I32},
+                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                         impl_desc_type::ref_any);
 }
 
 bool MKLDNNMatrixNmsNode::created() const {

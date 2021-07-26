@@ -140,8 +140,6 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     if (max_output_boxes_per_class == 0)
         return;
-    else if (max_output_boxes_per_class == -1)
-        max_output_boxes_per_class = num_boxes;
 
     int* selected_indices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 

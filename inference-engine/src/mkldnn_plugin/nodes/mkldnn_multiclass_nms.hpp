@@ -27,6 +27,8 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     // input (port Num)
     const size_t NMS_BOXES = 0;
@@ -79,8 +81,6 @@ private:
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);
-
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
