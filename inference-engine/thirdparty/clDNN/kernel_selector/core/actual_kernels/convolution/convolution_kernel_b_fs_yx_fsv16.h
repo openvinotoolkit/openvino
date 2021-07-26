@@ -30,7 +30,10 @@ protected:
         return (p.groups > 1) ? WeightsLayout::g_os_is_yx_isv16_osv16 : WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        // FusedOpType::REORDER is not mandatory but only used to get output layout previous of fusing-reorder at GetJitLoad()
+        // FusedOpType::REORDER should be registered explicitly here
+        // only when fused_primitive_desc for reorder is added by optimization passes (e.g., remove_redundant_reorder) for corresponding primitive.
+        // The typical usage for fused_primitive_desc for convolution is to get original output layout from jitter,
+        // so that it can decide whether to fuse eltwise along with reorder.
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,

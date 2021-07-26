@@ -469,7 +469,7 @@ struct FusedOpsConfiguration {
     bool allow_for_partial_preload;
     // Load index for shuffle fused op
     std::string shuffle_var_name;
-    // Keep original output layout before fusing conv+reorder
+    // Record original output layout before reorder is fused
     DataLayout orig_output_layout;
 
     FusedOpsConfiguration(std::string suffix,

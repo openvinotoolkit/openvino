@@ -191,6 +191,16 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
     return true;
 }
 
+bool post_reorder_fused(const convolution_params& params) {
+    if (!params.fused_ops.empty()) {
+        if (params.fused_ops.back().GetType() == KernelType::REORDER) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
                                                               const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
@@ -199,7 +209,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
 
-    if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 &&
+    if (post_reorder_fused(params) &&
+        input.GetLayout() == DataLayout::b_fs_yx_fsv16 &&
         output.GetLayout() == DataLayout::bfyx) {
         jit.AddConstant(MakeJitConstant("OUTPUT_FORMAT_BFYX", 1));
     }
@@ -207,7 +218,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
         DataLayout orig_output_layout = output.GetLayout();
-        if (params.fused_ops.back().GetType() == KernelType::REORDER) {
+        if (post_reorder_fused(params)) {
             orig_output_layout = params.fused_ops.back().GetOpParams<reorder_fuse_params>()->input_layout;
         }
         auto input_dt = GetActivationType(params);

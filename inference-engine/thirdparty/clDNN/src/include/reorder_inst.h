@@ -35,7 +35,7 @@ public:
     void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
 
     void set_input_offset(tensor const& io) { input_offset = io; }
-    void record_input_layout(layout const& lo) { input_layout = lo; }
+    void set_input_layout(layout const& lo) { input_layout = lo; }
     tensor get_input_offset() const { return input_offset; }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
