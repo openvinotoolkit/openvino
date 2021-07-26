@@ -70,7 +70,7 @@ std::shared_ptr<ngraph::Function> CreateMatmulFunction(const ngraph::Shape& inpu
 
 namespace handle_transpose_after_matmul {
 
-std::shared_ptr<ngraph::Function> CreateTransposeMatmulFunction(const ngraph::Shape& input_shape,
+std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(const ngraph::Shape& input_shape,
     const ngraph::Shape& matmul_shape, const ngraph::Shape& reshape_shape, bool create_reshape_after_transpose) {
     auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
 
@@ -182,19 +182,19 @@ TEST(TransformationTests, RemoveTransposeBeforeMatmulTestReshapeInOutEq) {
 TEST(TransformationTests, InsertTransposeAfterMatmulTest) {
     RunTest(
         handle_transpose_after_matmul::CreateMatmulFunction({4, 1}, {1, 8}, {2, 16}, false),
-        handle_transpose_after_matmul::CreateTransposeMatmulFunction({4, 1}, {1, 8}, {2, 16}, true));
+        handle_transpose_after_matmul::CreateMatmulTransposeFunction({4, 1}, {1, 8}, {2, 16}, true));
 }
 
 TEST(TransformationTests, RemoveTransposeAfterMatmulTest) {
     RunTest(
-        handle_transpose_after_matmul::CreateTransposeMatmulFunction({4, 1}, {1, 8}, {2, 16}, false),
+        handle_transpose_after_matmul::CreateMatmulTransposeFunction({4, 1}, {1, 8}, {2, 16}, false),
         handle_transpose_after_matmul::CreateMatmulFunction({4, 1}, {1, 8}, {2, 16}, true));
 }
 
 TEST(TransformationTests, RemoveTransposeAfterMatmulTestReshapeInOutEq) {
     RunTest(
-        handle_transpose_after_matmul::CreateTransposeMatmulFunction({4, 1}, {1, 8}, {8, 4}, false),
-        handle_transpose_after_matmul::CreateTransposeMatmulFunction({4, 1}, {1, 8}, {8, 4}, false));
+        handle_transpose_after_matmul::CreateMatmulTransposeFunction({4, 1}, {1, 8}, {8, 4}, false),
+        handle_transpose_after_matmul::CreateMatmulTransposeFunction({4, 1}, {1, 8}, {8, 4}, false));
 }
 
 TEST(TransformationTests, InsertTransposeAfterMatmulTestReshapeInOutEq) {
