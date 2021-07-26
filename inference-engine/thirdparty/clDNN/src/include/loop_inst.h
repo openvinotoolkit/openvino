@@ -23,7 +23,7 @@ template<>
 struct typed_program_node<loop> : public typed_program_node_base<loop> {
 private:
     using parent = typed_program_node_base<loop>;
-    topology body;
+    mutable topology body;
 
     std::vector<loop::io_primitive_map> input_primitive_maps;
     std::vector<loop::io_primitive_map> output_primitive_maps;
@@ -245,7 +245,7 @@ public:
 
         // add current_iteration primitive if current_iteration primitive is not exist in body
         if (body_topology_map.find(current_iteration_id) == body_topology_map.end()) {
-            body.add(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
+            body.add_primitive(std::make_shared<input_layout>(current_iteration_id, body_input_layout));
         } else {
             const auto& body_input_prim = body.at(current_iteration_id);
             const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
@@ -262,11 +262,11 @@ public:
         auto mem = get_program().get_engine().allocate_memory(body_input_layout);
         auto& stream = get_program().get_stream();
         write_scalar_value(mem, stream, 1);
-        body.add(std::make_shared<data>(increment_value_id, mem));
+        body.add_primitive(std::make_shared<data>(increment_value_id, mem));
 
         // add eltwise sum updating current_iteration with incremental data
         const primitive_id updated_currnet_iteration_id = current_iteration_id + "_update";
-        body.add(std::make_shared<eltwise>(updated_currnet_iteration_id,
+        body.add_primitive(std::make_shared<eltwise>(updated_currnet_iteration_id,
             current_iteration_id, increment_value_id, eltwise_mode::sum));
 
         // set backedge
@@ -282,7 +282,7 @@ public:
             if (body_output == body_topology_map.end()) {
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
                 auto md = std::make_shared<data>(id, mem);
-                body.add(md);
+                body.add_primitive(md);
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
@@ -298,7 +298,7 @@ public:
 
             // add inputs for body network if not exist
             if (body.get_primitives().count(internal_input_id) == 0) {
-                body.add(std::make_shared<input_layout>(internal_input_id, calculated_layout));
+                body.add_primitive(std::make_shared<input_layout>(internal_input_id, calculated_layout));
             } else {
                 body.change_input_layout(internal_input_id, calculated_layout);
             }
