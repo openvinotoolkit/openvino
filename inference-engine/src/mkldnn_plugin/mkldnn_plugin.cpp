@@ -6,7 +6,6 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
-#include "mkldnn_opset_extension.h"
 #include "mkldnn_itt.h"
 
 #include <threading/ie_executor_manager.hpp>
@@ -112,8 +111,6 @@ using namespace InferenceEngine;
 Engine::Engine() {
     _pluginName = "CPU";
     extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
-    extensionManager->AddExtension(std::make_shared<OpsetExtension>());
-    extensionManager->AddExtension(std::make_shared<TypeRelaxedOpsetExtension>());
 }
 
 Engine::~Engine() {
