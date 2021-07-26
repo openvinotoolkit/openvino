@@ -30,7 +30,12 @@ std::vector<
         std::vector<int64_t>,
         std::vector<int64_t>,
         std::vector<int64_t>>> strided_slice_params = {
-    {{{0, 0}, {1, 64}, {1, 1}, {1, 0}, {1, 0}}}
+    std::make_tuple(
+        std::vector<int64_t>{0, 0},
+        std::vector<int64_t>{1, 64},
+        std::vector<int64_t>{1, 1},
+        std::vector<int64_t>{1, 0},
+        std::vector<int64_t>{1, 0})
 };
 
 std::vector<
@@ -41,7 +46,13 @@ std::vector<
         std::vector<float>,
         std::vector<float>,
         std::vector<float>>> fake_quantize_params = {
-    {{65535, { 1 }, { -1 }, { 1 }, { -1 }, { 1 }}}
+    std::make_tuple(
+        65535,
+        std::vector<size_t>{1},
+        std::vector<float>{-1},
+        std::vector<float>{1},
+        std::vector<float>{-1},
+        std::vector<float>{1})
 };
 
 } // namespace
