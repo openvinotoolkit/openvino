@@ -62,6 +62,26 @@ class Loop(TensorIterator):
         return suitable_nodes[0] if len(suitable_nodes) == 1 else None
 
     @staticmethod
+    def get_external_node_by_internal_id(loop_node: Node, internal_layer_id: int):
+        """
+
+        :param loop_node:
+        :param internal_layer_id:
+        :return:
+        """
+        input_port_map = loop_node.input_port_map
+        output_port_map = loop_node.output_port_map
+        for map_item in input_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and not loop_node.in_port(map_item['external_port_id']).disconnected():
+                return [loop_node.in_port(map_item['external_port_id']).get_source().node]
+        for map_item in output_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and not loop_node.out_port(map_item['external_port_id']).disconnected():
+                return [dest.node for dest in loop_node.out_port(map_item['external_port_id']).get_destinations()]
+        return None
+
+    @staticmethod
     def updated_body_parameters_shape(loop_node: Node):
         """
         Update shape for Loop body parameters.

@@ -15,19 +15,6 @@ from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 
 
-def compute_input_port_idx(req_node: Node, loop_node: Node):
-    """
-    Computes input port index by which requested node is passed to Loop node
-    :param req_node: a node for which to find input port index is requested
-    :param loop_node: a node that can receive input data from requested node by some input port
-    :return: input port index
-    """
-    for destination in req_node.out_port(0).get_destinations():
-        if loop_node.id == destination.node.id:
-            return destination.idx
-    return None
-
-
 def find_subgraph_match_to_pattern(graph: Graph, body_pattern: dict):
     """
     Finds sub-graph matches corresponding pattern in graph
@@ -45,25 +32,17 @@ def find_subgraph_match_to_pattern(graph: Graph, body_pattern: dict):
     return matches
 
 
-class KerasRNNInputSlicing(FrontReplacementSubgraph):
+class MapFNInputSlicing(FrontReplacementSubgraph):
     """
-    The transformation detects TensorFlow 2 pattern that corresponds to subsequent slicing of input.
-    It avoids TensorListFromTensor and TensorFlowGetItem operations and replaces the original sub-graph
-    by adding axis attribute for corresponding input port of Loop node.
-    The transformation is applicable to TensorFlow 2 Keras Simple RNN, GRU, and LSTM layers.
+    The transformation handles inputs slicing in While loop created by TensorFlow 2 Map Function primitive
+    (see tf.map_fn). It avoids TensorListFromTensor and TensorFlowGetItem operations and replaces the original
+    sub-graph by adding axis attribute in Loop node for slicing inputs.
+    The transformation is also applicable to TensorFlow 2 Keras Simple RNN, GRU, and LSTM layers.
     """
     enabled = True
 
     def run_before(self):
         return [WhileNormalize]
-
-    @staticmethod
-    def pattern(**kwargs):
-        return dict(
-            nodes=[('unstack', dict(op='TensorListFromTensor')),
-                   ('while', dict(op='Loop'))],
-            edges=[('unstack', 'while')]
-        )
 
     @staticmethod
     def get_body_pattern():
@@ -84,7 +63,7 @@ class KerasRNNInputSlicing(FrontReplacementSubgraph):
         )
 
     @staticmethod
-    def transform_keras_rnn_input_slicing(external_match: dict, internal_match: dict):
+    def transform_map_fn_input_slicing(external_match: dict, internal_match: dict):
         """
         Transforms TensorFlow 2 input slicing into use of axis attribute for input port of Loop node
         :param external_match: a match used for handling a part of the main graph responsible for input slicing
@@ -115,50 +94,44 @@ class KerasRNNInputSlicing(FrontReplacementSubgraph):
         # remove TensorListFromTensor and pass a tensor to Loop as is
         unstack_node.out_port(0).get_connection().set_source(unstack_node.in_port(0).get_connection().get_source())
 
-    def replace_sub_graph(self, graph: Graph, external_match: dict):
-        loop_node = external_match['while']
-        body_graph = loop_node['body']
-        body_pattern = KerasRNNInputSlicing.get_body_pattern()
-        internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
+    def find_and_replace_pattern(self, graph: Graph):
+        for loop_node in graph.get_op_nodes(op='Loop'):
+            body_graph = loop_node['body']
+            body_pattern = MapFNInputSlicing.get_body_pattern()
+            internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
 
-        # a case of multiple matches is not handled since it is not clear how to select corresponding match
-        if len(internal_matches) == 1:
-            internal_match = internal_matches[0]
-            loop_node = external_match['while']
-            unstack_port_idx = compute_input_port_idx(external_match['unstack'], loop_node)
-            # check that back edges connect correct Parameter and Result nodes in the body
-            # check connections between body input ports and external inputs ports of Loop node
-            if Loop.back_edge_exists(loop_node.back_edges,
-                                     internal_match['increment_iteration_result'].internal_layer_id,
-                                     internal_match['current_iteration'].internal_layer_id) and \
-                    Loop.inter_edge_exists(loop_node.input_port_map, unstack_port_idx,
-                                           internal_match['tensor_list'].internal_layer_id):
-                # only if inter-graph match passed it starts to process the sub-graph
-                KerasRNNInputSlicing.transform_keras_rnn_input_slicing(external_match, internal_match)
+            for internal_match in internal_matches:
+                # check if TensorListGetItem from the body graph is connected with TensorListFromTensor
+                # from the main graph.
+                # If yes, the transformation detected input slicing by this port and can use Loop axis attribute
+                unstack_node = Loop.get_external_node_by_internal_id(loop_node,
+                                                                     internal_match['tensor_list'].internal_layer_id)
+                unstack_node = unstack_node[0] if (unstack_node is not None and len(unstack_node) == 1
+                                                   and unstack_node[0].op == 'TensorListFromTensor') else None
+                if unstack_node is None:
+                    continue
+
+                external_match = {'while': loop_node,
+                                  'unstack': unstack_node}
+                # check that back edges connect correct Parameter and Result nodes in the body
+                # check connections between body input ports and external inputs ports of Loop node
+                if Loop.back_edge_exists(loop_node.back_edges,
+                                         internal_match['increment_iteration_result'].internal_layer_id,
+                                         internal_match['current_iteration'].internal_layer_id):
+                    MapFNInputSlicing.transform_map_fn_input_slicing(external_match, internal_match)
 
 
-class KerasRNNOutputConcatenation(FrontReplacementSubgraph):
+class MapFNOutputConcatenation(FrontReplacementSubgraph):
     """
-    The transformation detects TensorFlow 2 pattern that corresponds to concatenation of intermediate results
-    generated in each iteration of While operation.
-    It avoids TensorListReserve, TensorListStack, and TensorListSetItem operations and replaces the original sub-graph
-    by adding axis attribute for corresponding output port of Loop node.
-    The transformation is applicable to TensorFlow 2 Keras Simple RNN, GRU, and LSTM layers.
+    The transformation handles inputs slicing in While loop created by TensorFlow 2 Map Function primitive
+    (see tf.map_fn). It avoids TensorListReserve, TensorListStack, and TensorListSetItem operations and replaces
+    the original sub-graph by adding axis attribute in Loop node for concatenation of intermediate output results.
+    The transformation is also applicable to TensorFlow 2 Keras Simple RNN, GRU, and LSTM layers.
     """
     enabled = True
 
     def run_before(self):
         return [WhileNormalize]
-
-    @staticmethod
-    def pattern(**kwargs):
-        return dict(
-            nodes=[('reserve', dict(op='TensorListReserve')),
-                   ('while', dict(op='Loop')),
-                   ('stack', dict(op='TensorListStack'))],
-            edges=[('reserve', 'while'),
-                   ('while', 'stack')]
-        )
 
     @staticmethod
     def get_body_pattern():
@@ -184,7 +157,7 @@ class KerasRNNOutputConcatenation(FrontReplacementSubgraph):
         )
 
     @staticmethod
-    def transform_keras_rnn_output_concatenation(external_match: dict, internal_match: dict):
+    def transform_map_fn_output_concatenation(external_match: dict, internal_match: dict):
         """
         Transforms TensorFlow 2 output concatenation into use of axis attribute for output port of Loop node
         :param external_match: a match used for handling a part of the main graph responsible for output concatenation
@@ -229,27 +202,47 @@ class KerasRNNOutputConcatenation(FrontReplacementSubgraph):
                 const_true = Const(body_graph, {'value': np.array(True, dtype=np.bool)}).create_node()
                 exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
 
-    def replace_sub_graph(self, graph: Graph, external_match: dict):
-        loop_node = external_match['while']
-        body_graph = loop_node['body']
-        body_pattern = KerasRNNOutputConcatenation.get_body_pattern()
+    def find_and_replace_pattern(self, graph: Graph):
+        for loop_node in graph.get_op_nodes(op='Loop'):
+            body_graph = loop_node['body']
+            body_pattern = MapFNOutputConcatenation.get_body_pattern()
+            internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
 
-        internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
+            for internal_match in internal_matches:
+                # check if TensorListReserve from the main graph is connected with Parameter node from the body graph
+                # that is assigned for storing intermediate output results of While Loop.
+                # If yes, the transformation detected intermediate outputs concatentation by this port
+                # and can use Loop axis attribute
+                reserve_node = Loop.get_external_node_by_internal_id(loop_node,
+                                                                     internal_match['container'].internal_layer_id)
+                reserve_node = reserve_node[0] if (reserve_node is not None and len(reserve_node) == 1 and
+                                                   reserve_node[0].op == 'TensorListReserve') else None
+                if reserve_node is None:
+                    continue
+                stack_node = Loop.get_external_node_by_internal_id(loop_node,
+                                                                   internal_match[
+                                                                       'concatenation_result'].internal_layer_id)
+                stack_node = stack_node if (stack_node is not None and len(stack_node) == 1) else None
 
-        if len(internal_matches) == 1:
-            internal_match = internal_matches[0]
-            reserve_port_idx = compute_input_port_idx(external_match['reserve'], loop_node)
-            stack_port_idx = external_match['stack'].in_port(0).get_source().idx
-            # check that back edges connect correct Parameter and Result nodes in the body
-            # check connections between body input ports and external inputs ports of Loop node
-            # check connections between body output ports and external output ports of Loop node
-            if Loop.back_edge_exists(loop_node.back_edges, internal_match['concatenation_result'].internal_layer_id,
-                                     internal_match['container'].internal_layer_id) and \
-                    Loop.back_edge_exists(loop_node.back_edges,
-                                          internal_match['increment_iteration_result'].internal_layer_id,
-                                          internal_match['current_iteration'].internal_layer_id) and \
-                    Loop.inter_edge_exists(loop_node.input_port_map, reserve_port_idx,
-                                           internal_match['container'].internal_layer_id) and \
-                    Loop.inter_edge_exists(loop_node.output_port_map, stack_port_idx,
-                                           internal_match['concatenation_result'].internal_layer_id):
-                KerasRNNOutputConcatenation.transform_keras_rnn_output_concatenation(external_match, internal_match)
+                # skip StopGradient node if it exists between While loop output port and TensorListStack operation
+                if stack_node is None:
+                    continue
+                if stack_node[0].op == 'StopGradient':
+                    stack_node = [dest.node for dest in stack_node[0].out_port(0).get_destinations()]
+
+                stack_node = stack_node[0] if (stack_node is not None and len(stack_node) == 1 and
+                                               stack_node[0].op == 'TensorListStack') else None
+                if stack_node is None:
+                    continue
+
+                external_match = {'while': loop_node,
+                                  'reserve': reserve_node,
+                                  'stack': stack_node}
+                # check that back edges connect Parameter node (or container with intermediate output results)
+                # and concatenation result produced by TensorListSetItem node
+                if Loop.back_edge_exists(loop_node.back_edges, internal_match['concatenation_result'].internal_layer_id,
+                                         internal_match['container'].internal_layer_id) and \
+                        Loop.back_edge_exists(loop_node.back_edges,
+                                              internal_match['increment_iteration_result'].internal_layer_id,
+                                              internal_match['current_iteration'].internal_layer_id):
+                    MapFNOutputConcatenation.transform_map_fn_output_concatenation(external_match, internal_match)

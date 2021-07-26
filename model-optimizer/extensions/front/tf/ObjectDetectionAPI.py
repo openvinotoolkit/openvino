@@ -11,7 +11,7 @@ from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
+from extensions.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -529,7 +529,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
         return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
-                KerasRNNOutputConcatenation, KerasRNNInputSlicing]
+                MapFNOutputConcatenation, MapFNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
