@@ -51,7 +51,7 @@ AutoInferencePlugin::AutoInferencePlugin() {
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadNetwork(const std::string& fileName,
                                                                      const ConfigType&  config) {
-    return LoadNetworkImpl(fileName, config);
+    return LoadNetworkImpl(fileName, {}, config);
 }
 
 IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(const IE::CNNNetwork& network,
@@ -61,7 +61,57 @@ IE::IExecutableNetworkInternal::Ptr AutoInferencePlugin::LoadExeNetworkImpl(cons
     }
 
     auto networkPrecision = GetNetworkPrecision(network);
-    return LoadNetworkImpl(network, config, networkPrecision);
+    return LoadNetworkImpl({}, network, config, networkPrecision);
+}
+
+std::shared_ptr<AutoExecutableNetwork> AutoInferencePlugin::LoadNetworkImpl(const std::string& modelPath,
+                                                                            const InferenceEngine::CNNNetwork& network,
+                                                                            const ConfigType& config,
+                                                                            const std::string& networkPrecision) {
+    if (GetCore() == nullptr) {
+        IE_THROW() << "Please, work with AUTO device via InferencEngine::Core object";
+    }
+
+    if (modelPath.empty() && network.getFunction() == nullptr) {
+        IE_THROW() << "AUTO device supports just ngraph network representation";
+    }
+
+    auto fullConfig = mergeConfigs(_config, config);
+    CheckConfig(fullConfig);
+    auto metaDevices = GetDeviceList(fullConfig);
+    auto core = GetCore(); // shared_ptr that holds the Core while the lambda below (which captures that by val) works
+    auto LoadNetworkAsync =
+        [core, modelPath, network](const std::string& device)
+            -> IE::SoExecutableNetworkInternal {
+            IE::SoExecutableNetworkInternal executableNetwork;
+            if (!modelPath.empty()) {
+                executableNetwork = core->LoadNetwork(modelPath, device, {});
+            } else {
+                executableNetwork = core->LoadNetwork(network, device, {});
+            }
+            return executableNetwork;
+        };
+
+    NetworkFuture cpuFuture;
+    NetworkFuture acceleratorFuture;
+
+    // start CPU task
+    const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+                                      [=](const std::string& d)->bool{return d.find("CPU") != std::string::npos;});
+    if (CPUIter != metaDevices.end()) {
+        cpuFuture = std::async(std::launch::async, LoadNetworkAsync, *CPUIter);
+    }
+
+    // start accelerator task, like GPU
+    const auto accelerator = SelectDevice(metaDevices, networkPrecision);
+    bool isAccelerator = accelerator.find("CPU") == std::string::npos;
+    if (isAccelerator) {
+        acceleratorFuture = std::async(std::launch::async, LoadNetworkAsync, accelerator);
+    }
+
+    bool enablePerfCount = fullConfig.find(IE::PluginConfigParams::KEY_PERF_COUNT) != fullConfig.end();
+
+    return std::make_shared<AutoExecutableNetwork>(std::move(cpuFuture), std::move(acceleratorFuture), enablePerfCount);
 }
 
 IE::QueryNetworkResult AutoInferencePlugin::QueryNetwork(const IE::CNNNetwork& network, const ConfigType& config) const {
@@ -196,29 +246,21 @@ std::vector<std::string> AutoInferencePlugin::GetOptimizationCapabilities(const 
     return {capabilities.begin(), capabilities.end()};
 }
 
-ConfigType AutoInferencePlugin::GetSupportedConfig(const ConfigType&  config,
-                                                   const std::string& deviceName) const {
-    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-    ConfigType supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = config.find(key);
-        if (config.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    return supportedConfig;
-}
-
 void AutoInferencePlugin::CheckConfig(const ConfigType& config) {
     std::vector<std::string> supportedConfigKeys = GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
-    for (auto&& c : config) {
-        auto itKey = std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), c.first);
-        if (supportedConfigKeys.end() == itKey) {
-            // CVS-57233
-            if (c.first.find("AUTO_") == 0) {
+    for (auto&& kvp : config) {
+        if (kvp.first.find("AUTO_") == 0) {
+            continue;
+        } else if (kvp.first == IE::PluginConfigParams::KEY_PERF_COUNT) {
+            if (kvp.second == IE::PluginConfigParams::YES ||
+                kvp.second == IE::PluginConfigParams::NO) {
                 continue;
+            } else {
+                IE_THROW() << "Unsupported config value: " << kvp.second
+                           << " for key: " << kvp.first;
             }
-            IE_THROW() << "AUTO plugin doesn't support config key " << c.first;
+        } else {
+            IE_THROW() << "Unsupported config key: " << kvp.first;
         }
     }
 }

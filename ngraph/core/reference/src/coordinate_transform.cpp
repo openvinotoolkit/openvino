@@ -20,6 +20,7 @@
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace
 {

@@ -154,6 +154,34 @@ INSTANTIATE_TEST_SUITE_P(
         Gather7LayerTest::getTestCaseName
 );
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i4b1,
+        Gather8LayerTest,
+        GatherAxes4i4b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i4b2,
+        Gather8LayerTest,
+        GatherAxes4i4b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i8b1,
+        Gather8LayerTest,
+        GatherAxes4i8b1,
+        Gather8LayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Gather7Axes4i8b2,
+        Gather8LayerTest,
+        GatherAxes4i8b2,
+        Gather8LayerTest::getTestCaseName
+);
+
 const std::vector<std::vector<int>> indices = {
         std::vector<int>{0, 3, 2, 1},
 };

@@ -23,7 +23,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, SubtractTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues)),
     SubtractTransformation::getTestCaseName);

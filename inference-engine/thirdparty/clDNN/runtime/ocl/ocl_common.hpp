@@ -18,7 +18,7 @@ typedef CL_API_ENTRY cl_command_queue(CL_API_CALL* pfn_clCreateCommandQueueWithP
     const cl_queue_properties* properties,
     cl_int* errcodeRet);
 
-using ocl_queue_type = cl::CommandQueueIntel;
+using ocl_queue_type = cl::CommandQueue;
 using ocl_kernel_type = cl::KernelIntel;
 
 class ocl_error : public std::runtime_error {

@@ -12,6 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/validation_util.hpp>
 
 using namespace ngraph;
 
@@ -383,5 +384,36 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
     };
 
     auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+NGRAPH_RTTI_DEFINITION(pass::PadElimination, "PadElimination", 0);
+
+pass::PadElimination::PadElimination() {
+    MATCHER_SCOPE(PadElimination);
+    auto pad_node_pattern = pattern::wrap_type<opset5::Pad>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto pad = m.get_match_root();
+
+        auto pad_begin_const = ngraph::get_constant_from_source(pad->input_value(1));
+        auto pad_end_const = ngraph::get_constant_from_source(pad->input_value(2));
+
+        if (!pad_begin_const || !pad_end_const) {
+            return false;
+        }
+
+        const auto pad_begin_value = pad_begin_const->cast_vector<int64_t>();
+        const auto pad_end_value = pad_end_const->cast_vector<int64_t>();
+
+        if (std::any_of(pad_begin_value.begin(), pad_begin_value.end(), [](int64_t value) { return value != 0; }) ||
+            std::any_of(pad_end_value.begin(), pad_end_value.end(), [](int64_t value) { return value != 0; })) {
+            return false;
+        }
+
+        return replace_output_update_name(pad->output(0), pad->input_value(0));
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(pad_node_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

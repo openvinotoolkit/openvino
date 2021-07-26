@@ -3,6 +3,7 @@
 //
 
 #include "ocl_kernel.hpp"
+#include "ocl_engine.hpp"
 #include "kernels_factory.hpp"
 
 #include <memory>
@@ -14,8 +15,9 @@ namespace ocl {
 std::shared_ptr<kernel> create_ocl_kernel(engine& engine, cl_context /* context */, cl_kernel kernel, std::string entry_point) {
     // Retain kernel to keep it valid
     cl::Kernel k(kernel, true);
-    return std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, engine.use_unified_shared_memory()), entry_point);
+    ocl_engine& cl_engine = dynamic_cast<ocl_engine&>(engine);
+    return std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, cl_engine.get_usm_helper()), entry_point);
 }
 
-}  // namespace kernels_factory
+}  // namespace ocl
 }  // namespace cldnn

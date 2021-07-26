@@ -4,6 +4,7 @@
 
 #include "graph_transformer_tests.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 namespace vpu {
 
@@ -24,7 +25,7 @@ class AnnotateMemoryTypes : public GraphTransformerTest, public testing::WithPar
 protected:
     void SetUp() override {
         ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
-        config.compileConfig().enableMemoryTypesAnnotation = true;
+        config.set(InferenceEngine::MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION, InferenceEngine::PluginConfigParams::YES);
 
         ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
         ASSERT_NO_FATAL_FAILURE(InitPipeline());

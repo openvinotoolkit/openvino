@@ -18,14 +18,6 @@ if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
-        # gtest has issues with this with v1.8.x
-        # gtest issue is supposed to be addressed after v1.8.x
-        add_compile_options(-Wno-zero-as-null-pointer-constant)
-    endif()
-endif()
-
 set(SRC
     aligned_buffer.cpp
     all_close_f.cpp
@@ -55,7 +47,6 @@ set(SRC
     main.cpp
     matcher_pass.cpp
     misc.cpp
-    ngraph_api.cpp
     node_input_output.cpp
     op.cpp
     op_eval/binary_convolution.cpp
@@ -84,13 +75,10 @@ set(SRC
     op_eval/strided_slice.cpp
     op_eval/transpose.cpp
     op_eval/variadic_split.cpp
-    op_is.cpp
     opset1.cpp
     partial_shape.cpp
     pass_config.cpp
-    pass_liveness.cpp
     pass_manager.cpp
-    pass_shape_relevance.cpp
     pattern.cpp
     provenance.cpp
     replace_node.cpp
@@ -104,7 +92,9 @@ set(SRC
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
     type_prop/asin.cpp
+    type_prop/asinh.cpp
     type_prop/assign.cpp
+    type_prop/atan.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
@@ -119,16 +109,20 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
+    type_prop/cos.cpp
+    type_prop/cosh.cpp
     type_prop/ctc_greedy_decoder.cpp
     type_prop/ctc_greedy_decoder_seq_len.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_convolution.cpp
+    type_prop/deformable_convolution_opset8.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/detection_output.cpp
     type_prop/depth_to_space.cpp
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
+    type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -163,23 +157,27 @@ set(SRC
     type_prop/lstm_sequence.cpp
     type_prop/loop.cpp
     type_prop/matmul.cpp
+    type_prop/matrix_nms.cpp
     type_prop/maximum.cpp
     type_prop/max_pool.cpp
     type_prop/minimum.cpp
     type_prop/mish.cpp
     type_prop/mod.cpp
+    type_prop/multiclass_nms.cpp
     type_prop/mvn.cpp
     type_prop/negative.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
-    type_prop/normalize.cpp
+    type_prop/normalize_l2.cpp
     type_prop/one_hot.cpp
     type_prop/pad.cpp
     type_prop/parameter.cpp
     type_prop/power.cpp
     type_prop/prelu.cpp
+    type_prop/prior_box.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
+    type_prop/prior_box_clustered.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -210,7 +208,9 @@ set(SRC
     type_prop/selu.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
+    type_prop/sign.cpp
     type_prop/sin.cpp
+    type_prop/sinh.cpp
     type_prop/softmax.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
@@ -231,20 +231,29 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/asinh.cpp
+    visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
+    visitors/op/batch_to_space.cpp
     visitors/op/broadcast.cpp
     visitors/op/bucketize.cpp
     visitors/op/ceiling.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
     visitors/op/convolution_backprop.cpp
+    visitors/op/cos.cpp
+    visitors/op/cosh.cpp
     visitors/op/cum_sum.cpp
+    visitors/op/deformable_convolution.cpp
     visitors/op/deformable_psroi_pooling.cpp
+    visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/erf.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor.cpp
@@ -259,16 +268,21 @@ set(SRC
     visitors/op/lstm_cell.cpp
     visitors/op/lstm_sequence.cpp
     visitors/op/matmul.cpp
+    visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
+    visitors/op/mish.cpp
     visitors/op/mod.cpp
+    visitors/op/multiclass_nms.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
+    visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
     visitors/op/prior_box.cpp
+    visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
     visitors/op/reduce_l1.cpp
@@ -289,8 +303,12 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
+    visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
+    visitors/op/sign.cpp
+    visitors/op/sinh.cpp
     visitors/op/softmax.cpp
     visitors/op/softplus.cpp
     visitors/op/space_to_batch.cpp
@@ -333,7 +351,7 @@ if (ENABLE_CLDNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     endif()
 endif()
 
-if (NGRAPH_INTERPRETER_ENABLE AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
+if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     list(APPEND SRC
         builder.cpp
         backend_api.cpp)
@@ -356,7 +374,8 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
+    backend/adaptive_avg_pool.in.cpp
+    backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
@@ -367,6 +386,7 @@ set(MULTI_TEST_SRC
     backend/auto_broadcast.in.cpp
     backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
+    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/bucketize.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -374,7 +394,6 @@ set(MULTI_TEST_SRC
     backend/comparison.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
-    backend/convert.in.cpp
     backend/convert_like.in.cpp
     backend/convolution_backprop.in.cpp
     backend/convolution.in.cpp
@@ -390,15 +409,18 @@ set(MULTI_TEST_SRC
     backend/dft.in.cpp
     backend/divide.in.cpp
     backend/deformable_convolution.in.cpp
+    backend/deformable_convolution_opset8.in.cpp
+    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
+    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
-    backend/erf.in.cpp
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
+    backend/fake_quantize.in.cpp
     backend/floor.in.cpp
     backend/floor_mod.in.cpp
     backend/function_name.in.cpp
@@ -420,14 +442,16 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
+    backend/matrix_nms.in.cpp
     backend/maximum.in.cpp
     backend/max_pool.in.cpp
     backend/minimum.in.cpp
+    backend/mish.in.cpp
     backend/mod.in.cpp
+    backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
@@ -439,6 +463,8 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/prelu.in.cpp
+    backend/prior_box_clustered.in.cpp
+    backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
@@ -461,12 +487,11 @@ set(MULTI_TEST_SRC
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
-    backend/select.in.cpp
+    backend/space_to_depth.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/sigmoid.in.cpp
-    backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
     backend/softmax.in.cpp
@@ -509,20 +534,37 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_tensor_names.cpp)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND SRC onnx/onnx_editor.cpp)
     list(APPEND MULTI_TEST_SRC
         onnx/onnx_test_utils.in.cpp
         onnx/onnx_import_with_editor.in.cpp)
 endif()
 
-# SOURCE AND HEADERS FOR FRONTEND TESTING
+# SOURCE FOR FRONTEND TESTING
+
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
 file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+
+add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
+
+# ---- PaddlePaddle FrontEnd testing ------
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    ie_check_pip_package(paddlepaddle WARNING)
+
+    if(paddlepaddle_FOUND)
+        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
+        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        set(PDPD_TEST_MODELS_DIRNAME pdpd_test_models)
+        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PDPD_TEST_MODELS_DIRNAME}/)
+        add_definitions("-DTEST_PDPD_MODELS_DIRNAME=\"${PDPD_TEST_MODELS_DIRNAME}/\"")
+    endif()
+endif()
+# ---- End PaddlePaddle FrontEnd testing ------
 
 add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
 
@@ -545,6 +587,7 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -553,12 +596,12 @@ if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
 target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
+                                        ${CMAKE_DL_LIBS}
+                                        ie_backend
+                                        interpreter_backend
+                                        Threads::Threads
                                         openvino::conditional_compilation)
 
 # Protobuf-lite does not support parsing files from prototxt format
@@ -573,49 +616,54 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
-if(NOT WIN32)
-    target_link_libraries(unit-test PRIVATE pthread)
-endif()
-target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
-
-if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(unit-test PRIVATE -Wno-missing-braces)
-endif()
-
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
-# So many type_prop tests these days that we need to set /bigobj flag for MSVC.
-# We should probably split up type_prop.cpp.
-if (MSVC)
-    target_compile_options(unit-test PRIVATE "/bigobj")
-endif()
-
-target_link_libraries(unit-test PRIVATE ie_backend)
-
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 
-if (NGRAPH_ONNX_EDITOR_ENABLE)
-    target_link_libraries(unit-test PRIVATE onnx_editor)
-endif()
-
-if (NGRAPH_INTERPRETER_ENABLE)
-    target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
-    target_link_libraries(unit-test PRIVATE interpreter_backend)
-endif()
+install(TARGETS unit-test
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
 
 ############ FRONTEND ############
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH})
-target_link_libraries(unit-test PRIVATE frontend_manager)
+target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
+target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
+
+#PaddlePaddle - test models generator
+if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
+    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                        ${GEN_SCRIPT}
+                        ${TEST_PDPD_MODELS}
+                        ${OUT_DONE_FILE}
+                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
+                )
+    endforeach()
+    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test pdpd_test_models)
+    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+
+    install(DIRECTORY ${TEST_PDPD_MODELS}
+            DESTINATION tests/${PDPD_TEST_MODELS_DIRNAME}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()

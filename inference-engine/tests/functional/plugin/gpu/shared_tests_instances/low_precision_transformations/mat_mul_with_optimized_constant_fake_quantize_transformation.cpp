@@ -22,9 +22,9 @@ const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantize
     },
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> inputShapes = {
-    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 10, 16 }),
-    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 16, 10 })
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 16 }, { 10, 16 }},
+    {{ 1, 16 }, { 16, 10 }}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,

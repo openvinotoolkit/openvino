@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/rt_info.hpp>
 
 using namespace GNAPluginNS;
 
@@ -59,6 +60,7 @@ InsertTransposeBeforeMatmul::InsertTransposeBeforeMatmul() {
             input.replace_source_output(reshapeAfter);
         }
 
+        ngraph::copy_runtime_info(matmul_node, {transpose, reshapeAfter});
         return true;
     };
 

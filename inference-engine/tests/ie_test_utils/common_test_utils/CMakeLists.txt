@@ -3,14 +3,6 @@
 #
 
 function(add_common_utils ADD_TARGET_NAME)
-    list(APPEND EXPORT_DEPENDENCIES gtest gtest_main)
-
-    if(MSVC)
-        set(PUGI pugixml_mt)
-    else()
-        set(PUGI pugixml)
-    endif()
-
     # create target
     addIeTarget(
             NAME ${ADD_TARGET_NAME}
@@ -21,13 +13,11 @@ function(add_common_utils ADD_TARGET_NAME)
             ADD_CPPLINT
             DEVELOPER_PACKAGE
                 inference_engine_tests
-            EXPORT_DEPENDENCIES
-                ${EXPORT_DEPENDENCIES}
             LINK_LIBRARIES
                 PUBLIC
-                    ${PUGI}
-                    ${NGRAPH_LIBRARIES}
-                    ${EXPORT_DEPENDENCIES}
+                    ngraph
+                    gtest
+                    gtest_main
                     inference_engine_transformations
     )
 
@@ -61,14 +51,13 @@ function(add_common_utils ADD_TARGET_NAME)
 
     target_include_directories(${ADD_TARGET_NAME}
         PUBLIC
-            ${IE_TESTS_ROOT}/ie_test_utils
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
             )
+    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 endfunction()

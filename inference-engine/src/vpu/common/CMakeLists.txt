@@ -5,7 +5,11 @@
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 function(add_common_target TARGET_NAME STATIC_IE)
-    add_library(${TARGET_NAME} STATIC ${SOURCES})
+    if(STATIC_IE)
+        set(exclude_from_all EXCLUDE_FROM_ALL)
+    endif()
+
+    add_library(${TARGET_NAME} STATIC ${exclude_from_all} ${SOURCES})
 
     ie_faster_build(${TARGET_NAME}
         UNITY
@@ -32,7 +36,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
             "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
-            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -48,7 +52,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
+    target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
                                          PRIVATE openvino::itt)
 
     if(NOT STATIC_IE)

@@ -13,7 +13,7 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> shapes = {
     {{1, 4, 16, 16}, {32, 32}},
     {{1, 2, 48, 80}, {50, 60}},
 };

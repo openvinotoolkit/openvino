@@ -202,7 +202,13 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
 
     InferenceEngine::Precision inPrecision = getOriginalInputPrecisionAtPort(0);
     InferenceEngine::Precision outPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!isInt8) {
+    if (isInt8) {
+        // TODO: We have to extend jit_avx512_core_x8s8s32x_deconv_fwd_kernel from oneDNN to support BF16 output data type
+        if (InferenceEngine::Precision::BF16 == inPrecision)
+            inPrecision = InferenceEngine::Precision::FP32;
+        if (InferenceEngine::Precision::BF16 == outPrecision)
+            outPrecision = InferenceEngine::Precision::FP32;
+    } else {
         if (!one_of(inPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16))
             inPrecision = InferenceEngine::Precision::FP32;
         if (!one_of(outPrecision, InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16))

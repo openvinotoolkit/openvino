@@ -194,11 +194,11 @@ REGISTER_FACTORY(v5, LSTMSequence);
 //REGISTER_FACTORY(v5, NonMaxSuppression); Supported via v5 -> v5 internal conversion
 REGISTER_FACTORY(v5, Round);
 REGISTER_FACTORY(v5, GatherND);
+REGISTER_FACTORY(v5, Loop);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
 // REGISTER_FACTORY(v5, GRUSequence);
-// REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
@@ -207,6 +207,9 @@ REGISTER_FACTORY(v6, MVN);
 
 // ------------------------------ Supported v7 ops ------------------------------ //
 REGISTER_FACTORY(v7, Gather);
+
+// ------------------------------ Supported v8 ops ------------------------------ //
+REGISTER_FACTORY(v8, Gather);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API OneHot : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"OneHot", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a one-hot operation.
                 OneHot() = default;
                 /// \brief Constructs a one-hot operation.
