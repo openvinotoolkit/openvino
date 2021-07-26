@@ -60,7 +60,7 @@ public:
     static std::string to_string(binary_convolution_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, binary_convolution_node const& node);
+    typed_primitive_inst(network& network, binary_convolution_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())

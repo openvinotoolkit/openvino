@@ -48,7 +48,7 @@ public:
     static std::string to_string(activation_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, activation_node const& node);
+    typed_primitive_inst(network& network, activation_node const& node);
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 

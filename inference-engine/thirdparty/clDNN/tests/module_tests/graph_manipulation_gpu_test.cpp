@@ -13,7 +13,7 @@
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
 
@@ -50,12 +50,10 @@ TEST(basic, test1) {
     topology.add(convolution("conv2", { "reorder2" }, { "concat" }));
 
     program::ptr prog = program::build_program(engine, topology, build_opt, false);
-    std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
-    network network(net);
+    network::ptr network = network::allocate_network(engine, prog);
+    network->set_input_data("input", input);
 
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     float epsilon = 1e-2f;
     for (auto& it : outputs)
@@ -100,10 +98,9 @@ TEST(add_intermediate_gpu, test1)
 
     program_wrapper::build(*prog);
 
-    std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
-    network network(net);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    network::ptr network = network::allocate_network(engine, prog);
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     std::vector<float> expected_output_vec = {
         32.2f, 60.2f, 66.6f, 126.6f,
@@ -164,10 +161,9 @@ TEST(add_intermediate_gpu, test2)
 
     program_wrapper::build(*prog);
 
-    std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
-    network network(net);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    network::ptr network = network::allocate_network(engine, prog);
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
 
     std::vector<float> expected_output_vec = {
         514.22f, 532.7f, 1075.26f, 1113.9f

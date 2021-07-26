@@ -37,7 +37,7 @@ public:
     static std::string to_string(data_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, data_node const& node);
+    typed_primitive_inst(network& network, data_node const& node);
 };
 
 using data_inst = typed_primitive_inst<data>;

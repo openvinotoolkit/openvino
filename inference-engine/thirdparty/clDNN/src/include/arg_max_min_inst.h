@@ -32,7 +32,7 @@ public:
     static std::string to_string(arg_max_min_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, arg_max_min_node const& node);
+    typed_primitive_inst(network& network, arg_max_min_node const& node);
 };
 
 using arg_max_min_inst = typed_primitive_inst<arg_max_min>;

@@ -142,7 +142,7 @@ std::string max_unpooling_inst::to_string(max_unpooling_node const& node) {
     return primitive_description.str();
 }
 
-max_unpooling_inst::typed_primitive_inst(network_impl& network, max_unpooling_node const& node)
+max_unpooling_inst::typed_primitive_inst(network& network, max_unpooling_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

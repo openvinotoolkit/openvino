@@ -30,7 +30,7 @@ class typed_primitive_inst<max_unpooling> : public typed_primitive_inst_base<max
     using parent = typed_primitive_inst_base<max_unpooling>;
 
 public:
-    typed_primitive_inst(network_impl& network, max_unpooling_node const& desc);
+    typed_primitive_inst(network& network, max_unpooling_node const& desc);
     static layout calc_output_layout(max_unpooling_node const& node);
     static std::string to_string(max_unpooling_node const& node);
 };

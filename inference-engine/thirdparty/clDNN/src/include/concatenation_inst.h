@@ -38,7 +38,7 @@ public:
     static std::string to_string(concatenation_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, concatenation_node const& node);
+    typed_primitive_inst(network& network, concatenation_node const& node);
 };
 
 using concatenation_inst = typed_primitive_inst<concatenation>;

@@ -18,7 +18,7 @@
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
 #include "program_wrapper.h"

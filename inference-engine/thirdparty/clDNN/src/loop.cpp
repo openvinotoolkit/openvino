@@ -347,10 +347,10 @@ memory::ptr loop_inst::get_external_memory(const primitive_id& external_id) cons
     return outputPrim->output_memory_ptr();
 }
 
-loop_inst::typed_primitive_inst(network_impl & network, loop_node const & node)
+loop_inst::typed_primitive_inst(network & network, loop_node const & node)
     : parent(network, node),
       preproc_memories_done(false),
-      body_network(network_impl::allocate_network(network.get_stream_ptr(),
+      body_network(network::allocate_network(network.get_stream_ptr(),
                                                   node.get_body_program(),
                                                   false,
                                                   network.is_primary_stream())) {

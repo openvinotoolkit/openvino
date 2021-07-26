@@ -7689,7 +7689,7 @@ public:
         );
         auto prog = program::build_program(engine, topo, build_opts);
 
-        auto net = network(prog, 0);
+        cldnn::network net(prog, 0);
 
         auto input_lay = layout(input_type(), format::bfyx, input_size(), padding_size());
         auto input_mem = engine.allocate_memory(input_lay);
@@ -8049,7 +8049,7 @@ public:
         );
         auto prog = program::build_program(engine, topo, build_opts);
 
-        auto net = network(prog, 0);
+        cldnn::network net(prog, 0);
 
         auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4,  this->input_size(), this->padding_size());
         auto input_mem = engine.allocate_memory(input_lay);

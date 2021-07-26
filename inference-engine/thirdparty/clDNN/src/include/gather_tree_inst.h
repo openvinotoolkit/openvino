@@ -30,7 +30,7 @@ class typed_primitive_inst<gather_tree> : public typed_primitive_inst_base<gathe
 public:
     static layout calc_output_layout(gather_tree_node const& node);
     static std::string to_string(gather_tree_node const& node);
-    typed_primitive_inst(network_impl& network, gather_tree_node const& node);
+    typed_primitive_inst(network& network, gather_tree_node const& node);
 };
 
 using gather_tree_inst = typed_primitive_inst<gather_tree>;

@@ -8,7 +8,7 @@
 #include "program_node.h"
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/graph/program.hpp"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "data_inst.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>
@@ -113,7 +113,7 @@ std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(e
 
     bo.set_option(build_option::optimize_data(false));
     bo.set_option(build_option::outputs(const_outputs));
-    network_impl::ptr net = network_impl::build_network(engine, nodes, bo, true);
+    network::ptr net = network::build_network(engine, nodes, bo, true);
     for (auto& cin : const_inputs)
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 

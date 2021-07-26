@@ -39,7 +39,7 @@ public:
     static std::string to_string(detection_output_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, detection_output_node const& node);
+    typed_primitive_inst(network& network, detection_output_node const& node);
 
     memory::ptr location_memory() const { return dep_memory_ptr(0); }
     memory::ptr confidence_memory() const { return dep_memory_ptr(1); }

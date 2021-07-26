@@ -46,7 +46,7 @@ public:
     static std::string to_string(scale_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, scale_node const& desc);
+    typed_primitive_inst(network& network, scale_node const& desc);
 
     memory::ptr scale_memory() const { return dep_memory_ptr(1); }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }

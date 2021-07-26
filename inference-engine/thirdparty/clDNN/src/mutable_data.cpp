@@ -20,7 +20,7 @@ primitive_type_id mutable_data::type_id() {
 }
 
 namespace {
-memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem, bool reuse) {
+memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
     auto& engine = network.get_engine();
     auto& stream = network.get_stream();
 
@@ -57,7 +57,7 @@ std::string mutable_data_inst::to_string(mutable_data_node const& node) {
     return primitive_description.str();
 }
 
-mutable_data_inst::typed_primitive_inst(network_impl& network, mutable_data_node const& node)
+mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
     : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
 
 }  // namespace cldnn

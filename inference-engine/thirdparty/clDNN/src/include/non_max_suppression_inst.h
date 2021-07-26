@@ -87,7 +87,7 @@ class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_ba
     using parent = typed_primitive_inst_base<non_max_suppression>;
 
 public:
-    typed_primitive_inst(network_impl& network, non_max_suppression_node const& node)
+    typed_primitive_inst(network& network, non_max_suppression_node const& node)
         : parent(network, node)
     {}
 

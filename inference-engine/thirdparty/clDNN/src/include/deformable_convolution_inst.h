@@ -73,7 +73,7 @@ public:
     static std::string to_string(deformable_conv_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deformable_conv_node const& node);
+    typed_primitive_inst(network& network, deformable_conv_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
         if (node.get_groups() == 1) {
@@ -152,7 +152,7 @@ public:
     static std::string to_string(deformable_interp_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, deformable_interp_node const& node);
+    typed_primitive_inst(network& network, deformable_interp_node const& node);
 
     memory& trans_memory() const { return dep_memory(1); }
 };

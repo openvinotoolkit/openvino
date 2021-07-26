@@ -45,7 +45,7 @@ public:
     static std::string to_string(lstm_dynamic_input_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_dynamic_input_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_input_node const& node);
 
     memory::ptr dyn_length_memory() const { return dep_memory_ptr(1); }
     memory::ptr weights_memory() const { return dep_memory_ptr(2); }

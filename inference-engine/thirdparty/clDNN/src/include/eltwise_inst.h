@@ -89,7 +89,7 @@ public:
     static std::string to_string(eltwise_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, eltwise_node const& node);
+    typed_primitive_inst(network& network, eltwise_node const& node);
 };
 
 using eltwise_inst = typed_primitive_inst<eltwise>;

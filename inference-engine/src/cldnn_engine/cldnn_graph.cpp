@@ -92,7 +92,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
-        auto steps_info = network->get_optimization_steps_info();
+        auto steps_info = network->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
             CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));

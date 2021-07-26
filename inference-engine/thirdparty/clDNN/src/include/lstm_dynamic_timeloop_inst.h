@@ -66,7 +66,7 @@ public:
     static std::string to_string(lstm_dynamic_timeloop_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, lstm_dynamic_timeloop_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const& node);
 
     memory::ptr dyn_length_memory() const { return get_dependency_memory("dyn_length"); }
     memory::ptr recurrent_memory() const { return get_dependency_memory("recurrent"); }

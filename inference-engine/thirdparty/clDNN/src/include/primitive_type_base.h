@@ -11,7 +11,7 @@
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "impls/implementation_map.hpp"
 
 #include <memory>
@@ -28,7 +28,7 @@ struct primitive_type_base : primitive_type {
         return std::make_shared<typed_program_node<PType>>(std::static_pointer_cast<PType>(prim), program);
     }
 
-    std::shared_ptr<cldnn::primitive_inst> create_instance(network_impl& network,
+    std::shared_ptr<cldnn::primitive_inst> create_instance(network& network,
                                                            const cldnn::program_node& node) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::create_instance: primitive type mismatch");

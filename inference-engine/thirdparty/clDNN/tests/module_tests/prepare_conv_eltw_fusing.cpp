@@ -9,7 +9,7 @@
 #include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "pass_manager.h"
 
 #include "program_wrapper.h"
@@ -75,11 +75,10 @@ std::map<primitive_id, network_output> test_prepare_conv_eltw_fusing(bool eltw1,
     program_wrapper::prepare_memory_dependencies(*prog);
     program_wrapper::compile(*prog);
     program_wrapper::init_kernels(*prog);
-    std::shared_ptr<cldnn::network_impl> net = network_impl::allocate_network(engine, prog);
-    network network(net);
-    network.set_input_data("input", input);
+    network::ptr network = network::allocate_network(engine, prog);
+    network->set_input_data("input", input);
 
-    return network.execute();
+    return network->execute();
 }
 
 /*

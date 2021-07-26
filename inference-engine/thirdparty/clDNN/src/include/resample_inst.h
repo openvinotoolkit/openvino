@@ -36,7 +36,7 @@ public:
     static std::string to_string(resample_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, resample_node const& node);
+    typed_primitive_inst(network& network, resample_node const& node);
 };
 
 using resample_inst = typed_primitive_inst<resample>;

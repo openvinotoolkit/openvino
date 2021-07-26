@@ -38,7 +38,7 @@ public:
     static layout calc_output_layout(mutable_data_node const& node) { return node.get_attached_memory().get_layout(); }
     static std::string to_string(mutable_data_node const& node);
 
-    typed_primitive_inst(network_impl& network, mutable_data_node const& node);
+    typed_primitive_inst(network& network, mutable_data_node const& node);
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

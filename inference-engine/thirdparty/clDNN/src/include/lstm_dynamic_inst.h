@@ -40,7 +40,7 @@ public:
     static layout calc_output_layout(lstm_dynamic_node const& node);
     static std::string to_string(lstm_dynamic_node const& node);
 
-    typed_primitive_inst(network_impl& network, lstm_dynamic_node const& node);
+    typed_primitive_inst(network& network, lstm_dynamic_node const& node);
 
     static void check_direction(program_node& node, int32_t direction, std::string name) {
         if (node.get_output_layout().size.spatial[1] != direction)

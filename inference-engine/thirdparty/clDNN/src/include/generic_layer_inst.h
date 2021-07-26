@@ -35,7 +35,7 @@ public:
     static std::string to_string(generic_layer_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, generic_layer_node const& node);
+    typed_primitive_inst(network& network, generic_layer_node const& node);
 };
 
 using generic_layer_inst = typed_primitive_inst<generic_layer>;

@@ -46,7 +46,7 @@ public:
     static std::string to_string(reshape_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reshape_node const& node);
+    typed_primitive_inst(network& network, reshape_node const& node);
 
 private:
     void on_execute() override;

@@ -9,7 +9,7 @@
 #include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -90,8 +90,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
     network.set_input_data("input", input);
     network.execute();
 
-    auto network_impl = network.get();
-    const auto& prog = network_impl->get_program();
+    const auto& prog = network.get_program();
     auto& pool_node = prog->get_node("pool");
     auto pool_layout = pool_node.get_output_layout();
 
@@ -145,8 +144,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     network.set_input_data("input", input);
     network.execute();
 
-    auto network_impl = network.get();
-    auto prog = network_impl->get_program();
+    auto prog = network.get_program();
     auto& node = prog->get_node("actv");
     auto actv_layout = node.get_output_layout();
     auto kernel_name = node.get_selected_impl()->get_kernel_name();
@@ -199,8 +197,8 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 //        network.execute();
 //
 //
-//        auto network_impl = api_cast(network.get());
-//        auto& prog = network_impl->get_program();
+//        auto network = api_cast(network.get());
+//        auto& prog = network->get_program();
 //        auto& conv_node = prog.get_node("conv");
 //        auto conv_sel_impl = conv_node.get_selected_impl();
 //        auto conv_layout = conv_node.get_output_layout();

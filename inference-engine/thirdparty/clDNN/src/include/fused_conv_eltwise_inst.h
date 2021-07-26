@@ -81,7 +81,7 @@ public:
     static std::string to_string(fused_conv_eltwise_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, fused_conv_eltwise_node const& node);
+    typed_primitive_inst(network& network, fused_conv_eltwise_node const& node);
 
     memory::ptr weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())

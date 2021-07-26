@@ -39,7 +39,7 @@ public:
     static std::string to_string(prior_box_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, prior_box_node const& node);
+    typed_primitive_inst(network& network, prior_box_node const& node);
 
     memory& input_memory() const { return dep_memory(0); }
 };

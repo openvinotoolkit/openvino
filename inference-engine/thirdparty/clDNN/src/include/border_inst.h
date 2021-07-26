@@ -34,7 +34,7 @@ class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
 public:
     static layout calc_output_layout(border_node const& node);
     static std::string to_string(border_node const& node);
-    typed_primitive_inst(network_impl& network, border_node const& node);
+    typed_primitive_inst(network& network, border_node const& node);
 };
 
 using border_inst = typed_primitive_inst<border>;

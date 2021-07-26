@@ -13,7 +13,6 @@
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/error_handler.hpp"
 
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
@@ -556,8 +555,8 @@ private:
     size_t current_iteratoin_backedge_mapping_idx = 0;
 
 public:
-    typed_primitive_inst(network_impl& network, const loop_node& node);
-    network_impl::ptr get_body_network() const { return body_network; }
+    typed_primitive_inst(network& network, const loop_node& node);
+    network::ptr get_body_network() const { return body_network; }
     void preprocess_input_memory();
     void preprocess_output_memory();
     void preprocess_backedge_memory();
@@ -569,7 +568,7 @@ public:
     }
 
 private:
-    network_impl::ptr body_network;
+    network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id) const;
     std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
 };
