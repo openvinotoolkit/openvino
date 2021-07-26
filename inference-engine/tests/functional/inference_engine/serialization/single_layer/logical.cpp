@@ -65,7 +65,7 @@ const auto LogicalTestParams = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-const auto LogicalTestParamsNot = ::testing::Combine(
+const auto LogicalNotTestParams = ::testing::Combine(
         ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
         ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
         ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
@@ -79,6 +79,6 @@ const auto LogicalTestParamsNot = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, LogicalLayerTest, LogicalTestParams, LogicalLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot, LogicalLayerTest, LogicalTestParamsNot, LogicalLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot, LogicalLayerTest, LogicalNotTestParams, LogicalLayerTest::getTestCaseName);
 
 }  // namespace
