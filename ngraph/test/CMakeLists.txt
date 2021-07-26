@@ -550,6 +550,8 @@ file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
+add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
+
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     ie_check_pip_package(paddlepaddle WARNING)
@@ -557,8 +559,9 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
-        add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+        set(PDPD_TEST_MODELS_DIRNAME pdpd_test_models)
+        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PDPD_TEST_MODELS_DIRNAME}/)
+        add_definitions("-DTEST_PDPD_MODELS_DIRNAME=\"${PDPD_TEST_MODELS_DIRNAME}/\"")
     endif()
 endif()
 # ---- End PaddlePaddle FrontEnd testing ------
@@ -658,4 +661,9 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
     add_dependencies(unit-test pdpd_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+
+    install(DIRECTORY ${TEST_PDPD_MODELS}
+            DESTINATION tests/${PDPD_TEST_MODELS_DIRNAME}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
