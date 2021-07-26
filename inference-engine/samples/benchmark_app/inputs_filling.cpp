@@ -130,7 +130,9 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
                     size_t offset = imageId * numChannels * width * height + (((app_info.layout == "NCHW") || (app_info.layout == "CHW"))
                                                                                   ? (ch * width * height + h * width + w)
                                                                                   : (h * width * numChannels + w * numChannels + ch));
-                    inputBlobData[offset] = static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) / static_cast<T>(input_scale[ch]) + static_cast<T>(input_mean[ch]);
+                    inputBlobData[offset] =
+                        static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) / static_cast<T>(input_scale[ch]) +
+                        static_cast<T>(input_mean[ch]);
                 }
             }
         }
@@ -229,7 +231,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 }
 
 void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSize, benchmark_app::InputsInfo& app_inputs_info,
-                std::vector<InferReqWrap::Ptr> requests, const std::string& iscale, const std::string& imean) {
+               std::vector<InferReqWrap::Ptr> requests, const std::string& iscale, const std::string& imean) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
@@ -313,15 +315,20 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     if (precision == InferenceEngine::Precision::FP32) {
-                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first, scale_mean.second);
+                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
+                                             scale_mean.second);
                     } else if (precision == InferenceEngine::Precision::FP16) {
-                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first, scale_mean.second);
+                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
+                                             scale_mean.second);
                     } else if (precision == InferenceEngine::Precision::I32) {
-                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first, scale_mean.second);
+                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
+                                               scale_mean.second);
                     } else if (precision == InferenceEngine::Precision::I64) {
-                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first, scale_mean.second);
+                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
+                                               scale_mean.second);
                     } else if (precision == InferenceEngine::Precision::U8) {
-                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first, scale_mean.second);
+                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
+                                               scale_mean.second);
                     } else {
                         IE_THROW() << "Input precision is not supported for " << item.first;
                     }
