@@ -123,7 +123,7 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
             dispatchData.lws = {1, 1, 1};
         } else {
             dispatchData.gws = {input.Batch().v, 1, 1};
-            dispatchData.lws = {1, 1, 1};
+            dispatchData.lws = {input.Batch().v, 1, 1};
         }
     } else {
         dispatchData.gws = {1, 1, 1};
