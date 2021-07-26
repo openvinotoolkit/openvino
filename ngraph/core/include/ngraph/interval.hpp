@@ -93,13 +93,6 @@ namespace ngraph
 
     protected:
         void canonicalize();
-        static value_type clip(value_type value)
-        {
-            return std::max(value_type(0), std::min(s_max, value));
-        }
-        static value_type clip_times(value_type a, value_type b);
-        static value_type clip_add(value_type a, value_type b);
-        static value_type clip_minus(value_type a, value_type b);
 
         value_type m_min_val{0};
         value_type m_max_val{s_max};
