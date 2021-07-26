@@ -102,9 +102,10 @@ std::vector<LessEqualParams> generateLessEqualCombinedParams() {
                                                                          generateLessEqualParams<element::Type_t::u32>(ngraph::element::u32),
                                                                          generateLessEqualParams<element::Type_t::u8>(ngraph::element::boolean)};
     std::vector<LessEqualParams> combinedParams;
-    std::for_each(LessEqualTypeParams.begin(), LessEqualTypeParams.end(), [&](std::vector<LessEqualParams> params) {
+
+    for (const auto& params : LessEqualTypeParams) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    });
+    }
     return combinedParams;
 }
 

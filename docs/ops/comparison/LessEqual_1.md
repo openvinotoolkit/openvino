@@ -4,7 +4,7 @@
 
 **Category**: Comparison binary operation
 
-**Short description**: *LessEqual* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules specified in the *auto_broadcast* attribute     .
+**Short description**: *LessEqual* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
