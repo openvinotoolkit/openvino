@@ -497,7 +497,6 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
-    backend/roi_pooling.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp

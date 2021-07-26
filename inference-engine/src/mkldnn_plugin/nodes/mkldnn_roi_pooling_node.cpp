@@ -512,13 +512,18 @@ void MKLDNNROIPoolingNode::execute() {
             if (roi_pooling_kernel) {
                 arg.bin_area = 0;
                 arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                (*roi_pooling_kernel)(&arg);
             } else {
-                for (int c = 0; c < c_block; c++) {
-                    dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                    int ch_blk_cur = cbb * cb_num + cbb_cur;
+                    if (ch_blk_cur >= jpp.nb_c) {
+                        break;  // current block work is done
+                    }
+                    for (int c = 0; c < c_block; c++) {
+                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                    }
                 }
             }
-
-            (*roi_pooling_kernel)(&arg);
         } else {
             size_t roi_off = n * src_roi_step;
             const auto *src_roi_ptr = &src_roi[roi_off];
@@ -568,18 +573,23 @@ void MKLDNNROIPoolingNode::execute() {
                     arg.kh = hend - hstart;
                     arg.kw = wend - wstart;
                 } else {
-                    for (int c = 0; c < c_block; c++) {
-                        const size_t pool_index = n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
-                        if ((hend <= hstart) || (wend <= wstart)) {
-                            dst[pool_index] = 0;
-                        } else {
-                            for (int h = hstart; h < hend; ++h) {
-                                for (int w = wstart; w < wend; ++w) {
-                                    float batch_data = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                h * src_strides[2] + w * src_strides[3] + c];
-
-                                    if (batch_data > dst[pool_index]) {
-                                        dst[pool_index] = batch_data;
+                    for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                        int ch_blk_cur = cbb * cb_num + cbb_cur;
+                        if (ch_blk_cur >= jpp.nb_c) {
+                            break;  // current block work is done
+                        }
+                        for (int c = 0; c < c_block; c++) {
+                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
+                            if ((hend <= hstart) || (wend <= wstart)) {
+                                dst[pool_index] = 0;
+                            } else {
+                                dst[pool_index] =  src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                            hstart * src_strides[2] + wstart * src_strides[3] + c];
+                                for (int h = hstart; h < hend; ++h) {
+                                    for (int w = wstart; w < wend; ++w) {
+                                        float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    h * src_strides[2] + w * src_strides[3] + c];
+                                        dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
                                     }
                                 }
                             }
@@ -595,18 +605,35 @@ void MKLDNNROIPoolingNode::execute() {
                 float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
                 float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
-                float in_y = (jpp.pooled_h > 1 ? (oh * height_scale + roi_start_h_ * (jpp.ih - 1)) :
-                              0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1));
-                float in_x = (jpp.pooled_w > 1 ? (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)) :
-                              0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1));
+                float in_y, in_x;
+                // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
+                // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
+                // and as result excess of right limit for proposal value,
+                // if the border case (current_h == pooled_h - 1) will not be handled explicitly
+                if (jpp.pooled_h > 1) {
+                    in_y = (oh == jpp.pooled_h - 1 ? roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1)));
+                } else {
+                    in_y = 0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1);
+                }
+                if (jpp.pooled_w > 1) {
+                    in_x = (ow == jpp.pooled_w - 1 ? roi_end_w_ * (jpp.iw - 1) : (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)));
+                } else {
+                    in_x = 0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1);
+                }
 
                 if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                     if (roi_pooling_kernel) {
                         arg.bin_area = 0;
                         arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        for (int c = 0; c < c_block; c++) {
-                            dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                            }
                         }
                     }
                 } else {
@@ -635,21 +662,27 @@ void MKLDNNROIPoolingNode::execute() {
 
                         arg.bin_area = 1;
                     } else {
-                        for (int c = 0; c < 1; c++) {
-                            const float top_left     = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float top_right    = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                            const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                            const float bottom_right = src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                                                bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                            const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
-                            const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                            dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                    top + (bottom - top) * (in_y - top_y_index);
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
+                                        top + (bottom - top) * (in_y - top_y_index);
+                            }
                         }
                     }
                 }
