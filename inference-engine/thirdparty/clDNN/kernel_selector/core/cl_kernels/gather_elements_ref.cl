@@ -82,4 +82,5 @@ KERNEL(gather_elements_ref)(const __global INPUT0_TYPE* data,
 #endif
 }
 
+#undef ORDER
 #undef GET_OUTPUT_INDEX

@@ -11,9 +11,9 @@ namespace kernel_selector {
 // gather_elements_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_elements_params : public base_params {
-    gather_elements_params() : base_params(KernelType::GATHER_ELEMENTS), axis(GatherElementsAxis::BATCH) {}
+    gather_elements_params() : base_params(KernelType::GATHER_ELEMENTS), axis(GatherAxis::BATCH) {}
 
-    GatherElementsAxis axis;
+    GatherAxis axis;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,6 +30,7 @@ public:
     virtual JitConstants GetJitConstants(const gather_elements_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_elements_params& params, const optional_params&) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

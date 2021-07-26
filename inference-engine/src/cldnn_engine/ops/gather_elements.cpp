@@ -12,7 +12,7 @@
 
 namespace CLDNNPlugin {
 
-static cldnn::gather_elements::gather_elements_axis GetGatherElementsAxis(int axis, unsigned rank) {
+static cldnn::gather_elements::gather_elements_axis GetGatherAxis(int axis, unsigned rank) {
     if (axis < 0)
         axis += rank;
     if (axis < 0 || axis >= rank)
@@ -55,7 +55,7 @@ void CreateGatherElementsOp(Program& p, const std::shared_ptr<ngraph::op::v6::Ga
                                             inputPrimitives[1],
                                             outLayout,
                                             CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                            GetGatherElementsAxis(axis, rank));
+                                            GetGatherAxis(axis, rank));
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

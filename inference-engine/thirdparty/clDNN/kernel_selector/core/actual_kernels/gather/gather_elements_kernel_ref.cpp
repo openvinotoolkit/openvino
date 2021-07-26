@@ -14,17 +14,17 @@ static size_t GetGatherElementsChannelIndex(const gather_elements_params& params
     size_t inputSize = params.inputs[0].GetDims().size();
 
     switch (params.axis) {
-        case GatherElementsAxis::X:
+        case GatherAxis::X:
             return inputSize - 1;
-        case GatherElementsAxis::Y:
+        case GatherAxis::Y:
             return inputSize - 2;
-        case GatherElementsAxis::Z:
+        case GatherAxis::Z:
             return inputSize - 3;
-        case GatherElementsAxis::W:
+        case GatherAxis::W:
             return 2;
-        case GatherElementsAxis::FEATURE:
+        case GatherAxis::FEATURE:
             return 1;
-        case GatherElementsAxis::BATCH:
+        case GatherAxis::BATCH:
             return 0;
         default:
             break;
@@ -38,13 +38,9 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -152,4 +148,7 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
     return { kd };
 }
 
+KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

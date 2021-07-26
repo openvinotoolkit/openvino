@@ -402,20 +402,10 @@ std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
         case GatherAxis::Y:       return "Y";
+        case GatherAxis::Z:       return "Z";
+        case GatherAxis::W:       return "W";
         case GatherAxis::FEATURE: return "FEATURE";
         case GatherAxis::BATCH:   return "BATCH";
-        default: return "";
-    }
-}
-
-std::string toString(GatherElementsAxis a) {
-    switch (a) {
-        case GatherElementsAxis::X:       return "X";
-        case GatherElementsAxis::Y:       return "Y";
-        case GatherElementsAxis::Z:       return "Z";
-        case GatherElementsAxis::W:       return "W";
-        case GatherElementsAxis::FEATURE: return "FEATURE";
-        case GatherElementsAxis::BATCH:   return "BATCH";
         default: return "";
     }
 }
