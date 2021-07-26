@@ -152,8 +152,8 @@ static constexpr char input_image_scale_message[] = "Optional. Scale values to b
                                                     "Input is divided by scale. Example: -iscale \"255 255 255\"\n";
 
 static constexpr char input_image_mean_message[] = "Optional. Mean values to be used for the input image per channel.\n"
-                                                    "Values to be provided in the R, G, B format. Can be defined for desired input of the model,\n"
-                                                    "Example: -imean \"255 255 255\"\n";
+                                                   "Values to be provided in the R, G, B format. Can be defined for desired input of the model,\n"
+                                                   "Example: -imean \"255 255 255\"\n";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
