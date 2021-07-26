@@ -183,10 +183,8 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         if (b == 0)
             numBoxOffset[b] += numFiltBox[0][0];
     }
-    filtBoxes.resize(startOffset);
-
     // sort element before go through keep_top_k
-    parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
+    parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
         return ((l.batch_index < r.batch_index) ||
                 ((l.batch_index == r.batch_index) && ((l.score > r.score) || ((std::fabs(l.score - r.score) < 1e-6) && l.class_index < r.class_index) ||
                                                       ((std::fabs(l.score - r.score) < 1e-6) && l.class_index == r.class_index && l.box_index < r.box_index))));
@@ -220,25 +218,24 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
                 }
             }
         }
-        filtBoxes.resize(startOffset);
     }
 
     if (sort_result_across_batch) {
         if (sort_result_type == SCORE) {
-            parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
+            parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
             });
         } else if (sort_result_type == CLASSID) {
-            parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
+            parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
             });
         }
     } else if (sort_result_type == CLASSID) {
-        parallel_sort(filtBoxes.begin(), filtBoxes.end(), [](const filteredBoxes& l, const filteredBoxes& r) {
+        parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&
                      ((l.class_index < r.class_index) || ((l.class_index == r.class_index) && l.score > r.score) ||
@@ -247,7 +244,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 
     const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getDesc().getDims()[0];
-    const size_t validOutputs = std::min(filtBoxes.size(), selectedBoxesNum);
+    const size_t validOutputs = std::min(startOffset, selectedBoxesNum);
 
     std::vector<size_t> m_selected_num;
     m_selected_num.resize(dims_boxes[0]);
