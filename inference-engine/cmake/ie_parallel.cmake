@@ -29,6 +29,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
         if (NOT TBB_FOUND)
+            set(THREADING "SEQ" PARENT_SCOPE)
             ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
                                 SEQ method will be used.")
         endif ()
@@ -95,6 +96,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
         else ()
+            set(THREADING "SEQ" PARENT_SCOPE)
             ext_message(WARNING "TBB was not found by the configured TBB_DIR path.\
                                  SEQ method will be used for ${TARGET_NAME}")
         endif ()
@@ -133,6 +135,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
         if (NOT OMP_LIBRARIES_RELEASE)
             ext_message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
+            set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
 

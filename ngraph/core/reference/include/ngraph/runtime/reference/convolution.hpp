@@ -145,7 +145,7 @@ namespace ngraph
                     }
                 }
 
-                void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
+                inline void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
                 {
                     int spatial_rank = in_shape.size() - 2;
                     if (spatial_rank < 3)

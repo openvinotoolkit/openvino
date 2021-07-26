@@ -118,10 +118,6 @@ struct TuneParamsSelector {
         return result;
     }
 
-    tune_params Default(functional_case fun) {
-        return Default(fun(params));
-    }
-
     static bool VerifyTuneParams(const fully_connected_params& params, const tune_params& tparams);
 
     const fully_connected_params& params;

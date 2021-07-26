@@ -22,7 +22,7 @@ namespace ngraph
                     T score;
                 };
 
-                static std::vector<float> generate_anchors(const op::ProposalAttrs& attrs,
+                inline std::vector<float> generate_anchors(const op::ProposalAttrs& attrs,
                                                            const unsigned int anchor_count)
                 {
                     std::vector<float> anchors(4 * anchor_count);

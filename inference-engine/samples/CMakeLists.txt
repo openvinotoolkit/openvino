@@ -76,6 +76,10 @@ else()
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
     endif()
 
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
+    endif()
+
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
     if (APPLE)
@@ -133,10 +137,6 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
