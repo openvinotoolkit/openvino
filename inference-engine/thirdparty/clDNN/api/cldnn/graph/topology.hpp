@@ -18,7 +18,8 @@ typedef std::map<primitive_id, std::shared_ptr<primitive>> topology_map;
 struct topology {
 public:
     using ptr = std::shared_ptr<topology>;
-    explicit topology(const topology_map& map = topology_map()) : _primitives(map) {}
+    explicit topology(const topology_map& map) : _primitives(map) {}
+    topology() : _primitives({}) {}
 
     /// @brief Constructs topology containing primitives provided in argument(s).
     template <class... Args>
