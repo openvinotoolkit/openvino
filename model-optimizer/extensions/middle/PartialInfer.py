@@ -18,4 +18,9 @@ class PartialInfer(MiddleReplacementPattern):
         return []
 
     def find_and_replace_pattern(self, graph: Graph):
+        for param in graph.get_op_nodes(op='Parameter'):
+            for dyn in [0, -1]:
+                if dyn in param.soft_get('shape', []):
+                    print('DYNAMIC INPUT DETECTED: MODEL={} SHAPE={}'.format(graph.graph['cmd_params'].model_name, param.shape))
+                    exit(1)
         partial_infer(graph)
