@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 
@@ -74,16 +76,24 @@ namespace ngraph
         protected:
             element::Type m_element_type;
 
-            // TODO(amprocte): For now we are maintaining both m_shape and m_partial_shape fields,
-            //    with m_shape possibly being invalid (get_shape will throw an exception if it
-            //    is). This is because get_shape() returns a const reference. I think ideally we
-            //    should refactor so that get_shape returns by value.
-            Shape m_shape;
-            PartialShape m_partial_shape;
-            Node* m_node{nullptr};
-            HostTensorPtr m_lower_value, m_upper_value;
-            size_t m_node_output_number{0};
+            // TODO: remove along with get_shape
+            // Initially there was ngraph::Shape m_shape only available to keep shape information.
+            // Support for dynamic shapes required transition to ngraph::PartialShape.
+            // To smoothly transition to ngraph::PartialShape we introduced m_partial_shape
+            // and kept m_shape in sync with m_partial_shape. Synchronization point was placed
+            // in set_partial_shape which dramatically affected performance of ngraph::Function
+            // validation. Since we have started the transition to ngraph::PartialShape and reduced
+            // ngraph::Shape usage the only user of m_shape was get_shape method with signature:
+            // const Shape& descriptor::Tensor::get_shape() const
+            // It was decided to move m_shape and m_partial_shape synchronization point there and
+            // to keep methods signature backward compatible.
+            mutable std::mutex shape_mutex;
+            mutable std::atomic_bool m_shape_changed;
+            mutable Shape m_shape;
+            // TODO: end
 
+            PartialShape m_partial_shape;
+            HostTensorPtr m_lower_value, m_upper_value;
             std::string m_name;
             std::unordered_set<std::string> m_names;
         };
