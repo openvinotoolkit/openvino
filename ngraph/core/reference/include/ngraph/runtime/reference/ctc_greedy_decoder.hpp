@@ -37,7 +37,7 @@ namespace ngraph
                 // information are set to -1
 
                 std::vector<T> tmp_out(shape_size(out_shape));
-                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<T>(-1.0));
+                std::fill(tmp_out.begin(), tmp_out.end(), static_cast<T>(-1));
 
                 for (unsigned int batch_ind = 0; batch_ind < batch_size; batch_ind++)
                 {
