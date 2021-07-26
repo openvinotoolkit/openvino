@@ -60,7 +60,7 @@ public:
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
-
+        ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\test.Reluactual").run_on_function(actualFunction);
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::ReluTransformation, ngraph::opset1::Relu>(testValues.params);
         transformer.transform(actualFunction);
@@ -71,6 +71,7 @@ public:
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter);
+        ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\test.Relureference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {

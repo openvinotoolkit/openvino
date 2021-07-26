@@ -10,11 +10,13 @@
 
 #include <gtest/gtest.h>
 
+#include <low_precision/concat.hpp>
+
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/relu.hpp>
-#include <low_precision/move_fake_quatize.hpp>
+#include "low_precision/move_fake_quantize.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
@@ -126,15 +128,6 @@ public:
             ngraph::element::undefined,
             {},
             testValues.axis);
-        /*
-        actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
-            precision,
-            shape,
-            testValues.actual.fakeQuantize1,
-            testValues.actual.fakeQuantize2,
-            testValues.actual.fakeQuantize3,
-            testValues.axis);
-            */
         ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.actual").run_on_function(actualFunction);
 
         SimpleLowPrecisionTransformer transform;
@@ -156,27 +149,18 @@ public:
         referenceFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
             shape,
-            testValues.actual.fakeQuantize1,
-            testValues.actual.convert1,
-            testValues.actual.dequantization1,
-            testValues.actual.fakeQuantize2,
-            testValues.actual.convert2,
-            testValues.actual.dequantization2,
-            testValues.actual.fakeQuantize3,
-            testValues.actual.convert3,
-            testValues.actual.dequantization3,
+            testValues.result.fakeQuantize1,
+            testValues.result.convert1,
+            testValues.result.dequantization1,
+            testValues.result.fakeQuantize2,
+            testValues.result.convert2,
+            testValues.result.dequantization2,
+            testValues.result.fakeQuantize3,
+            testValues.result.convert3,
+            testValues.result.dequantization3,
             testValues.result.precisionAfterOperation,
-            testValues.result.dequantizationAfter,
+            {},
             testValues.axis);
-        /*
-        referenceFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
-            precision,
-            shape,
-            testValues.actual.fakeQuantize1,
-            testValues.actual.fakeQuantize2,
-            testValues.actual.fakeQuantize3,
-            testValues.axis);
-            */
         ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.reference").run_on_function(referenceFunction);
     }
 
@@ -198,7 +182,7 @@ public:
 
 TEST_P(MoveFakeQuantize, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, referenceFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -217,38 +201,32 @@ const std::vector<ngraph::PartialShape> shapes = {
 const std::vector<MoveFakeQuantizeTestValues> testValues = {
     // U8: concat
     {
-        LayerTransformation::createParamsU8I8(),
-        false,
-        1,
-        {
-            {},
-            {},
-            {},
-            {},
-            {},
-            {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            { ngraph::element::u8 },
-            {
-                { element::f32 },
-                {},
-                { 0.01f }
+                LayerTransformation::createParamsU8I8(),
+                false,
+                1,
+                {
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+                    {},
+                    {}
+                },
+                {
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+                    {},
+                    {},
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                }
             },
-        },
-        {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            {},
-            {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            {},
-            {},
-            {},
-            {},
-            {},
-            ngraph::element::undefined,
-            {},
-        }
-    },
 };
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
