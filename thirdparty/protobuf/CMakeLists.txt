@@ -52,28 +52,25 @@ get_directory_property(protobuf_VERSION DIRECTORY protobuf/cmake DEFINITION prot
 
 set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 
+# to hide libprotobuf warnings
+target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+
 if(NGRAPH_USE_PROTOBUF_LITE)
     set(Protobuf_LIBRARIES libprotobuf-lite)
 else()
     set(Protobuf_LIBRARIES libprotobuf)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    set(_proto_libs ${Protobuf_LIBRARIES})
-    if(TARGET libprotoc)
-        list(APPEND _proto_libs libprotoc)
-        target_compile_options(libprotoc PRIVATE -Wno-all -Wno-unused-variable)
-        # libprotobuf is always built for protoc
-        target_compile_options(libprotobuf PUBLIC -Wno-undef)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
+   CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(protobuf_BUILD_PROTOC_BINARIES)
+        set_target_properties(protoc libprotoc PROPERTIES
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
+        list(APPEND _protobuf_libs protoc libprotoc)
     endif()
-    set_target_properties(${_proto_libs} PROPERTIES
-        CXX_VISIBILITY_PRESET default
-        C_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
-    foreach(target IN LISTS Protobuf_LIBRARIES)
-        target_compile_options(${target}
-            PRIVATE -Wno-all -Wno-unused-variable)
-    endforeach()
+    ov_disable_all_warnings(${_protobuf_libs} libprotobuf libprotobuf-lite)
 endif()
 
 if(NGRAPH_USE_PROTOBUF_LITE)
