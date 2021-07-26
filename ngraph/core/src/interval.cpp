@@ -68,8 +68,9 @@ Interval::Interval(value_type min_val, value_type max_val)
 }
 
 Interval::Interval(value_type val)
-    : Interval(val, val)
 {
+    m_min_val = clip(val);
+    m_max_val = m_min_val;
 }
 
 Interval::size_type Interval::size() const
