@@ -1018,7 +1018,6 @@ IE_CPU.convert_like_dyn_float16_to_int64
 # Operations were removed from opset
 IE_CPU.atanh
 IE_CPU.asinh
-IE_CPU.acosh
 
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape

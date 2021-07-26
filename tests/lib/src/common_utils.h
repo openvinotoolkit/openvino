@@ -57,7 +57,7 @@ inline std::pair<size_t, size_t> getTensorHeightWidth(const InferenceEngine::Ten
     // Regardless of layout, dimensions are stored in fixed order
     return std::make_pair(dims.back(), dims.at(size - 2));
   } else {
-    IE_THROW() << "Tensor does not have height and width dimensions";
+    throw std::logic_error("Tensor does not have height and width dimensions");
   }
 }
 
