@@ -141,6 +141,35 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
 
+TEST_F(NGraphReshapeTests, ReshapeSpatialReLUWithoutReplaceParameter) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    {
+        ngraph->get_parameters()[0]->set_partial_shape({1, 3, 25, 25});
+
+        ngraph->validate_nodes_and_infer_types();
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+}
+
+
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     std::shared_ptr<const ngraph::Function> ngraph;
     {
