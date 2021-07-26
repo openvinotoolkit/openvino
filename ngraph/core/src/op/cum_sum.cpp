@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::CumSum::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::CumSum, "CumSum", 0);
 
 op::v0::CumSum::CumSum(const Output<Node>& arg,
                        const Output<Node>& axis,
