@@ -344,7 +344,7 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -372,9 +372,13 @@ def run(args):
                                           ('total number of iterations', str(iteration)),
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
+                if args.latency_percentile == 50:
+                    latency_prefix = 'latency (ms)'
+                else:
+                    latency_prefix = 'latency (' + args.latency_percentile + ' percentile) (ms)'
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('latency (ms)', f'{latency_ms:.2f}'),
+                                              (latency_prefix, f'{latency_ms:.2f}'),
                                           ])
 
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
@@ -388,7 +392,10 @@ def run(args):
         print(f'Count:      {iteration} iterations')
         print(f'Duration:   {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            print(f'Latency:    {latency_ms:.2f} ms')
+            if args.latency_percentile == 50:
+                print(f'Latency:    {latency_ms:.2f} ms')
+            else:
+                print(f'Latency ({args.latency_percentile} percentile):    {latency_ms:.2f} ms')
         print(f'Throughput: {fps:.2f} FPS')
 
         del exe_network
