@@ -410,17 +410,23 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     auto variables = func.get_variables();
     VariableVector cloned_vars;
     std::map<std::string, std::shared_ptr<Variable>> var_map;
-    for (const auto& var : variables) {
-        auto cloned_var = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(),
-                                                                  element::dynamic, var->get_info().variable_id});
+    for (const auto& var : variables)
+    {
+        auto cloned_var = std::make_shared<Variable>(
+            VariableInfo{PartialShape::dynamic(), element::dynamic, var->get_info().variable_id});
         cloned_vars.push_back(cloned_var);
         var_map[cloned_var->get_info().variable_id] = cloned_var;
     }
-    if (!variables.empty()) {
-        for (const auto &op : node_map) {
-            if (auto read_val = std::dynamic_pointer_cast<ngraph::opset8::ReadValue>(op.second)) {
+    if (!variables.empty())
+    {
+        for (const auto& op : node_map)
+        {
+            if (auto read_val = std::dynamic_pointer_cast<ngraph::opset8::ReadValue>(op.second))
+            {
                 read_val->set_variable(var_map.at(read_val->get_variable_id()));
-            } else if (auto assign = std::dynamic_pointer_cast<ngraph::opset8::Assign>(op.second)) {
+            }
+            else if (auto assign = std::dynamic_pointer_cast<ngraph::opset8::Assign>(op.second))
+            {
                 assign->set_variable(var_map.at(assign->get_variable_id()));
             }
         }
@@ -450,12 +456,13 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     }
 
     // create and return cloned function
-    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_sinks,
-                                                     cloned_params, cloned_vars, func.get_friendly_name());
+    auto result = std::make_shared<ngraph::Function>(
+        cloned_results, cloned_sinks, cloned_params, cloned_vars, func.get_friendly_name());
     return result;
 }
 
-bool ngraph::is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant)
+bool ngraph::is_equal_to_const_value(const std::string& const_value,
+                                     const Output<Node>& reduce_constant)
 {
     if (auto rc = as_type_ptr<ngraph::op::Constant>(reduce_constant.get_node_shared_ptr()))
     {
