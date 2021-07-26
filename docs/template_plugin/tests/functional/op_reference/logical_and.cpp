@@ -15,13 +15,14 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 
-namespace {
+
 struct LogicalAndParams {
     template <class IT, class OT>
-    LogicalAndParams(const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2 , const ngraph::element::Type& iType,
-                const ngraph::element::Type& oType, const std::vector<IT>& iValues1, const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
-        : pshape1(input_shape1), pshape2(input_shape2), inType(iType), outType(oType), inputData1(CreateBlob(iType, iValues1)),
-        inputData2(CreateBlob(iType, iValues2)), refData(CreateBlob(oType, oValues)) {}
+    LogicalAndParams(const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2 ,
+                     const std::vector<IT>& iValues1, const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
+        : pshape1(input_shape1), pshape2(input_shape2), inType(ngraph::element::boolean), outType(ngraph::element::boolean),
+          inputData1(CreateBlob(ngraph::element::boolean, iValues1)), inputData2(CreateBlob(ngraph::element::boolean, iValues2)),
+          refData(CreateBlob(ngraph::element::boolean, oValues)) {}
     ngraph::PartialShape pshape1;
     ngraph::PartialShape pshape2;
     ngraph::element::Type inType;
@@ -50,7 +51,8 @@ public:
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1, const PartialShape& input_shape2, const element::Type& input_type) {
+    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1,
+    const PartialShape& input_shape2, const element::Type& input_type) {
         const auto in = std::make_shared<op::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::Parameter>(input_type, input_shape2);
         const auto logical_and = std::make_shared<op::v1::LogicalAnd>(in, in2);
@@ -62,40 +64,19 @@ TEST_P(ReferenceLogicalAndLayerTest, CompareWithHardcodedRefs) {
     Exec();
 }
 
-template <element::Type_t IN_ET>
-std::vector<LogicalAndParams> generateLogicalAndParams(const ngraph::element::Type& type) {
-    using T = typename element_type_traits<IN_ET>::value_type;
-    std::vector<LogicalAndParams> logicalAndParams {
-        // 1D // 2D // 3D // 4D
-        LogicalAndParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, type, ngraph::element::boolean,
-                std::vector<T> {true, false, true, false},
-                std::vector<T> {false, true, true, false},
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LogicalAnd_With_Hardcoded_Refs, ReferenceLogicalAndLayerTest,
+    ::testing::Values(
+        LogicalAndParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2},
+                std::vector<char> {true, false, true, false},
+                std::vector<char> {false, true, true, false},
                 std::vector<char> {false, false, true, false}),
-        LogicalAndParams(ngraph::PartialShape {1}, ngraph::PartialShape {1},  type, ngraph::element::boolean,
-                std::vector<T> {true},
-                std::vector<T> {true},
-                std::vector<char> {true}),
-
-        LogicalAndParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 1, 2, 1}, type, ngraph::element::boolean,
-                std::vector<T> {true, false, true, false},
-                std::vector<T> {true, false},
+        LogicalAndParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 1, 2, 1},
+                std::vector<char> {true, false, true, false},
+                std::vector<char> {true, false},
                 std::vector<char> {true, false, true, false}),
-        LogicalAndParams(ngraph::PartialShape {3, 4}, ngraph::PartialShape {3, 4}, type, ngraph::element::boolean,
-                std::vector<T> {true, true, true, true, true, false, true, false, false, true, true, true},
-                std::vector<T> {true, true, true, true, true, false, true, false, false, true, true, false},
-                std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, false})};
-    return logicalAndParams;
-}
-
-std::vector<LogicalAndParams> generateLogicalAndCombinedParams() {
-    const std::vector<std::vector<LogicalAndParams>> logicalAndTypeParams {generateLogicalAndParams<element::Type_t::u8>(ngraph::element::boolean)};
-    std::vector<LogicalAndParams> combinedParams;
-    std::for_each(logicalAndTypeParams.begin(), logicalAndTypeParams.end(), [&](std::vector<LogicalAndParams> params) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    });
-    return combinedParams;
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_LogicalAnd_With_Hardcoded_Refs, ReferenceLogicalAndLayerTest, ::testing::ValuesIn(generateLogicalAndCombinedParams()),
-                                 ReferenceLogicalAndLayerTest::getTestCaseName);
-}  // namespace
+        LogicalAndParams(ngraph::PartialShape {3, 4}, ngraph::PartialShape {3, 4},
+                std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true},
+                std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, false},
+                std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, false})),
+    ReferenceLogicalAndLayerTest::getTestCaseName);
