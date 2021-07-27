@@ -73,14 +73,6 @@ Interval::Interval(value_type val)
     m_max_val = m_min_val;
 }
 
-Interval::size_type Interval::size() const
-{
-    if (m_max_val == s_max)
-    {
-        return m_min_val == s_max ? 0 : s_max;
-    }
-    return m_max_val - m_min_val + 1;
-}
 bool Interval::operator==(const Interval& interval) const
 {
     return m_min_val == interval.m_min_val && m_max_val == interval.m_max_val;

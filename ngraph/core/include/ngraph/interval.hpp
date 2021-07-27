@@ -41,7 +41,14 @@ namespace ngraph
         Interval& operator=(const Interval& interval) = default;
 
         /// \brief The number of elements in the interval. Zero if max < min.
-        size_type size() const;
+        size_type size() const
+        {
+            if (m_max_val == s_max)
+            {
+                return m_min_val == s_max ? 0 : s_max;
+            }
+            return m_max_val - m_min_val + 1;
+        }
         /// \brief Returns true if the interval has no elements
         bool empty() const { return m_min_val == s_max; }
         /// \brief the inclusive lower bound of the interval
