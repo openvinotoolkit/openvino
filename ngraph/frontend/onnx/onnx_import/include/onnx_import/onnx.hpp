@@ -72,6 +72,14 @@ namespace ngraph
         /// \return    An nGraph function that represents a single output from the created graph.
         ONNX_IMPORTER_API
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path);
+
+        /// \brief     Converts a nGraph function (onnx model decoded to function with
+        /// ONNXFrameworkNode(s))
+        ///            to a complete function with actual compute operations
+        ///
+        /// \return    A nGraph function.
+        ONNX_IMPORTER_API
+        std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function);
     } // namespace onnx_import
 
 } // namespace ngraph
