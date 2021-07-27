@@ -12,7 +12,7 @@
 
 * *strides*
 
-  * **Description**: *strides* is a distance (in pixels) to slide the window on the feature map over the (z, y, x) axes for 3D poolings and (y, x) axes for 2D poolings. For example, *strides* equal "4,2,1" means sliding the window 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
+  * **Description**: *strides* is a distance (in pixels) to slide the window on the feature map over the (z, y, x) axes for 3D poolings and (y, x) axes for 2D poolings. For example, *strides* equal to "4,2,1" means sliding the window 4 pixels at a time over depth dimension, 2 over height dimension, and 1 over width dimension.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
