@@ -12,14 +12,14 @@ namespace ngraph
     {
         namespace v1
         {
-            /// \brief Gather slices from axis of params according to indices
+            /// \brief Gather slices from axis of data according to indices
             class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
                 static const int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
                 Gather() = default;
-                /// \param params The tensor from which slices are gathered
+                /// \param data The tensor from which slices are gathered
                 /// \param indices Tensor with indexes to gather
                 /// \param axis The tensor is a dimension index to gather data from
                 Gather(const Output<Node>& params,
@@ -36,7 +36,7 @@ namespace ngraph
 
         namespace v7
         {
-            /// \brief Gather slices from axis of params according to indices
+            /// \brief Gather slices from axis of data according to indices
             class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:
@@ -64,7 +64,8 @@ namespace ngraph
 
         namespace v8
         {
-            /// \brief Gather slices from axis of params according to indices
+            /// \brief Gather slices from axis of data according to indices. Negative indices
+            /// are supported and indicate reverse indexing from the end
             class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:
