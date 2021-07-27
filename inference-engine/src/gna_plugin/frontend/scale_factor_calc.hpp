@@ -876,7 +876,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         // - 1st candidate - input layer
         // - 2nd candidate - non-activation layer with non-1 scale factor
         if (sourceLayerIt == inputLayers.end()) {
-            if (((isInfiniteLoopCount) / 2) % 2 == 1) {
+            if (isInfiniteLoopCount % 2 == 1) {
                 std::reverse(inputLayers.begin(), inputLayers.end());
             }
 
@@ -894,7 +894,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     }
                 }
             } else {
-                if (((isInfiniteLoopCount) / 4) % 2 == 0) {
+                if (isInfiniteLoopCount % 4 == 2 || isInfiniteLoopCount % 4 == 3) {
                     auto sourceLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
                         auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
                         LayerInfo info(inputLayer);
