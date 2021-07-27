@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "flatten_contiguous_range.hpp"
 #include <ngraph/builder/reshape.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {

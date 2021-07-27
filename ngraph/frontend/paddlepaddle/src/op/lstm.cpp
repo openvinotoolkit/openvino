@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lstm.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 #include "ngraph/builder/reshape.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
 

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose2.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -20,9 +20,6 @@ namespace ngraph
 
                     auto rank =
                         static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
-
-                    std::cout << perm.size() << std::endl;
-                    std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
 
                     PDPD_OP_VALIDATION_CHECK(node,
                                              perm.size() == rank,
