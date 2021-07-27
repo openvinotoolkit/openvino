@@ -35,6 +35,20 @@ namespace
         return nullptr;
     }
 
+    ValueInfoProto* find_graph_output(GraphProto& graph, const std::string& name)
+    {
+        for (int i = 0; i < graph.output_size(); ++i)
+        {
+            auto* output_desc = graph.mutable_output(i);
+            if (output_desc->has_name() && output_desc->name() == name)
+            {
+                return output_desc;
+            }
+        }
+
+        return nullptr;
+    }
+
     TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name)
     {
         for (int i = 0; i < graph.initializer_size(); ++i)
@@ -182,6 +196,31 @@ namespace
             tensor_type->set_elem_type(initializer.data_type());
         }
     }
+    class InferShapesAutoRelease
+    {
+    public:
+        InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
+            : m_model_proto{model_proto}
+            , m_infer_shapes_was_run{false}
+        {
+        }
+        void infer_shapes()
+        {
+            ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto);
+            m_infer_shapes_was_run = true;
+        }
+        ~InferShapesAutoRelease()
+        {
+            if (m_infer_shapes_was_run)
+            {
+                m_model_proto->mutable_graph()->clear_value_info();
+            }
+        }
+
+    private:
+        std::shared_ptr<ONNX_NAMESPACE::ModelProto> m_model_proto;
+        bool m_infer_shapes_was_run;
+    };
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -198,9 +237,6 @@ struct onnx_editor::ONNXModelEditor::Impl
               onnx_common::parse_from_file(model_path))}
     {
     }
-
-    void infer_shapes() { ONNX_NAMESPACE::shape_inference::InferShapes(*m_model_proto.get()); }
-    void remove_shape_inference_info() { m_model_proto->mutable_graph()->clear_value_info(); }
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
@@ -274,6 +310,58 @@ void onnx_editor::ONNXModelEditor::set_input_shapes(
     }
 }
 
+PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) const
+{
+    const ValueInfoProto* value_info = nullptr;
+    auto* onnx_graph = m_pimpl->m_model_proto->mutable_graph();
+    InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
+    if (const auto* input = find_graph_input(*onnx_graph, tensor_name))
+    {
+        value_info = input;
+    }
+    else if (const auto* output = find_graph_output(*onnx_graph, tensor_name))
+    {
+        value_info = output;
+    }
+    else
+    {
+        try
+        {
+            onnx_shapes.infer_shapes();
+        }
+        catch (const std::exception& e)
+        {
+            NGRAPH_WARN << "Cannot replace existing shapes during get_tensor_shape";
+            return PartialShape::dynamic();
+        }
+        auto node_it = std::find_if(std::begin(onnx_graph->value_info()),
+                                    std::end(onnx_graph->value_info()),
+                                    [&tensor_name](const ValueInfoProto& value_info) -> bool {
+                                        return value_info.name() == tensor_name;
+                                    });
+        if (node_it != std::end(onnx_graph->value_info()))
+        {
+            value_info = &(*node_it);
+        }
+    }
+    if (value_info != nullptr)
+    {
+        const auto& onnx_tensor_type = value_info->type().tensor_type();
+        if (onnx_tensor_type.has_shape())
+        {
+            return onnx_common::to_ng_shape(onnx_tensor_type.shape());
+        }
+        else
+        {
+            return PartialShape::dynamic();
+        }
+    }
+    else
+    {
+        throw ngraph_error("The tensor: " + tensor_name + " was not found in the graph");
+    }
+}
+
 void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
                                                       const std::vector<OutputEdge>& outputs)
 {
@@ -282,35 +370,78 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
         return;
     }
 
-    m_pimpl->infer_shapes();
+    InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
+    onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
     editor.add_new_inputs(inputs);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
 
-    m_pimpl->remove_shape_inference_info();
     m_pimpl->m_is_mapper_updated = false;
 }
 
 std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 {
     const auto& graph = m_pimpl->m_model_proto->graph();
+    std::vector<std::string> inputs;
+    inputs.reserve(graph.input_size() - graph.initializer_size());
+    for (const auto& in : graph.input())
+    {
+        if (std::find_if(graph.initializer().begin(),
+                         graph.initializer().end(),
+                         [&in](const TensorProto& initializer) {
+                             return initializer.name() == in.name();
+                         }) == graph.initializer().end())
+        {
+            inputs.push_back(in.name());
+        }
+    }
+    return inputs;
+}
 
-    std::vector<std::string> inputs_and_initializers;
-    inputs_and_initializers.reserve(graph.input_size() + graph.initializer_size());
+std::vector<std::string> onnx_editor::ONNXModelEditor::model_outputs() const
+{
+    const auto& graph = m_pimpl->m_model_proto->graph();
+    std::vector<std::string> outputs;
+    outputs.reserve(graph.output_size());
 
-    std::transform(graph.input().begin(),
-                   graph.input().end(),
-                   std::back_inserter(inputs_and_initializers),
+    std::transform(graph.output().begin(),
+                   graph.output().end(),
+                   std::back_inserter(outputs),
                    extract_name<ONNX_NAMESPACE::ValueInfoProto>);
 
-    std::transform(graph.initializer().begin(),
-                   graph.initializer().end(),
-                   std::back_inserter(inputs_and_initializers),
-                   extract_name<ONNX_NAMESPACE::TensorProto>);
+    return outputs;
+}
 
-    return inputs_and_initializers;
+bool onnx_editor::ONNXModelEditor::is_input(const InputEdge& edge) const
+{
+    update_mapper_if_needed();
+    const auto& port_name = m_pimpl->m_edge_mapper.get_input_port_name(edge);
+    if (port_name.empty())
+    {
+        return false;
+    }
+    else
+    {
+        const auto& inputs = model_inputs();
+        return std::count(std::begin(inputs), std::end(inputs), port_name) > 0;
+    }
+}
+
+bool onnx_editor::ONNXModelEditor::is_output(const OutputEdge& edge) const
+{
+    update_mapper_if_needed();
+    const auto& port_name = m_pimpl->m_edge_mapper.get_output_port_name(edge);
+    if (port_name.empty())
+    {
+        return false;
+    }
+    else
+    {
+        const auto& outputs = model_outputs();
+        return std::count(std::begin(outputs), std::end(outputs), port_name) > 0;
+    }
 }
 
 std::string onnx_editor::ONNXModelEditor::model_string() const
@@ -391,6 +522,12 @@ bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorN
 {
     update_mapper_if_needed();
     return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
+}
+
+bool onnx_editor::ONNXModelEditor::is_correct_tensor_name(const std::string& name) const
+{
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.is_correct_tensor_name(name);
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode()
