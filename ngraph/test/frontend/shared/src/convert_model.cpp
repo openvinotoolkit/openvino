@@ -27,7 +27,7 @@ void FrontEndConvertModelTest::SetUp()
 void FrontEndConvertModelTest::initParamTest()
 {
     std::tie(m_feName, m_pathToModels, m_modelFile) = GetParam();
-    m_modelFile = m_pathToModels + m_modelFile;
+    m_modelFile = FrontEndTestUtils::make_model_path(m_pathToModels + m_modelFile);
 }
 
 void FrontEndConvertModelTest::doLoadFromFile()

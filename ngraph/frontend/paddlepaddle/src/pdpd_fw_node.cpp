@@ -28,7 +28,8 @@ namespace ngraph
         std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_outputs()
         {
             size_t idx = 0;
-            return m_decoder.map_for_each_output([&](std::string name) { return output(idx++); });
+            return m_decoder.map_for_each_output(
+                [&](const std::string& name) { return output(idx++); });
         }
 
     } // namespace frontend
