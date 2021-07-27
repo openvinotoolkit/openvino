@@ -57,7 +57,7 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     KernelData k_data = KernelData::Default<lstm_dynamic_input_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];

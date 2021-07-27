@@ -4,7 +4,7 @@
 
 **Category**: Object detection
 
-**Short description**: The *ExperimentalDetectronGenerateProposalsSingleImage* operation computes ROIs and their scores 
+**Short description**: The *ExperimentalDetectronGenerateProposalsSingleImage* operation computes ROIs and their scores
 based on input data.
 
 **Detailed description**: The operation performs the following steps:
@@ -15,7 +15,7 @@ based on input data.
 4.  Sorts all `(proposal, score)` pairs by score from highest to lowest; order of pairs with equal scores is undefined.
 5.  Takes top *pre_nms_count* proposals, if total number of proposals is less than *pre_nms_count* takes all proposals.
 6.  Applies non-maximum suppression with *nms_threshold*.
-7.  Takes top *post_nms_count* proposals and returns these top proposals and their scores. If total number of proposals 
+7.  Takes top *post_nms_count* proposals and returns these top proposals and their scores. If total number of proposals
 is less than *post_nms_count* returns output tensors filled with zeroes.
 
 **Attributes**:
@@ -23,7 +23,7 @@ is less than *post_nms_count* returns output tensors filled with zeroes.
 * *min_size*
 
     * **Description**: The *min_size* attribute specifies minimum box width and height.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -31,7 +31,7 @@ is less than *post_nms_count* returns output tensors filled with zeroes.
 * *nms_threshold*
 
     * **Description**: The *nms_threshold* attribute specifies threshold to be used in the NMS stage.
-    * **Range of values**: non-negative floating point number
+    * **Range of values**: non-negative floating-point number
     * **Type**: float
     * **Default value**: None
     * **Required**: *yes*
@@ -54,15 +54,15 @@ is less than *post_nms_count* returns output tensors filled with zeroes.
 
 **Inputs**
 
-* **1**: A 1D tensor of type *T* with 3 elements `[image_height, image_width, scale_height_and_width]` providing input 
+* **1**: A 1D tensor of type *T* with 3 elements `[image_height, image_width, scale_height_and_width]` providing input
 image size info. **Required.**
 
 * **2**: A 2D tensor of type *T* with shape `[height * width * number_of_channels, 4]` providing anchors. **Required.**
 
-* **3**: A 3D tensor of type *T* with shape `[number_of_channels * 4, height, width]` providing deltas for anchors. 
+* **3**: A 3D tensor of type *T* with shape `[number_of_channels * 4, height, width]` providing deltas for anchors.
 Height and width for third and fourth inputs should be equal. **Required.**
 
-* **4**: A 3D tensor of type *T* with shape `[number_of_channels, height, width]` providing proposals scores. 
+* **4**: A 3D tensor of type *T* with shape `[number_of_channels, height, width]` providing proposals scores.
 **Required.**
 
 **Outputs**
@@ -73,7 +73,7 @@ Height and width for third and fourth inputs should be equal. **Required.**
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

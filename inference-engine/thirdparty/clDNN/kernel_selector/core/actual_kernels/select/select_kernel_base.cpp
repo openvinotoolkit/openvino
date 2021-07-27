@@ -123,7 +123,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
     KernelData kd = KernelData::Default<select_params>(params);
     select_params& newParams = *static_cast<select_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

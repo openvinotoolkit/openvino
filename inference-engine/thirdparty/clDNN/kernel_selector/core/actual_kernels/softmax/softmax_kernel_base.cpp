@@ -62,7 +62,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto dispatchData = SetDefault(orgParams, options);
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];

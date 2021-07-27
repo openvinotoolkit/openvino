@@ -8,6 +8,10 @@
 #include <ie_common.h>
 #include <math.h>
 
+#include <ie_memcpy.h>
+#include <blob_factory.hpp>
+
+
 #include <cassert>
 #include <map>
 #include <memory>
@@ -360,13 +364,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
 
     bool parameter_replaced = false;
     for (size_t i = 0; i < params.size(); i++) {
-        const auto& param = params[i];
+        auto& param = params[i];
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
-        ::ngraph::PartialShape shape(inputShapes.at(param->get_friendly_name()));
-        auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
-        newParam->set_friendly_name(param->get_friendly_name());
-        _ngraph_function->replace_parameter(i, newParam);
+        param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
         parameter_replaced = true;
     }
     if (parameter_replaced)
@@ -466,6 +467,64 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           std::ostream& binBuf,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           Blob::Ptr& binBlob,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+
+        std::stringstream binBuf;
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+
+        std::streambuf* pbuf = binBuf.rdbuf();
+        unsigned long bufSize = binBuf.tellp();
+
+        TensorDesc tensorDesc(Precision::U8, { bufSize }, Layout::C);
+        binBlob = make_shared_blob<uint8_t>(tensorDesc);
+        binBlob->allocate();
+        pbuf->sgetn(binBlob->buffer(), bufSize);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

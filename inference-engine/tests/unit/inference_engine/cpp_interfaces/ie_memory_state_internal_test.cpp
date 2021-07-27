@@ -30,7 +30,7 @@ class VariableStateTests : public ::testing::Test {
     SoExecutableNetworkInternal                     net;
     IInferRequestInternal::Ptr                      req;
 
-    virtual void SetUp() {
+    void SetUp() override {
         mockExeNetworkInternal = make_shared<MockIExecutableNetworkInternal>();
         mockInferRequestInternal = make_shared<MockIInferRequestInternal>();
         mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
@@ -199,13 +199,11 @@ TEST_F(VariableStateTests, VariableStateCanPropagateGetLastState) {
     ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[2], 125);
     IE_SUPPRESS_DEPRECATED_END
 }
-
 class VariableStateInternalMockImpl : public IVariableStateInternal {
  public:
     VariableStateInternalMockImpl(const char* name) : IVariableStateInternal(name) {}
     MOCK_METHOD0(Reset, void());
 };
-
 
 TEST_F(VariableStateTests, VariableStateInternalCanSaveName) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));

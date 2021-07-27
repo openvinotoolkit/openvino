@@ -16,7 +16,7 @@ namespace subgraph {
 
 class MultiplyBranch {
 public:
-    Shape inputShape;
+    PartialShape inputShape;
     ngraph::builder::subgraph::Constant constant;
     ngraph::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantization;
@@ -41,12 +41,11 @@ class MultiplyFunction {
 public:
     static std::shared_ptr<ngraph::Function> get(
             const element::Type precision,
-            const ngraph::Shape& inputShape,
             const MultiplyValues& actualValues);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const bool broadcast,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
         const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);

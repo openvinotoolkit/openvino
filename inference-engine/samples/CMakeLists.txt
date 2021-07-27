@@ -31,9 +31,9 @@ if (NOT BIN_FOLDER)
     endif()
 endif()
 
-if(IE_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
+    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_SOURCE_DIR})
     # hint for find_package(InferenceEngine in the samples folder)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
     # hint for find_package(ngraph in the samples folder)
@@ -76,6 +76,10 @@ else()
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
     endif()
 
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
+    endif()
+
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
     if (APPLE)
@@ -111,7 +115,7 @@ endif()
 ####################################
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
-    NOT DEFINED IE_MAIN_SOURCE_DIR)
+    NOT DEFINED OpenVINO_SOURCE_DIR)
     function(add_gflags)
         # common gflags settings
         set(GFLAGS_IS_SUBPROJECT TRUE)
@@ -135,10 +139,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     add_subdirectory(common/utils)
 endif()
@@ -152,7 +152,7 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
 endif()
 
 # samples build can be switched off during whole IE build
-if (DEFINED IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
+if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
 

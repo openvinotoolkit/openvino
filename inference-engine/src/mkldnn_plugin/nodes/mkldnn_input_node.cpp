@@ -149,7 +149,7 @@ struct jit_has_subnormals_base::reg<cpu_isa_t::sse41> {
 
 template<cpu_isa_t isa>
 struct jit_has_subnormals : public jit_has_subnormals_base {
-    void generate() final {
+    void generate() override final { // NOLINT
         size_t const vlen = reg<isa>::length;
         const int sh_bits = std::ilogb(vlen);
 

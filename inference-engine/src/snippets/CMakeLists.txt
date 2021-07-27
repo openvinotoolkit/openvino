@@ -30,7 +30,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations ${NGRAPH_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
                                      PRIVATE ngraph_reference)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
@@ -59,5 +59,5 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # TODO: remove once install commands above are commented out
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

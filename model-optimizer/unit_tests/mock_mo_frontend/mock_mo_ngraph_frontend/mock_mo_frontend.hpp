@@ -292,11 +292,9 @@ public:
 /// was called with correct arguments during test execution
 struct MOCK_API FeStat
 {
-    FrontEndCapFlags m_load_flags;
     std::vector<std::string> m_load_paths;
     int m_convert_model = 0;
     // Getters
-    FrontEndCapFlags load_flags() const { return m_load_flags; }
     std::vector<std::string> load_paths() const { return m_load_paths; }
     int convert_model() const { return m_convert_model; }
 };
@@ -309,13 +307,7 @@ class MOCK_API FrontEndMockPy : public FrontEnd
     static FeStat m_stat;
 
 public:
-    FrontEndMockPy(FrontEndCapFlags flags) { m_stat.m_load_flags = flags; }
-
-    InputModel::Ptr load_from_file(const std::string& path) const override
-    {
-        m_stat.m_load_paths.push_back(path);
-        return std::make_shared<InputModelMockPy>();
-    }
+    FrontEndMockPy() {}
 
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
     {
@@ -326,4 +318,15 @@ public:
     static FeStat get_stat() { return m_stat; }
 
     static void clear_stat() { m_stat = {}; }
+
+protected:
+    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    {
+        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        {
+            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            m_stat.m_load_paths.push_back(path);
+        }
+        return std::make_shared<InputModelMockPy>();
+    }
 };

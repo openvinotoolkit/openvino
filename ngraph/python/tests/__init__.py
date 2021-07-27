@@ -113,7 +113,6 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
-xfail_issue_40686 = xfail_test(reason="NANs as results")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
@@ -144,4 +143,7 @@ xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
 xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
+xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
+
+xfail_issue_59935 = xfail_test(reason="AdaptivePool is not implemented in CPU plugin.")

@@ -62,10 +62,8 @@ def write_session_info(path: Path = Path(getsourcefile(lambda: 0)).parent / SESS
 def run_infer(model, out_file, install_dir):
     """ Function running inference
     """
-    sys_executable = os.path.join(sys.prefix, 'python.exe') if sys.platform == "win32" \
-        else os.path.join(sys.prefix, 'bin', 'python')
     return_code, output = cmd_exec(
-        [sys_executable,
+        [sys.executable,
          infer_tool,
          "-d=CPU", f"-m={model}", f"-r={out_file}"
          ],
