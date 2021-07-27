@@ -110,7 +110,7 @@ inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
  * marks shape axis which shouldn't be validated
  * @return order
  */
-inline bool dimsEqualWeak(const std::vector<size_t> lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
+inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
     if (lhs.size() != rhs.size())
         return false;
 
