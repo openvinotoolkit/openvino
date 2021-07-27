@@ -256,3 +256,38 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
 {
     return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
 }
+
+bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) const
+{
+    if (m_node_output_name_to_index.find(name) != std::end(m_node_output_name_to_index))
+    {
+        return true;
+    }
+    if (m_output_consumers_index.find(name) != std::end(m_output_consumers_index))
+    {
+        return true;
+    }
+    return false;
+}
+
+std::string onnx_editor::EdgeMapper::get_input_port_name(const InputEdge& edge) const
+{
+    if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_inputs.size()) &&
+        edge.m_port_idx >= 0 &&
+        edge.m_port_idx < static_cast<int>(m_node_inputs[edge.m_node_idx].size()))
+    {
+        return m_node_inputs[edge.m_node_idx][edge.m_port_idx];
+    }
+    return "";
+}
+
+std::string onnx_editor::EdgeMapper::get_output_port_name(const OutputEdge& edge) const
+{
+    if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_outputs.size()) &&
+        edge.m_port_idx >= 0 &&
+        edge.m_port_idx < static_cast<int>(m_node_outputs[edge.m_node_idx].size()))
+    {
+        return m_node_outputs[edge.m_node_idx][edge.m_port_idx];
+    }
+    return "";
+}

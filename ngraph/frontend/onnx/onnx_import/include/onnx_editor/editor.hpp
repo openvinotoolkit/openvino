@@ -53,6 +53,12 @@ namespace ngraph
             ///                     the inputs specified in its parameter.
             void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
 
+            /// \brief Get shape of ONNX tensor indicated by the tensor_name.
+            ///
+            /// \param tensor_name The name of ONNX tensor.
+            ///
+            PartialShape get_tensor_shape(const std::string& tensor_name) const;
+
             /// \brief Extracts a subgraph constrained by input edges and output edges. In the end
             ///        the underlying ModelProto is modified - obsolete inputs, initializers, nodes
             ///        and outputs are removed from the in-memory model.
@@ -86,11 +92,24 @@ namespace ngraph
             /// \brief     Converts an edited ONNX model to an nGraph Function representation.
             std::shared_ptr<Function> get_function() const;
 
-            /// \brief Returns a list of all inputs of the in-memory model, including initializers.
+            /// \brief Returns a list of all inputs of the in-memory model.
             ///        The returned value might depend on the previous operations executed on an
             ///        instance of the model editor, in particular the subgraph extraction which
-            ///        can discard some inputs and initializers from the original graph.
+            ///        can discard some inputs from the original graph.
+            ///
+            ///  \note ONNX initializers is not treated as input of the model.
             std::vector<std::string> model_inputs() const;
+
+            /// \brief Returns a list of all outputs of the in-memory model.
+            ///        The returned value might depend on the previous operations executed on an
+            ///        instance of the model editor.
+            std::vector<std::string> model_outputs() const;
+
+            /// \brief     Returns true if input edge is input of the model. Otherwise false.
+            bool is_input(const InputEdge& edge) const;
+
+            /// \brief     Returns true if output edge is input of the model. Otherwise false.
+            bool is_output(const OutputEdge& edge) const;
 
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
@@ -160,6 +179,12 @@ namespace ngraph
             /// \param output_name A node output name.
             ///
             bool is_correct_and_unambiguous_node(const EditorNode& node) const;
+
+            /// \brief Returns true if a provided tensor name is correct (exists in a graph).
+            ///
+            /// \param name The name of tensor in a graph.
+            ///
+            bool is_correct_tensor_name(const std::string& name) const;
 
             /// \brief Returns a nGraph function based on edited model
             ///        decoded to framework nodes

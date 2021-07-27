@@ -88,5 +88,27 @@ namespace ngraph
             return NG_2_ONNX_TYPES.count(ng_type) > 0;
         }
 
+        PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape)
+        {
+            if (onnx_shape.dim_size() == 0)
+            {
+                return Shape{}; // empty list of dimensions denotes a scalar
+            }
+
+            std::vector<Dimension> dims;
+            for (const auto& onnx_dim : onnx_shape.dim())
+            {
+                if (onnx_dim.has_dim_value())
+                {
+                    dims.emplace_back(onnx_dim.dim_value());
+                }
+                else // has_dim_param() == true or it is empty dim
+                {
+                    dims.push_back(Dimension::dynamic());
+                }
+            }
+            return PartialShape{dims};
+        }
+
     } // namespace onnx_common
 } // namespace ngraph
