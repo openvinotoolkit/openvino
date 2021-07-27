@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::Broadcast::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", 3, op::util::BroadcastBase);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
