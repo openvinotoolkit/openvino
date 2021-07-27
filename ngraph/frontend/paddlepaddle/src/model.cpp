@@ -7,7 +7,10 @@
 #include <paddlepaddle_frontend/place.hpp>
 
 #include <fstream>
+#include <queue>
+
 #include <ngraph/opsets/opset7.hpp>
+
 #include "decoder.hpp"
 #include "framework.pb.h"
 #include "node_context.hpp"
@@ -44,7 +47,7 @@ namespace ngraph
             void setElementType(Place::Ptr place, const ngraph::element::Type&);
             void setTensorValue(Place::Ptr place, const void* value);
 
-            std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const { return m_op_places; }
+            std::vector<std::shared_ptr<OpPlacePDPD>> returnOpPlaces();
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const
             {
                 return m_var_places;
@@ -59,6 +62,7 @@ namespace ngraph
             template <typename T>
             void loadConsts(const std::basic_string<T>& folder_with_weights,
                             std::istream* weight_stream);
+            void determine_cut_nodes();
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -67,6 +71,9 @@ namespace ngraph
             std::vector<Place::Ptr> m_inputs;
             std::vector<Place::Ptr> m_outputs;
             std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
+
+            // shows if some nodes might be deleted from graph
+            bool m_graph_changed = false;
         };
 
         void InputModelPDPD::InputModelPDPDImpl::loadPlaces()
@@ -228,6 +235,77 @@ namespace ngraph
 #endif
         } // namespace pdpd
 
+        std::vector<std::shared_ptr<OpPlacePDPD>>
+            InputModelPDPD::InputModelPDPDImpl::returnOpPlaces()
+        {
+            if (m_graph_changed)
+            {
+                determine_cut_nodes();
+                m_graph_changed = false;
+            }
+            return m_op_places;
+        }
+
+        void InputModelPDPD::InputModelPDPDImpl::determine_cut_nodes()
+        {
+            // Marking nodes from inputs to outputs
+            std::queue<OpPlacePDPD*> q;
+            std::unordered_set<OpPlacePDPD*> visited;
+            // Marking nodes from outputs to inputs/constants
+            for (auto& output : getOutputs())
+            {
+                if (!output->is_input())
+                {
+                    auto pdpd_output_op =
+                        std::dynamic_pointer_cast<OpPlacePDPD>(output->get_producing_operation());
+                    visited.insert(pdpd_output_op.get());
+                    q.push(pdpd_output_op.get());
+                }
+            }
+            while (!q.empty())
+            {
+                auto p_op = q.front();
+                q.pop();
+                for (auto map_pair : p_op->get_input_ports())
+                {
+                    for (auto port : map_pair.second)
+                    {
+                        auto tensor = port->get_source_tensor();
+                        if (tensor && !tensor->is_input() &&
+                            !m_tensor_values.count(tensor->get_names()[0]))
+                        {
+                            try
+                            {
+                                std::shared_ptr<OpPlacePDPD> pdpd_op =
+                                    std::dynamic_pointer_cast<OpPlacePDPD>(
+                                        tensor->get_producing_operation());
+                                if (pdpd_op)
+                                {
+                                    visited.insert(pdpd_op.get());
+                                    q.push(pdpd_op.get());
+                                }
+                            }
+                            catch (GeneralFailure)
+                            {
+                                // tensor might not have producer op
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            std::vector<std::shared_ptr<OpPlacePDPD>> new_op_places;
+            new_op_places.reserve(m_op_places.size());
+            for (auto op_place : m_op_places)
+            {
+                if (visited.count(op_place.get()))
+                {
+                    new_op_places.push_back(op_place);
+                }
+            }
+            m_op_places.swap(new_op_places);
+        }
+
         template <typename T>
         void InputModelPDPD::InputModelPDPDImpl::loadConsts(
             const std::basic_string<T>& folder_with_weights, std::istream* weight_stream)
@@ -368,6 +446,7 @@ namespace ngraph
         void InputModelPDPD::InputModelPDPDImpl::overrideAllInputs(
             const std::vector<Place::Ptr>& inputs)
         {
+            m_graph_changed = true;
             m_inputs.clear();
             for (const auto& inp : inputs)
             {
@@ -378,6 +457,7 @@ namespace ngraph
         void InputModelPDPD::InputModelPDPDImpl::overrideAllOutputs(
             const std::vector<Place::Ptr>& outputs)
         {
+            m_graph_changed = true;
             m_outputs.clear();
             for (const auto& outp : outputs)
             {
@@ -388,6 +468,7 @@ namespace ngraph
         void InputModelPDPD::InputModelPDPDImpl::extractSubgraph(
             const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
         {
+            m_graph_changed = true;
             overrideAllInputs(inputs);
             overrideAllOutputs(outputs);
         }
@@ -445,9 +526,9 @@ namespace ngraph
         {
         }
 
-        std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::getOpPlaces() const
+        std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::returnOpPlaces()
         {
-            return _impl->getOpPlaces();
+            return _impl->returnOpPlaces();
         }
 
         std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarPlaces() const

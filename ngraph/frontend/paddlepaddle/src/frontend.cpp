@@ -52,26 +52,21 @@ namespace ngraph
                     for (const auto& port : name_to_ports.second)
                     {
                         const auto& var_desc = port->get_source_tensor_pdpd()->get_desc();
-                        if (nodes.count(var_desc.name()))
-                            named_inputs[name_to_ports.first].push_back(nodes.at(var_desc.name()));
-                        else
-                            // return empty map when not all inputs exist. It usually means that
-                            // these nodes are not used because model inputs were overwritten
-                            return NamedOutputs();
+                        auto node_it = nodes.find(var_desc.name());
+                        // general check, because in case of error partial conversion should fail
+                        FRONT_END_GENERAL_CHECK(
+                            node_it != nodes.end(),
+                            "Input ",
+                            var_desc.name(),
+                            " for node with type ",
+                            op.type(),
+                            " wasn't found. It may happen if model was cut incorrectly.");
+                        named_inputs[name_to_ports.first].push_back(node_it->second);
                     }
                 }
 
-                try
-                {
-                    return CREATORS_MAP.at(op.type())(
-                        NodeContext(DecoderPDPDProto(op_place), named_inputs));
-                }
-                catch (...)
-                {
-                    // TODO: define exception types
-                    // In case of partial conversion we need to create generic ngraph op here
-                    return NamedOutputs();
-                }
+                return CREATORS_MAP.at(op.type())(
+                    NodeContext(DecoderPDPDProto(op_place), named_inputs));
             }
 
             std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant,
@@ -101,14 +96,11 @@ namespace ngraph
                                                "Cannot open model file.");
                 return &ext_stream;
             }
-
         } // namespace pdpd
 
         std::shared_ptr<Function>
             FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model)
         {
-            // std::cout << "Convert Model Start" << std::endl;
-
             std::map<pdpd::TensorName, Output<Node>> nodes_dict(model->getTensorValues());
             ParameterVector parameter_nodes;
             ResultVector result_nodes;
@@ -127,7 +119,7 @@ namespace ngraph
                 parameter_nodes.push_back(param);
             }
 
-            const auto& op_places = model->getOpPlaces();
+            const auto& op_places = model->returnOpPlaces();
             for (const auto& op_place : op_places)
             {
                 const auto& op_type = op_place->get_desc().type();
