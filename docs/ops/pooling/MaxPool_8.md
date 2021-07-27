@@ -43,7 +43,7 @@
 
 * *pads_end*
 
-  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
+  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal to "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
