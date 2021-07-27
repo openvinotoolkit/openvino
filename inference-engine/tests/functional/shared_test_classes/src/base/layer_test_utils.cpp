@@ -45,22 +45,21 @@ void LayerTestsCommon::Run() {
         s.updateOPsStats(function, PassRate::Statuses::CRASHED);
     }
 
-    auto report_func = function;
     try {
         LoadNetwork();
         GenerateInputs();
         Infer();
         Validate();
-        s.updateOPsStats(report_func, PassRate::Statuses::PASSED);
+        s.updateOPsStats(function, PassRate::Statuses::PASSED);
     }
     catch (const std::runtime_error &re) {
-        s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch (const std::exception &ex) {
-        s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(ex.what());
     } catch (...) {
-        s.updateOPsStats(report_func, PassRate::Statuses::FAILED);
+        s.updateOPsStats(function, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_("Unknown failure occurred.");
     }
 }
