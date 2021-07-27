@@ -25,7 +25,6 @@ namespace ngraph
 
                     auto groups = node.get_attribute<int>("groups");
                     auto deformable_groups = node.get_attribute<int>("deformable_groups");
-                    // auto im2col_step = node.get_attribute<int>("im2col_step"); // TODO
 
                     const auto paddings = get_pads(node);
                     const auto pads_begin = paddings.first;
