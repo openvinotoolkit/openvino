@@ -257,7 +257,7 @@ output1 = [[[[4, 5, 4],
              [4, 5, 4]]]]
 ```
 
-Example 7 shows how *MaxPool* operates on 4D input using 2D kernel, with non-default `axis` value
+Example 7 shows how *MaxPool* operates on 4D input using 2D kernel, with non-default `axis` value.
 
 ```
 input = [[[[1, 2, 3],
