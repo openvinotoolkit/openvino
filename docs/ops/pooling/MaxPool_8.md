@@ -193,7 +193,7 @@ output1 = [[[[0, 1, 2],
             [3, 7, 8]]]]
 ```
 
-Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_upper`
+Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = same_upper`.
 
 ```
 input = [[[[-1, 2, 3],
