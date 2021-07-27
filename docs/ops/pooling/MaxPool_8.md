@@ -4,7 +4,7 @@
 
 **Category**: *Pooling*
 
-**Short description**: Performs max pooling operation on input.
+**Short description**: Performs the max pooling operation on input.
 
 **Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value are `-inf`. The Max Pooling operation involves sliding a filter over each channel of feature map and downsampling by choosing the biggest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s).
 
