@@ -291,42 +291,6 @@ namespace ngraph
                     batch += batch_size;
                 }
             }
-
-            // DEPRECATED, can't be removed currently due to kmb-plugin dependency (#47799)
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCU = typename widen<OUTPUT>::type>
-            void convolution(const INPUT* in,
-                             const FILTER* f,
-                             OUTPUT* out,
-                             const Shape& in_shape,
-                             const Shape& f_shape,
-                             const Shape& out_shape,
-                             const Strides& strides,
-                             const Strides& dilation,
-                             const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end,
-                             const Strides&)
-
-            {
-                static_assert(std::is_same<INPUT, FILTER>::value,
-                              "input and filter types must be the same");
-                static_assert(std::is_same<INPUT, OUTPUT>::value,
-                              "input and output types must be the same");
-
-                convolution(in,
-                            f,
-                            out,
-                            in_shape,
-                            f_shape,
-                            out_shape,
-                            strides,
-                            dilation,
-                            pads_begin,
-                            pads_end);
-            }
-
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
