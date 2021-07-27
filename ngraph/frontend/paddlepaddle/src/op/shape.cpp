@@ -16,8 +16,9 @@ namespace ngraph
                 NamedOutputs shape(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("Input");
+                    auto shape_node = std::make_shared<ngraph::opset6::ShapeOf>(data);
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::ShapeOf>(data)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Convert>(shape_node, element::i32)}, {"Out"});
                 }
 
             } // namespace op
