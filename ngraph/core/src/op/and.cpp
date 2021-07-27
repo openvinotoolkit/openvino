@@ -63,12 +63,6 @@ namespace logand
         switch (arg0->get_element_type())
         {
             NGRAPH_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, i32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, i64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, u32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, u64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, f16, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
