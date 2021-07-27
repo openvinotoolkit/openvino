@@ -411,6 +411,8 @@ public:
                 }
             }
 
+            TryToRegisterLibraryAsExtensionUnsafe(pluginPath);
+
             // fill value in plugin registry for later lazy initialization
             {
                 PluginDescriptor desc = {pluginPath, config, listOfExtentions};
@@ -741,6 +743,8 @@ public:
                 pluginPath = absFilePath;
         }
 
+        TryToRegisterLibraryAsExtensionUnsafe(pluginPath);
+
         PluginDescriptor desc = {pluginPath, {}, {}};
         pluginRegistry[deviceName] = desc;
     }
@@ -814,7 +818,10 @@ public:
      */
     void AddExtension(const ie::IExtensionPtr& extension) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
+        AddExtensionUnsafe(extension);
+    }
 
+    void AddExtensionUnsafe(const IExtensionPtr& extension) {
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
@@ -880,6 +887,16 @@ public:
         }
 
         return versions;
+    }
+
+private:
+    template <typename C,
+              typename = details::enableIfSupportedChar<C>>
+    void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) {
+        try {
+            const auto extension_ptr = std::make_shared<Extension>(path);
+            AddExtensionUnsafe(extension_ptr);
+        } catch (const NotFound&) {}
     }
 };
 
