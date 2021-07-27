@@ -35,7 +35,7 @@
 
 * *pads_begin*
 
-  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
+  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal to "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
