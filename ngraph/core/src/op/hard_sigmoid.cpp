@@ -39,7 +39,7 @@ bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::HardSigmoid::pre_validate_and_infer_types()
+void op::HardSigmoid::validate_and_infer_types()
 {
     const auto& alpha_pshape = get_input_partial_shape(1);
     const auto& beta_pshape = get_input_partial_shape(2);

@@ -72,7 +72,7 @@ shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<op::v0::Gelu>(new_args.at(0));
 }
 
-void op::v0::Gelu::pre_validate_and_infer_types()
+void op::v0::Gelu::validate_and_infer_types()
 {
     element::Type input_element_type = get_input_element_type(0);
     PartialShape input_pshape = get_input_partial_shape(0);
