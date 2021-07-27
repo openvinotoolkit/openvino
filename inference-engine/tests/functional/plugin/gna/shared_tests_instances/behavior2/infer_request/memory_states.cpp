@@ -3,9 +3,12 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include "behavior/memory_states.hpp"
+#include "behavior2/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
+using namespace BehaviorTestsDefinitions;
+
+namespace {
 static const char model[] = R"V0G0N(
 <net name="model" version="6">
     <layers>
@@ -123,10 +126,12 @@ InferenceEngine::CNNNetwork getNetwork() {
     auto ie = PluginCache::get().ie();
     return ie->ReadNetwork(model, InferenceEngine::Blob::Ptr{});
 }
+
 std::vector<memoryStateParams> memoryStateTestCases = {
         memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA)
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, VariableStateTest,
-        ::testing::ValuesIn(memoryStateTestCases),
-        VariableStateTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_VariableStateBasic, InferRequestVariableStateTest,
+                         ::testing::ValuesIn(memoryStateTestCases),
+                         InferRequestVariableStateTest::getTestCaseName);
+} // namespace

@@ -9,24 +9,18 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP16
-};
-
 const std::vector<std::map<std::string, std::string>> configs = {
         {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
         ::testing::Combine(
-                ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                 ::testing::Values(std::map<std::string, std::string>({}))),
         InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
         ::testing::Combine(
-                ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(configs)),
         InferRequestMultithreadingTests::getTestCaseName);

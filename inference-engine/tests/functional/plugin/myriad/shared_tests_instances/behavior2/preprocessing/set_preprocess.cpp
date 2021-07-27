@@ -3,14 +3,12 @@
 //
 
 #include <base/behavior_test_utils.hpp>
-#include "behavior2/infer_request/set_preprocess.hpp"
+#include "behavior2/preprocessing/set_preprocess.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {
     using PreprocessBehTest = BehaviorTestsUtils::BehaviorTestsBasic;
-
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
     };
 
@@ -19,21 +17,13 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
-            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> autoConfigs = {
-            {{ InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_GPU}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> auto_cpu_gpu_conf = {
-        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU}}
+            {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                     ::testing::ValuesIn(configs)),
                             InferRequestPreprocessTest::getTestCaseName);
 
@@ -43,21 +33,6 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
-                            InferRequestPreprocessTest::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, InferRequestPreprocessTest,
-                            ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(auto_cpu_gpu_conf)),
-                            InferRequestPreprocessTest::getTestCaseName);
-
 
     const std::vector<InferenceEngine::Precision> ioPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -83,7 +58,7 @@ namespace {
                                         ::testing::ValuesIn(ioLayouts),
                                         ::testing::Bool(),
                                         ::testing::Bool(),
-                                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                         ::testing::ValuesIn(configs)),
                                 InferRequestPreprocessConversionTest::getTestCaseName);
 
@@ -97,8 +72,9 @@ namespace {
                                 ::testing::Bool(),
                                 ::testing::Values(true), // only SetBlob
                                 ::testing::Values(true), // only SetBlob
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::ValuesIn(configs)),
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
+
 
 }  // namespace

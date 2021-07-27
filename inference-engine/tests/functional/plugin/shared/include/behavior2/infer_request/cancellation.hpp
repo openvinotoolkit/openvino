@@ -13,9 +13,8 @@ namespace BehaviorTestsDefinitions {
 class InferRequestCancellationTests : public BehaviorTestsUtils::InferRequestTests {
 public:
     void SetUp()  override {
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 640, 640},
-                                                               FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
+        std::tie(targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, 640, 640});
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);

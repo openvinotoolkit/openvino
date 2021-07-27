@@ -329,6 +329,166 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
-// Set Blob with incorrect precision, with layout and so on
+TEST_P(InferRequestIOBBlobTest, CanSetInBlobWithDifferentPrecision) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    std::set<InferenceEngine::Precision> prcs = {
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::FP64,
+            InferenceEngine::Precision::I4,
+            InferenceEngine::Precision::I8,
+            InferenceEngine::Precision::I16,
+            InferenceEngine::Precision::I32,
+            InferenceEngine::Precision::I64,
+            InferenceEngine::Precision::U4,
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::U16,
+            InferenceEngine::Precision::U32,
+            InferenceEngine::Precision::U64,
+            InferenceEngine::Precision::BF16,
+            InferenceEngine::Precision::BIN,
+            InferenceEngine::Precision::BOOL,
+    };
+    for (auto& outputInfo : cnnNet.getOutputsInfo()) {
+        for (const auto &prc : prcs) {
+            InferenceEngine::TensorDesc td(prc, outputInfo.second->getTensorDesc().getDims(), outputInfo.second->getTensorDesc().getLayout());
+            InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+            if (outputInfo.second->getTensorDesc().getPrecision() == prc) {
+                ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
+            } else {
+                ASSERT_THROW(req.SetBlob(outputInfo.first, blob), InferenceEngine::Exception);
+            }
+        }
+    }
+}
+
+TEST_P(InferRequestIOBBlobTest, CanSetOutBlobWithDifferentPrecision) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    std::set<InferenceEngine::Precision> prcs = {
+            InferenceEngine::Precision::FP16,
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::FP64,
+            InferenceEngine::Precision::I4,
+            InferenceEngine::Precision::I8,
+            InferenceEngine::Precision::I16,
+            InferenceEngine::Precision::I32,
+            InferenceEngine::Precision::I64,
+            InferenceEngine::Precision::U4,
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::U16,
+            InferenceEngine::Precision::U32,
+            InferenceEngine::Precision::U64,
+            InferenceEngine::Precision::BF16,
+            InferenceEngine::Precision::BIN,
+            InferenceEngine::Precision::BOOL,
+    };
+    for (auto& inputInfo : cnnNet.getInputsInfo()) {
+        for (const auto &prc : prcs) {
+            InferenceEngine::TensorDesc td(prc, inputInfo.second->getTensorDesc().getDims(), inputInfo.second->getTensorDesc().getLayout());
+            InferenceEngine::Blob::Ptr blob = FuncTestUtils::createAndFillBlob(td);
+            if (inputInfo.second->getTensorDesc().getPrecision() == prc) {
+                ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
+            } else {
+                ASSERT_THROW(req.SetBlob(inputInfo.first, blob), InferenceEngine::Exception);
+            }
+        }
+    }
+}
+
+TEST_P(InferRequestIOBBlobTest, CanSetInBlobWithDifferentLayouts) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    std::set<InferenceEngine::Layout> layouts = {
+            InferenceEngine::Layout::ANY,
+            InferenceEngine::Layout::NCHW,
+            InferenceEngine::Layout::NHWC,
+            InferenceEngine::Layout::NCDHW,
+            InferenceEngine::Layout::NDHWC,
+//            InferenceEngine::Layout::OIHW,
+//            InferenceEngine::Layout::GOIHW,
+//            InferenceEngine::Layout::OIDHW,
+//            InferenceEngine::Layout::GOIDHW,
+            InferenceEngine::Layout::SCALAR,
+            InferenceEngine::Layout::C,
+            InferenceEngine::Layout::CHW,
+            InferenceEngine::Layout::HWC,
+            InferenceEngine::Layout::HW,
+            InferenceEngine::Layout::NC,
+            InferenceEngine::Layout::CN,
+            InferenceEngine::Layout::BLOCKED,
+    };
+    for (auto& inputInfo : cnnNet.getInputsInfo()) {
+        for (const auto &layout : layouts) {
+            InferenceEngine::TensorDesc td;
+            InferenceEngine::Blob::Ptr blob;
+            if (FuncTestUtils::checkLayout(layout, inputInfo.second->getTensorDesc().getDims())) {
+                ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
+                                                                           inputInfo.second->getTensorDesc().getDims(), layout));
+                ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+                if (inputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
+                    layout == InferenceEngine::Layout::BLOCKED) {
+                    ASSERT_NO_THROW(req.SetBlob(inputInfo.first, blob));
+                } else {
+                    ASSERT_ANY_THROW(req.SetBlob(inputInfo.first, blob));
+                }
+            } else {
+                ASSERT_THROW(td = InferenceEngine::TensorDesc(inputInfo.second->getTensorDesc().getPrecision(),
+                                                              inputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
+                ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+            }
+        }
+    }
+}
+
+TEST_P(InferRequestIOBBlobTest, CanSetOutBlobWithDifferentLayouts) {
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    std::set<InferenceEngine::Layout> layouts = {
+            InferenceEngine::Layout::ANY,
+            InferenceEngine::Layout::NCHW,
+            InferenceEngine::Layout::NHWC,
+            InferenceEngine::Layout::NCDHW,
+            InferenceEngine::Layout::NDHWC,
+            InferenceEngine::Layout::OIHW,
+            InferenceEngine::Layout::GOIHW,
+            InferenceEngine::Layout::OIDHW,
+            InferenceEngine::Layout::GOIDHW,
+            InferenceEngine::Layout::SCALAR,
+            InferenceEngine::Layout::C,
+            InferenceEngine::Layout::CHW,
+            InferenceEngine::Layout::HWC,
+            InferenceEngine::Layout::HW,
+            InferenceEngine::Layout::NC,
+            InferenceEngine::Layout::CN,
+            InferenceEngine::Layout::BLOCKED,
+    };
+    for (auto& outputInfo : cnnNet.getOutputsInfo()) {
+        for (const auto &layout : layouts) {
+            InferenceEngine::TensorDesc td;
+            InferenceEngine::Blob::Ptr blob;
+            if (FuncTestUtils::checkLayout(layout, outputInfo.second->getTensorDesc().getDims())) {
+                ASSERT_NO_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
+                                                                 outputInfo.second->getTensorDesc().getDims(), layout));
+                ASSERT_NO_THROW(blob = FuncTestUtils::createAndFillBlob(td));
+                if (outputInfo.second->getLayout() == layout || layout == InferenceEngine::Layout::ANY ||
+                    layout == InferenceEngine::Layout::BLOCKED) {
+                    ASSERT_NO_THROW(req.SetBlob(outputInfo.first, blob));
+                } else {
+                    ASSERT_ANY_THROW(req.SetBlob(outputInfo.first, blob));
+                }
+            } else {
+                ASSERT_THROW(td = InferenceEngine::TensorDesc(outputInfo.second->getTensorDesc().getPrecision(),
+                                                              outputInfo.second->getTensorDesc().getDims(), layout), InferenceEngine::Exception);
+                ASSERT_THROW(blob = FuncTestUtils::createAndFillBlob(td), InferenceEngine::Exception);
+            }
+        }
+    }
+}
 
 }  // namespace BehaviorTestsDefinitions

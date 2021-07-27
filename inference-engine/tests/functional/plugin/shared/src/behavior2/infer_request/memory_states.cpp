@@ -3,12 +3,12 @@
 //
 
 #include <base/behavior_test_utils.hpp>
-#include <common_test_utils/common_utils.hpp>
-#include "behavior/memory_states.hpp"
+#include "behavior2/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "blob_factory.hpp"
 
-std::string VariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {
+namespace BehaviorTestsDefinitions {
+std::string InferRequestVariableStateTest::getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj) {
     std::ostringstream result;
     InferenceEngine::CNNNetwork net;
     std::string targetDevice;
@@ -18,18 +18,18 @@ std::string VariableStateTest::getTestCaseName(const testing::TestParamInfo<memo
     return result.str();
 }
 
-void VariableStateTest::SetUp() {
+void InferRequestVariableStateTest::SetUp() {
     std::tie(net, statesToQuery, deviceName) = GetParam();
 }
 
-InferenceEngine::ExecutableNetwork VariableStateTest::PrepareNetwork() {
+InferenceEngine::ExecutableNetwork InferRequestVariableStateTest::PrepareNetwork() {
     net.addOutput("Memory_1");
     net.addOutput("Memory_2");
     auto ie = PluginCache::get().ie(deviceName);
     return ie->LoadNetwork(net, deviceName);
 }
 
-TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
+TEST_P(InferRequestVariableStateTest, smoke_VariableState_QueryState) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
@@ -38,21 +38,21 @@ TEST_P(VariableStateTest, smoke_VariableState_QueryState) {
     auto states = executableNet.QueryState();
     ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
-    for (auto&& state : states) {
+    for (auto &&state : states) {
         auto name = state.GetName();
         ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
-            << "State " << name << "expected to be in memory states but it is not!";
+                                    << "State " << name << "expected to be in memory states but it is not!";
     }
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(VariableStateTest, smoke_VariableState_SetState) {
+TEST_P(InferRequestVariableStateTest, smoke_VariableState_SetState) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
-    for (auto&& state : executableNet.QueryState()) {
+    for (auto &&state : executableNet.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
@@ -64,14 +64,14 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete []new_state_data;
+        delete[]new_state_data;
         state.SetState(stateBlob);
     }
 
-    for (auto&& state : executableNet.QueryState()) {
+    for (auto &&state : executableNet.QueryState()) {
         auto lastState = state.GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
         for (int i = 0; i < last_state_size; i++) {
@@ -81,13 +81,13 @@ TEST_P(VariableStateTest, smoke_VariableState_SetState) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(VariableStateTest, smoke_VariableState_Reset) {
+TEST_P(InferRequestVariableStateTest, smoke_VariableState_Reset) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
-    for (auto&& state : executableNet.QueryState()) {
+    for (auto &&state : executableNet.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
@@ -99,7 +99,7 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete []new_state_data;
+        delete[]new_state_data;
 
         state.SetState(stateBlob);
     }
@@ -110,7 +110,7 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -127,7 +127,7 @@ TEST_P(VariableStateTest, smoke_VariableState_Reset) {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(VariableStateTest, inferreq_smoke_VariableState_QueryState) {
+TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_QueryState) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
@@ -136,21 +136,21 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_QueryState) {
     auto states = inferReq.QueryState();
     ASSERT_TRUE(states.size() == 2) << "Incorrect number of VariableStates";
 
-    for (auto&& state : states) {
+    for (auto &&state : states) {
         auto name = state.GetName();
         ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
-            << "State " << name << "expected to be in memory states but it is not!";
+                                    << "State " << name << "expected to be in memory states but it is not!";
     }
 }
 
-TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
+TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_SetState) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.QueryState()) {
+    for (auto &&state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
@@ -162,14 +162,14 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete []new_state_data;
+        delete[]new_state_data;
         state.SetState(stateBlob);
     }
 
-    for (auto&& state : inferReq.QueryState()) {
+    for (auto &&state : inferReq.QueryState()) {
         auto lastState = state.GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         for (int i = 0; i < last_state_size; i++) {
             EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
@@ -177,14 +177,14 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_SetState) {
     }
 }
 
-TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
+TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_Reset) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
     auto inferReq = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.QueryState()) {
+    for (auto &&state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
@@ -196,7 +196,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete []new_state_data;
+        delete[]new_state_data;
 
         state.SetState(stateBlob);
     }
@@ -207,7 +207,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
         if (i == 0) {
@@ -222,7 +222,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_Reset) {
     }
 }
 
-TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
+TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers_set) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
@@ -230,7 +230,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
     auto inferReq2 = executableNet.CreateInferRequest();
 
     const float new_state_val = 13.0f;
-    for (auto&& state : inferReq.QueryState()) {
+    for (auto &&state : inferReq.QueryState()) {
         state.Reset();
         auto state_val = state.GetState();
         auto element_count = state_val->size();
@@ -242,10 +242,10 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
         auto stateBlob = make_blob_with_precision(state_val->getTensorDesc());
         stateBlob->allocate();
         std::memcpy(stateBlob->buffer(), new_state_data, element_count * sizeof(float));
-        delete []new_state_data;
+        delete[]new_state_data;
         state.SetState(stateBlob);
     }
-    for (auto&& state : inferReq2.QueryState()) {
+    for (auto &&state : inferReq2.QueryState()) {
         state.Reset();
     }
 
@@ -254,7 +254,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -265,7 +265,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -275,7 +275,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers_set) {
     }
 }
 
-TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
+TEST_P(InferRequestVariableStateTest, inferreq_smoke_VariableState_2infers) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto executableNet = PrepareNetwork();
@@ -291,10 +291,10 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
         inferReq.SetBlob(info->name(), inBlob);
     }
 
-    for (auto&& state : inferReq.QueryState()) {
+    for (auto &&state : inferReq.QueryState()) {
         state.Reset();
     }
-    for (auto&& state : inferReq2.QueryState()) {
+    for (auto &&state : inferReq2.QueryState()) {
         state.Reset();
     }
 
@@ -305,7 +305,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
     for (int i = 0; i < states.size(); ++i) {
         auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -322,7 +322,7 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
     for (int i = 0; i < states2.size(); ++i) {
         auto lastState = states2[i].GetState();
         auto last_state_size = lastState->size();
-        auto last_state_data = lastState->cbuffer().as<float*>();
+        auto last_state_data = lastState->cbuffer().as<float *>();
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
@@ -331,3 +331,4 @@ TEST_P(VariableStateTest, inferreq_smoke_VariableState_2infers) {
         }
     }
 }
+} // namespace BehaviorTestsDefinitions

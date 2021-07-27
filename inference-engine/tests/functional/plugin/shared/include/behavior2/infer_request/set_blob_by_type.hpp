@@ -51,7 +51,7 @@ protected:
             case FuncTestUtils::BlobType::Memory:
                 return true;
             case FuncTestUtils::BlobType::Compound:
-            case FuncTestUtils::BlobType::I40:
+            case FuncTestUtils::BlobType::I420:
 //            case FuncTestUtils::BlobType::Remote:
             case FuncTestUtils::BlobType::NV12:
                 return false;

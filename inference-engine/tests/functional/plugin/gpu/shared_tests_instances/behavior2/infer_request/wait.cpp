@@ -9,11 +9,6 @@
 
 using namespace BehaviorTestsDefinitions;
 namespace {
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16
-    };
-
     const std::vector<std::map<std::string, std::string>> configs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
     };
@@ -25,21 +20,18 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                     ::testing::Values(std::map<std::string, std::string>({}))),
                             InferRequestWaitTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(configs)),
                             InferRequestWaitTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(autoconfigs)),
                             InferRequestWaitTests::getTestCaseName);

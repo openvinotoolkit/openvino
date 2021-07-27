@@ -14,10 +14,9 @@ public:
     void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        std::tie(targetDevice, configuration) = this->GetParam();
         // Create CNNNetwork from ngrpah::Function
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32},
-                                                               FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
+        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32});
         cnnNet = InferenceEngine::CNNNetwork(function);
     }
 

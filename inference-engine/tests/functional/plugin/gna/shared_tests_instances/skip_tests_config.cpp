@@ -36,7 +36,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 29577
         R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
         //TODO: Issue: 46416
-        R"(.*VariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
+        R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
         R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",

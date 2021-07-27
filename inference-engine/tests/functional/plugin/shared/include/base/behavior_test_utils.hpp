@@ -28,6 +28,8 @@
 
 namespace BehaviorTestsUtils {
 
+using namespace CommonTestUtils;
+
 using BehaviorParamsEmptyConfig = std::tuple<
     InferenceEngine::Precision,         // Network precision
     std::string                         // Device name
@@ -65,12 +67,12 @@ typedef std::tuple<
         InferenceEngine::Precision,         // Network precision
         std::string,                        // Device name
         std::map<std::string, std::string>  // Config
-> BehaviorParams;
+> BehaviorBasicParams;
 
-class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorParams>,
+class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorBasicParams>,
                            public CommonTestUtils::TestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BehaviorParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
         InferenceEngine::Precision  netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
@@ -107,22 +109,53 @@ public:
     std::map<std::string, std::string> configuration;
 };
 
-class InferRequestTests : public BehaviorTestsBasic {
+typedef std::tuple<
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> InferRequestParams;
+
+class InferRequestTests : public testing::WithParamInterface<InferRequestParams>,
+                          public CommonTestUtils::TestsCommon {
 public:
-    void SetUp()  override {
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+        std::string targetDevice;
+        std::map<std::string, std::string> configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice;
+        if (!configuration.empty()) {
+            for (auto &configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
+
+    void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, 32, 32},
-                                                               FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision));
+        std::tie(targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 
+    void TearDown() override {
+        if (!configuration.empty()) {
+            PluginCache::get().reset();
+        }
+        function.reset();
+    }
+
 protected:
     InferenceEngine::CNNNetwork cnnNet;
     InferenceEngine::ExecutableNetwork execNet;
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
+    std::shared_ptr<ngraph::Function> function;
+    InferenceEngine::Precision netPrecision;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
 };
 
 using BehaviorParamsSingleOption = std::tuple<

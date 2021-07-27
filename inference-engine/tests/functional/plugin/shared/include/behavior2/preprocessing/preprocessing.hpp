@@ -118,6 +118,23 @@ public:
         function = copyOriginalFunction;
     }
 
+    void Run() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        try {
+            LoadNetwork();
+            GenerateInputs();
+            Infer();
+            Validate();
+        }
+        catch (const std::runtime_error &re) {
+            GTEST_FATAL_FAILURE_(re.what());
+        } catch (const std::exception &ex) {
+            GTEST_FATAL_FAILURE_(ex.what());
+        } catch (...) {
+            GTEST_FATAL_FAILURE_("Unknown failure occurred.");
+        }
+    }
+
 public:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> reference_function;

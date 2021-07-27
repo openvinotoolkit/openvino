@@ -471,17 +471,21 @@ inline InferenceEngine::Blob::Ptr createAndFillBlob(const InferenceEngine::Tenso
     blob->allocate();
     switch (td.getPrecision()) {
 #define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP64)
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::BF16)
+        CASE(InferenceEngine::Precision::U4)
         CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U32)
         CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::U64)
+        CASE(InferenceEngine::Precision::I4)
         CASE(InferenceEngine::Precision::I8)
         CASE(InferenceEngine::Precision::I16)
-        CASE(InferenceEngine::Precision::I64)
-        CASE(InferenceEngine::Precision::U64)
-        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
@@ -653,7 +657,7 @@ enum class BlobType {
     Batched,
     Compound,
 //    Remote,
-    I40,
+    I420,
     NV12
 };
 
@@ -667,7 +671,7 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
         return os << "Compound";
 //    case BlobType::Remote:
 //        return os << "Remote";
-    case BlobType::I40:
+    case BlobType::I420:
         return os << "I40";
     case BlobType::NV12:
         return os << "NV12";
@@ -687,6 +691,7 @@ inline std::vector<InferenceEngine::Blob::Ptr> makeVectorBlobs(const InferenceEn
     return subBlobs;
 }
 
+// ocl + remote
 inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType BlobType) {
     switch (BlobType) {
     case BlobType::Memory:
@@ -697,7 +702,7 @@ inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::Tensor
         return InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(makeVectorBlobs(td));
 //    case BlobType::Remote:
 //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
-    case BlobType::I40: {
+    case BlobType::I420: {
         InferenceEngine::SizeVector dims = td.getDims();
         dims[1] = 1;
         InferenceEngine::TensorDesc td1(InferenceEngine::Precision::U8, dims, InferenceEngine::Layout::NHWC);
@@ -724,5 +729,47 @@ inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::Tensor
     default:
         IE_THROW() << "Test does not support the blob kind";
     }
+}
+
+inline bool checkLayout(InferenceEngine::Layout layout, const std::vector<size_t> &inputShapes) {
+    bool check = false;
+    switch (layout) {
+        case InferenceEngine::Layout::SCALAR:
+            check = inputShapes.size() == 0;
+            break;
+        case InferenceEngine::Layout::C:
+            check = 1 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::BLOCKED:
+        case InferenceEngine::Layout::ANY:
+            check = true;
+            break;
+        case InferenceEngine::Layout::GOIDHW:
+            check = 6 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::NCDHW:
+        case InferenceEngine::Layout::NDHWC:
+        case InferenceEngine::Layout::OIDHW:
+        case InferenceEngine::Layout::GOIHW:
+            check = 5 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::OIHW:
+        case InferenceEngine::Layout::NCHW:
+        case InferenceEngine::Layout::NHWC:
+            check = 4 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CHW:
+        case InferenceEngine::Layout::HWC:
+            check = 3 == inputShapes.size();
+            break;
+        case InferenceEngine::Layout::CN:
+        case InferenceEngine::Layout::NC:
+        case InferenceEngine::Layout::HW:
+            check = 2 == inputShapes.size();
+            break;
+        default:
+            break;
+    }
+    return check;
 }
 }  // namespace FuncTestUtils

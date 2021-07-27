@@ -16,14 +16,12 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPerfCountersTest,
                             ::testing::Combine(
-                                    ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                     ::testing::ValuesIn(configs)),
                              InferRequestPerfCountersTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest,
                             ::testing::Combine(
-                                    ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(Multiconfigs)),
                              InferRequestPerfCountersTest::getTestCaseName);

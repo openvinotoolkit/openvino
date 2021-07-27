@@ -12,11 +12,6 @@ namespace ConformanceTests {
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
-};
-
 const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
@@ -31,21 +26,18 @@ const std::vector<std::map<std::string, std::string>> Autoconfigs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(targetDevice),
                                 ::testing::ValuesIn(configs)),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(Multiconfigs)),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(Autoconfigs)),
                          InferRequestWaitTests::getTestCaseName);
