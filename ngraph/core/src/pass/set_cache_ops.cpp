@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/op/util/sub_graph_base.hpp>
 #include "ngraph/pass/set_cache_ops.hpp"
+#include <ngraph/op/util/sub_graph_base.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 
@@ -15,7 +15,7 @@ bool pass::SetCacheOps::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     f->reset_cached_ops();
     f->set_cache_ops(m_cache_ops);
-    for (auto && node : f->get_ordered_ops())
+    for (auto&& node : f->get_ordered_ops())
     {
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
         {
@@ -29,4 +29,3 @@ bool pass::SetCacheOps::run_on_function(std::shared_ptr<ngraph::Function> f)
     }
     return false;
 }
-

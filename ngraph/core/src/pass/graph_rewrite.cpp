@@ -186,7 +186,8 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
             if (auto sub_graph = sub_graph_node->get_function())
             {
                 // TODO: use return value
-                if (run_on_function(sub_graph)) {
+                if (run_on_function(sub_graph))
+                {
                     sub_graph->reset_cached_ops();
                 }
             }
@@ -222,14 +223,16 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
             {
                 auto status = run_matcher_pass(m_matchers[matcher_index], node);
 
-                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION)) {
+                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION))
+                {
                     m_enable_shape_inference = true;
                 }
 
                 if (status & static_cast<uint64_t>(MatcherPass::Status::FUNCTION_CHANGED))
                 {
                     rewritten = true;
-                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER))) {
+                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER)))
+                    {
                         break;
                     }
                 }
@@ -244,14 +247,16 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
 
                 auto status = run_matcher_pass(m_pass, node);
 
-                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION)) {
+                if (status & static_cast<uint64_t>(MatcherPass::Status::ENABLE_SHAPE_PROPAGATION))
+                {
                     m_enable_shape_inference = true;
                 }
 
                 if (status & static_cast<uint64_t>(MatcherPass::Status::FUNCTION_CHANGED))
                 {
                     rewritten = true;
-                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER))) {
+                    if (!(status & static_cast<uint64_t>(MatcherPass::Status::USE_NEXT_MATCHER)))
+                    {
                         break;
                     }
                 }

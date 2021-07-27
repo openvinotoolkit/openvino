@@ -20,11 +20,12 @@ namespace ngraph
             NGRAPH_RTTI_DECLARATION;
 
             explicit SetCacheOps(bool cache_ops)
-                    : m_cache_ops(cache_ops)
+                : m_cache_ops(cache_ops)
             {
             }
 
             bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
         private:
             bool m_cache_ops;
         };

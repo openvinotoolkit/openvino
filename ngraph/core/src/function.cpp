@@ -225,8 +225,10 @@ void Function::validate_nodes_and_infer_types() const {
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::get_ordered_ops");
 
-    if (m_cache_ordered_ops) {
-        if (!m_cached_ops->empty()) {
+    if (m_cache_ordered_ops)
+    {
+        if (!m_cached_ops->empty())
+        {
             return *m_cached_ops;
         }
     }

@@ -104,14 +104,15 @@ void pass::Manager::run_passes(shared_ptr<Function> func) {
                 continue;
             }
 
-            for (auto && n : func->get_ordered_ops())
+            for (auto&& n : func->get_ordered_ops())
             {
                 function_changed |= node_pass->run_on_node(n);
             }
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        if (function_changed) {
+        if (function_changed)
+        {
             func->reset_cached_ops();
         }
 

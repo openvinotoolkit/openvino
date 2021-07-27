@@ -53,7 +53,8 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
                 if (const auto& sub_graph = sub_graph_node->get_function())
                 {
                     auto status = run_on_function(sub_graph);
-                    if (status) sub_graph->reset_cached_ops();
+                    if (status)
+                        sub_graph->reset_cached_ops();
                     rewritten |= status;
                 }
             }
