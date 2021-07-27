@@ -27,7 +27,7 @@
 
 * *pads_value*
 
-    * **Description**: *pads_value* will be used to fill pixels added during padding. If not specified, the new pixels will be filled in with minimum value for the type.
+    * **Description**: *pads_value* are used to fill pixels added during padding. If not specified, the new pixels are filled in with minimum value for the type.
     * **Range of values**: floating point values
     * **Type**: float
     * **Default value**: *-infinity*
