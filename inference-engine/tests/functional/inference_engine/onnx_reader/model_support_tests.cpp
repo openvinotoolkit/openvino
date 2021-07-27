@@ -22,28 +22,31 @@ TEST(ONNXReader_ModelSupported, basic_model) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.onnx")));
 }
 
-TEST(ONNXReader_ModelSupported, basic_reverse_fields_order) {
+// TODO: CVS-61224
+TEST(ONNXReader_ModelSupported, DISABLED_basic_reverse_fields_order) {
     // this model contains the same fields as basic.onnx but serialized in reverse order
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic_reverse_fields_order.onnx")));
 }
 
-TEST(ONNXReader_ModelSupported, more_fields) {
+// TODO: CVS-61224
+TEST(ONNXReader_ModelSupported, DISABLED_more_fields) {
     // this model contains some optional fields (producer_name and doc_string) but 5 fields in total
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/more_fields.onnx")));
 }
 
-TEST(ONNXReader_ModelSupported, varint_on_two_bytes) {
+// TODO: CVS-61224
+TEST(ONNXReader_ModelSupported, DISABLED_varint_on_two_bytes) {
     // the docstring's payload length is encoded as varint using 2 bytes which should be parsed correctly
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/varint_on_two_bytes.onnx")));
 }
 
 TEST(ONNXReader_ModelSupported, prototxt_basic) {
-    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.prototxt")));
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.onnx")));
 }
 
 TEST(ONNXReader_ModelSupported, scrambled_keys) {
     // same as the prototxt_basic but with a different order of keys
-    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.prototxt")));
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.onnx")));
 }
 
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
@@ -67,6 +70,6 @@ TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
 }
 
 TEST(ONNXReader_ModelUnsupported, no_valid_keys) {
-    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_valid_keys.prototxt")),
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_valid_keys.onnx")),
                  InferenceEngine::Exception);
 }

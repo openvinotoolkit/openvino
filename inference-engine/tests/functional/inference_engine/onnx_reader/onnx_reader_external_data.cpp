@@ -14,9 +14,10 @@
 #include <streambuf>
 #include <ngraph/ngraph.hpp>
 
-TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
+// TODO: CVS-61224
+TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(std::string(ONNX_TEST_MODELS) + "onnx_external_data.prototxt", "");
+    auto cnnNetwork = ie.ReadNetwork(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx", "");
     auto function = cnnNetwork.getFunction();
 
     int count_additions = 0;
@@ -46,9 +47,10 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     ASSERT_TRUE(external_data_node_const->get_vector<float>() == (std::vector<float>{1, 2, 3, 4}));
 }
 
-TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
+// TODO: CVS-61224
+TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
-    const auto path = std::string(ONNX_TEST_MODELS) + "onnx_external_data.prototxt";
+    const auto path = std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx";
     InferenceEngine::Blob::CPtr weights; //not used
     std::ifstream stream(path, std::ios::binary);
     std::string modelAsString((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
@@ -73,12 +75,13 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
+// TODO: CVS-61224
+TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
     std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    const std::wstring path = unicode_win_dir_path + L"ひらがな日本語.prototxt";
+    const std::wstring path = unicode_win_dir_path + L"ひらがな日本語.onnx";
 
     auto cnnNetwork = ie.ReadNetwork(path, L"");
     auto function = cnnNetwork.getFunction();

@@ -133,4 +133,3 @@ opset_import {
     ASSERT_EQ(count_constants, 2);
     ASSERT_EQ(count_parameters, 1);
 }
-
