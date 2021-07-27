@@ -52,7 +52,7 @@ class primitive_inst;
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
-    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = false);
+    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
             const build_options& options = build_options(),

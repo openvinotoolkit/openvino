@@ -64,7 +64,6 @@ public:
         int32_t get_processing_number(program_node* node) const {
             return get_processing_number(get_processing_iterator(*node));
         }
-        // int32_t get_processing_number(const_iterator iter) const { return 1+(int32_t)std::distance(begin(), iter); }
         int32_t get_processing_number(node_iterator iter) const {
             return 1 + (int32_t)std::distance(_processing_order.begin(), const_iterator(iter));
         }

@@ -218,6 +218,18 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
 }
 
+network::network(engine& engine,
+                 const topology& topo,
+                 const build_options& options,
+                 bool is_internal)
+    : network(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
+
+network::network(engine& engine,
+                 const std::set<std::shared_ptr<program_node>>& nodes,
+                 const build_options& options,
+                 bool is_internal)
+    : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
+
 network::network(program::ptr program, uint16_t stream_id)
     : network(program, program->get_engine().create_stream(), false, stream_id ==0) {}
 
@@ -247,18 +259,6 @@ network::ptr network::build_network(engine& engine,
                                               bool is_internal) {
     return std::make_shared<network>(engine, nodes, options, is_internal);
 }
-
-network::network(engine& engine,
-                           const topology& topo,
-                           const build_options& options,
-                           bool is_internal)
-    : network(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
-
-network::network(engine& engine,
-                           const std::set<std::shared_ptr<program_node>>& nodes,
-                           const build_options& options,
-                           bool is_internal)
-    : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
 
 void network::validate_primitives() {
     for (auto const& prim : _exec_order) {

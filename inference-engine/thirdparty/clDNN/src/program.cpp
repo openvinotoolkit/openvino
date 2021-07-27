@@ -5,7 +5,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/kernels_cache.hpp"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/engine.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
+#include "cldnn/graph/program.hpp"
+
 #include "kernel_selector_helper.h"
 #include "device_cache_reader.h"
 #include "auto_tuner.h"
@@ -13,7 +17,6 @@
 #include "pass_manager.h"
 #include "primitive_type.h"
 #include "program_dump_graph.h"
-#include "cldnn/graph/program.hpp"
 #include "sliding_window_utils.h"
 #include "program_helpers.h"
 
@@ -57,12 +60,10 @@
 #include "loop_inst.h"
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
+#include "runtime/kernels_cache.hpp"
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
-
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/engine.hpp"
 
 #include "kernel_base.h"
 
@@ -399,6 +400,11 @@ void program::set_options() {
          options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_retune_and_cache) &&
         !_engine.configuration().enable_profiling) {
         throw std::invalid_argument("Engine must be created with profiling enabled in tune_and_cache mode!");
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        options.set_option(cldnn::build_option::graph_dumps_dir(debug_config->dump_graphs));
     }
 
     if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {

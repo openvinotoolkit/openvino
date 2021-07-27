@@ -26,15 +26,15 @@ private:
         void set(const program_node& node) {
             add_or_change_input_layout(node);
             _program = program::build_program(node.get_program().get_engine(),
-                                                   _topology,
-                                                   node.get_program().get_options(),
-                                                   true);  // rebuild program
+                                              _topology,
+                                              node.get_program().get_options(),
+                                              true);  // rebuild program
         }
         program::ptr get() const { return _program; }
 
     private:
         topology _topology;
-        program::ptr _program = (program::ptr) nullptr;
+        program::ptr _program = nullptr;
 
         void add_or_change_input_layout(const program_node& node) {
             auto layout = node.get_dependency(0).get_output_layout();
