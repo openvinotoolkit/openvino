@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/cut_specific_model.hpp"
+#include "cut_specific_model.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -15,7 +15,7 @@ static CutModelParam getTestData_2in_2out()
 {
     CutModelParam res;
     res.m_frontEndName = PDPD;
-    res.m_modelsPath = std::string(TEST_PDPD_MODELS);
+    res.m_modelsPath = std::string(TEST_PDPD_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pdmodel";
     res.m_oldInputs = {"inputX1", "inputX2"};
     res.m_newInputs = {"add1.tmp_0"};

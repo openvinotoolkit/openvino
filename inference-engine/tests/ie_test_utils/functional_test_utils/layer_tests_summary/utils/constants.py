@@ -4,6 +4,7 @@
 VERIFIED_OP_REFERENCES = [
     'Abs-1',
     'Acos-1',
+    'Acosh-3',
     'Add-1',
     'Asin-1',
     'Asinh-3',
@@ -30,11 +31,13 @@ VERIFIED_OP_REFERENCES = [
     'DepthToSpace-1',
     'DetectionOutput-1',
     'Divide-1',
+    'Erf-1',
     'ExperimentalDetectronDetectionOutput-6',
     'ExperimentalDetectronGenerateProposalsSingleImage-6',
     'ExperimentalDetectronPriorGridGenerator-6',
     'ExperimentalDetectronROIFeatureExtractor-6',
     'ExperimentalDetectronTopKROIs-6',
+    'FakeQuantize-1',
     'Floor-1'
     'FloorMod-1'
     'GRUSequence-5',
@@ -55,6 +58,7 @@ VERIFIED_OP_REFERENCES = [
     'LSTMSequence-5',
     'LogSoftmax-5',
     'Loop-5',
+    'MVN-1',
     'MVN-6',
     'Maximum-1',
     'MaxPool-1',
@@ -92,10 +96,12 @@ VERIFIED_OP_REFERENCES = [
     'Round-5',
     'SpaceToDepth-1',
     'ScatterNDUpdate-4',
+    'Select-1',
     'ShapeOf-1',
     'ShapeOf-3',
     'ShuffleChannels-1',
     'Sigmoid-1',
+    'Sign-1',
     'Sin-1',
     'Sinh-1'
     'SoftPlus-4',
