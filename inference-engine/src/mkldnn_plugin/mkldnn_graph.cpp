@@ -631,7 +631,7 @@ void MKLDNNGraph::AllocateWithReuse() {
     size_t total_size = static_cast<size_t>(memSolver.solve()) * alignment;
 
     memWorkspace = std::make_shared<MKLDNNMemory>(eng);
-    memWorkspace->Create(MKLDNNMemoryDesc({static_cast<int64_t>(total_size)}, mkldnn::memory::data_type::s8));
+    memWorkspace->Create(MKLDNNMemoryDesc({total_size}, mkldnn::memory::data_type::s8));
 
     if (edge_clusters.empty())
         return;
