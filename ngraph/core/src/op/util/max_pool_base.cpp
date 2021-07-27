@@ -18,8 +18,8 @@ op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
                                    const Shape& pads_begin,
                                    const Shape& pads_end,
                                    const Shape& kernel,
-                                   op::RoundingType rounding_type,
-                                   const op::PadType& auto_pad)
+                                   const op::RoundingType rounding_type,
+                                   const op::PadType auto_pad)
     : Op({arg})
     , m_kernel(kernel)
     , m_strides(strides)
@@ -77,7 +77,7 @@ void op::util::MaxPoolBase::validate_and_infer_types()
                               "Expected kernel size to be equal to input size - 2. Got: ",
                               m_kernel.size());
         NODE_VALIDATION_CHECK(this,
-                              static_cast<int64_t>(m_pads_end.size()) ==
+                              static_cast<int64_t>(m_strides.size()) ==
                                   arg_shape.rank().get_max_length() - 2,
                               "Expected strides size to be equal to input size - 2. Got: ",
                               m_strides.size());

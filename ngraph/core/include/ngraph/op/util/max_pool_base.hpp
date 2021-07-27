@@ -32,8 +32,8 @@ namespace ngraph
                             const Shape& pads_begin,
                             const Shape& pads_end,
                             const Shape& kernel,
-                            op::RoundingType rounding_mode = op::RoundingType::FLOOR,
-                            const PadType& auto_pad = op::PadType::EXPLICIT);
+                            const op::RoundingType rounding_mode = op::RoundingType::FLOOR,
+                            const PadType auto_pad = op::PadType::EXPLICIT);
 
                 void validate_and_infer_types() override;
 
@@ -50,8 +50,8 @@ namespace ngraph
                 const Shape& get_pads_end() const { return m_pads_end; }
                 void set_adding_above(const Shape& pads_end) { m_pads_end = pads_end; }
                 /// \return The pad type for pooling.
-                const PadType& get_auto_pad() const { return m_auto_pad; }
-                void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
+                PadType get_auto_pad() const { return m_auto_pad; }
+                void set_auto_pad(const PadType auto_pad) { m_auto_pad = auto_pad; }
                 /// \return The ceiling mode being used for output shape computations
                 op::RoundingType get_rounding_type() const { return m_rounding_type; }
                 void set_rounding_type(op::RoundingType rounding_type)

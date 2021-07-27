@@ -21,8 +21,8 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Shape& pads_begin,
                          const Shape& pads_end,
                          const Shape& kernel,
-                         op::RoundingType rounding_type,
-                         const PadType& auto_pad)
+                         const op::RoundingType rounding_type,
+                         const PadType auto_pad)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)
 {
     constructor_validate_and_infer_types();
@@ -172,7 +172,7 @@ bool op::v1::MaxPool::has_evaluate() const
 
 // ------------------------------ V8 ------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", 8);
+NGRAPH_RTTI_DEFINITION(op::v8::MaxPool, "MaxPool", 8, op::util::MaxPoolBase);
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -181,8 +181,8 @@ op::v8::MaxPool::MaxPool(const Output<Node>& arg,
                          const Shape& pads_end,
                          const Shape& kernel,
                          const op::RoundingType rounding_type,
-                         const PadType& auto_pad,
-                         const element::Type& index_element_type,
+                         const PadType auto_pad,
+                         const element::Type index_element_type,
                          const int64_t axis,
                          const float pads_value)
     : op::util::MaxPoolBase(arg, strides, pads_begin, pads_end, kernel, rounding_type, auto_pad)

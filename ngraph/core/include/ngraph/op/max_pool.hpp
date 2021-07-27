@@ -38,8 +38,8 @@ namespace ngraph
                         const Shape& pads_begin,
                         const Shape& pads_end,
                         const Shape& kernel,
-                        op::RoundingType rounding_type = op::RoundingType::FLOOR,
-                        const PadType& auto_pad = op::PadType::EXPLICIT);
+                        const op::RoundingType rounding_type = op::RoundingType::FLOOR,
+                        const PadType auto_pad = op::PadType::EXPLICIT);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -96,8 +96,8 @@ namespace ngraph
                         const Shape& pads_end,
                         const Shape& kernel,
                         const op::RoundingType rounding_type = op::RoundingType::FLOOR,
-                        const PadType& auto_pad = op::PadType::EXPLICIT,
-                        const element::Type& index_element_type = element::i64,
+                        const PadType auto_pad = op::PadType::EXPLICIT,
+                        const element::Type index_element_type = element::i64,
                         const int64_t axis = 0,
                         const float pads_value = -std::numeric_limits<float>::infinity());
 
@@ -112,11 +112,11 @@ namespace ngraph
                 void set_dilations(const Strides& dilations) { m_dilations = dilations; }
 
                 /// \return The data type of the second output tensor (indices).
-                const element::Type& get_index_element_type() const noexcept
+                element::Type get_index_element_type() const noexcept
                 {
                     return m_index_element_type;
                 }
-                void set_index_element_type(const element::Type& index_element_type)
+                void set_index_element_type(const element::Type index_element_type)
                 {
                     m_index_element_type = index_element_type;
                 }
