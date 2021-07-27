@@ -396,8 +396,8 @@ void MKLDNNSnippetNode::define_shedule() {
 
             bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
-                if (dims_in[i][dims_in[i].size() - 2] != 1 && dims_in[i][dims_in[i].size() - 1] == 1 ||
-                    dims_in[i][dims_in[i].size() - 2] == 1 && dims_in[i][dims_in[i].size() - 1] != 1) {
+                if ((dims_in[i][dims_in[i].size() - 2] != 1 && dims_in[i][dims_in[i].size() - 1] == 1) ||
+                    (dims_in[i][dims_in[i].size() - 2] == 1 && dims_in[i][dims_in[i].size() - 1] != 1)) {
                     canCollapse = false;
                     break;
                 }
