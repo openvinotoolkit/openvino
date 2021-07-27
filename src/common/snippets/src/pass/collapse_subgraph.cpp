@@ -556,8 +556,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
-            if (n->get_name() == std::string("join_forget_prev_state_mul"))
-                std::cout << std::endl;
             return AppropriateForSubgraph(n) && has_subgraph_as_input(n);
         })),
         continuation_callback);
