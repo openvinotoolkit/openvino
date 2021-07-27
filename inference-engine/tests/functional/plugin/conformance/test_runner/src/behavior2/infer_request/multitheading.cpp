@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior2/infer_request/multithreading.hpp"
+#include "behavior/infer_request/multithreading.hpp"
 #include "ie_plugin_config.hpp"
 
 #include "conformance.hpp"

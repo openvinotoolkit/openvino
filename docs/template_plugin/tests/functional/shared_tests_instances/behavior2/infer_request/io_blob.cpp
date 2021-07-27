@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior2/infer_request/io_blob.hpp"
+#include "behavior/infer_request/io_blob.hpp"
 
 using namespace BehaviorTestsDefinitions;
 

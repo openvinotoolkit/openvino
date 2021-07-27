@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "behavior2/infer_request/wait.hpp"
+#include "behavior/infer_request/wait.hpp"
 #include "ie_plugin_config.hpp"
 
 using namespace BehaviorTestsDefinitions;

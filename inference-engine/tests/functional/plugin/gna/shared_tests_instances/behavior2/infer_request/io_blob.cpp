@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior2/infer_request/io_blob.hpp"
+#include "behavior/infer_request/io_blob.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

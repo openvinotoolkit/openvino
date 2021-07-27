@@ -3,7 +3,7 @@
 //
 
 #include "gna/gna_config.hpp"
-#include "behavior2/infer_request/config.hpp"
+#include "behavior/infer_request/config.hpp"
 
 using namespace BehaviorTestsDefinitions;
 namespace {

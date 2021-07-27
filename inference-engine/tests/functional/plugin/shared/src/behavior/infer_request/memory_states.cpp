@@ -3,7 +3,7 @@
 //
 
 #include <base/behavior_test_utils.hpp>
-#include "behavior2/infer_request/memory_states.hpp"
+#include "behavior/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "blob_factory.hpp"
 

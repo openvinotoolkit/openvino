@@ -3,7 +3,7 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include "behavior2/infer_request/memory_states.hpp"
+#include "behavior/infer_request/memory_states.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
 using namespace BehaviorTestsDefinitions;

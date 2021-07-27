@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior2/infer_request/set_blob_by_type.hpp"
+#include "behavior/infer_request/set_blob_by_type.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "conformance.hpp"
 
