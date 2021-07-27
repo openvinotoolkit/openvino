@@ -294,7 +294,8 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
         auto is_recurrent = [inputs](const ngraph::Output<ngraph::Node>& to_find) -> bool {
             for (auto in : inputs) {
-                if (in.get_source_output().get_node_shared_ptr() == to_find.get_node_shared_ptr()) {
+                if (in.get_source_output().get_node_shared_ptr() == to_find.get_node_shared_ptr() &&
+                    in.get_source_output().get_index() == to_find.get_index()) {
                     return true;
                 }
             }
@@ -382,16 +383,19 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                             auto internal = input_body_parameters[i];
                             auto internal_consumers = internal->outputs();
 
-                            for (auto output : internal->outputs()) {
-                                for (auto consumer : output.get_target_inputs()) {
-                                    if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
-                                        auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
-                                        auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
-                                        auto result_producer = other_body_result->input(0).get_source_output();
+                            if (auto to_replace_with = as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
+                                 for (auto output : internal_consumers) {
+                                     for (auto consumer : output.get_target_inputs()) {
+                                         auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
+                                         auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
+                                         auto result_producer = other_body_result->input(0).get_source_output();
 
-                                        consumer.replace_source_output(result_producer.get_node_shared_ptr());
-                                    }
-                                }
+                                         consumer.replace_source_output(result_producer.get_node_shared_ptr());
+                                     }
+                                 }
+                            } else {
+                                external_inputs.push_back(subgraph->input_value(i));
+                                body_parameters.push_back(input_body_parameters[i]);
                             }
                         } else {
                             external_inputs.push_back(subgraph->input_value(i));
@@ -552,6 +556,8 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     register_matcher(std::make_shared<pattern::Matcher>(
         std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
+            if (n->get_name() == std::string("join_forget_prev_state_mul"))
+                std::cout << std::endl;
             return AppropriateForSubgraph(n) && has_subgraph_as_input(n);
         })),
         continuation_callback);
