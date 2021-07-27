@@ -14,7 +14,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
-#include "transformation_helper.hpp"
+#include "utils/transformation_helper.hpp"
 
 
 using namespace GNAPluginNS;

@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include "backend/gna_limitations.hpp"
 
 namespace testing {
@@ -295,15 +296,14 @@ void Decompose2DConvTestFixture::SetUp() {
     reference_function = get_reference(fq, model, input_shape, graph_data, conv_params);
 }
 
-std::shared_ptr<ngraph::Node> CreateBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvParams& conv_params) {
+std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvParams& conv_params) {
     auto add_const = std::dynamic_pointer_cast<ngraph::op::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
 
     IE_ASSERT(add_const);
 
     auto bias_size = shape_size(add_const->get_shape());
-    const auto* srd_data_pointer = add_const->get_data_ptr<float>();
-    std::vector<float> bias_values(srd_data_pointer, srd_data_pointer + bias_size);
-    return ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{1, bias_size, 1, 1}, bias_values);
+    return ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(add_const,
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
 }
 
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
@@ -317,64 +317,45 @@ std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::No
         std::vector<int64_t>{1, 0});                                                                            // end mask
 }
 
-static std::vector<std::shared_ptr<ngraph::opset7::Constant>> Split2DConvFilters(std::shared_ptr<ngraph::opset7::Constant>& filters,
+static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared_ptr<ngraph::opset7::Constant>& filters,
     const bool& vertical_permute, const bool& horizontal_permute, const size_t& split_channels) {
 
-    std::vector <std::shared_ptr<ngraph::opset7::Constant>> result;
-    auto filter_shape = filters->get_output_shape(0);
     if (!horizontal_permute && !vertical_permute && split_channels == 1)
         return {filters};
 
+    std::vector <std::shared_ptr<ngraph::Node>> result;
+    ngraph::Shape reshape_shape;
+    auto flat_filters = filters->outputs();
+    const auto filter_shape = filters->get_output_shape(0);
     IE_ASSERT(filter_shape.size() == 4);
 
-    std::vector<std::vector<int64_t>> flat_filters;
-    flat_filters.resize(split_channels);
-    for (size_t i = 0; i < split_channels; i++)
-        flat_filters[i].resize(shape_size(filter_shape) / split_channels);
+    if (split_channels > 1) {
+        const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
+        const auto split = std::make_shared<ngraph::opset7::Split>(filters, axis_node, split_channels);
+        flat_filters = split->outputs();
+    }
 
-    auto N = filter_shape[0];
-    auto C = filter_shape[1];
-    auto H = filter_shape[2];
-    auto W = filter_shape[3];
-
-    size_t CS = (C / split_channels);
-    const auto* data = filters->get_data_ptr<ngraph::element::i64>();
-
-    for (size_t n = 0; n < N; n++) {
-        for (size_t c = 0; c < CS; c++) {
-            for (size_t s = 0; s < split_channels; s++) {
-                for (size_t h = 0; h < H; h++) {
-                    for (size_t w = 0; w < W; w++) {
-                        if (vertical_permute || !horizontal_permute) {
-                            flat_filters[s][n * CS * H * W + c * H * W + h * W + w] =
-                                data[n * C * H * W + (c * split_channels + s) * H * W + h * W + w];
-                        } else if (horizontal_permute) {
-                            flat_filters[s][n * CS * H * W + c * H * W + H * w + h] =
-                                data[n * C * H * W + (c * split_channels + s) * H * W + h * W + w];
-                        }
-                    }
-                }
-            }
+    if (horizontal_permute) {
+        for (size_t split_index = 0; split_index < split_channels; split_index++) {
+            ngraph::Output<ngraph::Node>& flat_filter = flat_filters[split_index];
+            result.push_back(std::make_shared<ngraph::opset7::Transpose>(flat_filter,
+                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 1, 3, 2})));
         }
     }
 
     if (vertical_permute && horizontal_permute) {
-        for (auto new_filter : flat_filters)
-            result.push_back(std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-                ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[2] * filter_shape[3] / split_channels, 1, 1}, new_filter));
+        reshape_shape = ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[2] * filter_shape[3] / split_channels, 1, 1};
     } else if (vertical_permute && !horizontal_permute) {
-        for (auto new_filter : flat_filters)
-            result.push_back(std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-                ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[2] / split_channels, 1, filter_shape[3]}, new_filter));
+        reshape_shape = ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[2] / split_channels, 1, filter_shape[3]};
     } else if (!vertical_permute && horizontal_permute) {
-        for (auto new_filter : flat_filters)
-            result.push_back(std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-                ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[3] / split_channels, filter_shape[2], 1}, new_filter));
+        reshape_shape = ngraph::Shape{filter_shape[0], filter_shape[1] * filter_shape[3] / split_channels, filter_shape[2], 1};
     } else {
-        for (auto new_filter : flat_filters)
-            result.push_back(std::make_shared<ngraph::opset7::Constant>(ngraph::element::i64,
-                ngraph::Shape{filter_shape[0], filter_shape[1] / split_channels, filter_shape[2], filter_shape[3]}, new_filter));
+        reshape_shape = ngraph::Shape{filter_shape[0], filter_shape[1] / split_channels, filter_shape[2], filter_shape[3]};
     }
+
+    for (auto& new_filter : result)
+        new_filter = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
 
     return result;
 }
@@ -383,19 +364,19 @@ ngraph::OutputVector SplitInput(const GraphData& graph_data, ConvParams& conv_pa
     // We need to have proper input shape first
     ngraph::OutputVector split_planes;
     auto padded_input_plane = std::make_shared<ngraph::opset7::Reshape>(graph_data.input_node,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-            ngraph::Shape{1ull, shape_size(graph_data.input_node->get_shape())}), false);
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+            ngraph::Shape{1, shape_size(graph_data.input_node->get_shape())}), false);
 
     if (graph_data.conv_count > 1) {
         // If we split input plane and filters due to GNA limitations - we must sum their results at the end
         conv_params.input_channel_count /= graph_data.conv_count;
 
         auto reshape_before_transpose = std::make_shared<ngraph::opset7::Reshape>(padded_input_plane,
-            ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                 {shape_size(padded_input_plane->get_shape()) / graph_data.conv_count, graph_data.conv_count}), false);
 
         auto transpose_before_channel_wise_split = std::make_shared<ngraph::opset7::Transpose>(reshape_before_transpose,
-            ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{2}, {1ll, 0ll})->output(0));
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
         const auto axis_node = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         const auto split = std::make_shared<ngraph::opset7::Split>(transpose_before_channel_wise_split, axis_node, graph_data.conv_count);
@@ -407,13 +388,13 @@ ngraph::OutputVector SplitInput(const GraphData& graph_data, ConvParams& conv_pa
     return split_planes;
 }
 
-std::vector<std::shared_ptr<ngraph::opset7::Constant>> SplitFilters(const GraphData& graph_data, ConvParams& conv_params) {
+std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& graph_data, ConvParams& conv_params) {
     // If the input plane exceeds GNA limits and we have split into several convolutions, then we need to split filter data as well;
     // we also need to take filter height and potential dilation into account when modifying the filters
     auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.conv->input_value(1).get_node_shared_ptr());
     bool vertical_permute = (conv_params.filter_height > 1);
     bool horizontal_permute = (conv_params.filter_dilation_width > 1);
-    std::vector<std::shared_ptr<ngraph::opset7::Constant>> h_1_filters{};
+    std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
 
     h_1_filters = Split2DConvFilters(filter_values, vertical_permute, horizontal_permute, graph_data.conv_count);
 
@@ -443,11 +424,11 @@ void TransformInput(const GraphData& graph_data, const ConvParams& conv_params, 
     auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_input_planes, 0);
 
     auto transposed_dilated_chunks = std::make_shared<ngraph::op::Transpose>(dilated_chunks_concat,
-        ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{2}, {1ll, 0ll})->output(0));
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
     // Flattening of interleaved input planes
     auto flattened_dilated_transposed_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
             {(size_t)1, conv_params.input_width * conv_params.input_channel_count * conv_params.output_height * conv_params.filter_height}), false);
 
     split_input_plane = flattened_dilated_transposed_input;
@@ -457,7 +438,7 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
     std::shared_ptr<ngraph::Node> filters, const size_t conv_index, const size_t h_index) {
         // Transpose NHWC => NCHW
         std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::op::Transpose>(input,
-            ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{4}, {0ll, 3ll, 1ll, 2ll})->output(0));
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
 
         // 1D Convolution
         auto conv = std::make_shared<ngraph::opset7::Convolution>(nchw_input, filters,
@@ -486,12 +467,12 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
 
         // Transpose NCHW => NHWC
         auto nhwc_output = std::make_shared<ngraph::op::Transpose>(last_conv_block_op,
-            ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{4}, {0ull, 2ull, 3ull, 1ull})->output(0));
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1})->output(0));
         return nhwc_output;
 }
 
 std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, ConvParams& conv_params,
-    ngraph::Output<ngraph::Node>& reduced_input_plane, const std::vector<std::shared_ptr<ngraph::opset7::Constant>>& h_1_filters, const size_t conv_index) {
+    ngraph::Output<ngraph::Node>& reduced_input_plane, const std::vector<std::shared_ptr<ngraph::Node>>& h_1_filters, const size_t conv_index) {
     ngraph::OutputVector result_chunks;
     std::shared_ptr<ngraph::Node> last_op;
     bool horizontal_permute = (conv_params.filter_dilation_width > 1);
@@ -532,18 +513,18 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
             auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_chunks, 0);
 
             auto transposed_dilated_chunks = std::make_shared<ngraph::op::Transpose>(dilated_chunks_concat,
-                ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{2}, {1ll, 0ll})->output(0));
+                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
             auto flatten_dilated_conv_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,
-                ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-                    ngraph::Shape{1ull, 1ull, conv_params.output_width, h_1_filter_channel_count * conv_params.filter_width}), false);
+                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
+                    ngraph::Shape{1, 1, conv_params.output_width, h_1_filter_channel_count * conv_params.filter_width}), false);
 
             nhwc_conv_y_input = flatten_dilated_conv_input;
         } else {
             // If no horizontal split is done, only reshape is required before decomposed convolution
             nhwc_conv_y_input = std::make_shared<ngraph::opset7::Reshape>(nhwc_conv_y_input,
-                ngraph::op::Constant::create(ngraph::element::Type_t::i64, ngraph::Shape{4},
-                    ngraph::Shape{1ull, 1ull, conv_params.input_width, h_1_filter_channel_count}), false);
+                ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
+                    ngraph::Shape{1, 1, conv_params.input_width, h_1_filter_channel_count}), false);
         }
 
         // Pointwise convolutions
@@ -564,13 +545,20 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
     return last_op;
 }
 
-static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params) {
+static size_t CalculateConvCount(const ConvParams& conv_params) {
     // Check if split of plane due to GNA HW limitations of 768 filter elements is possible
-    graph_data.conv_count = 1;
+    size_t conv_count = 1;
     size_t total_factorized_conv_channel_count = (conv_params.input_channel_count * conv_params.filter_height * conv_params.filter_width);
-    while (total_factorized_conv_channel_count / graph_data.conv_count > GNAPluginNS::GNALimitations::convFilterMaxSize ||
-        total_factorized_conv_channel_count % graph_data.conv_count != 0 || conv_params.filter_channel_count % graph_data.conv_count != 0)
-        graph_data.conv_count++;
+    while (total_factorized_conv_channel_count / conv_count > GNAPluginNS::GNALimitations::convFilterMaxSize ||
+        total_factorized_conv_channel_count % conv_count != 0 || conv_params.filter_channel_count % conv_count != 0)
+        conv_count++;
+
+    return conv_count++;
+}
+
+static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params) {
+    // Calculate the number of splits required
+    graph_data.conv_count = CalculateConvCount(conv_params);
 
     // Concat (copy) layer limitation allows to split up to a certain limit
     // Currently we are able to split only convolutions without pooling in horizontal dimension
@@ -578,9 +566,11 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvParams& conv_params
         ((graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1) && graph_data.conv_count > 1))
         return false;
 
-    // GNA supported features - there is no need to decompose such convolution
-    if (graph_data.conv_count == 1 && (conv_params.input_height == 1 || conv_params.input_width == 1) &&
-        conv_params.filter_dilation_width == 1 && conv_params.filter_dilation_height == 1)
+    // GNA supported features or handled otherwise - there is no need to decompose such convolution
+    if (graph_data.conv_count == 1 && (((conv_params.input_height == 1 || conv_params.input_width == 1) &&
+        conv_params.filter_dilation_width == 1 && conv_params.filter_dilation_height == 1) ||
+        (conv_params.input_height > 1 && conv_params.input_width > 1 &&
+            conv_params.input_width == conv_params.filter_width && conv_params.filter_stride_width == 1)))
         return false;
 
     return true;
@@ -636,7 +626,7 @@ std::shared_ptr<ngraph::Function> Decompose2DConvTestFixture::get_reference(cons
     ShouldDecompose(graph_data, conv_params);
 
     if (model != modelType::TranspConvTransp) {
-        graph_data.bias_const = CreateBiasConst(std::dynamic_pointer_cast<ngraph::opset7::Add>(graph_data.bias), conv_params);
+        graph_data.bias_const = ReshapeBiasConst(std::dynamic_pointer_cast<ngraph::opset7::Add>(graph_data.bias), conv_params);
     }
 
     // Create decomposed reference function
