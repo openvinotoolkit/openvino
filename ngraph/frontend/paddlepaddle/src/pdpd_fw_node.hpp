@@ -28,8 +28,7 @@ namespace ngraph
                 set_attrs(attrs);
             }
 
-            std::shared_ptr<Node>
-                clone_with_new_inputs(const OutputVector& inputs) const override
+            std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override
             {
                 return std::make_shared<PDPDFrameworkNode>(m_decoder, inputs, m_inputs_names);
             }
