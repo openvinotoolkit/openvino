@@ -116,7 +116,7 @@ void ReadIRTest::SetUp() {
     }
 }
 
-void ReadIRTest::GenerateInputs() {
+void ReadIRBase::GenerateInputs() {
     auto inputMap = getInputMap();
     const auto &inputsInfo = executableNetwork.GetInputsInfo();
     for (const auto &param : function->get_parameters()) {
@@ -138,7 +138,7 @@ void ReadIRTest::GenerateInputs() {
     }
 }
 
-void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
+void ReadIRBase::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
                          const std::vector<InferenceEngine::Blob::Ptr> &actual) {
     auto compareMap = getCompareMap();
     for (const auto &result : function->get_results()) {
@@ -150,7 +150,7 @@ void ReadIRTest::Compare(const std::vector<std::pair<ngraph::element::Type, std:
     }
 }
 
-std::vector<InferenceEngine::Blob::Ptr> ReadIRTest::GetOutputs() {
+std::vector<InferenceEngine::Blob::Ptr> ReadIRBase::GetOutputs() {
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (const auto &result : function->get_results()) {
         for (size_t inPort = 0; inPort < result->get_input_size(); ++inPort) {

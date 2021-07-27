@@ -150,7 +150,8 @@ protected:
     virtual void ConfigureInferRequest();
 
     virtual void Infer();
-
+    bool external_skips = false;
+    bool threat_as_skipped = false;
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
     std::shared_ptr<ngraph::Function> functionRefs;

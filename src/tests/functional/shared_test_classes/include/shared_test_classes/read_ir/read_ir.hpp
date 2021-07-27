@@ -9,6 +9,14 @@
 #include "shared_test_classes/single_layer/roi_align.hpp"
 
 namespace LayerTestsDefinitions {
+class ReadIRBase : public LayerTestsUtils::LayerTestsCommon {
+public:
+    void GenerateInputs() override;
+
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
+                 const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
+    std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
+};
 
 using ReadIRParams = std::tuple<
         std::string,                         // IR path
@@ -16,17 +24,13 @@ using ReadIRParams = std::tuple<
         std::map<std::string, std::string>>; // Plugin Config
 
 class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
-                   virtual public LayerTestsUtils::LayerTestsCommon {
+                   virtual public ReadIRBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
     void QueryNetwork() override;
 
 protected:
     void SetUp() override;
-    void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-                 const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 
 private:
     std::string pathToModel;

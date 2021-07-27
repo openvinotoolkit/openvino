@@ -40,12 +40,19 @@ void LayerTestsCommon::Run() {
 
     auto &s = Summary::getInstance();
     s.setDeviceName(targetDevice);
-
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    if (external_skips) {
+        if (threat_as_skipped) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
+        } else {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+        }
     } else {
-        s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::SKIPPED);
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+        } else {
+            s.updateOPsStats(functionRefs, PassRate::Statuses::CRASHED);
+        }
     }
 
     try {
