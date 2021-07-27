@@ -68,7 +68,7 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
                                      PRIVATE ngraph::builder)

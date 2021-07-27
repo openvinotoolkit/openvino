@@ -5,8 +5,8 @@
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
 
-#include "core/model.hpp"
 #include "core/transform.hpp"
+#include "onnx_import/core/model.hpp"
 
 #include "ngraph/file_util.hpp"
 #include "ops_bridge.hpp"

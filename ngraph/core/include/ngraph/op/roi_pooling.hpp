@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API ROIPooling : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ROIPooling", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 ROIPooling() = default;
                 /// \brief Constructs a ROIPooling operation
                 ///
