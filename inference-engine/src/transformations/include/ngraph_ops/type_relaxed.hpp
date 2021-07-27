@@ -135,7 +135,9 @@ public:
 
     using BaseOp::BaseOp;
 
-    TypeRelaxed() = default;
+    TypeRelaxed() {
+        BaseOp::get_rt_info()["opset"] = std::make_shared<ngraph::VariantWrapper<std::string>>("type_relaxed_opset");
+    }
 
     TypeRelaxed(
             const BaseOp& base_op,

@@ -354,7 +354,7 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
         // extend a node with new semantics: overriden output data_type
         // OperationType should be a real type of an object, otherwise it will lead to undefined behavior
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
-        copy_runtime_info(layer, replacement);
+        append_runtime_info(layer, replacement);
         replace_node(layer, replacement);
         return replacement;
     }

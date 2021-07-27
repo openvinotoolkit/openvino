@@ -122,7 +122,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
 
-        copy_runtime_info(l_node, replacement);
+        append_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
         return true;
     };

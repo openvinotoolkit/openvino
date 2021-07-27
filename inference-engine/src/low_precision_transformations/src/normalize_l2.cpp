@@ -141,7 +141,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 
     replace_node(normalize, newMultiply);
-    ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);
+    ngraph::append_runtime_info({ normalize, newMultiply }, newMultiply);
 
     updateOutput(context, newMultiply, normalize);
     return true;

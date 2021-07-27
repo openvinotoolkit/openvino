@@ -157,7 +157,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         opset1::Multiply(newMVN, newScalesConst),
         mvn->get_output_element_type(0));
-    ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
+    ngraph::append_runtime_info({ mvn, newMultiply }, newMultiply);
 
     replace_node(mvn, newMultiply);
 
