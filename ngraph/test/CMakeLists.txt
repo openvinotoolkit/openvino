@@ -688,6 +688,7 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
 
     function(prototxt_2_onnx_converter SRC DST OUT)
         file(GLOB_RECURSE onnx_prototxt_files RELATIVE "${SRC}" "${SRC}/*.prototxt")
+        # file(GLOB_RECURSE onnx_files RELATIVE "${SRC}" "${SRC}/*.onnx")
 
         list(REMOVE_ITEM onnx_prototxt_files
             # ngraph models
@@ -702,10 +703,10 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
 
             # IE models
             "models/onnx_external_data.prototxt"
-            "models/support_test/unsupported/no_valid_keys.prototxt"
-            "models/ひひららががなな日日本本語語.prototxt")
+            "models/support_test/unsupported/no_valid_keys.prototxt")
 
-        foreach(in_file IN LISTS onnx_prototxt_files)
+        foreach(in_file IN LISTS onnx_prototxt_files onnx_files)
+            get_filename_component(ext "${in_file}" EXT)
             get_filename_component(rel_dir "${in_file}" DIRECTORY)
             get_filename_component(name_we "${in_file}" NAME_WE)
             set(model_source_dir "${SRC}/${rel_dir}")
@@ -713,12 +714,21 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
             set(full_out_name "${DST}/${rel_out_name}")
             file(MAKE_DIRECTORY "${DST}/${rel_dir}")
 
-            add_custom_command(OUTPUT ${full_out_name}
-                COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
-                    "${SRC}/${in_file}" ${full_out_name}
-                DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
-                COMMENT "Generate ${rel_out_name}"
-                WORKING_DIRECTORY "${model_source_dir}")
+            if(ext STREQUAL ".onnx")
+                add_custom_command(OUTPUT ${full_out_name}
+                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                        "${SRC}/${in_file}" ${full_out_name}
+                    DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
+                    COMMENT "Copy ${rel_out_name}"
+                    WORKING_DIRECTORY "${model_source_dir}")
+            else()
+                add_custom_command(OUTPUT ${full_out_name}
+                    COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
+                        "${SRC}/${in_file}" ${full_out_name}
+                    DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
+                    COMMENT "Generate ${rel_out_name}"
+                    WORKING_DIRECTORY "${model_source_dir}")
+            endif()
             list(APPEND files "${full_out_name}")
         endforeach()
 
