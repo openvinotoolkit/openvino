@@ -313,27 +313,27 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
 
 void MKLDNNGraph::InitGraph() {
     MKLDNNGraphOptimizer optimizer;
-    // std::cout << "1" << std::endl;
+
     SortTopologically();
     InitNodes();
-    // std::cout << "2" << std::endl;
+
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
-    // std::cout << "3" << std::endl;
+
     InitDescriptors();
     RemoveDroppedEdges();
-    // std::cout << "4" << std::endl;
+
     InitOptimalPrimitiveDescriptors();
-    // std::cout << "5" << std::endl;
+
     InitEdges();
-    // std::cout << "6" << std::endl;
+
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
     SortTopologically();
-    // std::cout << "7" << std::endl;
+
     Allocate();
-    // std::cout << "8" << std::endl;
+
     CreatePrimitives();
-    // std::cout << "9" << std::endl;
+
 #ifndef CPU_DEBUG_CAPS
     for (auto &graphNode : graphNodes) {
         graphNode->cleanup();
@@ -342,7 +342,6 @@ void MKLDNNGraph::InitGraph() {
     ExtractConstantNodes();
 
     ExecuteConstantNodesOnly();
-    // std::cout << "10" << std::endl;
 }
 
 void MKLDNNGraph::InitNodes() {
@@ -963,7 +962,7 @@ Config MKLDNNGraph::getProperty() const {
 Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
     auto itr = inputNodesMap.find(name);
     if (itr != inputNodesMap.end()) {
-        return itr->second->getChildEdgeAt(0)->getBlob();
+        return MemoryDescUtils::interpretAsBlob(itr->second->getChildEdgeAt(0)->getMemory());
     }
     return nullptr;
 }
@@ -971,7 +970,7 @@ Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
 Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
     auto itr = outputNodesMap.find(name);
     if (itr != outputNodesMap.end()) {
-        return itr->second->getParentEdgeAt(0)->getBlob();
+        return MemoryDescUtils::interpretAsBlob(itr->second->getParentEdgeAt(0)->getMemory());
     }
     return nullptr;
 }
