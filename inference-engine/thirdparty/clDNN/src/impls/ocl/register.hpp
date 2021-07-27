@@ -57,7 +57,6 @@
 #include "cldnn/primitives/tile.hpp"
 #include "cldnn/primitives/resample.hpp"
 #include "cldnn/primitives/gather_tree.hpp"
-#include "cldnn/primitives/fused_conv_eltwise.hpp"
 #include "cldnn/primitives/lstm_dynamic_input.hpp"
 #include "cldnn/primitives/lstm_dynamic_timeloop.hpp"
 #include "cldnn/primitives/grn.hpp"
@@ -131,7 +130,6 @@ REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
-REGISTER_OCL(fused_conv_eltwise);
 REGISTER_OCL(lstm_dynamic_input);
 REGISTER_OCL(lstm_dynamic_timeloop);
 REGISTER_OCL(generic_layer);

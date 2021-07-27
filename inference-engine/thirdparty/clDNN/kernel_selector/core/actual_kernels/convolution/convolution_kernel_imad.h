@@ -12,7 +12,7 @@ namespace kernel_selector {
 class ConvolutionKernel_imad : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
-    ConvolutionKernel_imad() : ConvolutionKernelBase("fused_conv_eltwise_gpu_imad") {}
+    ConvolutionKernel_imad() : ConvolutionKernelBase("convolution_gpu_imad") {}
     virtual ~ConvolutionKernel_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;

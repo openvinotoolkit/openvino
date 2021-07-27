@@ -156,8 +156,6 @@ std::string toString(KernelType kt) {
         case KernelType::ELTWISE:         return "ELTWISE";
         case KernelType::REORDER:         return "REORDER";
         case KernelType::SELECT:          return "SELECT";
-        case KernelType::FUSED_CONV_ELTWISE:
-                                          return "FUSED_CONV_ELTWISE";
         case KernelType::BINARY_CONVOLUTION:
                                           return "BINARY_CONVOLUTION";
         case KernelType::NON_MAX_SUPPRESSION:

@@ -8,7 +8,6 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
-#include "fused_conv_eltwise_inst.h"
 
 #include "cldnn/graph/network.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -161,13 +160,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // Get mutable_data nodes count from nodes users
             if (user->is_type<mutable_data>()) {
                 mutable_data_count++;
-            } else if (user->is_type<fused_conv_eltwise>()) {
-                if (!user->as<fused_conv_eltwise>().get_users().empty() &&
-                    (*user->as<fused_conv_eltwise>().get_users().begin())->is_type<mutable_data>()) {
-                    if (user->as<fused_conv_eltwise>().get_dependency(1).id() == node.id()) {
-                        user_count--;
-                    }
-                }
             }
         }
 
