@@ -55,9 +55,9 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
                     final_type = np.float32
 
                 if final_type is not None:
-                    node[dst_type] = final_type
                     log.warning('Change data type from {} to {} for node {}'.format(node[dst_type], final_type,
                                                                                     node_name))
+                    node[dst_type] = final_type
 
                 if final_type == np.float16:
                     assert_that_is_castable_to_fp16(node)
