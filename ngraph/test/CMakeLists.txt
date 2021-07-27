@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
+add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_BINARY_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
@@ -680,3 +680,63 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 endif()
+
+## ONNX models
+
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    set(onnx_gen_script ${CMAKE_CURRENT_SOURCE_DIR}/models/onnx/onnx_prototxt_converter.py)
+    file(GLOB_RECURSE onnx_prototxt_files RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/models/onnx/*.prototxt")
+    set(onnx_out_files)
+
+    list(REMOVE_ITEM onnx_prototxt_files
+        "models/onnx/external_data/external_data.prototxt"
+        "models/onnx/external_data/external_data_different_paths.prototxt"
+        "models/onnx/external_data/external_data_file_not_found.prototxt"
+        "models/onnx/external_data/external_data_optional_fields.prototxt"
+        "models/onnx/external_data/external_data_sanitize_test.prototxt"
+        "models/onnx/external_data/external_data_two_tensors_data_in_the_same_file.prototxt"
+        "models/onnx/external_data/inner_scope/external_data_file_in_up_dir.prototxt"
+        "models/onnx/filename.prototxt")
+
+    foreach(in_file IN LISTS onnx_prototxt_files)
+        get_filename_component(rel_dir "${in_file}" DIRECTORY)
+        get_filename_component(name_we "${in_file}" NAME_WE)
+        set(model_source_dir "${CMAKE_CURRENT_SOURCE_DIR}/${rel_dir}")
+        set(rel_out_name "${rel_dir}/${name_we}.onnx")
+        set(full_out_name "${CMAKE_CURRENT_BINARY_DIR}/${rel_out_name}")
+        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${rel_dir}")
+        add_custom_command(OUTPUT ${full_out_name}
+            COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
+                "${CMAKE_CURRENT_SOURCE_DIR}/${in_file}" ${full_out_name}
+            DEPENDS ${onnx_gen_script} ${in_file}
+            COMMENT "Generate ${rel_out_name}"
+            WORKING_DIRECTORY "${model_source_dir}")
+        list(APPEND onnx_out_files "${full_out_name}")
+    endforeach()
+
+    add_custom_target(onnx_test_models DEPENDS ${onnx_out_files})
+    add_dependencies(unit-test onnx_test_models)
+endif()
+
+## IR models
+
+file(GLOB_RECURSE ir_files RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/models/ir/*")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models/ir")
+set(ir_out_files)
+
+foreach(in_file IN LISTS ir_files)
+    get_filename_component(rel_dir "${in_file}" DIRECTORY)
+    set(full_out_name "${CMAKE_CURRENT_BINARY_DIR}/${in_file}")
+    add_custom_command(OUTPUT ${full_out_name}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/${in_file}" "${full_out_name}"
+        DEPENDS ${in_file}
+        COMMENT "Copy ${in_file}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    list(APPEND ir_out_files "${full_out_name}")
+endforeach()
+
+add_custom_target(ir_test_models DEPENDS ${ir_out_files})
+add_dependencies(unit-test ir_test_models)
