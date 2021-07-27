@@ -102,7 +102,7 @@
 
   * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
     Shape of this output matches the first output. The type of this output can be specified using the `index_element_type` attribute.
-    Values are computed as indices in a tensor flattened to 1D, not considering padding. Examples for 5D input tensor:
+    Values are computed as indices in a tensor flattened to 1D, not considering padding. Examples for a 5D input tensor:
     * When `axis == 0`, the values are in the range `[0, N * C * H * W * D)`.
     * When `axis == 2`, the values are in the range `[0, H * W * D)`.
 
