@@ -70,7 +70,7 @@
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
     * *explicit*: explicit padding values from `pads_begin` and `pads_end` are used.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value, an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
   * **Default value**: *explicit*
