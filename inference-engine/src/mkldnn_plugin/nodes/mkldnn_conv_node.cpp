@@ -410,7 +410,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
 
                 std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
                                                    static_cast<size_t>(dw_conv_kernel[X_AXIS])});
-                std::vector<size_t> dwBiasesDims(static_cast<size_t>(dw_conv_oc));
+                std::vector<size_t> dwBiasesDims({static_cast<size_t>(dw_conv_oc)});
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
@@ -597,7 +597,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
 
                 std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
                                                    static_cast<size_t>(dw_conv_kernel[X_AXIS])});
-                std::vector<size_t> dwBiasesDims(static_cast<size_t>(dw_conv_oc));
+                std::vector<size_t> dwBiasesDims({static_cast<size_t>(dw_conv_oc)});
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
