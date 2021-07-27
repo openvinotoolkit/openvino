@@ -127,6 +127,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Exp::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Sqrt::type_info,                  dynamicToStaticUnaryElementwise},
         {ngraph::opset3::LogicalNot::type_info,            dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::Abs::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset5::ScatterElementsUpdate::type_info, dynamicToStaticUnaryElementwise},
         {ngraph::opset3::StridedSlice::type_info,          dynamicToStaticShapeStridedSlice},
         {ngraph::opset3::Squeeze::type_info,               dynamicToStaticShapeSqueeze},

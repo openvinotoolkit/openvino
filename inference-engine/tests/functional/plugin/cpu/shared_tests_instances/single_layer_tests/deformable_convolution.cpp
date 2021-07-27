@@ -22,8 +22,8 @@ const std::vector<size_t> groups = {1};
 const std::vector<size_t> defor_groups = {2};
 const std::vector<size_t> numOutChannels = {1, 5};
 const std::vector<size_t> multiple_defor_groups = {4};
-const std::vector<std::vector<size_t>> deform_vals = {{1, 200, 220, 220}};
-const std::vector<std::vector<size_t>> kernel = {{64, 16, 5, 5}};
+const std::vector<std::vector<size_t>> deform_vals = {{1, 72, 64, 64}};
+const std::vector<std::vector<size_t>> kernel = {{16, 16, 3, 3}};
 
 const std::vector<bool> with_bilinear_interpolation_pad = { false, true };
 const std::vector<bool> with_modulated_scalar = { false, true };
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<size_t>({1, 16, 224, 224})),
+        ::testing::Values(std::vector<size_t>({1, 16, 66, 66})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 
