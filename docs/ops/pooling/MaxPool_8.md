@@ -47,7 +47,7 @@
   * **Range of values**: integer values starting from 0
   * **Type**: int[]
   * **Required**: *yes*
-  * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
+  * **Note**: the attribute is ignored when the *auto_pad* attribute is specified.
 
 * *kernel*
 
