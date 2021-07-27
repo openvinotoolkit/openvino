@@ -23,6 +23,7 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=
 # in a safe manner without including unsafe xml.etree.ElementTree
 ElementTree = defuse_stdlib()[ET].ElementTree
 
+
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
         if not xml_tree and not os.path.exists(path_to_xml):
@@ -55,7 +56,8 @@ class IREngine(object):
         self.graph = Graph()
         self.graph.graph['hashes'] = {}
 
-        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
+        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get(
+            'version') is not None else None
         self.graph.graph['layout'] = 'NCHW'
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
@@ -210,8 +212,11 @@ class IREngine(object):
                 new_attrs = self.__normalize_attrs(attr.attrib)
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
-                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
-                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
+                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(),
+                                                                                         ['offset', 'size'])
+                    new_attrs.update(
+                        self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'],
+                                                 layer[1][0].attrib['precision']))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -426,15 +431,18 @@ class IREngine(object):
         self.graph.graph['hashes'].update(else_body_ir.graph.graph['hashes'])
 
         # Find port_map section and take an input_port_map & output_port_map
+
         xml_then_port_map = list(layer.iterfind('then_port_map'))
         if not len(xml_then_port_map) == 1:
-            log.warning("If then_body won\'t be compared due to missing then_port_map section!")
+            log.warning("\'If\' then_body won\'t be compared due to missing then_port_map section in node \"{0}\"! "\
+                        .format(layer_attrs['name']))
             return layer_attrs
         xml_then_port_map = xml_then_port_map[0]
 
         xml_else_port_map = list(layer.iterfind('else_port_map'))
         if not len(xml_else_port_map) == 1:
-            log.warning("If else_body won\'t be compared due to missing else_port_map section!")
+            log.warning("\'If\'  else_body won\'t be compared due to missing else_port_map section in node \"{0}\"!"\
+                        .format(layer_attrs['name']))
             return layer_attrs
         xml_else_port_map = xml_else_port_map[0]
 

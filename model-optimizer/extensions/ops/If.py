@@ -138,10 +138,10 @@ class If(Op):
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
-        
+
         then_contains_fake_outputs=False
         else_contains_fake_outputs=False
-        
+
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
             port_id = then_output_node['output_id']
