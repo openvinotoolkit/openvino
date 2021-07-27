@@ -86,10 +86,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
 
-    // Disable automatic Function Validation after each transformation which return true (graph was changed) as in
+    // TODO: Disable automatic Function Validation after each transformation which return true (graph was changed) as in
     // CommonOptimization pipeline all MatcherPasses should return MatcherPass::Status::ENABLE_SHAPE_PROPAGATION value
     // and all FunctionPasses must perform shape propagation manually if needed.
-    manager.set_per_pass_validation(false);
+    // manager.set_per_pass_validation(false);
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();

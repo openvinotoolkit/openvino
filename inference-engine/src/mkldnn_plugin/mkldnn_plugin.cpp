@@ -122,7 +122,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
 
     ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
 
     manager.register_pass<ngraph::pass::SetCacheOps>(true);
     manager.register_pass<ngraph::pass::InitNodeInfo>();

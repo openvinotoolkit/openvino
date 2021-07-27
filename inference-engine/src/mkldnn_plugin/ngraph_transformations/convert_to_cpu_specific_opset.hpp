@@ -21,7 +21,6 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
-    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::SetCacheOps>(true);
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<Reshape1DConvolution>();
