@@ -25,8 +25,8 @@ namespace ngraph
                     std::shared_ptr<Node> out;
                     if (!axes.empty())
                     {
-                        auto axesNode =
-                            ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
+                        auto axesNode = ngraph::opset6::Constant::create(
+                            ngraph::element::i32, {axes.size()}, axes);
                         out = std::make_shared<ngraph::opset6::Squeeze>(data, axesNode);
                     }
                     else
