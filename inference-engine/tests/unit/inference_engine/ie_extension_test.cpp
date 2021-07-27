@@ -60,11 +60,11 @@ TEST(ExtensionTests, testNewExtensionCast) {
     ASSERT_EQ(2, extensions.size());
     ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[0]));
     ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[1]));
-    auto opsetExt = ngraph::as_type_ptr<IRExtension>(extensions[0]);
-    auto* opsetExtP = ngraph::as_type<IRExtension>(extensions[1].get());
+    auto opsetExt = std::dynamic_pointer_cast<IRExtension>(extensions[0]);
+    auto* opsetExtP = dynamic_cast<IRExtension*>(extensions[1].get());
     ASSERT_NE(opsetExtP, nullptr);
     ASSERT_NE(opsetExt, nullptr);
-    ASSERT_NE(opsetExt.get(), extensions[0].get());
-    ASSERT_NE(opsetExtP, extensions[1].get());
+    ASSERT_EQ(opsetExt.get(), extensions[0].get());
+    ASSERT_EQ(opsetExtP, extensions[1].get());
     ie.AddExtension(getExtensionPath());
 }

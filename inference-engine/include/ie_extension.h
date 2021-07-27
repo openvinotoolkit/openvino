@@ -131,6 +131,9 @@ inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
 // ===========================================================================================================================================
 // New extensions experiment
 // ===========================================================================================================================================
+class NewExtension;
+void setSharedObject(const std::shared_ptr<NewExtension>&, const details::SharedObjectLoader&);
+
 class INFERENCE_ENGINE_API_CLASS(NewExtension) {
 public:
     using Ptr = std::shared_ptr<NewExtension>;
@@ -140,6 +143,9 @@ public:
     virtual ~NewExtension() = default;
 
     virtual const type_info_t& get_type_info() const = 0;
+    friend void setSharedObject(const std::shared_ptr<NewExtension>&, const details::SharedObjectLoader&);
+private:
+    details::SharedObjectLoader so = {};
 };
 
 class INFERENCE_ENGINE_API_CLASS(IRExtension): public NewExtension {
@@ -157,7 +163,7 @@ public:
 };
 
 template<class T>
-class DefaultIRExtension: public IRExtension {
+class INFERENCE_ENGINE_API_CLASS(DefaultIRExtension): public IRExtension {
 public:
     DefaultIRExtension(const std::string opsetVersion): IRExtension(opsetVersion) {}
     ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
@@ -211,16 +217,17 @@ std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name)
     std::vector<NewExtension::Ptr> extensions;
     try {
         using CreateF = void(std::vector<InferenceEngine::NewExtension::Ptr>&);
-        std::vector<InferenceEngine::NewExtension::Ptr> ext;
-        reinterpret_cast<CreateF*>(so.get_symbol("CreateExtensions"))(ext);
-        for (const auto& ex : ext) {
-            extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
+        reinterpret_cast<CreateF*>(so.get_symbol("CreateExtensions"))(extensions);
+        for (const auto& ex : extensions) {
+            setSharedObject(ex, so);
+            // extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
         }
     } catch (...) {
         details::Rethrow();
     }
     return extensions;
 }
+
 }  // namespace InferenceEngine
 
 namespace ngraph {

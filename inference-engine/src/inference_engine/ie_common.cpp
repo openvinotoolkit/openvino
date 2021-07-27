@@ -53,6 +53,11 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return actual->getOpSets();
 }
 
+void setSharedObject(const std::shared_ptr<NewExtension>& extension, const details::SharedObjectLoader& so) {
+    extension->so = so;
+}
+
+
 NGRAPH_RTTI_DEFINITION(IRExtension, "IRExtension", 0);
 NGRAPH_RTTI_DEFINITION(SOExtension, "SOExtension", 0);
 namespace details {
