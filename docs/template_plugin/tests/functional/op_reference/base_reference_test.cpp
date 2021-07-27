@@ -9,6 +9,8 @@
 
 using namespace InferenceEngine;
 
+namespace reference_tests {
+
 CommonReferenceTest::CommonReferenceTest(): targetDevice("TEMPLATE") {
     core = PluginCache::get().ie(targetDevice);
 }
@@ -171,3 +173,5 @@ void CommonReferenceTest::ValidateBlobs(const InferenceEngine::Blob::Ptr& refBlo
         FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
 }
+
+}  // namespace reference_tests
