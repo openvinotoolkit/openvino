@@ -236,7 +236,7 @@ output1 = [[[[4, 2],
              [7, 8]]]]
 ```
 
-Example 6 shows how *MaxPool* operates on 4D input using dilated 2D kernel, `auto_pad = explicit` and `rounding_type = floor`
+Example 6 shows how *MaxPool* operates on 4D input using dilated 2D kernel, `auto_pad = explicit` and `rounding_type = floor`.
 
 ```
 input = [[[[1, 2, 3],
