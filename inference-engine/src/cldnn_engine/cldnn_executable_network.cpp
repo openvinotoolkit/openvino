@@ -32,7 +32,10 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteContext::Ptr context, Config config) :
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network,
+                                   RemoteContext::Ptr context,
+                                   Config config,
+                                   GPUExtensionManager::Ptr extensionManager) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
         if (config.throughput_streams > 1) {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
@@ -45,7 +48,8 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
         }
     }()},
     m_config(config),
-    m_taskExecutor{_taskExecutor} {
+    m_taskExecutor{_taskExecutor},
+    m_extensionManager(extensionManager) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
@@ -54,7 +58,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, RemoteC
 
     m_context = casted_context;
 
-    auto graph_base = std::make_shared<CLDNNGraph>(network, m_context, m_config, 0);
+    auto graph_base = std::make_shared<CLDNNGraph>(network, m_context, m_config, m_extensionManager, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<CLDNNGraph>(graph_base, n);
         m_graphs.push_back(graph);

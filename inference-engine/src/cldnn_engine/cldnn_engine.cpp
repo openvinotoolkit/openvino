@@ -82,6 +82,9 @@
 #include "cldnn_itt.h"
 #include "gpu/gpu_config.hpp"
 
+#include "ie_iextension.h"
+#include "cldnn_extensions.h"
+
 #include "cldnn/runtime/device_query.hpp"
 
 #ifdef __linux__
@@ -474,6 +477,10 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     }
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
     CLDNNCustomLayer::LoadFromFile(config_path, _impl->m_config.customLayers, true);
+
+    m_extensionManager = std::make_shared<GPUExtensionManager>();
+
+    auto ext = std::make_shared<Extensions::Gpu::GPUExtensions>();
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -551,7 +558,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
-        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+    	return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf, m_extensionManager);
     }
 }
 
@@ -570,7 +577,7 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     UpdateConfig(conf, network, config);
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
-    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, casted, conf, m_extensionManager);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -976,6 +983,10 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
+}
+
+void clDNNEngine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
+    m_extensionManager->AddExtension(extension);
 }
 
 };  // namespace CLDNNPlugin

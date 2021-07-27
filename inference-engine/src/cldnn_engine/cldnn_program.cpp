@@ -93,11 +93,16 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
     return true;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly)
+Program::Program(InferenceEngine::CNNNetwork& network,
+                 std::shared_ptr<cldnn::engine> engine,
+                 const Config& config,
+				 GPUExtensionManager::Ptr extensionManager,
+				 bool createTopologyOnly)
     : m_config(config)
     , m_engine(engine)
     , m_curBatch(-1)
-    , queryMode(false) {
+	, queryMode(false)
+    , m_extensionManager(extensionManager) {
     // Extract inputs/outputs info from CNNNetwork
     auto networkInputs = network.getInputsInfo();
     auto networkOutputs = network.getOutputsInfo();
@@ -237,15 +242,23 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
+    if (auto impl = m_extensionManager->CreateImplementation(op)) {
+        if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
+            std::cerr << "Create custom layer for: " << op->get_friendly_name() << std::endl;
+            CreateGenericPrimitiveOp(*this, op, execImpl);
+            return;
+        }
+    }
+
+    auto customLayer = m_config.customLayers.find(op->get_type_name());
+    if (customLayer != m_config.customLayers.end()) {
+        CreateCustomOp(*this, op, customLayer->second);
+        return;
+    }
+
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
-        auto customLayer = m_config.customLayers.find(op->get_type_name());
-        if (customLayer != m_config.customLayers.end()) {
-            CreateCustomOp(*this, op, customLayer->second);
-            return;
-        }
-
         auto factory_it = factories_map.find(*op_type_info);
         if (factory_it != factories_map.end()) {
             factory_it->second(*this, op);

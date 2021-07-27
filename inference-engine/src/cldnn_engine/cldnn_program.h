@@ -13,6 +13,7 @@
 
 #include <cpp/ie_cnn_network.h>
 
+#include "cldnn_extension_manager.h"
 #include "cldnn_config.h"
 
 #include <cldnn/runtime/engine.hpp>
@@ -69,7 +70,11 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
+    Program(InferenceEngine::CNNNetwork& network,
+	        std::shared_ptr<cldnn::engine> engine,
+			const Config& config,
+	        GPUExtensionManager::Ptr extensionManager,
+			bool createTopologyOnly = false);
     Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
             m_curBatch(-1), queryMode(false), m_max_batch(1) {}
     Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
@@ -100,6 +105,8 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
+
+    GPUExtensionManager::Ptr m_extensionManager;
     cldnn::engine& GetEngine() const { return *m_engine; }
     std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
     const Config& GetConfig() const { return m_config; }
@@ -174,9 +181,11 @@ private:
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;
     void ChangeInputBatch(int batch);
+
 };
 
 void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CLDNNCustomLayerPtr customLayer);
+void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& op, InferenceEngine::ILayerExecImpl::Ptr impl);
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node, cldnn::eltwise_mode mode);

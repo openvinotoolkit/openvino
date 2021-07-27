@@ -39,12 +39,17 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network,
+                       gpu::ClContext::Ptr context,
+                       Config config,
+                       GPUExtensionManager::Ptr extensionManager,
+                       uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
+    , m_extensionManager(extensionManager)
     , m_stream_id(stream_id) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config);
+    m_program = std::make_shared<Program>(network, GetEngine(), m_config, m_extensionManager);
     Build();
 }
 
@@ -53,6 +58,7 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
         , m_config(graph->m_config)
+        , m_extensionManager(graph->m_extensionManager)
         , m_stream_id(stream_id) {
     Build();
 }
@@ -629,7 +635,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
             static const std::string cpuExecType("CPU");
             cpuExecType.copy(extPerfEntry.exec_type, cpuExecType.length());  // Override execType as CPU
         } else {
-            std::string impl = implementationsMap.at(primId);
+            std::string impl = implementationsMap.find(primId) == implementationsMap.end() ? "" : implementationsMap.at(primId);
             impl.copy(extPerfEntry.exec_type, impl.length());
         }
 
@@ -656,7 +662,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
                     allIds.erase(std::find(allIds.begin(), allIds.end(), id));
                 }
             }
-            if (!kernelId.empty())
+            if (!kernelId.empty() && implementationsMap.find(kernelId) != implementationsMap.end())
                 implementationsMap.at(kernelId).copy(extPerfEntry.exec_type, implementationsMap.at(kernelId).length());
         }
 

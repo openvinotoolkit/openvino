@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <utility>
+
 #include "cldnn_program.h"
 #include "cldnn_common_utils.h"
 #include "simple_math.h"
@@ -10,6 +12,7 @@
 #include "ngraph/node.hpp"
 
 #include "cldnn/primitives/custom_gpu_primitive.hpp"
+#include "cldnn/primitives/generic_primitive.hpp"
 #include "cldnn/primitives/reorder.hpp"
 
 namespace CLDNNPlugin {
@@ -246,6 +249,55 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     p.AddPrimitive(customPrim);
     p.AddPrimitiveToProfiler(genericLayerName, op);
     p.primitiveIDs[genericLayerName] = prevLayerName;
+}
+
+void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& op,
+                              InferenceEngine::ILayerExecImpl::Ptr impl) {
+    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    std::string genericLayerName = layer_type_name_ID(op);
+
+    // TODO: Handle reordering input/output dims... Requires a way to describe input/output layout
+    cldnn::generic_primitive::execute_function f = [genericLayerName, impl](
+            const std::vector<cldnn::event::ptr>& dependent_events,
+            const std::vector<cldnn::memory::ptr>& inputs,
+            const std::vector<cldnn::memory::ptr>& outputs) {
+        cldnn::stream &stream = inputs[0]->get_engine()->get_program_stream();
+
+        // TODO: we don't want to wait for the events, we just want the user to submit onto the queue
+        for (auto& ev : dependent_events) {
+            ev->wait();
+        }
+
+        // TODO: how do we have the user return an event?
+        cldnn::event::ptr ev = stream.create_user_event(false);
+
+        // TODO: Wrap input buffers into RemoteBlobs
+        std::vector<InferenceEngine::Blob::Ptr> inputBlobs(inputs.size());
+
+        // TODO: Wrap output buffer(s) into RemoteBlob(s)
+        std::vector<InferenceEngine::Blob::Ptr> outputBlobs(outputs.size());
+
+        InferenceEngine::ResponseDesc resp;
+        InferenceEngine::StatusCode rc = impl->execute(inputBlobs, outputBlobs, &resp);
+
+        if (rc != InferenceEngine::OK) {
+            IE_THROW() << "clDNN: " << genericLayerName << ": " << resp.msg;
+        }
+
+        ev->set();
+        return ev;
+    };
+
+    auto outSize = CldnnTensorFromIEDims(op->get_output_shape(0));
+    cldnn::layout outputLayout = cldnn::layout(DataTypeFromPrecision(op->get_output_element_type(0)),
+                                               cldnn::format::any, // TODO: allow for user-defined input/output formats?
+                                               outSize);
+
+    auto prim = cldnn::generic_primitive(genericLayerName, inputPrimitives, f, outputLayout);
+
+    p.AddPrimitive(prim);
+    p.AddPrimitiveToProfiler(op->get_friendly_name(), op);
+    p.primitiveIDs[genericLayerName] = genericLayerName;
 }
 
 }  // namespace CLDNNPlugin

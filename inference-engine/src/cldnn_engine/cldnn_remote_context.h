@@ -324,7 +324,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         if (itr != shared_obj_reg.end()) {
             ret = itr->second;
         } else {
-            // unlickily, not found - create new and insert into registry
+            // unluckily, not found - create new and insert into registry
             cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
                                  FormatFromLayout(tensorDesc.getLayout()),
                                  CldnnTensorFromIEDims(tensorDesc.getDims()));

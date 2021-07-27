@@ -16,6 +16,7 @@
 #include "cldnn_graph.h"
 #include "cldnn_config.h"
 #include "cldnn_remote_context.h"
+#include "cldnn_extension_manager.h"
 
 namespace CLDNNPlugin {
 
@@ -23,7 +24,10 @@ class CLDNNExecNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<CLDNNExecNetwork> Ptr;
 
-    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, Config config);
+    CLDNNExecNetwork(InferenceEngine::CNNNetwork &network,
+                     InferenceEngine::RemoteContext::Ptr context,
+                     Config config,
+                     GPUExtensionManager::Ptr extensionManager);
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
@@ -38,6 +42,7 @@ public:
     InferenceEngine::gpu::ClContext::Ptr m_context;
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
+    GPUExtensionManager::Ptr m_extensionManager;
 };
 
 };  // namespace CLDNNPlugin

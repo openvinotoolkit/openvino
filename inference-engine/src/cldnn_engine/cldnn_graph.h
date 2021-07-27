@@ -32,7 +32,11 @@ class CLDNNGraph {
 public:
     typedef std::shared_ptr<CLDNNGraph> Ptr;
 
-    CLDNNGraph(InferenceEngine::CNNNetwork& network, InferenceEngine::gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
+    CLDNNGraph(InferenceEngine::CNNNetwork& network,
+               InferenceEngine::gpu::ClContext::Ptr context,
+               Config config,
+               GPUExtensionManager::Ptr extensionManager,
+               uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
     InferenceEngine::CNNNetwork GetExecGraphInfo();
 
@@ -70,6 +74,7 @@ protected:
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
 
     std::shared_ptr<Program> m_program;
+    GPUExtensionManager::Ptr m_extensionManager;
     uint16_t m_stream_id;
 
     std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);
