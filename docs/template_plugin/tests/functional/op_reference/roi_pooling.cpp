@@ -13,6 +13,7 @@
 
 using namespace ngraph;
 using namespace InferenceEngine;
+using namespace reference_tests;
 
 struct ROIPoolingParams {
     template <class T>
