@@ -57,12 +57,11 @@ namespace ngraph
                         std::make_shared<ngraph::opset6::ShapeOf>(x, element::i32);
                     auto fixed_shape_node = std::make_shared<ngraph::opset6::Select>(
                         mask_node, shape_expected_node, input_shape_node);
-                    auto repeated_node = 
-                        std::make_shared<ngraph::opset6::Divide>(fixed_shape_node, input_shape_node, false);
+                    auto repeated_node = std::make_shared<ngraph::opset6::Divide>(
+                        fixed_shape_node, input_shape_node, false);
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Tile>(x, repeated_node)},
-                        {"Out"});
+                        {std::make_shared<ngraph::opset6::Tile>(x, repeated_node)}, {"Out"});
                 }
 
             } // namespace op
