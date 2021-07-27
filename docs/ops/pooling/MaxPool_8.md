@@ -51,7 +51,7 @@
 
 * *kernel*
 
-  * **Description**: *kernel* is a size of each filter. For example, *kernel* equal (2, 3) means that each filter has height equal to 2 and width equal to 3.
+  * **Description**: *kernel* is a size of each filter. For example, *kernel* equal to (2, 3) means that each filter has height equal to 2 and width equal to 3.
   * **Range of values**: integer values starting from 1
   * **Type**: int[]
   * **Required**: *yes*
