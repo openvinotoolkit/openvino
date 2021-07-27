@@ -17,6 +17,8 @@ const std::vector<InferenceEngine::Precision> dPrecisions = {
         InferenceEngine::Precision::I32,
         InferenceEngine::Precision::I64,
         InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
 };
 const std::vector<InferenceEngine::Precision> iPrecisions = {
         InferenceEngine::Precision::I32,
