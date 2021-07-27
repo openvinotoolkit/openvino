@@ -163,7 +163,7 @@ output1 = [[[[0, 1, 2, 2],
              [6, 7, 8, 8]]]]
 ```
 
-Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and `auto_pad = valid`
+Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and `auto_pad = valid`.
 
 ```
 input = [[[-1, 2, 3, 5, -7, 9, 1]]]
