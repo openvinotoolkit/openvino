@@ -63,12 +63,14 @@ void ngraph::copy_runtime_info(const ngraph::NodeVector& from, ngraph::NodeVecto
 static void merge_runtime_info(const ngraph::Node::RTMap& rt_info, std::shared_ptr<ngraph::Node> to)
 {
     auto& rtInfoTo = to->get_rt_info();
-    for (auto it : rt_info) {
+    for (auto it : rt_info)
+    {
         rtInfoTo[it.first] = it.second;
     }
 }
 
-void ngraph::append_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_ptr<ngraph::Node> to)
+void ngraph::append_runtime_info(std::shared_ptr<ngraph::Node> from,
+                                 std::shared_ptr<ngraph::Node> to)
 {
     auto& rtInfoFrom = from->get_rt_info();
     merge_runtime_info(rtInfoFrom, to);
