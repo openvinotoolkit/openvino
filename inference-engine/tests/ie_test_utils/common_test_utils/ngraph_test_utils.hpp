@@ -28,10 +28,11 @@ public:
     enum CmpValues {
         NONE = 0,
         CONST_VALUES = 1 << 0,
-        NAMES = 1 << 1,
+        NAMES = 1 << 1,        // Compare friendly names of output nodes
         RUNTIME_KEYS = 1 << 2,
         PRECISIONS = 1 << 3,
         ATTRIBUTES = 1 << 4,
+        NAMES_ALL = 1 << 5,    // Compare friendly names of all nodes
     };
 
     struct Result {

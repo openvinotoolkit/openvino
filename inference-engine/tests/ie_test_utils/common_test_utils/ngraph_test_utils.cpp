@@ -617,6 +617,14 @@ Comparator::Result Comparator::compare(
     auto type_info1 = node1->get_type_info();
     auto type_info2 = node2->get_type_info();
 
+    if (should_compare(CmpValues::NAMES_ALL)) {
+        if (name(node1->shared_from_this()) != name(node2->shared_from_this())) {
+            return Result::error(
+                    "Different node names: " + name(node1->shared_from_this()) +
+                    " and " + name(node2->shared_from_this()));
+        }
+    }
+
     if (!compareTypeInfo(type_info1, type_info2)) {
         return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
