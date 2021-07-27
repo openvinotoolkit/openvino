@@ -139,7 +139,7 @@ Output shape calculation based on `auto_pad` and `rounding_type`:
         `D_out = D`
 
 
-If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divisible by `strides[i]` evenly then the result is rounded with the respect to `rounding_type` attribute.
+If `H + pads_begin[i] + pads_end[i] - kernel[i]` is not divisible by `strides[i]` evenly, the result is rounded with respect to the `rounding_type` attribute.
 
 Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and `auto_pad = explicit`
 
