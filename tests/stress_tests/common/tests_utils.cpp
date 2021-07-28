@@ -94,7 +94,7 @@ void runTest(const std::function<void(std::string, std::string, int)> &tests_pip
 #if DEBUG_MODE
     tests_pipeline(params.model, params.device, params.numiters);
 #else
-    int status = run_in_processes(params.numprocesses, _runTest, tests_pipeline, params);
+    int status = run_in_processes(params.numprocesses, [&](){ _runTest(tests_pipeline, params); });
     ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
 #endif
 }
