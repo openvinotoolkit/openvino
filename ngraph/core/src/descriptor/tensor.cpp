@@ -4,7 +4,6 @@
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -13,9 +12,9 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
                            const PartialShape& pshape,
                            const std::string& name)
     : m_element_type(element_type)
-    , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
     , m_partial_shape(pshape)
     , m_name(name)
+    , m_shape_changed(true)
 {
 }
 
@@ -24,10 +23,8 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
                            Node* node,
                            size_t node_output_number)
     : m_element_type(element_type)
-    , m_shape(pshape.is_static() ? pshape.to_shape() : Shape{})
     , m_partial_shape(pshape)
-    , m_node(node)
-    , m_node_output_number(node_output_number)
+    , m_shape_changed(true)
 {
 }
 
@@ -46,14 +43,7 @@ void descriptor::Tensor::set_element_type(const element::Type& element_type)
 void descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape)
 {
     m_partial_shape = partial_shape;
-    if (m_partial_shape.is_static())
-    {
-        m_shape = m_partial_shape.to_shape();
-    }
-    else
-    {
-        m_shape = Shape{};
-    }
+    m_shape_changed = true;
 }
 
 void descriptor::Tensor::invalidate_values()
@@ -82,6 +72,15 @@ const Shape& descriptor::Tensor::get_shape() const
 {
     if (m_partial_shape.is_static())
     {
+        if (m_shape_changed.load(std::memory_order_relaxed))
+        {
+            std::lock_guard<std::mutex> guard(shape_mutex);
+            if (m_shape_changed) // double check after mutex lock
+            {
+                m_shape = m_partial_shape.to_shape();
+                m_shape_changed = false;
+            }
+        }
         return m_shape;
     }
     else
