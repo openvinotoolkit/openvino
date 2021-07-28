@@ -356,9 +356,13 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         if op_type in custom_ops:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
-            assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, ' \
-                                                 'please check it!'.format(op_type)
-            node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+            # assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, please check it!'.format(op_type)
+            if op_type not in Op.registered_ops:
+                log.warning('Operation {} not found in MO operations, please check it!'.format(op_type))
+                node = Op(new_graph, op.attrs()).create_node()
+                node['infer'] = Extender.const_shape_infer
+            else:
+                node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
 
         if op.has_and_set('need_copy_input_blobs'):
             copy_input_blobs(op, node)
