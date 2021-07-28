@@ -847,6 +847,23 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
+    const auto& min_value = -tensor_rank;
+    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
+    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
+        NODE_VALIDATION_CHECK(node,
+                              ((axis >= min_value) && (axis <= max_value)),
+                              " Parameter axis ",
+                              axis,
+                              " out of the tensor rank range [",
+                              min_value,
+                              ", ",
+                              max_value,
+                              "].");
+        return axis < 0 ? axis + tensor_rank : axis;
+    });
+}
+
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
@@ -1498,11 +1515,13 @@ bool ngraph::has_and_set_equal_bounds(const Output<Node>& source) {
 }
 
 shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source) {
-    if (!has_and_set_equal_bounds(source))
-        return nullptr;
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
-        return c;
-    return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
+        return c;  // time saver
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(source);
+    if (!lb || lb != ub)
+        return nullptr;
+    return std::make_shared<op::v0::Constant>(lb);
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {

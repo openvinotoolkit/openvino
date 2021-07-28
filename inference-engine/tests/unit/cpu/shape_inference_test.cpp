@@ -7,6 +7,7 @@
 #include <openvino/op/convolution.hpp>
 #include <openvino/op/parameter.hpp>
 #include <convolution_shape_inference.hpp>
+#include <reduce_shape_inference.hpp>
 #include <openvino/op/ops.hpp>
 #include "utils/shape_inference/static_shape.hpp"
 
@@ -38,6 +39,23 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 7, 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
+}
+
+TEST(StaticShapeInferenceTest, ReduceTest) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{3, 6, 5, 4});
+    auto axis = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>({1, 2}));
+
+    auto reduce = std::make_shared<op::v1::ReduceSum>(data, axis);
+
+    std::vector<PartialShape> input_shapes = {PartialShape{3, 6, 5, 4}, PartialShape{2}}, output_shapes = {PartialShape{}};
+    shape_infer(reduce.get(), input_shapes, output_shapes);
+
+    ASSERT_EQ(output_shapes[0], PartialShape({3, 4}));
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 4}, StaticShape{2}}, static_output_shapes = {StaticShape{}};
+    shape_infer(reduce.get(), static_input_shapes, static_output_shapes);
+
+    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 4}));
 }
 
 #if 0

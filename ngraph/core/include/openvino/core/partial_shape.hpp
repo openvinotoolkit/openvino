@@ -305,6 +305,12 @@ public:
         return m_dimensions.size();
     }
 
+    /// \brief Adds new val element to the end of the PartialShape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+
 private:
     // Private constructor for PartialShape::dynamic().
     PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);

@@ -61,7 +61,7 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims)
@@ -79,7 +79,7 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_keep_dims)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_scalar_axis)
@@ -97,7 +97,7 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_scalar_axis)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_axes_as_param)
@@ -116,7 +116,7 @@ TYPED_TEST_P(ReduceTest, reduce_basic_shape_infer_axes_as_param)
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     bool axes_as_param = true;
     auto reduce_op = makeReduceOp<TypeParam>(params, axes_as_param);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_static)
@@ -134,7 +134,7 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_static)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_static_keep_dims)
@@ -152,7 +152,8 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_static_keep_dims)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_not_static)
@@ -170,7 +171,7 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_not_static)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_not_static_keep_dims)
@@ -188,7 +189,7 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_reduced_axes_not_static_keep_dims)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_data)
@@ -206,7 +207,7 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_data)
 
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
-    ASSERT_TRUE(reduce_op->get_output_partial_shape(0).same_scheme(out_ps));
+    ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
 TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range)
@@ -228,7 +229,7 @@ TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Reduction axis (");
+        EXPECT_HAS_SUBSTRING(error.what(), "out of the tensor rank range");
     }
     catch (...)
     {
