@@ -74,25 +74,30 @@ function(ov_model_convert SRC DST OUT)
 endfunction()
 
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
-                 "${CMAKE_CURRENT_BINARY_DIR}/ngraph/test"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
                   onnx_out_files)
 
 set(rel_path "inference-engine/tests/functional/inference_engine/onnx_reader")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${OpenVINO_BINARY_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_reader"
                  ie_onnx_out_files)
 
 set(rel_path "inference-engine/tests/functional/inference_engine/ir_serialization")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${OpenVINO_BINARY_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
                  ie_serialize_out_files)
 
 set(rel_path "inference-engine/tests/unit/frontends/onnx_import/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${OpenVINO_BINARY_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
 
-add_custom_target(openvino_test_models DEPENDS ${onnx_out_files}
-                                               ${ie_onnx_out_files}
-                                               ${ie_serialize_out_files}
-                                               ${ie_onnx_import_out_files})
+add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+                                         ${ie_onnx_out_files}
+                                         ${ie_serialize_out_files}
+                                         ${ie_onnx_import_out_files})
+
+install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
+        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")

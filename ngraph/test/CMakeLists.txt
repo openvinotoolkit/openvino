@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_BINARY_DIR}/models\"")
+add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
@@ -682,4 +682,4 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
 endif()
 
 # process models
-add_dependencies(unit-test openvino_test_models)
+add_dependencies(unit-test test_model_zoo)

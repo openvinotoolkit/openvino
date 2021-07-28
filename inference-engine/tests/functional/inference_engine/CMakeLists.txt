@@ -31,7 +31,7 @@ set(DEPENDENCIES
     template_extension
     lptNgraphFunctions
     sharedTestClasses
-    openvino_test_models
+    test_model_zoo
 )
 
 if (NOT NGRAPH_ONNX_IMPORT_ENABLE)
@@ -263,6 +263,5 @@ else()
 endif()
 
 # ir serialization functional tests variables
-set(IR_SERIALIZATION_MODELS_PATH "${CMAKE_CURRENT_BINARY_DIR}/ir_serialization/models/")
 target_compile_definitions(${TARGET_NAME} PRIVATE
-    IR_SERIALIZATION_MODELS_PATH="${IR_SERIALIZATION_MODELS_PATH}")
+    IR_SERIALIZATION_MODELS_PATH="${TEST_MODEL_ZOO}/ir_serialization/models/")

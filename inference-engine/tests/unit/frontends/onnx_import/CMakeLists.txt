@@ -12,10 +12,10 @@ addIeTargetTest(
             gtest_main
             onnx_importer
         DEFINES
-            ONNX_MODELS_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/models\"
+            ONNX_MODELS_DIR=\"${TEST_MODEL_ZOO}/onnx_import\"
         ADD_CPPLINT
         DEPENDENCIES
-            openvino_test_models
+            test_model_zoo
         LABELS
             ONNX
 )
