@@ -62,7 +62,7 @@ class Loop(TensorIterator):
         return suitable_nodes[0] if len(suitable_nodes) == 1 else None
 
     @staticmethod
-    def get_external_node_by_internal_id(loop_node: Node, internal_layer_id: int) -> list:
+    def get_external_nodes_by_internal_id(loop_node: Node, internal_layer_id: int) -> list:
         """
         Get a list of nodes from the main graph that are connected with a node with internal_layer_id
         from the body graph

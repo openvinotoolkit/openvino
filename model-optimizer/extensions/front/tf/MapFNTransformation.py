@@ -104,7 +104,7 @@ class MapFNInputSlicing(FrontReplacementSubgraph):
                 # check if TensorListGetItem from the body graph is connected with TensorListFromTensor
                 # from the main graph. If yes, the transformation detects input slicing by this port
                 # and can use Loop axis attribute
-                unstack_node = Loop.get_external_node_by_internal_id(loop_node,
+                unstack_node = Loop.get_external_nodes_by_internal_id(loop_node,
                                                                      internal_match['tensor_list'].internal_layer_id)
                 unstack_node = unstack_node[0] if (len(unstack_node) == 1
                                                    and unstack_node[0].op == 'TensorListFromTensor') else None
@@ -212,13 +212,13 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                 # check if TensorListReserve from the main graph is connected with Parameter node from the body graph
                 # that is assigned for storing intermediate output results of While Loop. If yes, the transformation
                 # detects intermediate outputs concatentation by this port and can use Loop axis attribute
-                reserve_node = Loop.get_external_node_by_internal_id(loop_node,
+                reserve_node = Loop.get_external_nodes_by_internal_id(loop_node,
                                                                      internal_match['container'].internal_layer_id)
                 reserve_node = reserve_node[0] if (len(reserve_node) == 1 and
                                                    reserve_node[0].op == 'TensorListReserve') else None
                 if reserve_node is None:
                     continue
-                stack_node = Loop.get_external_node_by_internal_id(loop_node,
+                stack_node = Loop.get_external_nodes_by_internal_id(loop_node,
                                                                    internal_match[
                                                                        'concatenation_result'].internal_layer_id)
                 stack_node = stack_node if len(stack_node) == 1 else None
