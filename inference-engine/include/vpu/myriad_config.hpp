@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,5 +58,10 @@ DECLARE_VPU_CONFIG(MYRIAD_USB);
  *     3
  */
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
+
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
 
 }  // namespace InferenceEngine

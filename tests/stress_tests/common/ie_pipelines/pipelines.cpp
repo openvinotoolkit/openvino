@@ -1,10 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pipelines.h"
 #include "../utils.h"
-#include "../ie_utils.h"
+#include "common_utils.h"
 
 #include <iostream>
 #include <string>

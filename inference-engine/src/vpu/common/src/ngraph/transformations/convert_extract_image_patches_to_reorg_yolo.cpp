@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesToReorgYolo() {
          * Spatial dimensions of input tensor must be divisible by EIP.strides
          */
 
-        if (!extractImagePatches || m_transformation_callback(extractImagePatches)) {
+        if (!extractImagePatches || transformation_callback(extractImagePatches)) {
             return false;
         }
 

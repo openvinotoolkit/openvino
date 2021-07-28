@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 
@@ -219,17 +206,28 @@ def override_batch(graph: Graph, batch: int):
     if batch is not None:
         for node_id, data in graph.nodes(data=True):
             if 'op' in data and data['op'] == 'Parameter' and not data.get('fixed_batch', False):
-                if len(data['shape']) == 0 or data['shape'][0] not in (-1, 0, 1):
-                    raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
-                                 'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
-                                 'element of the shape if it is equal to -1, 0 or 1. Otherwise, this is the ambiguous ' +
-                                 'situation - Model Optimizer can not know in advance whether the layer has the batch ' +
-                                 'dimension or not.\n\n For example, you want to set batch dimension equals 100 ' +
-                                 'for the input layer "data" with shape (10,34). Although you can not use --batch, ' +
-                                 'you should pass --input_shape (100,34) instead of --batch 100. \n\n' +
-                                 refer_to_faq_msg(39))
-                                .format(data['name'], data['shape']))
+                validate_batch_in_shape(data['shape'], data['name'])
                 data['shape'][0] = batch
+
+
+def validate_batch_in_shape(shape, layer_name: str):
+    """
+    Raises Error #39 if shape is not valid for setting batch size
+    Parameters
+    ----------
+    shape: current shape of layer under validation
+    layer_name: name of layer under validation
+    """
+    if len(shape) == 0 or shape[0] not in (-1, 0, 1):
+        raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
+                     'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
+                     'element of the shape if it is equal to -1, 0 or 1. Otherwise, this is the ambiguous ' +
+                     'situation - Model Optimizer can not know in advance whether the layer has the batch ' +
+                     'dimension or not.\n\n For example, you want to set batch dimension equals 100 ' +
+                     'for the input layer "data" with shape (10,34). Although you can not use --batch, ' +
+                     'you should pass --input_shape (100,34) instead of --batch 100. \n\n' +
+                     refer_to_faq_msg(39))
+                    .format(layer_name, shape))
 
 
 def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):

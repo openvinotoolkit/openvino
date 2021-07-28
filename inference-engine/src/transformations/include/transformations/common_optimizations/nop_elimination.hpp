@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API NopElimination;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::NopElimination: public ngraph::pass::FunctionPass {
+class ngraph::pass::NopElimination: public GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<Function>) override;
+    NopElimination();
 };

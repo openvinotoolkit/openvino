@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include <iostream>
 #include <utility>
 
 #include "ie_allocator.hpp"
@@ -51,7 +50,7 @@ public:
      *
      * @param that An rvalue reference for the other LockedMemoryBase instance
      */
-    LockedMemoryBase(LockedMemoryBase&& that)
+    LockedMemoryBase(LockedMemoryBase&& that) noexcept
         : _allocator(that._allocator), _handle(that._handle), _lockFlag(that._lockFlag), _offset(that._offset) {
         that._locked = nullptr;
     }

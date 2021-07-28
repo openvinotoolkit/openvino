@@ -1,23 +1,12 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 
 import ngraph as ng
 from ngraph.impl import Shape, Type
+from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
 
@@ -110,14 +99,13 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
 def test_softmax():
-    axis = 0
+    axis = 1
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
     result = run_op_node([input_tensor], ng.softmax, axis)
 
-    expected = [[0.00426978, 0.01160646, 0.03154963], [0.08576079, 0.23312202, 0.6336913]]
+    expected = [[0.09003056, 0.24472842, 0.6652409], [0.09003056, 0.24472842, 0.6652409]]
 
     assert np.allclose(result, expected)
 
@@ -184,3 +172,62 @@ def test_hsigmoid():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_gelu_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "erf")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "erf")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_tanh_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "tanh")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+    assert np.allclose(result, expected, 1e-6, 1e-6)
+
+
+def test_gelu_tanh_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "tanh")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+
+    assert np.allclose(result, expected, 1e-6, 1e-6)

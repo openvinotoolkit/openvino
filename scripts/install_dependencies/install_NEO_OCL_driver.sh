@@ -1,18 +1,7 @@
 #!/bin/bash
 
-# Copyright (c) 2018 - 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 #
 # Installs the Intel® Graphics Compute Runtime for OpenCL™ Driver on Linux.
@@ -25,11 +14,12 @@
 #     or motherboard settings
 #
 EXIT_FAILURE=1
-PKGS=
+EXIT_WRONG_ARG=2
 CENTOS_MINOR=
+RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
 INSTALL_DRIVER_VERSION='19.41.14441'
 AVAILABLE_DRIVERS=("19.41.14441" "20.35.17767")
 
@@ -42,10 +32,12 @@ Download and installs the Intel® Graphics Compute Runtime for OpenCL™ Driver 
 
     Available options:
     -y                      Replace the currently installed driver with the newer version.
+    -a, --auto              Auto-mode for detecting best driver for current OS and hardware.
     -d, --install_driver    Manually select driver version to one of available to install drivers.
                             Default value: $INSTALL_DRIVER_VERSION
                             Available to install drivers: ${AVAILABLE_DRIVERS[*]}
-    -h, --help              display this help and exit" 
+    --no_numa               Skip installing NUMA packages. (off)
+    -h, --help              Display this help and exit"
     echo "$usage"
 }
 
@@ -55,18 +47,26 @@ do
     case $key in
         -d|--install_driver)
         user_chosen_driver="$2"
-        if [[ " ${AVAILABLE_DRIVERS[@]} " =~ " ${user_chosen_driver} " ]]; then
+        if [[ " ${AVAILABLE_DRIVERS[*]} " =~ " ${user_chosen_driver} " ]]; then
             INSTALL_DRIVER_VERSION=$user_chosen_driver
         else
             echo "ERROR: unable to install the driver ${user_chosen_driver}."
             echo "Available values: ${AVAILABLE_DRIVERS[*]}"
-            exit -1
+            exit $EXIT_WRONG_ARG
         fi
         shift
         shift
     ;;
         -y)
         agreement=true
+        shift
+    ;;
+        -a|--auto)
+        auto_mode=true
+        shift
+    ;;
+        --no_numa)
+        no_numa=true
         shift
     ;;
         -h|--help)
@@ -76,9 +76,32 @@ do
         *)
         echo "$(basename "$0"): invalid option -- '${key}'"
         echo "Try '$(basename "$0") --help' for more information."
-        exit -1
+        exit $EXIT_WRONG_ARG
     esac
 done
+
+_install_prerequisites_redhat()
+{
+    # yum doesn't accept timeout in seconds as parameter
+    echo
+    echo "Note: if yum becomes non-responsive, try aborting the script and run:"
+    echo "      sudo -E $0"
+    echo
+
+    CMDS=("yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && yum install -y ocl-icd")
+
+    for cmd in "${CMDS[@]}"; do
+        echo "$cmd"
+        eval "$cmd"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
+            echo ". Verify that you have enough disk space, and run the script again." >&2
+            exit $EXIT_FAILURE
+        fi
+    done
+
+}
 
 _install_prerequisites_centos()
 {
@@ -88,7 +111,13 @@ _install_prerequisites_centos()
     echo "      sudo -E $0"
     echo
 
-    CMDS=("yum -y install numactl-libs numactl ocl-icd ocl-icd-devel")
+    if [ "$no_numa" == true ]; then
+        CMDS=("yum install -y epel-release"
+              "yum -y install ocl-icd ocl-icd-devel")
+    else
+        CMDS=("yum install -y epel-release"
+              "yum -y install numactl-libs numactl ocl-icd ocl-icd-devel")
+    fi
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -105,8 +134,14 @@ _install_prerequisites_centos()
 
 _install_prerequisites_ubuntu()
 {
-    CMDS=("apt-get -y update"
-          "apt-get -y install libnuma1 ocl-icd-libopencl1")
+    if [ "$no_numa" == true ]; then
+        CMDS=("apt-get -y update"
+              "apt-get -y install --no-install-recommends ocl-icd-libopencl1")
+    else
+        CMDS=("apt-get -y update"
+              "apt-get -y install --no-install-recommends libnuma1 ocl-icd-libopencl1")
+    fi
+
 
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -123,11 +158,12 @@ _install_prerequisites_ubuntu()
 
 install_prerequisites()
 {
+    echo "Installing prerequisites..."
     if [[ $DISTRO == "centos" ]]; then
-        echo "Installing prerequisites..."
         _install_prerequisites_centos
+    elif [[ $DISTRO == "redhat" ]]; then
+        _install_prerequisites_redhat
     elif [[ $DISTRO == "ubuntu" ]]; then
-        echo "Installing prerequisites..."
         _install_prerequisites_ubuntu
     else
         echo Unknown OS
@@ -178,13 +214,13 @@ install_user_mode()
 {
     echo "Installing user mode driver..."
     
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _install_user_mode_centos
     else
         _install_user_mode_ubuntu
     fi
     # exit from $SCRIPT_DIR/neo folder
-    cd -
+    cd - || exit
     # clean it up
     rm -rf "$SCRIPT_DIR/neo"
 }
@@ -219,10 +255,10 @@ _uninstall_user_mode_ubuntu()
     echo Looking for previously installed user-mode driver...
 
     PACKAGES=("intel-opencl"
-           "intel-ocloc"
-           "intel-gmmlib"
-           "intel-igc-core"
-           "intel-igc-opencl")
+              "intel-ocloc"
+              "intel-gmmlib"
+              "intel-igc-core"
+              "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
         found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
@@ -242,7 +278,7 @@ _uninstall_user_mode_ubuntu()
 
 uninstall_user_mode()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _uninstall_user_mode_centos
     else
         _uninstall_user_mode_ubuntu
@@ -251,7 +287,7 @@ uninstall_user_mode()
 
 _is_package_installed()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         cmd="rpm -qa | grep $1"
     else
         cmd="dpkg-query -W -f='${binary:Package}\n' $pkg"
@@ -265,24 +301,24 @@ _download_packages_ubuntu()
 {
     case $INSTALL_DRIVER_VERSION in
     "19.41.14441")
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-gmmlib_19.3.2_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-core_1.0.2597_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-opencl_1.0.2597_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-opencl_19.41.14441_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.41.14441_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-gmmlib_19.3.2_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-core_1.0.2597_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-igc-opencl_1.0.2597_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-opencl_19.41.14441_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/intel-ocloc_19.41.14441_amd64.deb
     ;;
     "20.35.17767")
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-gmmlib_20.2.4_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-igc-core_1.0.4756_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-igc-opencl_1.0.4756_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-opencl_20.35.17767_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-ocloc_20.35.17767_amd64.deb
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-level-zero-gpu_1.0.17767_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-gmmlib_20.2.4_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-igc-core_1.0.4756_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-igc-opencl_1.0.4756_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-opencl_20.35.17767_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-ocloc_20.35.17767_amd64.deb
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/intel-level-zero-gpu_1.0.17767_amd64.deb
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
-        echo "Available values: ${AVAILABLE_DRIVERS[@]}"
-        exit -1
+        echo "Available values: ${AVAILABLE_DRIVERS[*]}"
+        exit $EXIT_WRONG_ARG
     esac
 }
 
@@ -291,27 +327,27 @@ _download_packages_centos()
 
     case $INSTALL_DRIVER_VERSION in
     "19.41.14441")
-        wget -O intel-igc-core-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-core-1.0.2597-1.el7.x86_64.rpm/download
-        wget -O intel-opencl-19.41.14441-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-opencl-19.41.14441-1.el7.x86_64.rpm/download
-        wget -O intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm/download
-        wget -O intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm/download
-        wget -O intel-gmmlib-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download
-        wget -O intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-core-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-core-1.0.2597-1.el7.x86_64.rpm/download
+        curl -L --output intel-opencl-19.41.14441-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-opencl-19.41.14441-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-devel-1.0.2597-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-igc-opencl-1.0.2597-1.el7.x86_64.rpm/download
+        curl -L --output intel-gmmlib-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download
+        curl -L --output intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-devel-19.3.2-1.el7.x86_64.rpm/download
     ;;
     "20.35.17767")
-        wget -O intel-opencl-20.35.17767-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-opencl-20.35.17767-1.el7.x86_64.rpm/download
-        wget -O level-zero-1.0.0-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/level-zero-1.0.0-1.el7.x86_64.rpm/download
-        wget -O level-zero-devel-1.0.0-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/level-zero-devel-1.0.0-1.el7.x86_64.rpm/download
-        wget -O intel-igc-opencl-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-opencl-1.0.4756-1.el7.x86_64.rpm/download
-        wget -O intel-igc-opencl-devel-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-opencl-devel-1.0.4756-1.el7.x86_64.rpm/download
-        wget -O intel-igc-core-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-core-1.0.4756-1.el7.x86_64.rpm/download
-        wget -O intel-gmmlib-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-20.2.4-1.el7.x86_64.rpm/download
-        wget -O intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm/download
+        curl -L --output intel-opencl-20.35.17767-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-opencl-20.35.17767-1.el7.x86_64.rpm/download
+        curl -L --output level-zero-1.0.0-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/level-zero-1.0.0-1.el7.x86_64.rpm/download
+        curl -L --output level-zero-devel-1.0.0-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/level-zero-devel-1.0.0-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-opencl-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-opencl-1.0.4756-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-opencl-devel-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-opencl-devel-1.0.4756-1.el7.x86_64.rpm/download
+        curl -L --output intel-igc-core-1.0.4756-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-igc-core-1.0.4756-1.el7.x86_64.rpm/download
+        curl -L --output intel-gmmlib-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-20.2.4-1.el7.x86_64.rpm/download
+        curl -L --output intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm https://sourceforge.net/projects/intel-compute-runtime/files/20.35.17767/centos-7/intel-gmmlib-devel-20.2.4-1.el7.x86_64.rpm/download
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
-        echo "Available values: ${AVAILABLE_DRIVERS[@]}"
-        exit -1
+        echo "Available values: ${AVAILABLE_DRIVERS[*]}"
+        exit $EXIT_WRONG_ARG
     esac
 }
 
@@ -320,17 +356,17 @@ _verify_checksum_ubuntu()
 {
     case $INSTALL_DRIVER_VERSION in
     "19.41.14441")
-        wget https://github.com/intel/compute-runtime/releases/download/19.41.14441/ww41.sum
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/19.41.14441/ww41.sum
         sha256sum -c ww41.sum
     ;;
     "20.35.17767")
-        wget https://github.com/intel/compute-runtime/releases/download/20.35.17767/ww35.sum
+        curl -L -O https://github.com/intel/compute-runtime/releases/download/20.35.17767/ww35.sum
         sha256sum -c ww35.sum
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
-        echo "Available values: ${AVAILABLE_DRIVERS[@]}"
-        exit -1
+        echo "Available values: ${AVAILABLE_DRIVERS[*]}"
+        exit $EXIT_WRONG_ARG
     esac
 }
 
@@ -345,14 +381,14 @@ _verify_checksum_centos()
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
-        echo "Available values: ${AVAILABLE_DRIVERS[@]}"
-        exit -1
+        echo "Available values: ${AVAILABLE_DRIVERS[*]}"
+        exit $EXIT_WRONG_ARG
     esac    
 }
 
 verify_checksum()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _verify_checksum_centos
     else
         _verify_checksum_ubuntu
@@ -362,9 +398,9 @@ verify_checksum()
 download_packages()
 {
     mkdir -p "$SCRIPT_DIR/neo"
-    cd "$SCRIPT_DIR/neo"
+    cd "$SCRIPT_DIR/neo" || exit
     
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _download_packages_centos
     else
         _download_packages_ubuntu
@@ -412,7 +448,8 @@ check_root_access()
 
 add_user_to_video_group()
 {
-    local real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
+    local real_user
+    real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
     echo
     echo "Adding $real_user to the video group..."
     usermod -a -G video "$real_user"
@@ -435,6 +472,13 @@ _check_distro_version()
             echo "This script is supported only on CentOS 7 and above." >&2
             exit $EXIT_FAILURE
         fi
+    elif [[ $DISTRO == redhat ]]; then
+        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]")
+        if [[ $? -ne 0 ]]; then
+            echo "Warning: This runtime can be installed only on RHEL 8" >&2
+            echo "Installation of Intel Compute Runtime interrupted"
+            exit $EXIT_FAILURE
+        fi
     elif [[ $DISTRO == ubuntu ]]; then
         UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
@@ -450,6 +494,8 @@ distro_init()
 {
     if [[ -f /etc/centos-release ]]; then
         DISTRO="centos"
+    elif [[ -f /etc/redhat-release ]]; then
+        DISTRO="redhat"
     elif [[ -f /etc/lsb-release ]]; then
         DISTRO="ubuntu"
     fi
@@ -470,7 +516,7 @@ check_agreement()
         read -p "Want to proceed? (y/n): " yn
         case $yn in
             [Yy]*) return 0  ;;
-            [Nn]*) exit 1 ;;
+            [Nn]*) exit $EXIT_FAILURE ;;
         esac
     done
 }
@@ -482,21 +528,26 @@ check_specific_generation()
     if [[ ! -z "$specific_generation" && "$INSTALL_DRIVER_VERSION" != '20.35.17767' ]]; then
         echo "$(basename "$0"): Detected 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
         echo "Driver version 20.35.17767 is going to be installed to fully utilize hardware features and performance."
-        while true; do
-            read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
-            yn=${yn:=n}
-            case $yn in
-                [Yy]*) return 0 ;;
-                [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
-            esac
-        done        
+        if [ "$auto_mode" == true ]; then
+            INSTALL_DRIVER_VERSION='20.35.17767'
+            return 0
+        else
+            while true; do
+                read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
+                yn=${yn:=n}
+                case $yn in
+                    [Yy]*) return 0 ;;
+                    [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
+                esac
+            done
+        fi
     fi
 }
 
 check_current_driver()
 {   
     echo "Checking current driver version..."
-    if [[ $DISTRO == centos ]]; then
+    if [[ $DISTRO == centos || $DISTRO == redhat ]]; then
         gfx_version=$(yum info intel-opencl | grep Version)
     elif [[ $DISTRO == ubuntu ]]; then
         gfx_version=$(apt show intel-opencl | grep Version)
@@ -535,4 +586,4 @@ main()
     summary
 }
 
-[[ "$0" == "$BASH_SOURCE" ]] && main "$@"
+[[ "$0" == "${BASH_SOURCE[0]}" ]] && main "$@"

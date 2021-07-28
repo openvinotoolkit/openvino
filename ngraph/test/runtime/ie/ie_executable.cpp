@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ie_executable.hpp"
 #include "ie_tensor.hpp"
@@ -20,7 +8,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "pass/opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -44,7 +31,7 @@ namespace
         case 4: layout = InferenceEngine::Layout::NCHW; break;
         case 5: layout = InferenceEngine::Layout::NCDHW; break;
         case 6: layout = InferenceEngine::Layout::GOIDHW; break;
-        default: THROW_IE_EXCEPTION << "Can't convert dims " << shape.size() << " to Layout!";
+        default: IE_THROW() << "Can't convert dims " << shape.size() << " to Layout!";
         }
 
         InferenceEngine::MemoryBlob::Ptr blob;
@@ -66,7 +53,7 @@ namespace
         case element::Type_t::i64: blob = MAKE_IE_TBLOB(int64_t, I64, shape, layout); break;
         case element::Type_t::u64: blob = MAKE_IE_TBLOB(uint64_t, U64, shape, layout); break;
         case element::Type_t::boolean: blob = MAKE_IE_TBLOB(uint8_t, BOOL, shape, layout); break;
-        default: THROW_IE_EXCEPTION << "Can't convert type " << elem_type << " to IE Precision!";
+        default: IE_THROW() << "Can't convert type " << elem_type << " to IE Precision!";
         }
 #undef MAKE_IE_TBLOB
 
@@ -75,7 +62,7 @@ namespace
         memcpy(blob_ptr, data, data_size * elem_type.size());
         return blob;
     }
-}
+} // namespace
 
 namespace
 {
@@ -90,24 +77,25 @@ namespace
         ie_ops.insert(opset4.begin(), opset4.end());
         auto& opset5 = get_opset5().get_type_info_set();
         ie_ops.insert(opset5.begin(), opset5.end());
+        auto& opset6 = get_opset6().get_type_info_set();
+        ie_ops.insert(opset6.begin(), opset6.end());
+        auto& opset7 = get_opset7().get_type_info_set();
+        ie_ops.insert(opset7.begin(), opset7.end());
         return ie_ops;
     }
-}
+} // namespace
 
 runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string device)
     : m_device{device}
 {
     static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
-    pass::Manager passes;
-    passes.register_pass<pass::Opset1Upgrade>();
-    passes.run_passes(func);
 
     for (const auto& node : func->get_ops())
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
             cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
-            THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
+            IE_THROW() << "Detected op not belonging to opset1!";
         }
     }
 
@@ -138,7 +126,7 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
 
     if (input_info.size() != inputs.size())
     {
-        THROW_IE_EXCEPTION << "Function inputs number differ from number of given inputs";
+        IE_THROW() << "Function inputs number differ from number of given inputs";
     }
 
     size_t i = 0;
@@ -157,7 +145,7 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
     //  Prepare output blobs
     auto outInfo = m_network.getOutputsInfo();
     if (outInfo.size() != 1)
-        THROW_IE_EXCEPTION << "Networks should contain only one output!";
+        IE_THROW() << "Networks should contain only one output!";
     string output_name = outInfo.begin()->first;
 
     infer_request.Infer();
@@ -167,7 +155,7 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
         InferenceEngine::as<InferenceEngine::MemoryBlob>(output);
     if (!moutput)
     {
-        THROW_IE_EXCEPTION << "Cannot get output MemoryBlob in call_with_validate()";
+        IE_THROW() << "Cannot get output MemoryBlob in call_with_validate()";
     }
 
     auto lm = moutput->rmap();

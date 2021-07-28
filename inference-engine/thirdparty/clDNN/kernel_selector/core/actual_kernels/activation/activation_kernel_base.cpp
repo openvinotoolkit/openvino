@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "activation_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -34,8 +23,6 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
         dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     }
-
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     return dispatchData;
 }
@@ -82,11 +69,10 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     KernelData kd = KernelData::Default<activation_params>(params);
 
     activation_params& newParams = *static_cast<activation_params*>(kd.params.get());
-    const std::string kernel_id = GetEntryPoint(kernelName, params.layerID, options);
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -94,10 +80,8 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (!newParams.inputActivationParams.empty()) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

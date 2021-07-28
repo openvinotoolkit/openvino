@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "kernel_selector_utils.h"
 #include "reorder/reorder_weights_kernel_selector.h"
@@ -129,6 +119,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             r_params.output = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
             r_params.rotate_180 = rotate;
             r_params.engineInfo = newParams.engineInfo;
+            r_params.uniqueID = newParams.uniqueID + "_weight";
 
             reorder_optional_params op;
             KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
@@ -230,21 +221,43 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
 bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     bool no_pitch_same_dims = true;
 
+    std::map<DataLayout, std::pair<int, int>> block_layouts {
+        {DataLayout::b_fs_yx_fsv16,          {1, 16}},
+        {DataLayout::b_fs_zyx_fsv16,         {1, 16}},
+        {DataLayout::b_fs_yx_fsv32,          {1, 32}},
+        {DataLayout::b_fs_zyx_fsv32,         {1, 32}},
+        {DataLayout::bs_fs_yx_bsv16_fsv16,   {16, 16}},
+        {DataLayout::bs_fs_zyx_bsv16_fsv16,  {16, 16}},
+        {DataLayout::bs_f_bsv8__af8,         {8, 8}},
+        {DataLayout::bs_f_bsv16__af8,        {16, 8}},
+        {DataLayout::b_fs_yx_fsv4,           {1, 4}},
+        {DataLayout::fs_b_yx_fsv32,          {1, 32}},
+        {DataLayout::b_fs_yx_32fp,           {1, 32}}
+    };
+
     if (params.inputs.size()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
-        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0) ||
-            (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
-            return false;
+        auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
+        if (block_layout != block_layouts.end()) {
+            auto block_size = block_layout->second;
+            if (params.inputs[0].Batch().v % block_size.first != 0 || params.inputs[0].Feature().v % block_size.second != 0)
+                    return false;
+        }
 
         if (params.fused_ops.size()) {
             for (auto fused_op : params.fused_ops) {
                 for (size_t in = 0; in < fused_op.tensors.size(); in++) {
                     if (fused_op.tensors[in].LogicalSize() == 1)
                         continue;
-                    if ((fused_op.tensors[in].GetLayout() == DataLayout::b_fs_yx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0) ||
-                        (fused_op.tensors[in].GetLayout() == DataLayout::b_fs_zyx_fsv16 && fused_op.tensors[in].Feature().v % 16 != 0))
-                        return false;
+
+                    auto layout = block_layouts.find(fused_op.tensors[in].GetLayout());
+                    if (layout != block_layouts.end()) {
+                        auto block_size = layout->second;
+                        if (fused_op.tensors[in].Batch().v % block_size.first != 0 || fused_op.tensors[in].Feature().v % block_size.second != 0)
+                            return false;
+                    }
+
                     no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
                 }
             }
@@ -253,9 +266,12 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         for (size_t i = 1; i < params.inputs.size(); i++) {
             no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
 
-            if ((params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0) ||
-                (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
-                return false;
+            auto layout = block_layouts.find(params.inputs[i].GetLayout());
+            if (layout != block_layouts.end()) {
+                auto block_size = layout->second;
+                if (params.inputs[i].Batch().v % block_size.first != 0 || params.inputs[i].Feature().v % block_size.second != 0)
+                    return false;
+            }
         }
 
         no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.output);

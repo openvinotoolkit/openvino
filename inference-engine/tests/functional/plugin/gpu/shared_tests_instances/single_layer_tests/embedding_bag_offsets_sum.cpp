@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ const auto embBagOffsetSumArgSet = ::testing::Combine(
     ::testing::ValuesIn(offsets), ::testing::ValuesIn(default_index),
     ::testing::ValuesIn(with_weights), ::testing::ValuesIn(with_default_index));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke, EmbeddingBagOffsetsSumLayerTest,
     ::testing::Combine(embBagOffsetSumArgSet,
                        ::testing::ValuesIn(netPrecisions),

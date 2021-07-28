@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace ngraph;
 using namespace std;
 
@@ -42,7 +40,7 @@ TEST(nop_elimination, eliminate_convert) {
 
 TEST(nop_elimination, convert_type_agnostic) {
     Shape shape{};
-    auto type = element::from<char>();
+    auto type = element::from<int8_t>();
     auto A = make_shared<op::Parameter>(type, shape);
     auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
     auto c = make_shared<op::v0::Convert>(c1, element::f32);

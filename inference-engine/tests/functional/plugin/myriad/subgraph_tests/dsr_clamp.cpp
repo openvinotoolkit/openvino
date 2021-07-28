@@ -1,10 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "dsr_tests_common.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
@@ -38,7 +38,7 @@ TEST_P(DSR_Clamp, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicClamp, DSR_Clamp,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicClamp, DSR_Clamp,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32),
         ::testing::Values(DataShapeWithUpperBound{DataShape{1, 800}, DataShape{2, 1000}}),

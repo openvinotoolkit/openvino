@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,11 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include <ie_core.hpp>
-#include <cpp_interfaces/exception2status.hpp>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"

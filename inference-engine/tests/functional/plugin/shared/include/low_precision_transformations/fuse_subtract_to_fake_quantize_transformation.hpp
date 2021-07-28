@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -18,11 +18,11 @@ class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };

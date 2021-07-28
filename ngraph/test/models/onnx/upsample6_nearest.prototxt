@@ -1,0 +1,61 @@
+ir_version: 3
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "X"
+    output: "Y"
+    op_type: "Upsample"
+    attribute {
+      name: "mode"
+      s: "nearest"
+      type: STRING
+    }
+    attribute {
+      name: "height_scale"
+      f: 2.0
+      type: FLOAT
+    }
+    attribute {
+      name: "width_scale"
+      f: 3.0
+      type: FLOAT
+    }
+  }
+  name: "test-model"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 6
+}

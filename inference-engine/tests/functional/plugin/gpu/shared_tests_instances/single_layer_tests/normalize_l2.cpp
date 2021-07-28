@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ const auto normL2params = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(
-        NormalizeL2,
+INSTANTIATE_TEST_SUITE_P(
+        smoke_NormalizeL2,
         NormalizeL2LayerTest,
         normL2params,
         NormalizeL2LayerTest::getTestCaseName

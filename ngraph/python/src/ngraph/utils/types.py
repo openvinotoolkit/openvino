@@ -1,19 +1,7 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
-"""! Functions related to converting between Python and numpy types and ngraph types."""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+"""Functions related to converting between Python and numpy types and ngraph types."""
 
 import logging
 from typing import List, Union
@@ -46,11 +34,11 @@ ngraph_to_numpy_types_map = [
     (NgraphType.u16, np.uint16),
     (NgraphType.u32, np.uint32),
     (NgraphType.u64, np.uint64),
+    (NgraphType.bf16, np.uint16),
 ]
 
 ngraph_to_numpy_types_str_map = [
     ("boolean", np.bool),
-    # ('bf16', ???),
     ("f16", np.float16),
     ("f32", np.float32),
     ("f64", np.float64),
@@ -66,7 +54,7 @@ ngraph_to_numpy_types_str_map = [
 
 
 def get_element_type(data_type: NumericType) -> NgraphType:
-    """! Return an ngraph element type for a Python type or numpy.dtype."""
+    """Return an ngraph element type for a Python type or numpy.dtype."""
     if data_type is int:
         log.warning("Converting int type of undefined bitwidth to 32-bit ngraph integer.")
         return NgraphType.i32
@@ -85,7 +73,7 @@ def get_element_type(data_type: NumericType) -> NgraphType:
 
 
 def get_element_type_str(data_type: NumericType) -> str:
-    """! Return an ngraph element type string representation for a Python type or numpy dtype."""
+    """Return an ngraph element type string representation for a Python type or numpy dtype."""
     if data_type is int:
         log.warning("Converting int type of undefined bitwidth to 32-bit ngraph integer.")
         return "i32"
@@ -105,7 +93,7 @@ def get_element_type_str(data_type: NumericType) -> str:
 
 
 def get_dtype(ngraph_type: NgraphType) -> np.dtype:
-    """! Return a numpy.dtype for an ngraph element type."""
+    """Return a numpy.dtype for an ngraph element type."""
     np_type = next(
         (np_type for (ng_type, np_type) in ngraph_to_numpy_types_map if ng_type == ngraph_type),
         None,
@@ -118,14 +106,14 @@ def get_dtype(ngraph_type: NgraphType) -> np.dtype:
 
 
 def get_ndarray(data: NumericData) -> np.ndarray:
-    """! Wrap data into a numpy ndarray."""
+    """Wrap data into a numpy ndarray."""
     if type(data) == np.ndarray:
         return data
     return np.array(data)
 
 
 def get_shape(data: NumericData) -> TensorShape:
-    """! Return a shape of NumericData."""
+    """Return a shape of NumericData."""
     if type(data) == np.ndarray:
         return data.shape  # type: ignore
     elif type(data) == list:
@@ -134,7 +122,7 @@ def get_shape(data: NumericData) -> TensorShape:
 
 
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
-    """! Return an ngraph Constant node with the specified value."""
+    """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype:
         element_type = get_element_type(dtype)
@@ -145,7 +133,7 @@ def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constan
 
 
 def as_node(input_value: NodeInput) -> Node:
-    """! Return input values as nodes. Scalars will be converted to Constant nodes."""
+    """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
         return input_value
     if issubclass(type(input_value), Output):
@@ -154,5 +142,5 @@ def as_node(input_value: NodeInput) -> Node:
 
 
 def as_nodes(*input_values: NodeInput) -> List[Node]:
-    """! Return input values as nodes. Scalars will be converted to Constant nodes."""
+    """Return input values as nodes. Scalars will be converted to Constant nodes."""
     return [as_node(input_value) for input_value in input_values]

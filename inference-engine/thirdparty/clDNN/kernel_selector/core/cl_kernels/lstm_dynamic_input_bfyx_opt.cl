@@ -1,18 +1,9 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 #include "include/unit_type.cl"
 #include "include/sub_group.cl"
 
@@ -98,7 +89,7 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
         UNIT_TYPE8 BLOCK_W5 = UNIT_BLOCK_READ8(weights, calcuation_offset); INC_OFFSET(calcuation_offset, WEIGHTS_SIZE_Y);
         UNIT_TYPE8 BLOCK_W6 = UNIT_BLOCK_READ8(weights, calcuation_offset); INC_OFFSET(calcuation_offset, WEIGHTS_SIZE_Y);
         UNIT_TYPE8 BLOCK_W7 = UNIT_BLOCK_READ8(weights, calcuation_offset); INC_OFFSET(calcuation_offset, WEIGHTS_SIZE_Y);
-            
+
         UNIT_TYPE input_value = input[input_offset];
         MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 0), BLOCK_W0);
         MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 1), BLOCK_W1);
@@ -108,7 +99,7 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
         MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 5), BLOCK_W5);
         MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 6), BLOCK_W6);
         MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 7), BLOCK_W7);
-        
+
         input_offset += SIMD_SIZE;
     }
 

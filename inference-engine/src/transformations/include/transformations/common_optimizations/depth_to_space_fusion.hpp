@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,13 +41,8 @@ namespace pass {
  *
  */
 
-class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite {
+class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    DepthToSpaceFusion() : GraphRewrite() {
-        depth_to_space_fusion();
-    }
-
-private:
-    void depth_to_space_fusion();
+    DepthToSpaceFusion();
 };

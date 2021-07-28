@@ -1,27 +1,11 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/op/divide.hpp"
 #include "itt.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/negative.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -55,25 +39,18 @@ namespace divide
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
-            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec, pythondiv);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_divide, i32, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, i64, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, u32, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, u64, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, f16, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, f32, arg0, arg1, out, broadcast_spec, pythondiv);
+            NGRAPH_TYPE_CASE(evaluate_divide, bf16, arg0, arg1, out, broadcast_spec, pythondiv);
         default: rc = false; break;
         }
         return rc;
     }
-}
+} // namespace divide
 
 // ------------------------------ v1 -------------------------------------------
 
@@ -99,6 +76,7 @@ op::v1::Divide::Divide(const Output<Node>& arg0,
 
 bool op::v1::Divide::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Divide_visit_attributes);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     visitor.on_attribute("m_pythondiv", m_pythondiv);
     return true;
@@ -106,6 +84,7 @@ bool op::v1::Divide::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Divide_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Divide>(
         new_args.at(0), new_args.at(1), this->is_pythondiv(), this->get_autob());
@@ -113,6 +92,23 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Divide::evaluate");
+    NGRAPH_OP_SCOPE(v1_Divide_evaluate);
     return divide::evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+}
+
+bool op::v1::Divide::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Divide_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::bf16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

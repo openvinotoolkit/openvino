@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 # include <libgen.h>
 # include <dirent.h>
 #else
-# include <w_dirent.h>
+# include <samples/os/windows/w_dirent.h>
 #endif
 
 #include <utility>

@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 from collections import deque
 from numbers import Number
@@ -146,12 +133,18 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
             if in_node.id not in checked_nodes_ref and in_node.id not in q_ref:
                 q_ref.append(in_node.id)
 
-        out_nodes = node.out_nodes().values() if node.kind == 'op' else sorted_by_name(node.out_nodes())
+        if node.kind == 'op':
+            out_nodes = sorted_by_name([Node(graph, v) for v, _ in node.get_outputs()])
+        else:
+            out_nodes = sorted_by_name(node.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes and out_node.id not in q:
                 q.append(out_node.id)
 
-        out_nodes = node_ref.out_nodes().values() if node_ref.kind == 'op' else sorted_by_name(node_ref.out_nodes())
+        if node_ref.kind == 'op':
+            out_nodes = sorted_by_name([Node(graph_ref, v) for v, _ in node_ref.get_outputs()])
+        else:
+            out_nodes = sorted_by_name(node_ref.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes_ref and out_node.id not in q_ref:
                 q_ref.append(out_node.id)

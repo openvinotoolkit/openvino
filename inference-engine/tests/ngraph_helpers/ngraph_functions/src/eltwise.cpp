@@ -1,7 +1,6 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 
 #include <memory>
 #include <ngraph/opsets/opset3.hpp>
@@ -31,6 +30,8 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
             return std::make_shared<ngraph::opset3::FloorMod>(in0, in1);
         case ngraph::helpers::EltwiseTypes::MOD:
             return std::make_shared<ngraph::opset3::Mod>(in0, in1);
+        case ngraph::helpers::EltwiseTypes::ERF:
+            return std::make_shared<ngraph::opset1::Erf>(in0);
         default: {
             throw std::runtime_error("Incorrect type of Eltwise operation");
         }

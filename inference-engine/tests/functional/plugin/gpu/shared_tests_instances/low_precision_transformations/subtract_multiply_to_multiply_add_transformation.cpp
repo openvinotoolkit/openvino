@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,22 +43,21 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {2.55f, 2.55f / 2.f, 2.55f / 3.f}
         },
     },
-    // TODO: uncomment test
-    // {
-    //    {1, 3, 16, 16},
-    //    ngraph::element::f32,
-    //    {
-    //        256ul,
-    //        ngraph::Shape({1}),
-    //        {2.55f / 2},
-    //        {2.55f},
-    //        {2.55f / 2},
-    //        {2.55f}
-    //    },
-    // },
+     {
+        {1, 3, 16, 16},
+        ngraph::element::f32,
+        {
+            256ul,
+            ngraph::Shape({1}),
+            {2.55f / 2},
+            {2.55f},
+            {2.55f / 2},
+            {2.55f}
+        },
+     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),

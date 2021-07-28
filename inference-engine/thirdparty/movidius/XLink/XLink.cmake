@@ -1,3 +1,7 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 if(EXISTS "$ENV{MV_COMMON_BASE}")
     set(XLINK_ROOT_DIR "$ENV{MV_COMMON_BASE}/components/XLink")
 else()

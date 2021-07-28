@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,45 +25,14 @@ const char LayerTransformation::originalLayerPostfix[] = "_original";
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    quantizedTensorAlignmentOnActivations(params.quantizedTensorAlignmentOnActivations),
-    quantizedTensorAlignmentOnWeights(params.quantizedTensorAlignmentOnWeights),
-    supportAsymmetricQuantization(params.supportAsymmetricQuantization),
-    precisionsOnActivations(params.precisionsOnActivations),
-    precisionsOnWeights(params.precisionsOnWeights),
-    layerTransformationsManager(nullptr),
-    paramsManager(nullptr),
-    quantizationIntervalAsymmetryThreshold(0.002f),
-    zeroThreshold(1.e-6f),
-    minQuantizationLevels(2ul) {}
+    deqPrecision(params.deqPrecision) {}
 
-void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
-    this->paramsManager = paramsManager;
-}
-
-void LayerTransformation::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
-    this->layerTransformationsManager = layerTransformationsManager;
+void LayerTransformation::setContext(TransformationContext* context) noexcept {
+    this->context = context;
 }
 
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
-}
-
-void LayerTransformation::setQuantizedTensorAlignmentOnActivations(
-    const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
-    this->quantizedTensorAlignmentOnActivations = quantizedTensorAlignmentOnActivations;
-}
-
-void LayerTransformation::setQuantizedTensorAlignmentOnWeights(
-    const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
-    this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
-}
-
-const std::vector<element::Type>& LayerTransformation::getPrecisionsOnActivations() const {
-    return precisionsOnActivations;
-}
-
-const std::vector<element::Type>& LayerTransformation::getPrecisionsOnWeights() const {
-    return precisionsOnWeights;
 }
 
 bool LayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
@@ -71,17 +40,39 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
+    return canBeTransformedStatic(layer);
+}
+
+bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer) {
     for (const auto& output : layer->outputs()) {
-        const size_t size = output.get_shape().size();
-        if ((size < 2ul) || (size > 5ul)) {
+        const auto rank = output.get_partial_shape().rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+        auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
             return false;
         }
     }
 
     const auto dequantization = NetworkHelper::getDequantization(layer);
     if (!dequantization.empty()) {
-        auto perChannelQuantization = [](const Shape dataShape, Shape constShape) {
-            if ((dataShape.size() - constShape.size()) == 1ul) {
+        auto perChannelQuantization = [](const PartialShape dataPShape, Shape constShape) {
+            if (ngraph::shape_size(constShape) == 1ul) {
+                return true;
+            }
+
+            const auto rank = dataPShape.rank();
+            if (rank.is_dynamic()) {
+                return false;
+            }
+
+            const auto dataShapeSize = static_cast<size_t>(rank.get_length());
+            if ((dataShapeSize - constShape.size()) == 1ul) {
                 constShape.insert(constShape.begin(), 1ul);
             }
 
@@ -98,14 +89,14 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         };
 
         if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
-            dequantization.subtract->output(0).get_shape(),
-            dequantization.subtract->input(1).get_shape()))) {
+            dequantization.subtract->get_output_partial_shape(0),
+            dequantization.subtractConstant->get_shape()))) {
             return false;
         }
 
         if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
-            dequantization.multiply->output(0).get_shape(),
-            dequantization.multiply->input(1).get_shape()))) {
+            dequantization.multiply->get_output_partial_shape(0),
+            dequantization.multiplyConstant->get_shape()))) {
             return false;
         }
     }
@@ -113,17 +104,33 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex) const {
-    return canSubtractBeHandled(op, NetworkHelper::getDequantization(op, parentIndex));
+bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!isQuantized(layer)) {
+        return false;
+    }
+
+    if (NetworkHelper::isDQByDynamicDimension(layer)) {
+        return false;
+    }
+
+    for (const auto& output : layer->outputs()) {
+        const auto outPShape = output.get_partial_shape();
+        const auto rank = outPShape.rank();
+        if (rank.is_dynamic()) {
+            return false;
+        }
+
+        const auto size = rank.get_length();
+        if ((size < 2) || (size > 5)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
     if (dequantization.empty() || (dequantization.subtract == nullptr)) {
         return true;
-    }
-
-    if (!supportAsymmetricQuantization) {
-        return false;
     }
 
     if (!updatePrecisions) {
@@ -138,7 +145,17 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         return false;
     }
 
-    return true;
+    const auto parent = dequantization.subtract->input_value(1).get_node_shared_ptr();
+
+    if (is_type<opset1::Constant>(parent)) {
+        return true;
+    } else if (is_type<opset1::Convert>(parent) && is_type<opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+        const auto constant = parent->get_input_node_shared_ptr(0);
+        const auto constantType = constant->output(0).get_element_type();
+        return operationType == constantType;
+    } else {
+        return false;
+    }
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -156,7 +173,7 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
 void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(layer));
     std::cout <<
-        layer->get_type_name() << (NetworkHelper::onWeights(layer) ? " on weights " : " on activations ") <<
+        layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
         layer->get_friendly_name() << ":" << std::endl <<
         "   details  : " << quantizationDetails << std::endl;
 }
@@ -174,39 +191,36 @@ void LayerTransformation::printDequantizationValues(
 }
 #endif
 
-void LayerTransformation::setQuantizationIntervalAsymmetryThreshold(const float value) {
-    this->quantizationIntervalAsymmetryThreshold = value;
-}
+LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
+    const size_t quantizationLevels,
+    const std::vector<float>& outputLowValues,
+    const std::vector<float>& outputHighValues) {
+    // TODO: workaround: hardcoded values
+    const float zeroThreshold = 1.e-6f;
+    const float quantizationIntervalAsymmetryThreshold = 0.002f;
 
-void LayerTransformation::setZeroThreshold(const float value) {
-    this->zeroThreshold = value;
-}
-
-void LayerTransformation::setMinQuantizationLevels(const size_t levels) {
-    this->minQuantizationLevels = levels;
-}
-
-LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) const {
     const float asymmetricIntervalSideRatio256 = -128.f / 127.f;
     bool hasNegative = false;
     bool signedPrecision = true;
     bool unsignedPrecision = true;
 
     bool hasZeroPoint = false;
-    for (size_t i = 0; i < quantizationDetails.outputLowValues.size(); ++i) {
-        const bool signedInterval = std::signbit(quantizationDetails.outputLowValues[i]) != std::signbit(quantizationDetails.outputHighValues[i]);
-        const bool boundaryValuesAreNotZero =
-            (std::fabs(quantizationDetails.outputLowValues[i]) >= zeroThreshold) &&
-            (std::fabs(quantizationDetails.outputHighValues[i]) >= zeroThreshold);
-        if (signedInterval && boundaryValuesAreNotZero) {
+    for (size_t i = 0; i < outputLowValues.size(); ++i) {
+        const bool signedInterval = std::signbit(outputLowValues[i]) != std::signbit(outputHighValues[i]);
+        const bool outputLowValueIsNotZero = std::fabs(outputLowValues[i]) >= zeroThreshold;
+        if (signedInterval && outputLowValueIsNotZero) {
             // signed
             unsignedPrecision = false;
             hasNegative = true;
 
-            const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
-            const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
-            const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
-            if (actual > quantizationIntervalAsymmetryThreshold) {
+            if (outputHighValues[i] != 0.f) {
+                const float expectedRatio = quantizationLevels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
+                const float actualRatio = outputLowValues[i] / outputHighValues[i];
+                const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
+                if (actual > quantizationIntervalAsymmetryThreshold) {
+                    hasZeroPoint = true;
+                }
+            } else {
                 hasZeroPoint = true;
             }
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -218,8 +232,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
         } else {
             // unsigned
             signedPrecision = false;
-            if (boundaryValuesAreNotZero) {
-                hasZeroPoint = boundaryValuesAreNotZero;
+            if (outputLowValueIsNotZero) {
+                hasZeroPoint = outputLowValueIsNotZero;
             }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -234,6 +248,17 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
         }
     }
 
+    // TODO: use this implementation after merge <= not aligned with master
+//    if (signedPrecision && (!unsignedPrecision)) {
+//        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
+//    }
+//
+//    if ((!signedPrecision) && unsignedPrecision) {
+//        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
+//    }
+//
+//    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
+
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
@@ -247,173 +272,51 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
     return LayerTransformation::PrecisionDetails(element::undefined, hasNegative, hasZeroPoint);
 }
 
-bool LayerTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
+    return getPrecisionDetails(quantizationDetails.levels, quantizationDetails.outputLowValues, quantizationDetails.outputHighValues);
+}
+
+bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
+    const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+    const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    return dequantization.subtract != nullptr;
+}
+
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
     return true;
 }
 
 DataPrecision LayerTransformation::getDataPrecision(
-        std::shared_ptr<Node> layer,
+        const std::shared_ptr<Node>& layer,
         const QuantizationDetails& quantizationDetails,
-        const bool onWeights) const {
+        const std::vector<element::Type>& precisions) {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
-    std::vector<element::Type> precisions = onWeights ? precisionsOnWeights : precisionsOnActivations;
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
-    {
-        if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
-            if (!onWeights) {
-                fillAvailablePrecisions(layer, precisions);
-            }
 
-            // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
-            if (!precisions.empty()) {
-                const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
-                const element::Type resultPrecision = foundIt != precisions.end() ?
-                                                  precisionDetailsAtOutputIntervals.precision :
-                                                  *precisions.begin();
+    if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
+        // if supportedPrecisions is empty then use the first available, not supported layer will be in original precision
+        if (!precisions.empty()) {
+            const auto foundIt = std::find(precisions.begin(), precisions.end(), precisionDetailsAtOutputIntervals.precision);
+            const element::Type resultPrecision = foundIt != precisions.end() ?
+                precisionDetailsAtOutputIntervals.precision :
+                *precisions.begin();
 
-                const DataPrecision dataPrecision(
-                        resultPrecision,
-                        DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                        DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                        foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+            const DataPrecision dataPrecision(
+                resultPrecision,
+                DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+                DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+                foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
 
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-                printDequantizationInfo(dataPrecision);
-#endif
-                return dataPrecision;
-            }
+            return dataPrecision;
         }
     }
-
-    const DataPrecision dataPrecision = precisions.empty() ?
-                                        DataPrecision(element::undefined, 0.f, 0.f, false) :
-                                        DataPrecision(
-                                                *precisions.begin(),
-                                                DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
-                                                DataPrecision::getMaxValue(*precisions.begin(), quantizationDetails.levels),
-                                                true);
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationInfo(dataPrecision);
-#endif
-    return dataPrecision;
-}
-
-void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const {
-    if (availablePrecisions.empty()) {
-        return;
-    }
-
-    const std::vector<std::shared_ptr<Node>> children = NetworkHelper::consumers(layer);
-    for (auto child : children) {
-        if (child->get_type_info().is_castable(opset1::FakeQuantize::get_type_info_static())) {
-            // FakeQuantize layer updates precision
-            continue;
-        }
-
-        if (!layerTransformationsManager->isQuantized(child)) {
-            // low precision chain is interrupted here: next operation supported precisions are ignored
-            continue;
-        }
-
-        const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
-        if (childPrecisionsOnActivations.size() == 0ul) {
-            continue;
-        }
-
-        for (size_t index = 0ul; index < availablePrecisions.size();) {
-            const element::Type availablePrecision = availablePrecisions[index];
-            if (!std::any_of(
-                    childPrecisionsOnActivations.begin(),
-                    childPrecisionsOnActivations.end(),
-                    [&](const element::Type precision) { return availablePrecision == precision; })) {
-                availablePrecisions.erase(availablePrecisions.begin() + index);
-            } else {
-                ++index;
-            }
-        }
-
-        if (!layerTransformationsManager->isPrecisionPreserved(child)) {
-            continue;
-        }
-
-        fillAvailablePrecisions(child, availablePrecisions);
-        if (availablePrecisions.empty()) {
-            return;
-        }
-    }
-}
-
-std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyExceptPrecisionPreserved(
-        const std::shared_ptr<Node>& op) const noexcept {
-    std::queue<std::shared_ptr<Node>> notHandledChildren;
-
-    for (const auto& output : op->outputs()) {
-        for (const auto& input : output.get_target_inputs()) {
-            std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-            notHandledChildren.emplace(child);
-        }
-    }
-
-    std::vector<std::shared_ptr<Node>> resultChildren;
-
-    while (!notHandledChildren.empty()) {
-        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
-        notHandledChildren.pop();
-
-        if (!this->layerTransformationsManager->isPrecisionPreserved(operation)) {
-            resultChildren.push_back(operation);
-            continue;
-        }
-
-        for (const auto& output : operation->outputs()) {
-            for (const auto& input : output.get_target_inputs()) {
-                std::shared_ptr<Node> child = input.get_node()->shared_from_this();
-                notHandledChildren.emplace(child);
-            }
-        }
-    }
-
-    return resultChildren;
-}
-
-
-std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
-    if (dequantization.isShared()) {
-        Output<Node> parent = dequantization.data;
-        if (dequantization.convert != nullptr) {
-            parent = dequantization.convert->clone_with_new_inputs({ parent });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        if (dequantization.subtract != nullptr) {
-            parent = dequantization.subtract->clone_with_new_inputs({
-                parent,
-                dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        if (dequantization.multiply != nullptr) {
-            parent = dequantization.multiply->clone_with_new_inputs({
-                parent,
-                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
-        }
-
-        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
-        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
-        inputs[inputIndex] = parent;
-        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
-
-        replace_node(node, newNode);
-        newNode->set_friendly_name(node->get_friendly_name());
-
-        return newNode;
-    }
-
-    return node;
+    return DataPrecision(
+        precisionDetailsAtOutputIntervals.precision,
+        0.f,
+        0.f,
+        precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
 std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
@@ -427,34 +330,19 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     return result.newOperation;
 }
 
-void LayerTransformation::fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(operation, 0);
-    if ((dequantization.subtract != nullptr) &&
-        NetworkHelper::checkConstantValuePrecision(
-            dequantization.convert->get_output_element_type(0),
-            dequantization.subtract->get_input_node_shared_ptr(1))) {
-        auto newOperation = separateInStandaloneBranch(operation);
-        dequantization = NetworkHelper::getDequantization(operation, 0);
-        // TODO: It is correct to use optimizeSubtract here: uncomment following rows and fix it
-        //auto newSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
-        //replace_node(dequantization.subtract, newSubtract);
-        NetworkHelper::removeConvertIfPossible(operation, dequantization);
-    }
-}
-
 void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,
     std::shared_ptr<ngraph::Node> originalNode) const {
-    const size_t outputSize = context.function->get_output_size();
-    for (size_t i = 0; i < outputSize; ++i) {
-        std::shared_ptr<ngraph::Node> result = context.function->get_output_op(i);
-        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
-        if (outputNode.get() == lastNode.get()) {
-            const std::string originalName = originalNode->get_friendly_name();
-            originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
-            lastNode->set_friendly_name(originalName);
-            break;
+    // TODO: not tested!!!
+    for (auto output : lastNode->outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            if (is_type<ngraph::opset1::Result>(input.get_node())) {
+                const std::string originalName = originalNode->get_friendly_name();
+                originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
+                lastNode->set_friendly_name(originalName);
+                break;
+            }
         }
     }
 }
@@ -474,9 +362,10 @@ void LayerTransformation::updateOutput(
     }
 }
 
-void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
+void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         const bool result = transform(context, m);
+        (void)result;
 #ifdef LPT_DISPLAY_PRECISION
         if (result) {
             auto operationNode = m.get_match_root();
@@ -491,7 +380,9 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     };
     // TODO: better name for matcher? required?
     auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace low_precision

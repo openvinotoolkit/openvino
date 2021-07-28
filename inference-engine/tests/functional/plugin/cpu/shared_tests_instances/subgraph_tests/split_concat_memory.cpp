@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 
@@ -26,7 +26,7 @@ const std::vector<InferenceEngine::SizeVector> shapes = {
     {3, 8},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CPU, SplitConcatMemory,
+INSTANTIATE_TEST_SUITE_P(smoke_CPU, SplitConcatMemory,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes),
                                 ::testing::ValuesIn(netPrecisions),
@@ -34,7 +34,3 @@ INSTANTIATE_TEST_CASE_P(smoke_CPU, SplitConcatMemory,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         SplitConcatMemory::getTestCaseName);
 }  // namespace
-
-
-
-

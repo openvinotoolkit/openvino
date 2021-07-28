@@ -1,25 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <exception>
 
+#include "exceptions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 
@@ -87,13 +75,14 @@ TEST(onnx_importer, exception_msg_std_err_wrapped)
     try
     {
         onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/dynamic_shapes/add_opset6_dyn_shape.prototxt"));
+            SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.prototxt"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
     catch (const std::exception& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(Add)"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("While validating ONNX node '<Node(EyeLike): y"));
     }
     catch (...)
     {

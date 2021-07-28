@@ -1,25 +1,17 @@
-/*
-// Copyright (c) 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
+
 #pragma once
+
+#include "cldnn/runtime/tensor.hpp"
+#include "cldnn/runtime/layout.hpp"
+#include "cldnn/runtime/device.hpp"
+#include "cldnn/primitives/primitive.hpp"
+
+
 #include <string>
 #include <sstream>
-#include "api/tensor.hpp"
-#include "api/layout.hpp"
-#include "api/primitive.hpp"
-#include "device_impl.h"
 #include <memory>
 
 namespace cldnn {
@@ -144,8 +136,12 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_yx_isv16_osv16";
         case format::os_is_yx_isa8_osv8_isv4:
             return "os_is_yx_isa8_osv8_isv4";
+        case format::os_is_yx_isa8_osv16_isv4:
+            return "os_is_yx_isa8_osv16_isv4";
         case format::os_is_zyx_isa8_osv8_isv4:
             return "os_is_zyx_isa8_osv8_isv4";
+        case format::os_is_zyx_isa8_osv16_isv4:
+            return "os_is_zyx_isa8_osv16_isv4";
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return "os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4";
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -221,6 +217,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_zyx_is_osv32_isv16";
         case format::g_os_zyx_is_osv32_isv32:
             return "g_os_zyx_is_osv32_isv32";
+        case format::gs_oi_yxs_gsv32_yxsv4:
+            return "gs_oi_yxs_gsv32_yxsv4";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

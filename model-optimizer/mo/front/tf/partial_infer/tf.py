@@ -1,18 +1,5 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import logging as log
 from re import match
@@ -121,7 +108,7 @@ def get_subgraph_output_tensors(node: Node):
             tf_v1.import_graph_def(graph_def, name='')
             all_constants, feed_dict = generate_feed_dict(graph, node)
             for out_port, out_tensor_name in enumerate(node['output_tensors_names']):
-                if not match('.*:\d+', out_tensor_name):
+                if not match(r'.*:\d+', out_tensor_name):
                     out_tensor_name = out_tensor_name + ":" + str(out_port)
                 result_tensor = sess.run(graph.get_tensor_by_name(out_tensor_name), feed_dict=feed_dict)
                 result[out_port] = result_tensor

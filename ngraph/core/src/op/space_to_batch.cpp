@@ -1,22 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <ngraph/validation_util.hpp>
 #include <numeric>
+#include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
@@ -30,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::SpaceToBatch::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::SpaceToBatch, "SpaceToBatch", 1);
 
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -43,6 +34,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
     PartialShape data_pshape = get_input_partial_shape(0);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
@@ -57,13 +49,13 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           pads_begin_type.is_integral_number(),
-                          "crops_begin must be an integral number but got (",
+                          "pads_begin must be an integral number but got (",
                           pads_begin_type,
                           ").");
 
     NODE_VALIDATION_CHECK(this,
                           pads_end_type.is_integral_number(),
-                          "crops_end must be an integral number but got (",
+                          "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
 
@@ -72,9 +64,11 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     auto pads_begin = input_value(2);
     auto pads_end = input_value(3);
 
-    if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_begin.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_end.get_node_shared_ptr()) && data_pshape.is_static())
+    const auto& block_const = get_constant_from_source(block);
+    const auto& pads_begin_const = get_constant_from_source(pads_begin);
+    const auto& pads_end_const = get_constant_from_source(pads_end);
+
+    if (block_const && pads_begin_const && pads_end_const && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 
@@ -85,13 +79,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
-                             ->cast_vector<int64_t>();
-        auto pads_begin_val =
-            std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
-                ->cast_vector<int64_t>();
-        auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
-                                ->cast_vector<int64_t>();
+        auto block_val = block_const->cast_vector<int64_t>();
+        auto pads_begin_val = pads_begin_const->cast_vector<int64_t>();
+        auto pads_end_val = pads_end_const->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long idx : block_val)
@@ -123,13 +113,14 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, data_type, PartialShape::dynamic());
+        set_output_type(0, data_type, PartialShape::dynamic(data_pshape.rank()));
     }
 }
 
 std::shared_ptr<Node>
     ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<SpaceToBatch>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
@@ -137,15 +128,15 @@ std::shared_ptr<Node>
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
     return true;
 }
 
-bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
-                                            const HostTensorVector& inputs) const
+bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
+                                                           const HostTensorVector& inputs) const
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
     if (data->get_partial_shape().is_dynamic())
@@ -267,4 +258,18 @@ bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
     out->write(flat_data.data(), elem_size * shape_size(out->get_shape()));
 
     return true;
+}
+
+bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
+                                            const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
+    return evaluate_space_to_batch(outputs, inputs);
+}
+
+bool ngraph::op::v1::SpaceToBatch::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

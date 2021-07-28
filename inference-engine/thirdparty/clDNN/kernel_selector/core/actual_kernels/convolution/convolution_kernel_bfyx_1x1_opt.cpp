@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "convolution_kernel_bfyx_1x1_opt.h"
 #include <vector>
@@ -80,8 +69,6 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
 
     constexpr size_t sub_group_size = 8;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto block = get_out_block_size(cp);
 
     dispatchData.gws[0] = cp.output.X().v / block.out_width;
@@ -94,6 +81,10 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
     dispatchData.lws[2] = 2 * sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority convolution_kernel_bfyx_1x1_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_params& o) const {
@@ -154,8 +145,6 @@ WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const c
 KernelsData convolution_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,
                                                             const optional_params& options) const {
     KernelsData kd = GetCommonKernelsData(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_1;
     return kd;
 }
 

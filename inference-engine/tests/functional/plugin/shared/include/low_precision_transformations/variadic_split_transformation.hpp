@@ -1,10 +1,10 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
@@ -17,7 +17,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     VariadicSplitTransformationParam
@@ -31,8 +31,6 @@ public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
 protected:
     void SetUp() override;
-
-private:
-    void validateNGraph();
 };
+
 }  // namespace LayerTestsDefinitions

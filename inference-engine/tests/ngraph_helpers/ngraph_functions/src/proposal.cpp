@@ -1,6 +1,5 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 //
 
 #include <vector>
@@ -44,10 +43,11 @@ std::shared_ptr<Node> makeProposal(const ngraph::Output<Node> &class_probs,
     attrs.box_size_scale = box_size_scale;
     attrs.box_coordinate_scale = box_coordinate_scale;
     attrs.framework = framework;
+    attrs.infer_probs = true;
 
     auto image_shape = makeConstant(ngraph::element::Type_t::f32, {3}, image_info);
 
-    return std::make_shared<opset1::Proposal>(class_probs, class_logits, image_shape, attrs);
+    return std::make_shared<opset4::Proposal>(class_probs, class_logits, image_shape, attrs);
 }
 
 }  // namespace builder

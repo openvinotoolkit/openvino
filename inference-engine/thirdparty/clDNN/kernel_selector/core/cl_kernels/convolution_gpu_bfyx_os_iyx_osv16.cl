@@ -1,20 +1,9 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -94,12 +83,11 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     uint fmg = feature_idx / SUB_GROUP_SIZE;
     const uint g = split_idx;
 #endif
-
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
     UNIT_TYPE w[PREFETCH];
     uint in_addr;
-    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * SUB_GROUP_SIZE + lid;
+    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE + lid;
 
 #if GROUPED
     weight_addr += g * FILTER_GROUPS_PITCH;
@@ -167,7 +155,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         in_addr += INPUT0_FEATURE_PITCH;
 
         for(int pf=0; pf<PREFETCH; pf++) {
-            w[pf] = weights[weight_addr]; weight_addr += SUB_GROUP_SIZE;
+            w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
         }
 
         uint wi = 0;
@@ -193,12 +181,12 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                     }
                 }
                 w[wi % PREFETCH] = weights[weight_addr];
-                weight_addr += SUB_GROUP_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
+                weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
                 wi++;
             });
         });
         // addr went beyond due to prefetch so move it back to correct location.
-        weight_addr -= PREFETCH * SUB_GROUP_SIZE;
+        weight_addr -= PREFETCH * OSV_SIZE;
     }
 
     uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;

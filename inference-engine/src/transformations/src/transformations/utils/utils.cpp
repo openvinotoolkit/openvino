@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
                                          const PartialShape& shape) {
     auto const_shape = constant->get_shape();
-    if (const_shape.size() == shape.rank().get_length()) {
+    if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
     }
     int64_t cnt = shape.rank().get_length() - const_shape.size();
@@ -118,6 +118,38 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name, con
     } else {
         throw ngraph_error("Unsupported activation function");
     }
+}
+
+bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len) {
+    if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
+        const auto &seq_len_values = seq_len_const->cast_vector<int64_t>();
+        return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
+            return val != max_seq_len;
+        });
+    }
+    return true;
+}
+
+std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node) {
+    const auto& num_outputs = node->get_output_size();
+    NGRAPH_CHECK(num_outputs == 1, "Unary has unexpected number of outputs:" + std::to_string(num_outputs));
+    OutputVector output(num_outputs);
+    return node->constant_fold(output, node->input_values()) ? output[0].get_node_shared_ptr() : node;
+}
+
+std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const OutputVector& inputs) {
+    auto unary_output_node = node->clone_with_new_inputs(inputs);
+    return try_fold_unary_output(unary_output_node);
+}
+
+std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node) {
+    std::vector<Input<Node>> result;
+    for (auto output : node->outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            result.push_back(input);
+        }
+    }
+    return result;
 }
 
 }  // namespace util

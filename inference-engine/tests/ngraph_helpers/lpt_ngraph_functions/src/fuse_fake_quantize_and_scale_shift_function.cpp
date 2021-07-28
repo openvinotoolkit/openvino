@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@ using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
     const std::shared_ptr<Node> fakeQuantize = ngraph::builder::makeFakeQuantize(

@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "fused_conv_eltwise_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -244,7 +232,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::Set
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -281,7 +268,7 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
@@ -295,15 +282,14 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
                      true,
                      !newParams.bias.empty(),
                      1);
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
     // eltwise's second input
     if (newParams.second_input_in_output) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     } else {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

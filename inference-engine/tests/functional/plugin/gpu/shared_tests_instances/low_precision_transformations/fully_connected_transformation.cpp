@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,26 +12,26 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
-        ngraph::element::f32,
-        // ngraph::element::f16
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<MatMulShapes> shapes = {
     {
-        ngraph::Shape{ 1, 16 },
-        ngraph::Shape{ 16, 8 },
+        { 1, 16 },
+        { 16, 8 },
         false,
         false
     },
     {
-        ngraph::Shape{ 1, 16 },
-        ngraph::Shape{ 8, 16 },
+        { 1, 16 },
+        { 8, 16 },
         false,
         true
     },
     {
-        ngraph::Shape{ 16, 1 },
-        ngraph::Shape{ 16, 8 },
+        { 16, 1 },
+        { 16, 8 },
         true,
         false
     },
@@ -41,7 +41,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FullyConnectedTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),

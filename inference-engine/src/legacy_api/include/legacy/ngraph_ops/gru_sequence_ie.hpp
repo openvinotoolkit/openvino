@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,9 +54,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
-    int64_t m_seq_axis;
     op::RecurrentSequenceDirection m_direction;
     bool m_linear_before_reset;
+    int64_t m_seq_axis;
 };
 
     }  // namespace op

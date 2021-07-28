@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,12 @@ CNNNetwork cloneNetwork(const CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "cloneNetwork");
 
     if (network.getFunction()) {
+        IE_SUPPRESS_DEPRECATED_START
         return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
+        IE_SUPPRESS_DEPRECATED_END
     }
 
-    THROW_IE_EXCEPTION << "InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone";
+    IE_THROW() << "InferenceEngine::details::cloneNetwork requires ngraph-based `network` object to clone";
 }
 
 }  // namespace details

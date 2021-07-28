@@ -319,11 +319,7 @@ The throughput on FPGA is listed and may show a lower FPS. This is due to the in
 ./classification_sample_async -i car.png -m ~/squeezenet1.1_FP16/squeezenet1.1.xml -d HETERO:FPGA,CPU -ni 100
 ```
 
-Congratulations, you are done with the Intel® Distribution of OpenVINO™ toolkit installation for FPGA. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and are other resources are provided below.
-
-## Hello World Face Detection Tutorial
-
-Use the [Intel® Distribution of OpenVINO™ toolkit with FPGA Hello World Face Detection Exercise](https://github.com/fritzboyle/openvino-with-fpga-hello-world-face-detection) to learn more about how the software and hardware work together.
+Congratulations, you are done with the Intel® Distribution of OpenVINO™ toolkit installation for FPGA. 
 
 ## Additional Resources
 

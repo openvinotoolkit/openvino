@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,8 @@ namespace Cpu {
 # include "list_tbl.hpp"
 #undef MKLDNN_EXTENSION_NODE
 
-MKLDNNExtensions::MKLDNNExtensions() {
+MKLDNNExtensions::MKLDNNExtensions()
+    : layersFactory("LayersFactory") {
     #define MKLDNN_EXTENSION_NODE(__prim, __type) FACTORY_CALL(__prim, __type)
     # include "list_tbl.hpp"
     #undef MKLDNN_EXTENSION_NODE

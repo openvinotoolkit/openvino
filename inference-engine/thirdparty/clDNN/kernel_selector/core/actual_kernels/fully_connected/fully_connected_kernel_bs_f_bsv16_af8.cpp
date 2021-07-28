@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "fully_connected_kernel_bs_f_bsv16_af8.h"
 
@@ -83,7 +72,6 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
                                                     optParams,
                                                     DataLayout::bs_f_bsv16__af8,
                                                     WeightsLayout::os_i_osv16__ai8,
-                                                    FORCE_PRIORITY_2,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -91,5 +79,9 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

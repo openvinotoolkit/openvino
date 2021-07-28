@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,16 +17,16 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
-#include "ie_imemory_state.hpp"
-#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 
+_IE_SUPPRESS_DEPRECATED_START_GCC
+
 /**
+ * @deprecated Use InferenceEngine::InferRequest C++ wrapper
  * @brief This is an interface of asynchronous infer request
- *
  */
-class IInferRequest : public details::IRelease {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::InferRequest C++ wrapper") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
@@ -38,6 +38,9 @@ public:
         /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
         STATUS_ONLY = 0,
     };
+
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief A shared pointer to the IInferRequest object
      */
@@ -46,6 +49,8 @@ public:
      * @brief A smart pointer to the IInferRequest object
      */
     using WeakPtr = std::weak_ptr<IInferRequest>;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets input/output data to infer
@@ -96,6 +101,12 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode Infer(ResponseDesc* resp) noexcept = 0;
+    /**
+     * @brief Cancels current async inference request
+     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
+     * @return Status code of the operation: InferenceEngine::OK (0) for success
+     */
+    virtual StatusCode Cancel(ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
@@ -133,6 +144,8 @@ public:
      */
     virtual StatusCode StartAsync(ResponseDesc* resp) noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Completion callback definition as pointer to a function
      *
@@ -140,6 +153,8 @@ public:
      * @param code Completion result status: InferenceEngine::OK (0) for success
      */
     typedef void (*CompletionCallback)(InferenceEngine::IInferRequest::Ptr context, InferenceEngine::StatusCode code);
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets a callback function that will be called on success or failure of asynchronous request
@@ -179,17 +194,10 @@ public:
      */
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
-    /**
-    * @brief Gets state control interface for given infer request.
-    *
-    * State control essential for recurrent networks
-    *
-    * @param pState reference to a pointer that receives internal states
-    * @param idx requested index for receiving memory state
-    * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-    * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
-    * given index
-    */
-    virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+protected:
+    ~IInferRequest() = default;
 };
+
+_IE_SUPPRESS_DEPRECATED_END_GCC
+
 }  // namespace InferenceEngine

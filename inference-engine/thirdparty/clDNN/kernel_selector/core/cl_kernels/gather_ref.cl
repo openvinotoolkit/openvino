@@ -1,21 +1,23 @@
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
-#include "include/include_all.cl"
+#ifdef INDEX_DIM
+inline uint FUNC(get_positive_index)(int in)
+{
+    if(in < 0)
+        return in + INDEX_DIM;
+    else
+        return in;
+}
+#define INPUT_AXIS_INDEX (uint)FUNC_CALL(get_positive_index)(indices[indices_idx])
+#else
+#define INPUT_AXIS_INDEX (uint)(indices[indices_idx])
+#endif
 
-#define INPUT_AXIS_INDEX (uint)indices[indices_idx]
 #define GET_DICTIONARY_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)

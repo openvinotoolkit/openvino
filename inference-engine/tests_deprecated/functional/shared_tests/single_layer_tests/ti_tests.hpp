@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,9 @@
 
 #include "plg_test.hpp"
 #include "single_layer_common.hpp"
-#include "ir_gen_helper.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
-using namespace single_layer_tests;
 
 struct ti_test_params {
     std::string device_name;
@@ -30,7 +28,7 @@ static void setValuesInBlob(Blob::Ptr blob, float value) {
     std::vector<float> values_vector(output_size, value);
 
     if (!blob->is<MemoryBlob>())
-        THROW_IE_EXCEPTION << "Only MemoryBlob is expected here";
+        IE_THROW() << "Only MemoryBlob is expected here";
 
     auto m_blob = blob->as<MemoryBlob>();
     if (m_blob->wmap().as<void*>() == nullptr)
@@ -169,7 +167,7 @@ protected:
             setValuesInBlob(req.GetBlob("in2"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }
@@ -321,7 +319,7 @@ protected:
             setValuesInBlob(req.GetBlob("in1"), 1.0f);
             req.Infer();
 
-        } catch (const InferenceEngine::details::InferenceEngineException &e) {
+        } catch (const InferenceEngine::Exception &e) {
             FAIL() << e.what();
         }
     }

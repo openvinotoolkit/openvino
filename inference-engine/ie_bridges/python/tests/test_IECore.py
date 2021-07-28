@@ -1,7 +1,9 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import pytest
 from sys import platform
-import numpy as np
 from pathlib import Path
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
@@ -42,6 +44,12 @@ def test_load_network(device):
     assert isinstance(exec_net, ExecutableNetwork)
 
 
+def test_load_network_from_file(device):
+    ie = IECore()
+    exec_net = ie.load_network(test_net_xml, device)
+    assert isinstance(exec_net, ExecutableNetwork)
+
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_load_network_wrong_device():
     ie = IECore()
@@ -52,8 +60,11 @@ def test_load_network_wrong_device():
 
 
 def test_query_network(device):
-    import ngraph as ng
     ie = IECore()
+    if device == "CPU":
+        if ie.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin due-to ngraph")
+    import ngraph as ng
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     query_res = ie.query_network(net, device)
     func_net = ng.function_from_cnn(net)
@@ -64,18 +75,22 @@ def test_query_network(device):
     assert next(iter(set(query_res.values()))) == device, "Wrong device for some layers"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     ie.register_plugin("MKLDNNPlugin", "BLA")
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie.load_network(net, "BLA")
     assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to MKLDNNPlugin specific test")
     if platform == "linux" or platform == "linux2":
         ie.register_plugins(plugins_xml)
     elif platform == "darwin":
@@ -97,57 +112,59 @@ def test_unregister_plugin(device):
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
         ie.load_network(net, device)
-    assert 'Device with "{}" name is not registered in the InferenceEngine'.format(device) in str(e.value)
+    assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
 def test_available_devices(device):
     ie = IECore()
     devices = ie.available_devices
-    assert device in devices, "Current device '{}' is not listed in available devices '{}'".format(device,
-                                                                                                   ', '.join(devices))
+    assert device in devices, f"Current device '{device}' is not listed in available devices '{', '.join(devices)}'"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_list_of_str():
     ie = IECore()
     param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
-                                    "metric must be a list but {} is returned".format(type(param))
+                                    f"metric must be a list but {type(param)} is returned"
     assert all(isinstance(v, str) for v in param), "Not all of the parameter values for 'OPTIMIZATION_CAPABILITIES' " \
                                                    "metric are strings!"
 
 
-
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
-                                     "metric must be tuple but {} is returned".format(type(param))
+                                     f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for 'RANGE_FOR_STREAMS' " \
                                                    "metric are integers!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
     ie = IECore()
+    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
+        pytest.skip("Can't run on ARM plugin due-to unsupported device metric")
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
-                                     "metric must be tuple but {} is returned".format(type(param))
+                                     f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for " \
                                                    "'RANGE_FOR_ASYNC_INFER_REQUESTS' metric are integers!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_str():
     ie = IECore()
     param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
-                                   "metric must be string but {} is returned".format(type(param))
+                                   f"metric must be string but {type(param)} is returned"
 
 
 def test_read_network_from_xml():
@@ -177,20 +194,24 @@ def test_read_network_from_onnx():
     net = ie.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_onnx_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_onnx))
     assert isinstance(net, IENetwork)
+
 
 def test_read_network_from_prototxt():
     ie = IECore()
     net = ie.read_network(model=test_net_prototxt)
     assert isinstance(net, IENetwork)
 
+
 def test_read_network_from_prototxt_as_path():
     ie = IECore()
     net = ie.read_network(model=Path(test_net_prototxt))
     assert isinstance(net, IENetwork)
+
 
 def test_incorrect_xml():
     ie = IECore()

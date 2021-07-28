@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +177,9 @@ typedef enum {
     FP64 = 13,  /**< 64bit floating point value */
     Q78 = 20,   /**< 16bit specific signed fixed point precision */
     I16 = 30,   /**< 16bit signed integer value */
+    U4 = 39,    /**< 4bit unsigned integer value */
     U8 = 40,    /**< 8bit unsigned integer value */
+    I4 = 49,    /**< 4bit signed integer value */
     I8 = 50,    /**< 8bit signed integer value */
     U16 = 60,   /**< 16bit unsigned integer value */
     I32 = 70,   /**< 32bit signed integer value */
@@ -242,7 +244,8 @@ typedef enum {
     RESULT_NOT_READY = -9,
     NOT_ALLOCATED = -10,
     INFER_NOT_STARTED = -11,
-    NETWORK_NOT_READ = -12
+    NETWORK_NOT_READ = -12,
+    INFER_CANCELLED = -13,
 } IEStatusCode;
 
 /**
@@ -403,6 +406,20 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memo
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network);
+
+/**
+* @brief Reads model and creates an executable network from IR or ONNX file. Users can create as many networks as they need and use
+* them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
+* @ingroup Core
+* @param core A pointer to ie_core_t instance.
+* @param xml .xml file's path of the IR. Weights file name will be calculated automatically
+* @param device_name Name of device to load network to.
+* @param config Device configuration.
+* @param exe_network A pointer to the newly created executable network.
+* @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_from_file(ie_core_t *core, const char *xml, const char *device_name, \
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**

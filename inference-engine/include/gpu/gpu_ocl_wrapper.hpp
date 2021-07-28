@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,8 @@
 #pragma once
 
 /**
-* @brief Definitions required by Khronos headers
-*/
+ * @brief Definitions required by Khronos headers
+ */
 
 #ifndef CL_HPP_ENABLE_EXCEPTIONS
 # define CL_HPP_ENABLE_EXCEPTIONS

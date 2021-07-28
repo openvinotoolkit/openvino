@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "itt.hpp"
 
@@ -36,6 +24,7 @@ op::Abs::Abs(const Output<Node>& arg)
 
 shared_ptr<Node> op::Abs::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Abs_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Abs>(new_args.at(0));
 }
@@ -57,30 +46,40 @@ namespace absop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
-            TYPE_CASE(bf16)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_abs, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, f32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_abs, bf16, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
     }
-}
+} // namespace absop
 
 bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Abs::evaluate");
+    NGRAPH_OP_SCOPE(v0_Abs_evaluate);
     return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+}
+
+bool op::Abs::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Abs_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::bf16:
+    case ngraph::element::boolean: return true;
+    default: break;
+    }
+    return false;
 }

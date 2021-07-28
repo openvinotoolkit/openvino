@@ -1,9 +1,9 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "tests_pipelines.h"
-#include "../common/ie_utils.h"
+#include "common_utils.h"
 
 #include <string>
 

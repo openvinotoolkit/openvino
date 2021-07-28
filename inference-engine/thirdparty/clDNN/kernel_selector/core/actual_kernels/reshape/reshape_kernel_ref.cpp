@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2016-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "reshape_kernel_ref.h"
 #include "kernel_selector_utils.h"
@@ -47,9 +37,9 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
     KernelData kd = KernelData::Default<reshape_params>(params);
     reshape_params& newParams = *static_cast<reshape_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];
@@ -66,14 +56,16 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
         gws2 *= in_dims[i].v;
     }
 
-    kernel.workGroups.global = {gws0, gws1, gws2};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(1, false, false);
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kernel.params.workGroups.global = {gws0, gws1, gws2};
+    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.params.arguments = GetArgsDesc(1, false, false);
 
     return {kd};
+}
+
+KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 bool ReshapeKernelRef::Validate(const Params& p, const optional_params& op) const {

@@ -1,22 +1,10 @@
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 #include "include/imad.cl"
-#include "include/mmad.cl"
 #include "include/data_types.cl"
 
 #define TYPE_N_(type, n) type##n
@@ -118,7 +106,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
         uint out_yx_shuffle = out_yx_sg + sglid + os * SIMD;
         uint out_yx_clamp = max_out_yx % OUT_BLOCK_SPATIAL == 0
-                          ? out_yx_shuffle 
+                          ? out_yx_shuffle
                           : min(out_yx_shuffle, max_local_yx - 1);
         out_x_shuffle[os] = out_yx_clamp % OUTPUT_SIZE_X;
         out_y_shuffle[os] = out_yx_clamp / OUTPUT_SIZE_X;

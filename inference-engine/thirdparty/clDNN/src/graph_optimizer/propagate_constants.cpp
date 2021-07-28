@@ -1,27 +1,16 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "engine_impl.h"
+#include "cldnn/runtime/engine.hpp"
 #include "program_impl.h"
 #include "network_impl.h"
 #include "data_inst.h"
+#include "runtime/cldnn_itt.hpp"
 #include <vector>
 #include <list>
 #include <memory>
@@ -31,6 +20,7 @@ using namespace cldnn;
 
 // ToDo remove friendship relation from  program_node and program_impl
 void propagate_constants::run(program_impl& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::PropagateConstants");
     for (auto& node : p.get_processing_order()) {
         if (node->is_constant())
             handle_constant(p, *node);
@@ -81,10 +71,8 @@ void propagate_constants::run(program_impl& p) {
         auto& id_to_replace = cout.first;
         auto mem_impl = cout.second;
 
-        memory api_memory = memory(mem_impl.detach());
-
         auto const_data =
-            std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, api_memory /* <<< REMOVE ME WHEN POSSIBLE */);
+            std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, mem_impl /* <<< REMOVE ME WHEN POSSIBLE */);
         auto& new_node = p.get_or_create(const_data);
         auto& curr_node = p.get_node(id_to_replace);
 
@@ -119,21 +107,22 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory_impl::ptr>> propagate_constants::calculate(engine_impl& engine, build_options bo) {
+std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine, build_options bo) {
     if (!has_non_trivial_constants)
         return {};
 
     bo.set_option(build_option::optimize_data(false));
     bo.set_option(build_option::outputs(const_outputs));
-    network_impl::ptr net = engine.build_network(nodes, bo, true);
-    for (auto& cin : const_inputs) net->set_input_data(cin->id(), cin->get_attached_memory());
+    network_impl::ptr net = network_impl::build_network(engine, nodes, bo, true);
+    for (auto& cin : const_inputs)
+        net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 
     net->execute({});
     net->reset_execution(true);  // wait for computations to complete
     auto outputs = net->get_outputs();
 
-    std::list<std::pair<primitive_id, memory_impl::ptr>> ret;
-    for (auto& out : outputs) ret.push_back({out->id(), (memory_impl::ptr) &out->output_memory()});
+    std::list<std::pair<primitive_id, memory::ptr>> ret;
+    for (auto& out : outputs) ret.push_back({out->id(), out->output_memory_ptr()});
 
     return ret;
 }

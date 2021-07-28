@@ -1,19 +1,9 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Just-in-time macro definitions:
@@ -203,7 +193,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #if BIAS_TERM
     // [SCATTERED] Bias base identifier/element offset to use (x/f format of biases).
     const uint bias_base_id = output_base_id;
-#endif // 
+#endif //
     // Filter/input byte offsets in sub-group used duering read/write operations.
     const uint sg_elem_offset = sg_elem_id * CHUNK_BYTE_SIZE;
 
@@ -528,4 +518,3 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #undef ALIGNED_WRITE2
 #undef ALIGNED_WRITE4
 #undef ALIGNED_WRITE8
-

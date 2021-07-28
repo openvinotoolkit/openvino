@@ -1,5 +1,11 @@
-Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
-================================
+# Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
+
+> **NOTE:** [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
+
+This Guide provides an overview of the Inference Engine describing the typical workflow for performing
+inference of a pre-trained and optimized deep learning model and a set of sample applications.
+
+> **NOTE:** Before you perform inference with the Inference Engine, your models should be converted to the Inference Engine format using the Model Optimizer or built directly in run-time using nGraph API. To learn about how to use Model Optimizer, refer to the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). To learn about the pre-trained and optimized models delivered with the OpenVINO™ toolkit, refer to [Pre-Trained Models](@ref omz_models_intel_index).
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
@@ -38,7 +44,7 @@ This library contains the classes to:
 ### Plugin Libraries to read a network object ###
 
 Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
-* Linux* OS:
+* Unix* OS:
     - `libinference_engine_ir_reader.so` to read a network from IR
     - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
 * Windows* OS:
@@ -62,13 +68,13 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 | Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
 |--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
-| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.dylib`      | `inference_engine_lp_transformations.dylib` |
+| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `inference_engine_lp_transformations.dylib` |
 | GPU    | `libclDNNPlugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
-| MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.dylib`      | `libusb.dylib`                              |
+| MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |
-| HETERO | `libHeteroPlugin.so`        | Same as for selected plugins                                | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           | `libHeteroPlugin.dylib`      |  Same as for selected plugins               |
-| MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins                                | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           | `libMultiDevicePlugin.dylib` |  Same as for selected plugins               |
+| HETERO | `libHeteroPlugin.so`        | Same as for selected plugins                                | `HeteroPlugin.dll`       | Same as for selected plugins                                                                           | `libHeteroPlugin.so`      |  Same as for selected plugins               |
+| MULTI  | `libMultiDevicePlugin.so`   | Same as for selected plugins                                | `MultiDevicePlugin.dll`  | Same as for selected plugins                                                                           | `libMultiDevicePlugin.so` |  Same as for selected plugins               |
 
 > **NOTE**: All plugin libraries also depend on core Inference Engine libraries.
 
@@ -94,18 +100,18 @@ The common workflow contains the following steps:
 
 3. **Prepare inputs and outputs format** - After loading the network, specify input and output precision and the layout on the network. For these specification, use the `InferenceEngine::CNNNetwork::getInputsInfo()` and `InferenceEngine::CNNNetwork::getOutputsInfo()`.
 
-4. Pass per device loading configurations specific to this device (`InferenceEngine::Core::SetConfig`), and register extensions to this device (`InferenceEngine::Core::AddExtension`).
+4. **Pass per device loading configurations** specific to this device (`InferenceEngine::Core::SetConfig`) and register extensions to this device (`InferenceEngine::Core::AddExtension`).
 
-4. **Compile and Load Network to device** - Use the `InferenceEngine::Core::LoadNetwork()` method with specific device (e.g. `CPU`, `GPU`, etc.) to compile and load the network on the device. Pass in the per-target load configuration for this compilation and load operation.
+5. **Compile and Load Network to device** - Use the `InferenceEngine::Core::LoadNetwork()` method with specific device (e.g. `CPU`, `GPU`, etc.) to compile and load the network on the device. Pass in the per-target load configuration for this compilation and load operation.
 
-5. **Set input data** - With the network loaded, you have an `InferenceEngine::ExecutableNetwork` object. Use this object to create an `InferenceEngine::InferRequest` in which you signal the input buffers to use for input and output. Specify a device-allocated memory and copy it into the device memory directly, or tell the device to use your application memory to save a copy.
+6. **Set input data** - With the network loaded, you have an `InferenceEngine::ExecutableNetwork` object. Use this object to create an `InferenceEngine::InferRequest` in which you signal the input buffers to use for input and output. Specify a device-allocated memory and copy it into the device memory directly, or tell the device to use your application memory to save a copy.
 
-6. **Execute** - With the input and output memory now defined, choose your execution mode:
+7. **Execute** - With the input and output memory now defined, choose your execution mode:
 
     * Synchronously - `InferenceEngine::InferRequest::Infer()` method. Blocks until inference is completed.
     * Asynchronously - `InferenceEngine::InferRequest::StartAsync()` method. Check status with the `InferenceEngine::InferRequest::Wait()` method (0 timeout), wait, or specify a completion callback.
 
-7. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
+8. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
 
 
 Further Reading

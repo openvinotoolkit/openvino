@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ namespace {
             {4, 11, 6, 9}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, VariadicSplitLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_NumSplitsCheck, VariadicSplitLayerTest,
             ::testing::Combine(
             ::testing::ValuesIn(numSplits),
             ::testing::Values(0, 1, 2, 3),

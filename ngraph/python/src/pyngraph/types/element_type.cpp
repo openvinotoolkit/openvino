@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -40,6 +28,7 @@ void regclass_pyngraph_Type(py::module m)
     type.attr("u16") = ngraph::element::u16;
     type.attr("u32") = ngraph::element::u32;
     type.attr("u64") = ngraph::element::u64;
+    type.attr("bf16") = ngraph::element::bf16;
 
     type.def("__repr__", [](const ngraph::element::Type& self) {
         std::string bitwidth = std::to_string(self.bitwidth());
@@ -50,9 +39,10 @@ void regclass_pyngraph_Type(py::module m)
         return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
     });
 
-    type.def("__eq__",
-             [](const ngraph::element::Type& a, const ngraph::element::Type& b) { return a == b; },
-             py::is_operator());
+    type.def(
+        "__eq__",
+        [](const ngraph::element::Type& a, const ngraph::element::Type& b) { return a == b; },
+        py::is_operator());
 
     type.def_property_readonly("bitwidth", &ngraph::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ngraph::element::Type::is_real);

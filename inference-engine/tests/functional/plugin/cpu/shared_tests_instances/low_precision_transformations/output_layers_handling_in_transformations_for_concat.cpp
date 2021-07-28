@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, OutputLayersHandlingInTransformationsForConcat,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, OutputLayersHandlingInTransformationsForConcat,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

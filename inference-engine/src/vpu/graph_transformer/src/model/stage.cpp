@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,7 +199,7 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
 
     // return max for Myriad2
     const auto& compileEnv = CompileEnv::get();
-    if (compileEnv.platform == Platform::MYRIAD_2) {
+    if (compileEnv.platform == ncDevicePlatform_t::NC_MYRIAD_2) {
         return StageSHAVEsRequirements::NeedMax;
     }
 
@@ -224,14 +224,14 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
 void StageNode::initialCheck() const {
     try {
         initialCheckImpl();
-    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+    } catch (const InferenceEngine::Exception& exception) {
         VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
     }
 
     if (const auto injectedStage = this->injectedStage()) {
         try {
             injectedStage->initialCheck();
-        } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+        } catch (const InferenceEngine::Exception& exception) {
             VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
         }
     }
@@ -240,14 +240,14 @@ void StageNode::initialCheck() const {
 void StageNode::finalCheck() const {
     try {
         finalCheckImpl();
-    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+    } catch (const InferenceEngine::Exception& exception) {
         VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
     }
 
     if (const auto injectedStage = this->injectedStage()) {
         try {
             injectedStage->finalCheck();
-        } catch (const ie::details::InferenceEngineException& exception) {
+        } catch (const ie::Exception& exception) {
             VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
         }
     }

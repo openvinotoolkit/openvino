@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cinttypes>
@@ -61,6 +49,31 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_vector)
     handle->call_with_validate({result}, {a});
     EXPECT_TRUE(test::all_close_f(
         (vector<float>{6, 6, 6, 6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_vector_explicit_axis_0)
+{
+    Shape shape_a{};
+    auto A = make_shared<op::Parameter>(element::f32, shape_a);
+    Shape shape_r{1, 2};
+    auto f = make_shared<Function>(
+        make_shared<op::v1::Broadcast>(
+            A,
+            op::Constant::create(element::u64, Shape{shape_r.size()}, shape_r),
+            op::Constant::create(element::i64, Shape{1}, {0})),
+        ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape_a);
+    copy_data(a, vector<float>{6});
+    auto result = backend->create_tensor(element::f32, shape_r);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+    EXPECT_TRUE(test::all_close_f(
+        (vector<float>{6, 6}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, broadcast_scalar_matrix)
@@ -440,6 +453,22 @@ NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_3d_stride_2)
     Shape shape_a{2, 3, 4};
     Shape shape_r{2, 3, 5, 4};
     AxisSet axis{0, 1, 3};
+    broadcast_test_helper(shape_a, shape_r, axis);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_3d_diffrent_rank)
+{
+    Shape shape_a{3, 1};
+    Shape shape_r{2, 3, 3};
+    AxisSet axis{1, 2};
+    broadcast_test_helper(shape_a, shape_r, axis);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, broadcast_algo_4d_same_rank)
+{
+    Shape shape_a{2, 3, 1, 1};
+    Shape shape_r{2, 3, 4, 5};
+    AxisSet axis{0, 1, 2, 3};
     broadcast_test_helper(shape_a, shape_r, axis);
 }
 

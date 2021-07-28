@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -22,6 +10,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {
@@ -46,6 +35,37 @@ namespace ngraph
                                                        const Strides& window_dilation,
                                                        bool is_window_all_in_padding_allowed,
                                                        bool ceil_mode = false);
+
+    void validate_conv_params_spatial_dimensions(const Node* node,
+                                                 const size_t num_spatial_dims,
+                                                 const op::PadType auto_pad,
+                                                 Strides& strides,
+                                                 Strides& dilations,
+                                                 CoordinateDiff& pads_begin,
+                                                 CoordinateDiff& pads_end);
+
+    /// \brief      Validates input shape ranks and infers convolution forward output shape.
+    ///
+    /// \param[in] node              Node with convolution operation.
+    /// \param[in] data_batch_pshape Partial shape of data batch input.
+    /// \param[in] filters_pshape    Partial shape of filters input.
+    /// \param[in] auto_pad          Type of padding.
+    /// \param     strides           Strides.
+    /// \param     dilations         Dilations.
+    /// \param     pads_begin        Pads begin.
+    /// \param     pads_end          Pads end.
+    ///
+    /// \return Partial shape of the output.
+    PartialShape
+        validate_and_infer_convolution_forward_output_shape(const Node* node,
+                                                            const Rank& result_ps_rank,
+                                                            const PartialShape& data_batch_pshape,
+                                                            const PartialShape& filters_pshape,
+                                                            const op::PadType auto_pad,
+                                                            Strides& strides,
+                                                            Strides& dilations,
+                                                            CoordinateDiff& pads_begin,
+                                                            CoordinateDiff& pads_end);
 
     NGRAPH_API
     PartialShape infer_convolution_forward(const Node* node,
@@ -214,6 +234,9 @@ namespace ngraph
     /// \brief Try to compute the maximum value of value
     /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
     /// if not.
+    /// \deprecated Use evaluate_upper_bound instead
+    NGRAPH_DEPRECATED(
+        "Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
     NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
     /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
@@ -222,9 +245,88 @@ namespace ngraph
     /// function.
     /// \param output_tensor_map Tensors to use for particular outputs
     /// \param outputs Root set of values to try to compute
-    NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                                   std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                                   const OutputVector& outputs);
+    /// \param evaluation_context Storage of additional settings and attributes that can be used
+    /// when evaluating the function. This additional information can be shared across nodes.
+    NGRAPH_API void
+        evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                       std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                       const OutputVector& outputs,
+                       const EvaluationContext& evaluation_context = EvaluationContext());
+
+    /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
+    /// estimation through it.
+    /// \param Node output pointing to the tensor for estimation.
+    /// \return HostTensorPtr to estimated value if can be determined, or nullptr.
+    NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
+
+    /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
+    /// estimation through it.
+    /// \param output Tensor to be estimated.
+    /// \return HostTensorPtr to estimated value if can be determined, or nullptr.
+    NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
+
+    /// \brief Evaluates lower and upper value estimations of the output tensor. Traverses graph up
+    /// to deduce estimation through it.
+    /// \param output Node output pointing to the tensor for estimation.
+    /// \return pair with HostTensorPtrs for lower and upper value estimation. Each object in pair
+    /// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
+    NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr>
+        evaluate_both_bounds(const Output<Node>& output);
+
+    /// \brief Evaluates lower and upper value estimations for the output tensor. Estimation would
+    /// be represented as partial shape object using Dimension(min, max) for each element.
+    /// \param output Node output pointing to the tensor for estimation.
+    /// \param pshape Resulting estimation would be stored in this PartialShape.
+    /// \return boolean status if value evaluation was successful.
+    NGRAPH_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialShape& pshape);
+
+    /// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
+    /// inputs.
+    /// \param node Operation to be performed
+    /// \param output_values Vector of HostTensorPtrs representing resulting upper value estimations
+    /// \return boolean status if value evaluation was successful.
+    NGRAPH_API bool default_upper_bound_evaluator(const Node* node,
+                                                  const HostTensorVector& output_values);
+    /// \brief Estimates lower bound for node output tensors using only lower bounds of the nodes
+    /// inputs.
+    /// \param node Operation to be performed
+    /// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
+    /// \return boolean status if value evaluation was successful.
+    NGRAPH_API bool default_lower_bound_evaluator(const Node* node,
+                                                  const HostTensorVector& output_values);
+    /// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
+    /// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
+    /// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
+    /// in_2_lower}, {in_1_upper, in_2_upper}. Lower and upper values are selected from all the
+    /// outputs calculated using input pairs.
+    /// \param node Operation to be performed
+    /// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
+    /// \return boolean status if value evaluation was successful.
+    NGRAPH_API bool interval_bound_evaluator(const Node* node,
+                                             const HostTensorVector& lower_output_values,
+                                             const HostTensorVector& upper_output_values);
+
+    /// \brief Checks if all the elements of the bound HostTensor are positive
+    NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
+
+    /// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
+    /// and pointers are the same. It doesn't check if lower and upper values are the same relying
+    /// only on pointers comparison.
+    NGRAPH_API bool has_and_set_equal_bounds(const Output<Node>& source);
+
+    /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
+    /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_from_source(const Output<Node>& source);
+
+    /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::max()
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_t t);
+
+    /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
+    NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
+
+    /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
+    /// that all the HostTensorPtrs are not equal to nullptr
+    NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
     namespace opset1
     {

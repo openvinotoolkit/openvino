@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/middleend/sw/utility.hpp>
 
-#include <ie_parallel.hpp>
 #include <precision_utils.h>
 
 namespace vpu {

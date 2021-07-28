@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu_raw_results_case.hpp"
+
+#include <format_reader_ptr.h>
+#include <fstream>
 
 std::vector <float> operator + (std::vector <float> && l, const std::vector <float> & r) {
     l.insert(l.end(), r.begin(), r.end());
@@ -39,7 +42,7 @@ std::vector<float> VpuNoRawResultsRegression::fromBinaryFile(std::string inputTe
             result.push_back(tmp);
         }
     } else {
-        THROW_IE_EXCEPTION << "Can't open file "<< inputTensorBinary;
+        IE_THROW() << "Can't open file "<< inputTensorBinary;
     }
 
     return result;
@@ -134,7 +137,7 @@ bool VpuNoRawResultsRegression::loadImage(const std::string &imageFilename, cons
                     break;
                 }
                 default:
-                    THROW_IE_EXCEPTION << "Unsupported precision!";
+                    IE_THROW() << "Unsupported precision!";
             }
         }
     }
@@ -179,7 +182,7 @@ bool VpuNoRawResultsRegression::generateSeqIndLPR(InferenceEngine::Blob::Ptr &se
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision!";
+            IE_THROW() << "Unsupported precision!";
     }
 
     return true;
@@ -224,7 +227,7 @@ bool VpuNoRawResultsRegression::loadTensorDistance(InferenceEngine::Blob::Ptr bl
             break;
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported precision!";
+            IE_THROW() << "Unsupported precision!";
     }
 
     return true;

@@ -1,18 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 #     The main purpose of this script is code generation for conditional compilation.
 # After collecting statistics using IntelSEAPI, several CSV files are generated.
@@ -27,6 +16,7 @@
 #   --out cc.h            C++ header file to be generated
 
 import argparse, csv
+from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -119,33 +109,34 @@ class Stat:
         return self.modules.get(name)
 
     def read(self, files):
-        for stat in files:
-            with open(stat) as f:
-                reader = csv.reader(f)
-                rows = list(reader)
-                if rows:
-                    # Scopes
-                    scopes = list(filter(lambda row: row[0].startswith(Domain[0]), rows))
-                    for row in scopes:
-                        moduleName = row[0][len(Domain[0]):]
-                        self.module(moduleName).scope(row[1])
+        for stats in files:
+            for stat in glob(str(stats)):
+                with open(str(stat)) as f:
+                    reader = csv.reader(f)
+                    rows = list(reader)
+                    if rows:
+                        # Scopes
+                        scopes = list(filter(lambda row: len(row) and row[0].startswith(Domain[0]), rows))
+                        for row in scopes:
+                            moduleName = row[0][len(Domain[0]):]
+                            self.module(moduleName).scope(row[1])
 
-                    # Switches
-                    switches = list(map(lambda row: [row[0][len(Domain[1]):]] + row[1].strip().split('$'),
-                                        filter(lambda row: row[0].startswith(Domain[1]), rows)))
-                    for switch in switches:
-                        self.module(switch[0]).switch(switch[1]).case(switch[2])
+                        # Switches
+                        switches = list(map(lambda row: [row[0][len(Domain[1]):]] + row[1].strip().split('$'),
+                                            filter(lambda row: len(row) and row[0].startswith(Domain[1]), rows)))
+                        for switch in switches:
+                            self.module(switch[0]).switch(switch[1]).case(switch[2])
 
-                    # Factories
-                    factories = list(map(lambda row: [row[0][len(Domain[2]):]] + row[1].strip().split('$'),
-                                        filter(lambda row: row[0].startswith(Domain[2]), rows)))
-                    for reg in list(filter(lambda row: row[1] == 'REG', factories)):
-                        self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
-                    for cre in list(filter(lambda row: row[1] == 'CREATE', factories)):
-                        self.module(cre[0]).factory(cre[2]).create(cre[3])
+                        # Factories
+                        factories = list(map(lambda row: [row[0][len(Domain[2]):]] + row[1].strip().split('$'),
+                                            filter(lambda row: len(row) and row[0].startswith(Domain[2]), rows)))
+                        for reg in list(filter(lambda row: len(row) > 1 and row[1] == 'REG', factories)):
+                            self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
+                        for cre in list(filter(lambda row: len(row) > 1 and row[1] == 'CREATE', factories)):
+                            self.module(cre[0]).factory(cre[2]).create(cre[3])
 
     def generate(self, out):
-        with open(out, 'w') as f:
+        with open(str(out), 'w') as f:
             f.write(FILE_HEADER)
 
             for _, module in self.modules.items():

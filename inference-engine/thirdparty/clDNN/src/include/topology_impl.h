@@ -1,24 +1,12 @@
-/*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/primitive.hpp"
-#include "api/input_layout.hpp"
-#include "refcounted_obj.h"
+
+#include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/input_layout.hpp"
 
 #include <map>
 #include <memory>
@@ -28,8 +16,9 @@ namespace cldnn {
 
 typedef std::map<primitive_id, std::shared_ptr<primitive>> topology_map;
 
-struct topology_impl : public refcounted_obj<topology_impl> {
+struct topology_impl {
 public:
+    using ptr = std::shared_ptr<topology_impl>;
     explicit topology_impl(const topology_map& map = topology_map()) : _primitives(map) {}
 
     void add(std::shared_ptr<primitive> desc) {

@@ -1,16 +1,6 @@
-// Copyright (c) 2019-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "convolution_kernel_mmad_b_fs_yx_fsv32_dw.h"
 #include <vector>
@@ -77,12 +67,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Set
                                                                                         int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     dispatchData.gws = { cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo);
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 // TODO: optimize this kernel
@@ -103,8 +95,6 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const conv
 KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsData(const Params& params,
                                                                     const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
-    if (!kd.empty())
-        kd[0].estimatedTime = FORCE_PRIORITY_3;
     return kd;
 }
 

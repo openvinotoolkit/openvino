@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <utility>
 #include <cctype>
 #include <ie_core.hpp>
-
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 
 struct layer_params {
     layer_params(std::string type, std::vector<size_t> in, std::vector<size_t> out,
@@ -122,7 +121,7 @@ TEST_F(IncorrectIRTests, smoke_loadIRWithIncorrectInput) {
 
     InferenceEngine::Core ie;
     ASSERT_THROW(ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()), 
-        InferenceEngine::details::InferenceEngineException);
+        InferenceEngine::Exception);
 }
 
 TEST_P(IncorrectIRTests, loadIncorrectLayer) {

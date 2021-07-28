@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,16 +38,18 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                 seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, false);
                 break;
             }
-            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST: {
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST:
+            case ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST: {
                 for (size_t i = 0; i <= in[0].get_shape().at(0); ++i) {
                     std::vector<float> lengths;
                     seq_lengths = ngraph::builder::makeConstant(element::i64, constants[3], lengths, true,
-                                                                in[0].get_shape()[1], 0);
+                                                                static_cast<float>(in[0].get_shape()[1]), 0.f);
                 }
                 break;
             }
             case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM:
-            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM: {
+            case ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM:
+            case ngraph::helpers::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM: {
                 // Seq_lengths should be as a Parameter node for these two modes
                 seq_lengths = in.at(2).get_node_shared_ptr();
                 break;

@@ -1,21 +1,10 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset6.hpp"
 #include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -28,7 +17,7 @@ template <typename T>
 class BroadcastTests : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(BroadcastTests);
+TYPED_TEST_SUITE_P(BroadcastTests);
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy)
 {
@@ -90,8 +79,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(bc->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 16, 50, 50}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 16, 50, 50}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_rank)
@@ -163,7 +151,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map)
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
 {
-    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 1});
+    auto param = make_shared<op::Parameter>(element::f32, Shape{3, 2});
     auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 3});
     auto axes_mapping = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
 
@@ -174,7 +162,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 1. Got 3");
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast target[axes_mapping[1]] Expected 2. Got 3");
     }
     catch (...)
     {
@@ -215,6 +203,19 @@ TYPED_TEST_P(BroadcastTests, broadcast_fully_dynamic_target_shape)
     bc_shape = make_shared<op::Parameter>(element::i64, Shape{1});
     bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_dynamic_values_of_target_shape)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{2});
+    const auto target = make_shared<op::Parameter>(element::i32, PartialShape::dynamic(4));
+    const auto target_shape = std::make_shared<ngraph::opset6::ShapeOf>(target);
+    const auto axes_mapping = op::Constant::create(element::i64, Shape{1}, {1});
+
+    auto bc = make_shared<TypeParam>(data, target_shape, axes_mapping);
+    ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape::dynamic(4));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_broadcast_shape_et_wrong)
@@ -616,40 +617,41 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
-                           broadcast_numpy,
-                           broadcast_axes_mapping,
-                           broadcast_target_shape_as_concat_with_constants,
-                           broadcast_target_shape_as_concat_with_node,
-                           broadcast_fail_rank,
-                           broadcast_fail_transpose,
-                           broadcast_fail_axes_map,
-                           broadcast_fail_axes_map_shape,
-                           broadcast_axes_wrong_rank,
-                           broadcast_fully_dynamic_target_shape,
-                           broadcast_broadcast_shape_et_wrong,
-                           broadcast_axes_et_wrong,
-                           broadcast_explicit_all_inputs_dynamic,
-                           broadcast_explicit_target_shape_static_rank,
-                           broadcast_explicit_const_target_shape,
-                           broadcast_explicit_input_rank_static,
-                           broadcast_explicit_target_shape_and_input_data_rank_static,
-                           broadcast_explicit_const_target_shape_static_rank_input,
-                           broadcast_explicit_static_input_shape,
-                           broadcast_explicit_static_input_shape_const_target_shape,
-                           broadcast_explicit_static_target_shape,
-                           broadcast_numpy_input_shape_dynamic,
-                           broadcast_numpy_target_shape_constant,
-                           broadcast_numpy_target_shape_dynamic,
-                           broadcast_numpy_input_target_shape_static_rank,
-                           broadcast_numpy_input_static_shape,
-                           broadcast_numpy_input_partially_dynamic,
-                           broadcast_numpy_static_dims_incorrect);
+REGISTER_TYPED_TEST_SUITE_P(BroadcastTests,
+                            broadcast_numpy,
+                            broadcast_axes_mapping,
+                            broadcast_target_shape_as_concat_with_constants,
+                            broadcast_target_shape_as_concat_with_node,
+                            broadcast_fail_rank,
+                            broadcast_fail_transpose,
+                            broadcast_fail_axes_map,
+                            broadcast_fail_axes_map_shape,
+                            broadcast_axes_wrong_rank,
+                            broadcast_fully_dynamic_target_shape,
+                            broadcast_dynamic_values_of_target_shape,
+                            broadcast_broadcast_shape_et_wrong,
+                            broadcast_axes_et_wrong,
+                            broadcast_explicit_all_inputs_dynamic,
+                            broadcast_explicit_target_shape_static_rank,
+                            broadcast_explicit_const_target_shape,
+                            broadcast_explicit_input_rank_static,
+                            broadcast_explicit_target_shape_and_input_data_rank_static,
+                            broadcast_explicit_const_target_shape_static_rank_input,
+                            broadcast_explicit_static_input_shape,
+                            broadcast_explicit_static_input_shape_const_target_shape,
+                            broadcast_explicit_static_target_shape,
+                            broadcast_numpy_input_shape_dynamic,
+                            broadcast_numpy_target_shape_constant,
+                            broadcast_numpy_target_shape_dynamic,
+                            broadcast_numpy_input_target_shape_static_rank,
+                            broadcast_numpy_input_static_shape,
+                            broadcast_numpy_input_partially_dynamic,
+                            broadcast_numpy_static_dims_incorrect);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:
 // `must specify at least one argument for '...'` (variadic macro)
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BroadcastTests, BroadcastTypes, );
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BroadcastTests, BroadcastTypes, );
 
 // changing AutoBroadcastSpec to BroadcastModeSpec forces runing pdpd tests separately
 TEST(type_prop, broadcast_v1_pdpd)

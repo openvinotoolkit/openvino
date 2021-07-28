@@ -1,23 +1,13 @@
-"""
- Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
 import logging as log
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
+import numpy as np
+
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, \
+    np_data_type_to_destination_type, packed_I4, packed_U4
 from mo.ops.op import Op
 from mo.utils.utils import refer_to_faq_msg
 
@@ -48,22 +38,76 @@ class Cast(Op):
         node.out_port(0).set_data_type(node.dst_type)
 
     @staticmethod
+    def helper_value_propagation(node_name, value, dst_type):
+        new_blob, finite_match_count, zero_match_count = convert_blob(value, dst_type)
+
+        if finite_match_count:
+            log.error("{} elements of {} were clipped to infinity while converting an input blob for node '{}' to {}."
+                      " ".format(finite_match_count, new_blob.size, node_name, dst_type) + refer_to_faq_msg(76))
+        if zero_match_count:
+            log.warning("{} elements of {} were clipped to zero while converting an input blob for node '{}' to {}."
+                        " ".format(zero_match_count, new_blob.size, node_name, dst_type) + refer_to_faq_msg(77))
+        return new_blob
+
+    @staticmethod
+    def custom_type_casting_and_packing(node: Node, value, dst_type):
+        """
+        Custom types are not supported by numpy but we still need to write it to the .bin file in a compact way.
+        To do so we prepare bit representation of int4/uint4 values and store them in a numpy friendly data type.
+        We pack int4/uint4 values into uint8 type (two int4/uint4 numbers fit in uint8).
+        If the number of elements in the blob is odd we pad them with zero value to be able to fit the bit sequence
+        into the uint8 array.
+        Example: we need to represent 5 elements of int4 dtype
+            we would pad them to 6 element with the last element as zero and we would pack them into 3 uint8 values
+        """
+        assert dst_type in [packed_U4, packed_I4]
+
+        minimum_regular_dtype = np.uint8 if dst_type == packed_U4 else np.int8
+        # initial casing from the source type to the numpy-friendly type which could absorb all the values of dst_type
+        casted_to_regular_type = Cast.helper_value_propagation(
+            node.soft_get('name', node.id), value, minimum_regular_dtype)
+
+        # packing the values
+        data_shape = node.out_port(0).data.get_shape()
+        assert data_shape is not None
+        data_size = np.prod(data_shape)
+
+        num_bits = 4
+        assert num_bits < 8 and 8 % num_bits == 0, "Packing algorithm for the data types stored in 1, 2 or 4 bits"
+        num_values_fitting_into_uint8 = 8 // num_bits
+        pad = (-data_size) % num_values_fitting_into_uint8
+
+        flattened = casted_to_regular_type.flatten()
+        padded = np.concatenate((flattened, np.zeros([pad], dtype=minimum_regular_dtype)))
+        assert np.prod(padded.shape) % num_values_fitting_into_uint8 == 0
+
+        bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
+        bit_order_big = np.flip(bit_order_little, axis=1)
+        bit_order_big_flattened = bit_order_big.flatten()
+        packed = np.packbits(bit_order_big_flattened)
+
+        node.out_node(0)['force_shape'] = data_shape.copy()
+        node.out_node(0)['force_type'] = np_data_type_to_precision(dst_type)
+        node.out_port(0).data.set_value(packed)
+
+    @staticmethod
     def infer(node: Node):
-        assert node.has_valid('dst_type'), 'Destination type of "Cast" operation should be extracted earlier'
-        dst_type = node.dst_type
-        copy_shape_infer(node)
-        if node.has_and_set('stop_value_propagation'):
+        node_name = node.soft_get('name', node.id)
+        dst_type = node.soft_get('dst_type', None)
+
+        assert dst_type is not None, \
+            'Destination type of "Cast" operation should be extracted earlier, but it`s not for node: ' + node_name
+
+        input_shape = node.in_port(0).data.get_shape()
+        assert input_shape is not None
+        node.out_port(0).data.set_shape(input_shape)
+
+        value = node.in_port(0).data.get_value()
+        if value is None or node.has_and_set('stop_value_propagation'):
             return
-        if node.in_node(0).has_valid('value'):
-            new_blob, finite_match_count, zero_match_count = convert_blob(node.in_node(0).value, dst_type)
-            node.out_port(0).data.set_value(new_blob)
 
-            if finite_match_count:
-                log.error(
-                    ("{} elements of {} were clipped to infinity while converting an input blob for node '{}' to {}. " +
-                     refer_to_faq_msg(76)).format(finite_match_count, new_blob.size, node.name, dst_type))
-            if zero_match_count:
-                log.warning(
-                    ("{} elements of {} were clipped to zero while converting an input blob for node '{}' to {}. " +
-                     refer_to_faq_msg(77)).format(zero_match_count, new_blob.size, node.name, dst_type))
-
+        if dst_type in [packed_U4, packed_I4]:  # custom types conversion
+            Cast.custom_type_casting_and_packing(node, value, dst_type)
+        else:
+            node.out_port(0).data.set_value(
+                Cast.helper_value_propagation(node_name, value, dst_type))

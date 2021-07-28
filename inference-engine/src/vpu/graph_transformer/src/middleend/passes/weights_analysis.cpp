@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 #include <vpu/compile_env.hpp>
 #include <vpu/model/data_contents/replicated_data_content.hpp>
 #include <vpu/model/data_contents/scaled_content.hpp>
+
+#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 
 #include <precision_utils.h>
 
@@ -87,7 +90,12 @@ bool isScalable(const Stage& stage) {
 }
 
 bool checkGrowingOutput(const Model& model) {
-    static const float SCALE_THRESHOLD = 0.125f;
+    const auto& env = CompileEnv::get();
+    if (!env.config.get<CheckPreprocessingInsideModelOption>()) {
+        return false;
+    }
+
+    static const float SCALE_THRESHOLD = 0.1f;
 
     for (const auto& stage : model->getStages()) {
         if (stage->type() != StageType::Power &&
@@ -243,18 +251,17 @@ void PassImpl::run(const Model& model) {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
-
                 shift = correctShift(shift, firstStage, stage->origLayer()->type);
                 shift -= normalVal;
             }
 
             firstStage = false;
             scale = 1;
-            if (shift > scaleThreshold) {
+            if (shift >= scaleThreshold) {
                 scale = static_cast<float>(1ULL << static_cast<std::uint32_t>(shift));
             }
 
-            if (!env.config.irWithVpuScalesDir.empty()) {
+            if (!env.config.get<IRWithScalesDirectoryOption>().empty()) {
                 stage->origLayer()->params["vpu_scale"] = toString(scale);
             }
         }

@@ -1,29 +1,16 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/data.hpp>
-#include <api/embedding_bag.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/network.hpp>
-#include <api/topology.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/embedding_bag.hpp>
+#include <cldnn/primitives/input_layout.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -34,11 +21,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     //  per_sample_weights : 3x2
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -61,8 +48,8 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
@@ -76,7 +63,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -94,10 +81,10 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     //  indices : 3x2
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -115,8 +102,8 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1"}, type, output_shape)
     );
@@ -129,7 +116,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -149,11 +136,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     //  Output : 3x2x2
     //  Input values in fp16
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 2, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 2, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 2, 1};
 
     /*
@@ -195,8 +182,8 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
@@ -210,7 +197,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -242,11 +229,11 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     //  per_sample_weights : 3x2
     //  Output : 3x2x3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -318,8 +305,8 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
@@ -333,7 +320,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -385,12 +372,12 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -412,9 +399,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
 
     auto type = embedding_bag::offsets_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", offsets.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
@@ -428,7 +415,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -449,12 +436,12 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -476,9 +463,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
 
     auto type = embedding_bag::offsets_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", offsets.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
@@ -493,7 +480,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.9f, -1.8f,
@@ -514,12 +501,12 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -541,9 +528,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
 
     auto type = embedding_bag::offsets_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", offsets.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
@@ -558,7 +545,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -577,11 +564,11 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     //  offsets : 3x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -600,9 +587,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
 
     auto type = embedding_bag::offsets_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", offsets.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
     );
@@ -616,7 +603,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -637,12 +624,12 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     //  default_index : 1x1
     //  Output : 3x2x3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto offsets = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -714,9 +701,9 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
 
     auto type = embedding_bag::offsets_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", offsets.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
@@ -731,7 +718,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -783,12 +770,12 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -810,9 +797,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
@@ -827,7 +814,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -848,12 +835,12 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -875,9 +862,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
@@ -892,7 +879,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.9f, -1.8f,
@@ -913,12 +900,12 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     //  default_index : 1x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -940,9 +927,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 2)
@@ -957,7 +944,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -976,11 +963,11 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     //  segment_ids : 4x1
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -999,9 +986,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
     );
@@ -1015,7 +1002,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -2.1f, -2.4f,
@@ -1036,12 +1023,12 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     //  default_index : 1x1
     //  Output : 3x2x3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -1113,9 +1100,9 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2", "Input3"}, type, output_shape, 0)
@@ -1130,7 +1117,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<uint16_t>();
+    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -1180,11 +1167,11 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     //  per_sample_weights : 3x2
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f32, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -1207,8 +1194,8 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
@@ -1222,7 +1209,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             -1.05f, -1.2f,
@@ -1241,11 +1228,11 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     //  per_sample_weights : 3x2
     //  Output : 3x2x3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f32, format::bfyx, { 5, 2, 3, 2 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
-    auto per_sample_weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 2, 3, 2 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 2, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 2, 1, 1 } });
     tensor output_shape = {3, 2, 3, 2};
 
     /*
@@ -1317,8 +1304,8 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
 
     auto type = embedding_bag::packed_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(data("Input2", per_sample_weights));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
@@ -1332,7 +1319,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     /*
      * [ 3
@@ -1382,11 +1369,11 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
     //  per_sample_weights : 3x2
     //  Output : 3x2
     //  Input values in fp16
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto emb_table = memory::allocate(engine, { data_types::f32, format::bfyx, { 5, 6, 1, 1 } });
-    auto indices = memory::allocate(engine, { data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
-    auto segment_ids = memory::allocate(engine, { data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
+    auto emb_table = engine.allocate_memory({ data_types::f32, format::bfyx, { 5, 6, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
     tensor output_shape = {5, 6, 1, 1};
 
     set_values(emb_table, {
@@ -1401,9 +1388,9 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
 
     auto type = embedding_bag::segments_sum;
     topology topology;
-    topology.add(input_layout("Input0", emb_table.get_layout()));
-    topology.add(input_layout("Input1", indices.get_layout()));
-    topology.add(input_layout("Input2", segment_ids.get_layout()));
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(
             embedding_bag("embedding_bag", {"Input0", "Input1", "Input2"}, type, output_shape)
     );
@@ -1417,7 +1404,7 @@ TEST(embedding_bag_fp32_gpu, extended5_6) {
     auto outputs = network.execute();
 
     auto output = outputs.at("embedding_bag").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0, 8, 15,  15, 9,  7,

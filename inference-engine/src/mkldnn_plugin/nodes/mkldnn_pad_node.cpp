@@ -1,9 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_pad_node.h"
-#include <legacy/ie_layers.h>
 #include <string>
 #include <cmath>
 #include <mkldnn_types.h>
@@ -11,242 +10,481 @@
 #include <limits>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include "utils/bfloat16.hpp"
+#include <mkldnn_selective_build.h>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPadNode::MKLDNNPadNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
-
-void MKLDNNPadNode::getSupportedDescriptors() {
-    auto* padLayer = dynamic_cast<PadLayer*>(getCnnLayer().get());
-    if (padLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert Pad layer.";
-
-    padsBegin = padLayer->GetParamAsUInts("pads_begin");
-    padsEnd = padLayer->GetParamAsUInts("pads_end");
-
-    SizeVector srcDims = padLayer->insData[0].lock()->getTensorDesc().getDims();
-    SizeVector dstDims = padLayer->outData[0]->getTensorDesc().getDims();
-    if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
-        THROW_IE_EXCEPTION << padLayer->name << " Incorrect number of input/output dimensions!";
-
-    std::string pad_mode = padLayer->GetParamAsString("pad_mode");
-    if (pad_mode == "constant") {
-        padMode = CONSTANT;
-        padValue = padLayer->GetParamAsFloat("pad_value", 0.f);
-    } else if (pad_mode == "edge") {
-        padMode = EDGE;
-    } else if (pad_mode == "reflect") {
-        padMode = REFLECT;
-        for (size_t i = 0; i < srcDims.size(); i++) {
-            if ((srcDims[i] - 1) < padsBegin[i] || (srcDims[i] - 1) < padsEnd[i])
-                THROW_IE_EXCEPTION << padLayer->name << " Incorrect padsBegin or padsEnd for 'reflect' pad mode";
+bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        const auto pad = std::dynamic_pointer_cast<const ngraph::opset1::Pad>(op);
+        if (!pad) {
+            errorMessage = "Only opset1 Pad operation is supported";
+            return false;
         }
-    } else if (pad_mode == "symmetric") {
-        padMode = SYMMETRIC;
-        for (size_t i = 0; i < srcDims.size(); i++) {
-            if (srcDims[i] < padsBegin[i] || srcDims[i] < padsEnd[i])
-                THROW_IE_EXCEPTION << padLayer->name << " Incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PADS_BEGIN_ID)) == nullptr ||
+            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PADS_END_ID)) == nullptr ||
+            (pad->get_pad_mode() == ngraph::op::PadMode::CONSTANT && pad->get_input_size() == 4 &&
+                std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID)) == nullptr)) {
+            errorMessage = "Only Constant operation on 'pads_begin', 'pads_end', 'pad_value' inpus is supported";
+            return false;
+        }
+        const auto pad_mode = pad->get_pad_mode();
+        if (pad_mode != ngraph::op::PadMode::CONSTANT && pad_mode != ngraph::op::PadMode::EDGE && pad_mode != ngraph::op::PadMode::REFLECT &&
+                pad_mode != ngraph::op::PadMode::SYMMETRIC) {
+            errorMessage = "Has unsupported pad_mode: " + ngraph::as_string(pad_mode);
+            return false;
+        }
+        const auto pb = pad->get_pads_begin();
+        const auto pe = pad->get_pads_end();
+        if (std::count_if(pb.begin(), pb.end(), [](ptrdiff_t x) { return x < 0; }) != 0 ||
+                std::count_if(pe.begin(), pe.end(), [](ptrdiff_t x) { return x < 0; }) != 0) {
+            errorMessage = "Doesn't support 'pads_begin' or 'pads_end' negative value";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (isSupportedOperation(op, errorMessage)) {
+        errorPrefix = "Pad node with name '" + op->get_friendly_name() + "'";
+        const auto pad = std::dynamic_pointer_cast<const ngraph::opset1::Pad>(op);
+
+        const auto pb = pad->get_pads_begin();
+        const auto pe = pad->get_pads_end();
+        for (size_t i = 0; i < pb.size(); i++)
+            padsBegin.push_back(static_cast<unsigned int>(pb[i]));
+         for (size_t i = 0; i < pe.size(); i++)
+            padsEnd.push_back(static_cast<unsigned int>(pe[i]));
+
+        const auto pad_mode = pad->get_pad_mode();
+        isPadValueSpecified = pad->get_input_size() == 4;
+        if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+            padMode = CONSTANT;
+            if (isPadValueSpecified) {
+                if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
+                    IE_THROW() << errorPrefix << " has non scalar 'pad_value' input";
+                padValue = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))->cast_vector<float>()[0];
+            }
+        } else if (pad_mode == ngraph::op::PadMode::EDGE) {
+            padMode = EDGE;
+        } else if (pad_mode == ngraph::op::PadMode::REFLECT) {
+            padMode = REFLECT;
+        } else if (pad_mode == ngraph::op::PadMode::SYMMETRIC) {
+            padMode = SYMMETRIC;
         }
     } else {
-        THROW_IE_EXCEPTION << padLayer->name
-                           << " Incorrect pad_mode. Only constants|edge|reflect|symmetric modes are supported!";
+        IE_THROW(NotImplemented) << errorMessage;
     }
+}
 
-    if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
+void MKLDNNPadNode::getSupportedDescriptors() {
+    if (getParentEdges().size() != 3 && getParentEdges().size() != 4)
+        IE_THROW() << errorPrefix << " has incorrect number of input edges";
     if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
+        IE_THROW() << errorPrefix << "Incorrect number of output edges";
+
+    const SizeVector srcDims = getParentEdgeAt(DATA_ID)->getDims().ToSizeVector();
+    const SizeVector dstDims = getChildEdgeAt(DATA_ID)->getDims().ToSizeVector();
+    if (srcDims.size() != dstDims.size() || padsBegin.size() != srcDims.size() || padsEnd.size() != srcDims.size())
+        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+
+    if (padMode == REFLECT) {
+        for (size_t i = 0; i < srcDims.size(); i++) {
+            if ((srcDims[i] - 1) < padsBegin[i] || (srcDims[i] - 1) < padsEnd[i])
+                IE_THROW() << errorPrefix << " has incorrect padsBegin or padsEnd for 'reflect' pad mode";
+        }
+    } else if (padMode == SYMMETRIC) {
+        for (size_t i = 0; i < srcDims.size(); i++) {
+            if (srcDims[i] < padsBegin[i] || srcDims[i] < padsEnd[i])
+                IE_THROW() << errorPrefix << " has incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+        }
+    }
 }
 
 void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
+    std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
+                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::I8,
+                                                                   InferenceEngine::Precision::U8};
+    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
+    if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
+        precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
-    auto srcDims = getParentEdgeAt(0)->getDims();
+    auto srcDims = getParentEdgeAt(DATA_ID)->getDims();
+    int numOfDims = srcDims.ToSizeVector().size();
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
-    config.inConfs.resize(1);
+    config.inConfs.resize(isPadValueSpecified ? 4 : 3);
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
 
-    auto memoryFormat = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, memoryFormat);
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, memoryFormat);
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memoryFormat});
+    auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
+        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_BEGIN_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
+        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(PADS_END_ID)->getDims(), memory::data_type::s32, memory::format_tag::x);
+        if (isPadValueSpecified)
+            config.inConfs[3].desc = MKLDNNMemoryDesc(getParentEdgeAt(PAD_VALUE_ID)->getDims(), memory::data_type::f32, memory::format_tag::x);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(DATA_ID)->getDims(), dataType, memoryFormat);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memoryFormat});
+    };
+
+    if (numOfDims == 4)
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
+    else if (numOfDims == 5)
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
+
+    pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
+
+    auto canUseBlocked = [=](const size_t blockSize) {
+        return (padMode == CONSTANT && padsBegin[1] % blockSize == 0 && padsEnd[1] % blockSize == 0) ||
+               (padMode != CONSTANT && padsBegin[1] == 0 && padsEnd[1] == 0);
+    };
+
+    if (numOfDims == 4) {
+        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
+        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
+    } else if (numOfDims == 5) {
+        if (srcDims[1] % 8 == 0 && canUseBlocked(8))
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
+        if (srcDims[1] % 16 == 0 && canUseBlocked(16))
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
+    }
 }
 
 void MKLDNNPadNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
+        IE_THROW() << "Destination memory for Pad " << getName() << " didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Input memory didn't allocate.";
+        IE_THROW() << "Input memory for Pad " << getName() << " didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
-    SizeVector srcDims = getParentEdgeAt(0)->getBlob()->getTensorDesc().getDims();
-    SizeVector dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getDims();
+    params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
 
-    params.srcStrides = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
-    params.dstStrides = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
+    params.srcDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    params.dstDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
 
-    params.srcODims.resize(srcDims.size());
-    params.padDims.resize(padsBegin.size());
-    for (size_t i = 0; i < srcDims.size(); i++) {
-        params.srcODims[i] = srcDims[i] + padsBegin[i];
-        params.padDims[i] = padsBegin[i] + padsEnd[i];
-        params.padPointsNum += padsBegin[i] + padsEnd[i];
+    size_t nDims = params.srcDims.size();
+    params.srcStrides.resize(nDims, 1);
+    params.dstStrides.resize(nDims, 1);
+    for (int i = nDims - 2; i >= 0; i--) {
+        params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
+        params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
+    }
+
+    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
+        padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
+        padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
+        padsBegin.push_back(0);
+        padsEnd.push_back(0);
+    } else {
+        auto order = getParentEdgeAt(0)->getDesc().getBlockingDesc().getOrder();
+        std::vector<unsigned int> newPadsBegin(padsBegin.size(), 0), newPadsEnd(padsEnd.size(), 0);
+        for (size_t i = 0; i < padsBegin.size(); ++i) {
+            newPadsBegin[i] = padsBegin[order[i]];
+            newPadsEnd[i] = padsEnd[order[i]];
+        }
+        padsBegin = newPadsBegin;
+        padsEnd = newPadsEnd;
+    }
+
+    int beginIdx = 0;
+    int endIdx = padsBegin.size() - 1;
+
+    for (int i = 0; i < padsBegin.size(); ++i) {
+        if (padsBegin[i] != 0 || padsEnd[i] != 0) {
+            beginIdx = i - 1;
+            break;
+        }
+    }
+
+    for (int i = padsBegin.size() - 1; i >= 0; --i) {
+        if (padsBegin[i] != 0 || padsEnd[i] != 0) {
+            endIdx = i;
+            break;
+        }
+    }
+
+    params.lastDstDim = params.dstStrides[std::max(endIdx - 1, 0)];
+    params.nDimsForWork = endIdx - std::max(beginIdx, 0);
+    params.nThreads = params.nDimsForWork > 0 ? 0 : 1;
+    params.workAmount = params.nDimsForWork > 0 ? params.dstDims[0] : 1lu;
+    for (int i = 1; i <= beginIdx; ++i) {
+        params.workAmount *= params.dstDims[i];
+        params.dstDims[0] *= params.dstDims[i];
+        params.srcDims[0] *= params.srcDims[i];
+        params.dstStrides[0] /= params.dstDims[i];
+        params.srcStrides[0] /= params.srcDims[i];
+    }
+
+    if (beginIdx > 0) {
+        beginIdx++;
+        params.dstDims.erase(params.dstDims.begin() + 1, params.dstDims.begin() + beginIdx);
+        params.srcDims.erase(params.srcDims.begin() + 1, params.srcDims.begin() + beginIdx);
+        params.dstStrides.erase(params.dstStrides.begin() + 1, params.dstStrides.begin() + beginIdx);
+        params.srcStrides.erase(params.srcStrides.begin() + 1, params.srcStrides.begin() + beginIdx);
+        padsBegin.erase(padsBegin.begin() + 1, padsBegin.begin() + beginIdx);
+        padsEnd.erase(padsEnd.begin() + 1, padsEnd.begin() + beginIdx);
+    }
+
+    params.workAmount = params.workAmount * params.dstStrides[0] / params.lastDstDim;
+    params.shift = params.dstStrides[params.nDimsForWork];
+    if (padMode != CONSTANT || (padMode == CONSTANT && padValue == 0)) {
+        params.lastDstDim *= params.sizeData;
+        params.shift *= params.sizeData;
+    }
+
+    for (size_t i = 0; i < params.srcDims.size(); ++i)
+        params.srcODims.push_back(padsBegin[i] + params.srcDims[i]);
+
+    if (padMode == REFLECT || padMode == SYMMETRIC) {
+        int shift = padMode == SYMMETRIC ? 1 : 0;
+        for (size_t i = 0; i < params.srcDims.size(); ++i)
+            params.srcDimsForReflectOrSymmetric.push_back(params.srcDims[i] + params.srcODims[i] - 2 + shift);
     }
 }
 
 void MKLDNNPadNode::execute(mkldnn::stream strm) {
-    const float *srcData = getParentEdgeAt(0)->getBlob()->cbuffer().as<const float*>() +
-            getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getOffsetPadding();
-    float* dstData = getChildEdgeAt(0)->getBlob()->buffer().as<float*>() +
-            getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
-    auto srcDims = getParentEdgeAt(0)->getDims().ToSizeVector();
-    auto dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
-
     switch (padMode) {
         case CONSTANT:
-            padConstantOrEdge(srcData, dstData, srcDims, dstDims);
+            padConstant();
             break;
         case EDGE:
-            padConstantOrEdge(srcData, dstData, srcDims, dstDims, true);
+            padEdge();
             break;
         case REFLECT:
-            padReflectOrSymmetric(srcData, dstData, srcDims, dstDims);
+            padReflectOrSymmetric();
             break;
         case SYMMETRIC:
-            padReflectOrSymmetric(srcData, dstData, srcDims, dstDims, true);
+            padReflectOrSymmetric(true);
             break;
     }
 }
 
-inline size_t parallel_init(size_t start, size_t size, std::vector<size_t> &counters, std::vector<size_t> &dims) {
-    for (int j = size - 1; j >= 0; j--) {
-        counters[j] = start % dims[j];
+static inline size_t parallel_init(size_t start, size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+    for (int j = nDims - 1; j >= 0; j--) {
+        indexes[j] = start % dims[j];
         start = start / dims[j];
     }
     return start;
 }
 
-inline void parallel_step(size_t size, std::vector<size_t> &counters, std::vector<size_t> &dims) {
-    for (int j = size - 1; j >= 0; j--) {
-        counters[j] = (counters[j] + 1) % dims[j];
-        if (counters[j] != 0)
-            return;
+static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVector& indexes) {
+    for (int j = nDims - 1; j >= 0; --j) {
+        ++indexes[j];
+        if (indexes[j] < dims[j])
+            break;
+        else
+            indexes[j] = 0;
     }
 }
 
-void MKLDNNPadNode::padConstantOrEdge(const float* srcData, float* dstData, SizeVector srcDims, SizeVector dstDims,
-        const bool isEdge) {
-    size_t dimsSize_1 = dstDims.size() - 1;
-    size_t inputSV = dstDims[dimsSize_1];
-    size_t workAmountDst = getWorkAmountDst();
+void MKLDNNPadNode::padConstant() {
+    if (padValue == 0) {
+        padConstantZero();
+        return;
+    }
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
+    if (!selectedPrimitiveDescriptor)
+        IE_THROW() << "CPU Pad node with name '" << getName() << "' doesn't have primitive descriptors.";
+    InferenceEngine::Precision precision = selectedPrimitiveDescriptor->getConfig().inConfs[0].desc.getPrecision();
+    OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, precision,
+              OV_CASE(InferenceEngine::Precision::FP32, float),
+              OV_CASE(InferenceEngine::Precision::I32, int32_t),
+              OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
+              OV_CASE(InferenceEngine::Precision::I8, int8_t),
+              OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+}
+
+template<typename T>
+void MKLDNNPadNode::padConstantCommon() {
+    const T* srcData = reinterpret_cast<const T*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    T* dstData = reinterpret_cast<T*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const T value = static_cast<T>(padValue);
+
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+    const size_t endShift = padsEnd[params.nDimsForWork] * params.shift;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        SizeVector counters(dimsSize_1, 0);
-        splitter(workAmountDst, nthr, ithr, start, end);
+        SizeVector indexes(params.nDimsForWork, 0);
+        splitter(params.workAmount, nthr, ithr, start, end);
 
-        parallel_init(start, dimsSize_1, counters, dstDims);
-        int dstIdx = 0;
-        for (size_t i = 0; i < dimsSize_1; ++i)
-            dstIdx += counters[i] * params.dstStrides[i];
+        parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
+        size_t dstIdx = 0;
+        getDstIdx(indexes, dstIdx);
 
-        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += inputSV) {
-            if (!isEdge) {
-                size_t j;
-                for (j = 0; j < dimsSize_1; ++j) {
-                    if ((counters[j] < padsBegin[j]) || (counters[j] >= params.srcODims[j]))
-                        break;
-                }
-
-                if (j != dimsSize_1) {
-                    std::fill_n(&dstData[dstIdx], dstDims[dimsSize_1], padValue);
-                    parallel_step(dimsSize_1, counters, dstDims);
-                    continue;
-                }
+        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
+            size_t j = 0;
+            for (; j < params.nDimsForWork; ++j) {
+                if (indexes[j] < padsBegin[j] || indexes[j] >= params.srcODims[j])
+                    break;
             }
 
-            int srcIdx = 0;
-            for (size_t i = 0; i < dimsSize_1; ++i) {
-                int idx = (counters[i] < padsBegin[i]) ? 0 :
-                          ((counters[i] >= params.srcODims[i]) ? (srcDims[i] - 1) : (counters[i] - padsBegin[i]));
-                srcIdx += idx * params.srcStrides[i];
+            if (j != params.nDimsForWork) {
+                std::fill_n(&dstData[dstIdx], params.lastDstDim, value);
+                parallel_step(params.nDimsForWork, params.dstDims, indexes);
+                continue;
             }
 
-            std::fill_n(&dstData[dstIdx], padsBegin[dimsSize_1],
-                        isEdge ? srcData[srcIdx] : padValue);
-            cpu_memcpy(&dstData[dstIdx + padsBegin[dimsSize_1]], &srcData[srcIdx],
-                       srcDims[dimsSize_1] * sizeof(float));
-            std::fill_n(&dstData[dstIdx + params.srcODims[dimsSize_1]], padsEnd[dimsSize_1],
-                        isEdge ? srcData[srcIdx + srcDims[dimsSize_1] - 1] : padValue);
+            size_t srcIdx = 0;
+            for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
+                srcIdx += (indexes[idx] - padsBegin[idx]) * params.srcStrides[idx];
 
-            parallel_step(dimsSize_1, counters, dstDims);
+            std::fill_n(&dstData[dstIdx], beginShift, value);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize * params.sizeData);
+            std::fill_n(&dstData[dstIdx + beginShift + copySize], endShift, value);
+
+            parallel_step(params.nDimsForWork, params.dstDims, indexes);
         }
     });
 }
 
-void MKLDNNPadNode::padReflectOrSymmetric(const float *srcData, float* dstData, SizeVector srcDims, SizeVector dstDims,
-        const bool isSymmetric) {
-    int shift = isSymmetric ? 1 : 0;
-    SizeVector src_2;
-    for (size_t i = 0; i < srcDims.size(); i++)
-        src_2.push_back(srcDims[i] + params.srcODims[i] - 2 + shift);
+void MKLDNNPadNode::padConstantZero() {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    size_t dimsSize_1 = dstDims.size() - 1;
-    size_t inputSV = dstDims[dimsSize_1];
-    size_t workAmountDst = getWorkAmountDst();
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+    const size_t endShift = padsEnd[params.nDimsForWork] * params.shift;
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        SizeVector counters(dimsSize_1, 0);
-        splitter(workAmountDst, nthr, ithr, start, end);
+        SizeVector indexes(params.nDimsForWork, 0);
+        splitter(params.workAmount, nthr, ithr, start, end);
 
-        parallel_init(start, dimsSize_1, counters, dstDims);
-        int dstIdx = 0;
-        for (size_t i = 0; i < dimsSize_1; ++i)
-            dstIdx += counters[i] * params.dstStrides[i];
+        parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
+        size_t dstIdx = 0;
+        getDstIdx(indexes, dstIdx);
 
-        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += inputSV) {
-            int srcIdx = 0;
-            for (size_t i = 0; i < dimsSize_1; ++i) {
-                int idx = (counters[i] < padsBegin[i]) ? (padsBegin[i] - counters[i] - shift) :
-                          ((counters[i] >= params.srcODims[i]) ? (src_2[i] - counters[i]) : (counters[i] - padsBegin[i]));
-                srcIdx += idx * params.srcStrides[i];
+        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
+            size_t j = 0;
+            for (; j < params.nDimsForWork; ++j) {
+                if (indexes[j] < padsBegin[j] || indexes[j] >= params.srcODims[j])
+                    break;
             }
 
-            for (size_t i = 0; i < padsBegin[dimsSize_1]; ++i)
-                dstData[dstIdx + i] = srcData[srcIdx + padsBegin[dimsSize_1] - i - shift];
+            if (j != params.nDimsForWork) {
+                memset(&dstData[dstIdx], 0, params.lastDstDim);
+                parallel_step(params.nDimsForWork, params.dstDims, indexes);
+                continue;
+            }
 
-            cpu_memcpy(&dstData[dstIdx + padsBegin[dimsSize_1]], &srcData[srcIdx],
-                       sizeof(float) * srcDims[dimsSize_1]);
+            size_t srcIdx = 0;
+            for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
+                srcIdx += (indexes[idx] - padsBegin[idx]) * params.srcStrides[idx];
+            srcIdx *= params.sizeData;
 
-            for (size_t i = params.srcODims[dimsSize_1]; i < dstDims[dimsSize_1]; ++i)
-                dstData[dstIdx + i] = srcData[srcIdx + src_2[dimsSize_1] - i];
+            memset(&dstData[dstIdx], 0, beginShift);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize);
+            memset(&dstData[dstIdx + beginShift + copySize], 0, endShift);
 
-            parallel_step(dimsSize_1, counters, dstDims);
+            parallel_step(params.nDimsForWork, params.dstDims, indexes);
         }
     });
 }
 
-size_t MKLDNNPadNode::getWorkAmountDst() const {
-    auto dstDims = getChildEdgeAt(0)->getDims().ToSizeVector();
-    return params.dstStrides[0] * dstDims[0] / dstDims[dstDims.size() - 1];
+void MKLDNNPadNode::padEdge() {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
+    const size_t beginShift = padsBegin[params.nDimsForWork] * params.shift;
+    const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        SizeVector indexes(params.nDimsForWork, 0);
+        splitter(params.workAmount, nthr, ithr, start, end);
+
+        parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
+        size_t dstIdx = 0;
+        getDstIdx(indexes, dstIdx);
+
+        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
+            size_t srcIdx = 0;
+            for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
+                size_t shift = (indexes[idx] < padsBegin[idx]) ? 0 :
+                               ((indexes[idx] >= params.srcODims[idx]) ? (params.srcDims[idx] - 1) : (indexes[idx] - padsBegin[idx]));
+                srcIdx += shift * params.srcStrides[idx];
+            }
+            srcIdx *= params.sizeData;
+
+            for (size_t i = 0; i < padsBegin[params.nDimsForWork]; ++i)
+                cpu_memcpy(&dstData[dstIdx + i * params.shift], &srcData[srcIdx], params.shift);
+
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize);
+
+            for (size_t i = 0; i < padsEnd[params.nDimsForWork]; ++i)
+                cpu_memcpy(&dstData[dstIdx + beginShift + copySize + i * params.shift],
+                           &srcData[srcIdx + (params.srcDims[params.nDimsForWork] - 1) * params.shift], params.shift);
+
+            parallel_step(params.nDimsForWork, params.dstDims, indexes);
+        }
+    });
+}
+
+void MKLDNNPadNode::padReflectOrSymmetric(const bool isSymmetric) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    size_t shift = isSymmetric ? 1 : 0;
+
+    parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        SizeVector indexes(params.nDimsForWork, 0);
+        splitter(params.workAmount, nthr, ithr, start, end);
+
+        parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
+        size_t dstIdx = 0;
+        getDstIdx(indexes, dstIdx);
+
+        for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
+            size_t srcIdx = 0;
+            for (size_t i = 0; i < params.nDimsForWork; ++i) {
+                size_t idx = (indexes[i] < padsBegin[i]) ? (padsBegin[i] - indexes[i] - shift) :
+                             ((indexes[i] >= params.srcODims[i]) ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i]) : (indexes[i] - padsBegin[i]));
+                srcIdx += idx * params.srcStrides[i];
+            }
+            srcIdx *= params.sizeData;
+
+            for (size_t i = 0; i < padsBegin[params.nDimsForWork]; ++i)
+                cpu_memcpy(&dstData[dstIdx + i * params.shift],
+                           &srcData[srcIdx + (padsBegin[params.nDimsForWork] - shift - i) * params.shift], params.shift);
+
+            cpu_memcpy(&dstData[dstIdx + padsBegin[params.nDimsForWork] * params.shift], &srcData[srcIdx],
+                       params.srcDims[params.nDimsForWork] * params.shift);
+
+            size_t srcShift = (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) * params.shift;
+            for (size_t i = 0; i < padsEnd[params.nDimsForWork]; ++i)
+                cpu_memcpy(&dstData[dstIdx + (params.srcODims[params.nDimsForWork] + i) * params.shift],
+                           &srcData[srcIdx + srcShift - i * params.shift], params.shift);
+
+            parallel_step(params.nDimsForWork, params.dstDims, indexes);
+        }
+    });
+}
+
+inline void MKLDNNPadNode::getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const {
+    for (size_t i = 0; i < params.nDimsForWork; ++i)
+        dstIdx += indexes[i] * params.dstStrides[i];
+    dstIdx *= (padMode == CONSTANT && padValue != 0) ? 1 : params.sizeData;
 }
 
 bool MKLDNNPadNode::created() const {

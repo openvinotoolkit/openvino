@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize) {
     const float low = 0.f;
@@ -37,7 +37,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
@@ -55,11 +55,12 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const ngraph::opset1::DepthToSpace::DepthToSpaceMode mode,
     const size_t blockSize,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -69,6 +70,7 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     dequantizationOpAfter->set_friendly_name("output");
 
     ngraph::ResultVector results = { std::make_shared<ngraph::opset1::Result>(dequantizationOpAfter) };
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(d2s, precisionAfterOperation);
 
     const auto function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "DepthToSpaceTransformation");
     return function;

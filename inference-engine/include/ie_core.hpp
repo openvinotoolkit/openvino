@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <istream>
 #include <map>
 #include <memory>
 #include <string>
@@ -16,6 +17,7 @@
 
 #include "ie_version.hpp"
 #include "ie_extension.h"
+#include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
 
@@ -85,6 +87,9 @@ public:
      * `InferenceEngine::Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const`
      * function overload which takes a filesystem path to the model.
      * For ONNX case the second parameter should contain empty blob.
+     * @note Created InferenceEngine::CNNNetwork object shares the weights with `weights` object.
+     * So, do not create `weights` on temporary data which can be later freed, since the network
+     * constant datas become to point to invalid memory.
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
@@ -103,6 +108,23 @@ public:
      */
     ExecutableNetwork LoadNetwork(
         const CNNNetwork& network, const std::string& deviceName,
+        const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @brief Reads model and creates an executable network from IR or ONNX file
+     *
+     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
+     *        especially for cases when caching is enabled and cached model is available
+     *
+     * @param modelPath path to model
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(
+        const std::string& modelPath, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {});
 
     /**
@@ -134,8 +156,8 @@ public:
     /**
      * @brief Creates an executable network from a previously exported network
      *
-     * @param deviceName Name of device load executable network on
      * @param modelFileName Path to the location of the exported file
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -146,14 +168,23 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     * @param deviceName Name of device load executable network on
      * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @deprecated Use Core::ImportNetwork with explicit device name
+     * @brief Creates an executable network from a previously exported network
+     * @param networkModel network model stream
+     * @return An executable network reference
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
+    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
@@ -197,7 +228,7 @@ public:
      * The method is targeted to extract information which can be set via SetConfig method.
      *
      * @param deviceName  - A name of a device to get a configuration value.
-     * @param name  - value of config corresponding to config key.
+     * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
     Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
@@ -218,7 +249,7 @@ public:
      * @brief Returns devices available for neural networks inference
      *
      * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
-       If there more than one device of specific type, they are enumerated with .# suffix.
+     * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const;
 

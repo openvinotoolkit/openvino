@@ -1582,9 +1582,9 @@ OI, which means that Input changes the fastest, then Output.
 
 **Mathematical Formulation**
 
-    \f[
-        output[:, ... ,:, i, ... , j,:, ... ,:] = input2[:, ... ,:, input1[i, ... ,j],:, ... ,:]
-    \f]
+\f[
+    output[:, ... ,:, i, ... , j,:, ... ,:] = input2[:, ... ,:, input1[i, ... ,j],:, ... ,:]
+\f]
 
 
 **Inputs**
@@ -5086,7 +5086,9 @@ t \in \left ( 0, \quad tiles \right )
 
 Output tensor is populated by values computes in the following way:
 
-    output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
+\f[
+output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
+\f]
 
 So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` which represents 1D array, top_k value is computed individually. Sorting and minimum/maximum are controlled by `sort` and `mode` attributes.
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,13 @@
 #include <array>
 #include <cstdint>
 
+#include "transformations/serialize.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_algorithm.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
+#include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
@@ -82,7 +84,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         if (it != _config.end()) {
             queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
         } else {
-            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+            IE_THROW() << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
     }
 
@@ -103,7 +105,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                                            : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
                 auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
                 if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    THROW_IE_EXCEPTION << "Node " << nodeWithAffinityName <<
+                    IE_THROW() << "Node " << nodeWithAffinityName <<
                                         " was not assigned on any pointed device.";
                 }
                 queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
@@ -120,13 +122,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             affinities[node.get()] = itAffinity->second;
             devices.emplace(itAffinity->second);
         } else if (allEmpty) {
-            THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not able to be assigned on any pointed device.\n" <<
                 "It happened because these layers are not supported in plugins by default.\n" <<
                 "You need to implement custom layers to support them.";
         } else {
-            THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
+            IE_THROW() << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
                 node->get_friendly_name() << ", Type: " << node->get_type_name() <<
                 ") were not assigned to any device.\n" <<
                 "It might happen if you assigned layers manually and missed some layers or\n" <<
@@ -263,7 +265,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         for (auto&& node : orderedOps) {
             auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
             if (!nodeSubgraphCyclicInputDependency.empty()) {
-                auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
                 // Collect all subgraph inputs that cyclic subgraph output depends on
                 InputSet cyclicInputsDependencies;
                 for (auto&& cyclicInput : nodeSubgraphCyclicInputDependency) {
@@ -311,6 +312,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     struct Subgraph {
         ngraph::ResultVector    _results;
         ngraph::ParameterVector _parameters;
+        ngraph::SinkVector      _sinks;
         std::string             _affinity;
     };
     std::unordered_map<int, Subgraph> subgraphs;
@@ -324,6 +326,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         } else if (ngraph::op::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+        } else if (ngraph::op::is_sink(node)) {
+            subgraph._sinks.emplace_back(
+                    std::dynamic_pointer_cast<ngraph::op::Sink>(node->shared_from_this()));
         }
         auto itAffinity = affinities.find(node);
         if (itAffinity != affinities.end()) {
@@ -339,7 +344,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
     std::vector<Subgraph> orderedSubgraphs;
     NodeSet prevResults;
-    int subgraphTopoSortsStep = 0;
+    size_t subgraphTopoSortsStep = 0;
     do {
         IE_ASSERT(subgraphTopoSortsStep++ < subgraphs.size());
         std::vector<Subgraph> nextSubgraphs;
@@ -366,30 +371,34 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
 
     InputsDataMap externalInputsData = network.getInputsInfo();
     OutputsDataMap externalOutputsData = network.getOutputsInfo();
-    networks.resize(orderedSubgraphs.size());
+    _networks.resize(orderedSubgraphs.size());
     std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
-    std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
-        networks[id]._device = subgraph._affinity;
+        _networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._sinks, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
-        networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
+        _networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
-        auto clonedInputs = networks[id]._clonedNetwork.getInputsInfo();
+        auto clonedInputs = _networks[id]._clonedNetwork.getInputsInfo();
         for (auto&& externalInput : externalInputsData) {
             auto itClonedInput = clonedInputs.find(externalInput.first);
             if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
                 itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
                 itClonedInput->second->setPrecision(externalInput.second->getPrecision());
+                itClonedInput->second->setLayout(externalInput.second->getLayout());
             }
         }
-        isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
-                                            std::end(subgraph._parameters),
-                                            [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
-                                                return contains(graphInputNodes, p.get());
-                                            });
+        // update output info
+        auto clonedOutputs = _networks[id]._clonedNetwork.getOutputsInfo();
+        for (auto&& externalOutput : externalOutputsData) {
+            auto itClonedOutput = clonedOutputs.find(externalOutput.first);
+            if (itClonedOutput != clonedOutputs.end() && nullptr != itClonedOutput->second) {
+                itClonedOutput->second->setPrecision(externalOutput.second->getPrecision());
+                itClonedOutput->second->setLayout(externalOutput.second->getLayout());
+            }
+        }
         ++id;
     }
     if (dumpDotFile) {
@@ -412,13 +421,11 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 }
             }}.run_on_function(ngraph::clone_function(*function));
     }
-    for (auto&& network : networks) {
-        auto cfg = _config;
-        cfg[CONFIG_KEY_INTERNAL(SUBNETWORK_WITH_NETWORK_INPUTS)]
-            = isInputSubnetwork[std::distance(networks.data(), &network)] ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
-        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, cfg);
+    for (auto&& network : _networks) {
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
+        metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
         network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-                                                                 network._device, metaDevices[network._device]);
+            network._device, metaDevices[network._device]);
     }
 }
 
@@ -433,32 +440,35 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
-        THROW_IE_EXCEPTION << "Error reading HETERO plugin xml header";
+        IE_THROW(NetworkNotRead) << "Error reading HETERO plugin xml header";
     }
 
     using namespace XMLParseUtils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
+    _name = GetStrAttr(heteroNode, "name");
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
-    for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
-            inputNode = inputNode.next_sibling("input")) {
+    FOREACH_CHILD(inputNode, inputsNode, "input")  {
         networkInputs.insert(GetStrAttr(inputNode, "name"));
     }
 
     std::unordered_set<std::string> networkOutputs;
     pugi::xml_node outputsNode = heteroNode.child("outputs");
-    for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
-            outputNode = outputNode.next_sibling("output")) {
+    FOREACH_CHILD(outputNode, outputsNode, "output") {
         networkOutputs.insert(GetStrAttr(outputNode, "name"));
     }
 
     Engine::Configs importedConfigs;
     auto configsNode = heteroNode.child("configs");
-    for (auto configNode = configsNode.child("config"); !configNode.empty();
-            configNode = configNode.next_sibling("config")) {
-            importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    FOREACH_CHILD(configNode, configsNode, "config") {
+        importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    }
+
+    auto blobNamesNode = heteroNode.child("blob_names_map");
+    FOREACH_CHILD(blobNameNode, blobNamesNode, "blob_name_map") {
+        _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
     for (auto&& config : configs) {
@@ -467,70 +477,67 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
-            subnetworkNode = subnetworkNode.next_sibling("subnetwork")) {
+    FOREACH_CHILD(subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
         auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
         assert(metaDevices.size() == 1);
         auto& loadConfig = metaDevices[deviceName];
 
-        InferenceEngine::ExecutableNetwork executableNetwork;
+        InferenceEngine::SoExecutableNetworkInternal executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
-        try {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(deviceName)) {
             executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
-        } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
-            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
-                // read XML content
-                std::string xmlString;
-                std::getline(heteroModel, xmlString);
-                std::uint64_t dataSize = 0;
-                heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        } else {
+            // read XML content
+            std::string xmlString;
+            std::uint64_t dataSize = 0;
+            heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            xmlString.resize(dataSize);
+            heteroModel.read(const_cast<char*>(xmlString.c_str()), dataSize);
 
-                // read blob content
-                InferenceEngine::Blob::Ptr dataBlob;
-                if (0 != dataSize) {
-                    dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-                        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                                    {static_cast<std::size_t>(dataSize)},
-                                                    InferenceEngine::Layout::C));
-                    dataBlob->allocate();
-                    heteroModel.read(dataBlob->buffer(), dataSize);
-                }
-
-                cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
-                auto inputs = cnnnetwork.getInputsInfo();
-                auto inputsNode = subnetworkNode.child("inputs");
-                for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
-                    auto inputName = GetStrAttr(inputNode, "name");
-                    inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
-                }
-
-                auto outputsNode = subnetworkNode.child("outputs");
-                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                    cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
-                }
-                auto outputs = cnnnetwork.getOutputsInfo();
-                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
-                    outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
-                }
-                executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
-                loaded = true;
-            } else {
-                throw;
+            // read blob content
+            InferenceEngine::Blob::Ptr dataBlob;
+            heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            if (0 != dataSize) {
+                dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                {static_cast<std::size_t>(dataSize)},
+                                                InferenceEngine::Layout::C));
+                dataBlob->allocate();
+                heteroModel.read(dataBlob->buffer(), dataSize);
             }
+
+            cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+            auto inputs = cnnnetwork.getInputsInfo();
+            auto inputsNode = subnetworkNode.child("inputs");
+            FOREACH_CHILD(inputNode, inputsNode, "input") {
+                auto inputName = GetStrAttr(inputNode, "name");
+                inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
+            }
+
+            auto outputs = cnnnetwork.getOutputsInfo();
+            auto outputsNode = subnetworkNode.child("outputs");
+            FOREACH_CHILD(outputNode, outputsNode, "output") {
+                auto outputName = GetStrAttr(outputNode, "name");
+                outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+            }
+
+            executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
+            loaded = true;
         }
 
-        for (auto&& input : executableNetwork.GetInputsInfo()) {
+        // restore network inputs and outputs
+        for (auto&& input : executableNetwork->GetInputsInfo()) {
             if (networkInputs.end() != networkInputs.find(input.first)) {
-                _networkInputs.emplace(input.first, std::const_pointer_cast<InputInfo>(input.second));
+                _networkInputs.emplace(input.first, std::make_shared<InputInfo>(*input.second));
             }
         }
 
-        for (auto&& output : executableNetwork.GetOutputsInfo()) {
+        for (auto&& output : executableNetwork->GetOutputsInfo()) {
             if (networkOutputs.end() != networkOutputs.find(output.first)) {
-                _networkOutputs.emplace(output.first, std::const_pointer_cast<Data>(output.second));
+                _networkOutputs.emplace(output.first, std::make_shared<Data>(*output.second));
             }
         }
 
@@ -541,10 +548,13 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         });
     }
 
-    networks = std::move(descs);
+    // save state
+    this->_config = importedConfigs;
+    this->_networks = std::move(descs);
+    this->SetPointerToPlugin(_heteroPlugin->shared_from_this());
 }
 
-void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
+void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(_name.c_str());
@@ -560,71 +570,85 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
-    for (auto&& subnetwork : networks) {
-        auto subnetFunction = subnetwork._clonedNetwork.getFunction();
-        IE_ASSERT(subnetFunction != nullptr);
+    for (auto&& subnetwork : _networks) {
+        auto subnet = subnetwork._clonedNetwork;
+        IE_ASSERT(subnet.getFunction() != nullptr);
+
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+
+        // inputs info
         auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
-        for (auto&& parameter : subnetFunction->get_parameters()) {
+        auto inputInfo = subnet.getInputsInfo();
+        for (auto&& input : inputInfo) {
             auto inputNode = subnetworkInputsNode.append_child("input");
-            inputNode.append_attribute("name").set_value(parameter->get_friendly_name().c_str());
-            inputNode.append_attribute("precision").set_value(parameter->get_output_element_type(0).get_type_name().c_str());
+            inputNode.append_attribute("name").set_value(input.first.c_str());
+            inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
         }
+
+        // outputs info
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        for (auto&& result : subnetFunction->get_results()) {
+        auto outputInfo = subnet.getOutputsInfo();
+        for (auto&& output : outputInfo) {
             auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto sourceOutput = result->input_value(0);
-            outputNode.append_attribute("creatorName").set_value(sourceOutput.get_node()->get_friendly_name().c_str());
-            outputNode.append_attribute("name").set_value(
-                (sourceOutput.get_node()->get_friendly_name() +
-                ((sourceOutput.get_node()->get_output_size() == 0) ? "" : std::to_string(sourceOutput.get_index()))).c_str());
-            outputNode.append_attribute("precision").set_value(result->get_input_element_type(0).get_type_name().c_str());
-            outputNode.append_attribute("index").set_value(std::to_string(sourceOutput.get_index()).c_str());
+            outputNode.append_attribute("name").set_value(output.first.c_str());
+            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
         }
     }
 
     auto configsNode = heteroNode.append_child("configs");
     for (auto&& config : _config) {
-        auto configMode = configsNode.append_child("config");
-        configMode.append_attribute("key").set_value(config.first.c_str());
-        configMode.append_attribute("value").set_value(config.second.c_str());
+        auto configNode = configsNode.append_child("config");
+        configNode.append_attribute("key").set_value(config.first.c_str());
+        configNode.append_attribute("value").set_value(config.second.c_str());
+    }
+
+    auto blobNamesNode = heteroNode.append_child("blob_names_map");
+    for (auto&& kvp : _blobNameMap) {
+        auto blobNameNode = blobNamesNode.append_child("blob_name_map");
+        blobNameNode.append_attribute("key").set_value(kvp.first.c_str());
+        blobNameNode.append_attribute("value").set_value(kvp.second.c_str());
     }
 
     doc.save(heteroModel, nullptr, pugi::format_raw);
+    doc.reset();
     heteroModel << std::endl;
 
-    for (auto&& subnetwork : networks) {
-        try {
-            subnetwork._network.Export(heteroModel);
-        } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
-            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
-                // TODO: enable once serialization to IR v10 is implemented
-#if 1
-                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                    << "Device " << subnetwork._device << " does not implement Export method";
-#else
-                pugi::xml_document doc;
-                auto subnet = subnetwork._clonedNetwork;
-                auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
-                doc.save(heteroModel, nullptr, pugi::format_raw);
-                heteroModel << std::endl;
-                heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-                InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
-#endif
-            } else {
-                throw;
+    for (auto&& subnetwork : _networks) {
+        if (_heteroPlugin->GetCore()->DeviceSupportsImportExport(subnetwork._device)) {
+            subnetwork._network->Export(heteroModel);
+        } else {
+            auto subnet = subnetwork._clonedNetwork;
+            if (!subnet.getFunction()) {
+                IE_THROW() << "Hetero plugin supports only ngraph function representation";
             }
+
+            // Note: custom ngraph extensions are not supported
+            std::stringstream xmlFile, binFile;
+            ngraph::pass::Serialize serializer(xmlFile, binFile,
+                ngraph::pass::Serialize::Version::IR_V10);
+            serializer.run_on_function(subnet.getFunction());
+
+            auto m_constants = binFile.str();
+            auto m_model = xmlFile.str();
+
+            auto dataSize = static_cast<std::uint64_t>(m_model.size());
+            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            heteroModel.write(m_model.c_str(), dataSize);
+
+            dataSize = static_cast<std::uint64_t>(m_constants.size());
+            heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+            heteroModel.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
         }
     }
 }
 
-InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         InputsDataMap networkInputs,
         OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
-    for (auto&& subnetwork : networks) {
+    for (auto&& subnetwork : _networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
         desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
@@ -636,7 +660,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
                                                 _blobNameMap);
 }
 
-IInferRequest::Ptr HeteroExecutableNetwork::CreateInferRequest() {
+IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<HeteroAsyncInferRequest>();
 }
 
@@ -656,17 +680,17 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string 
         result = it->second == YES ? true : false;
     } else {
         // find config key among plugin config keys
-        for (auto&& desc : networks) {
+        for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
-            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             for (auto && configKey : param.as<std::vector<std::string>>()) {
                 if (configKey == name) {
-                    return execNetwork.GetConfig(configKey);
+                    return execNetwork->GetConfig(configKey);
                 }
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 
     return result;
@@ -710,7 +734,7 @@ void collectPluginMetrics(std::vector<std::string> & baseMetrics,
 }  // namespace
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string &name) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
@@ -720,12 +744,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         {
             std::vector<::Metrics> pluginMetrics;
-            for (auto&& desc : networks) {
+            for (auto&& desc : _networks) {
                 auto execNetwork = desc._network;
-                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
                 ::Metrics metrics;
                 for (auto && metricName : param.as<std::vector<std::string>>()) {
-                    metrics[metricName] = execNetwork.GetMetric(metricName);
+                    metrics[metricName] = execNetwork->GetMetric(metricName);
                 }
                 pluginMetrics.push_back(std::move(metrics));
             }
@@ -734,7 +758,7 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {
             "TARGET_FALLBACK",
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
@@ -743,12 +767,12 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
 
         {
             std::vector<::Metrics> pluginConfigKeys;
-            for (auto&& desc : networks) {
+            for (auto&& desc : _networks) {
                 auto execNetwork = desc._network;
-                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 ::Metrics configKeys;
                 for (auto && metricName : param.as<std::vector<std::string>>()) {
-                    configKeys[metricName] = execNetwork.GetConfig(metricName);
+                    configKeys[metricName] = execNetwork->GetConfig(metricName);
                 }
                 pluginConfigKeys.push_back(std::move(configKeys));
             }
@@ -757,26 +781,26 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string 
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
         IE_SET_METRIC_RETURN(NETWORK_NAME, _name);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
-        for (auto&& desc : networks) {
-            value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
+        for (auto&& desc : _networks) {
+            value = std::max(value, desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
         // find metric key among plugin metrics
-        for (auto&& desc : networks) {
+        for (auto&& desc : _networks) {
             auto execNetwork = desc._network;
-            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricKey : param.as<std::vector<std::string>>()) {
                 if (metricKey == name) {
-                    return execNetwork.GetMetric(metricKey);
+                    return execNetwork->GetMetric(metricKey);
                 }
             }
         }
 
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
+        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
 }

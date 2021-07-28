@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "dynamic_backend.hpp"
 #include "ngraph/graph_util.hpp"
@@ -27,8 +15,6 @@
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
 #include "pass/dyn_elimination.hpp"
-#include "pass/opset0_downgrade.hpp"
-#include "pass/opset1_downgrade.hpp"
 #include "pass/shape_relevance.hpp"
 
 using namespace std;
@@ -127,7 +113,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             int size = input->get_size_in_bytes() / (input->get_element_type().bitwidth() / 8);
             std::vector<int64_t> data(size);
             input->read(data.data(), input->get_size_in_bytes());
-            for (int i = 0; i < input->get_element_count(); i++)
+            for (size_t i = 0; i < input->get_element_count(); i++)
             {
                 merged_input_shapes.emplace_back(data[i]);
             }
@@ -135,7 +121,7 @@ bool runtime::dynamic::DynamicExecutable::call(
         else
         {
             // Caching on all remaining shapes
-            for (int i = 0; i < input->get_shape().size(); i++)
+            for (size_t i = 0; i < input->get_shape().size(); i++)
             {
                 merged_input_shapes.emplace_back(input->get_shape()[i]);
             }
@@ -251,10 +237,8 @@ bool runtime::dynamic::DynamicExecutable::call(
         pass::Manager passes;
         // Opset1Downgrade should be moved below DynElimination
         // when ConstantFolding for v3 ops will be ready
-        passes.register_pass<pass::Opset1Downgrade>();
         passes.register_pass<pass::ConstantFolding>();
         passes.register_pass<pass::DynElimination>();
-        passes.register_pass<pass::Opset0Downgrade>(); // Converts dynamic v1 variants to v0 ops
         passes.set_per_pass_validation(false);
 
         // FIXME(amprocte): Vile, temporary hack: we need to do repeated rounds of
@@ -279,9 +263,7 @@ bool runtime::dynamic::DynamicExecutable::call(
             num_dyn_nodes_last_pass = num_dyn_nodes_this_pass;
         }
 
-        pass::Manager pass_val;
-        pass_val.register_pass<pass::Validate>();
-        pass_val.run_passes(clone);
+        clone->validate_nodes_and_infer_types();
 
         std::vector<std::shared_ptr<runtime::Tensor>> wrapped_outputs;
 
@@ -327,6 +309,8 @@ size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const
 {
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "asked for size in bytes of a dynamic tensor with no allocated storage");
+    // TODO expand size calculation for type with bitwidth less than 8 like:
+    // m_wrapped_tensor->get_size_in_bytes()
     return get_element_count() * get_element_type().size();
 }
 

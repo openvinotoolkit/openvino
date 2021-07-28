@@ -13,7 +13,7 @@
 		<layer id="1" name="output_14/Split_input_port_1/value/Output_0/Data__const" type="Const" version="opset1">
 			<data element_type="i64" offset="0" shape="" size="8"/>
 			<output>
-				<port id="1" precision="I64"/>
+				<port id="0" precision="I64"/>
 			</output>
 		</layer>
 		<layer id="2" name="output_14/Split" type="Split" version="opset1">
@@ -39,7 +39,7 @@
 		<layer id="3" name="67_input_port_1/value69_const" type="Const" version="opset1">
 			<data element_type="f32" offset="8" shape="" size="4"/>
 			<output>
-				<port id="1" precision="FP32"/>
+				<port id="0" precision="FP32"/>
 			</output>
 		</layer>
 		<layer id="4" name="output_1" type="Add" version="opset1">
@@ -68,7 +68,7 @@
 		<layer id="6" name="71_input_port_1/value73_const" type="Const" version="opset1">
 			<data element_type="f32" offset="8" shape="" size="4"/>
 			<output>
-				<port id="1" precision="FP32"/>
+				<port id="0" precision="FP32"/>
 			</output>
 		</layer>
 		<layer id="7" name="output_2" type="Add" version="opset1">
@@ -97,16 +97,16 @@
 	</layers>
 	<edges>
 		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
 		<edge from-layer="2" from-port="2" to-layer="4" to-port="0"/>
-		<edge from-layer="3" from-port="1" to-layer="4" to-port="1"/>
+		<edge from-layer="3" from-port="0" to-layer="4" to-port="1"/>
 		<edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
 		<edge from-layer="2" from-port="3" to-layer="7" to-port="0"/>
-		<edge from-layer="6" from-port="1" to-layer="7" to-port="1"/>
+		<edge from-layer="6" from-port="0" to-layer="7" to-port="1"/>
 		<edge from-layer="7" from-port="2" to-layer="8" to-port="0"/>
 	</edges>
 	<meta_data>
-		<MO_version value="unknown version"/>
+		<MO_version value="custom_master_29f1c38ba0ae51897f47946d79d6bd6be7a494f0"/>
 		<cli_parameters>
 			<caffe_parser_path value="DIR"/>
 			<data_type value="float"/>

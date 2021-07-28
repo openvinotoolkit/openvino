@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include <algorithm>
 #include <cstdio>
@@ -810,7 +798,7 @@ TEST(pattern, is_contained_match)
     ASSERT_FALSE(n.is_contained_match());
 }
 
-TEST(pattern, wrap_type)
+TEST(pattern, wrap_type_single_op)
 {
     auto a = make_shared<op::Parameter>(element::f32, Shape{1, 3, 64, 64});
     auto b = make_shared<op::Abs>(a);
@@ -850,5 +838,49 @@ TEST(pattern, wrap_type)
         auto matcher = std::make_shared<pattern::Matcher>(m1, "MultiplyMatcher");
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul1)));
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul2)));
+    }
+}
+
+TEST(pattern, wrap_type_multi_op)
+{
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 3, 64, 64});
+    auto b = make_shared<op::Abs>(a);
+    auto c = make_shared<op::Relu>(a);
+    auto mul = make_shared<op::v1::Multiply>(a, op::Constant::create(element::f32, Shape{}, {1}));
+    auto add = make_shared<op::v1::Add>(op::Constant::create(element::f32, Shape{}, {1}), a);
+
+    {
+        auto m = pattern::wrap_type<op::v1::Multiply, op::v1::Add>();
+        auto matcher = std::make_shared<pattern::Matcher>(m, "MulAddMatcher");
+        ASSERT_TRUE(matcher->match(mul->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], mul);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_TRUE(matcher->match(add->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], add);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(a)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
+    }
+    {
+        auto m = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
+        auto matcher = std::make_shared<pattern::Matcher>(m, "ElementwiseMatcher");
+        ASSERT_TRUE(matcher->match(mul->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], mul);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_TRUE(matcher->match(add->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], add);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(a)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
     }
 }

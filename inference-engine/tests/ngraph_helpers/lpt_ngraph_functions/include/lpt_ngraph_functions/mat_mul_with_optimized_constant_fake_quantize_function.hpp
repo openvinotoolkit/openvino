@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ class MatMulWithOptimizedConstantFakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::PartialShape& inputShape1,
+        const ngraph::PartialShape& inputShape2,
         const FakeQuantizeOnData& fqOnData,
         const FakeQuantizeOnData& fqOnWeights);
 };

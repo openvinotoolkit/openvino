@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +26,10 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 
 // FakeQuantizeOnData
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizes)),

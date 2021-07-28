@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml inference_engine
-    ${NGRAPH_LIBRARIES} inference_engine_transformations)
+    ngraph inference_engine_transformations)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

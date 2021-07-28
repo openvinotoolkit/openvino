@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -58,34 +46,9 @@ namespace ngraph
                         const Shape& pads_end,
                         const Shape& kernel,
                         bool exclude_pad,
-                        op::RoundingType rounding_type,
-                        const PadType& auto_pad);
+                        op::RoundingType rounding_type = op::RoundingType::FLOOR,
+                        const PadType& auto_pad = op::PadType::EXPLICIT);
 
-                ///
-                /// \brief      Constructs a batched average pooling operation.
-                ///
-                /// \param      arg            The output producing the input data batch tensor.<br>
-                ///                            `[d1, dn]`
-                /// \param      strides        The strides.<br> `[n]`
-                /// \param      pads_begin     The beginning of padding shape.<br> `[n]`
-                /// \param      pads_end       The end of padding shape.<br> `[n]`
-                /// \param      kernel         The kernel shape.<br> `[n]`
-                /// \param      exclude_pad    If false then averages include padding elements, each
-                ///                            treated as the number zero.  If true, padding
-                ///                            elements
-                ///                            are entirely ignored when computing averages.
-                /// \param      rounding_type  Whether to use ceiling or floor rounding type while
-                ///                            computing output shape.
-                ///
-                AvgPool(const Output<Node>& arg,
-                        const Strides& strides,
-                        const Shape& pads_begin,
-                        const Shape& pads_end,
-                        const Shape& kernel,
-                        bool exclude_pad,
-                        op::RoundingType rounding_type);
-
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -112,7 +75,9 @@ namespace ngraph
                 op::RoundingType get_rounding_type() const;
                 void set_rounding_type(op::RoundingType rounding_type);
                 /// \return The default value for AvgPool.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Shape m_kernel;

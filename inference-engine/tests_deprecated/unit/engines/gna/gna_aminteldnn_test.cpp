@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,16 @@ TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tSecondInitNotAllowed) {
     // First init is ok
     ASSERT_NO_THROW(amIntelDnn.InitGNAStruct(&desc));
     // Second init would cause memory leak, so it's prohibited
-    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::Exception);
     amIntelDnn.DestroyGNAStruct(&desc);
 }
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_t_ptrIsNullptr) {
-    ASSERT_THROW(amIntelDnn.InitGNAStruct(nullptr), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(amIntelDnn.InitGNAStruct(nullptr), InferenceEngine::Exception);
 }
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_t_pLayersIsNotNullptr) {
-    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::Exception);
 }
 
 TEST_F(GNA_AmIntelDnn_test, ComponentIsEmpty) {
@@ -50,5 +50,5 @@ TEST_F(GNA_AmIntelDnn_test, ComponentIsEmpty) {
 #else
     desc.pLayers = nullptr;
 #endif
-    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::Exception);
 }

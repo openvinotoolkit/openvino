@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,14 @@
 
 #include <cmath>
 #include <limits>
+#include <cstdint>
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the float data type.
  */
 
 
-#define BFLOAT16_ROUND_MODE_TRUNCATE
+#define BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
 
 namespace MKLDNNPlugin {
 class bfloat16_t {
@@ -71,6 +72,7 @@ private:
     };
     uint16_t m_value;
 };
+
 } // namespace MKLDNNPlugin
 
 /**
@@ -139,3 +141,4 @@ public:
     static constexpr float_round_style round_style = round_to_nearest;
 };
 } // namespace std
+

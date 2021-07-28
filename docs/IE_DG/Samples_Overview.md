@@ -1,47 +1,56 @@
 # Inference Engine Samples {#openvino_docs_IE_DG_Samples_Overview}
 
-The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc. 
+The Inference Engine sample applications are simple console applications that show how to utilize specific Inference Engine capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
 
 After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:
 * `<INSTALL_DIR>/inference_engine/samples/c`
 * `<INSTALL_DIR>/inference_engine/samples/cpp`
-* `<INSTALL_DIR>/inference_engine/samples/python` 
+* `<INSTALL_DIR>/inference_engine/samples/python`
 
 Inference Engine sample applications include the following:
-- **[Automatic Speech Recognition C++ Sample](../../inference-engine/samples/speech_sample/README.md)** – Acoustic model inference based on Kaldi neural networks and speech feature vectors.
+
+- **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
+   - [Automatic Speech Recognition C++ Sample](../../inference-engine/samples/speech_sample/README.md)
+   - [Automatic Speech Recognition Python Sample](../../inference-engine/ie_bridges/python/sample/speech_sample/README.md)
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
-   - [Benchmark C++ Application](../../inference-engine/samples/benchmark_app/README.md) 
-   - [Benchmark Python Application](../../inference-engine/tools/benchmark_tool/README.md)
+   - [Benchmark C++ Tool](../../inference-engine/samples/benchmark_app/README.md)
+   - [Benchmark Python Tool](../../inference-engine/tools/benchmark_tool/README.md)
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
    - [Hello Classification C++ Sample](../../inference-engine/samples/hello_classification/README.md)
    - [Hello Classification C Sample](../../inference-engine/ie_bridges/c/samples/hello_classification/README.md)
-- **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs. 
+   - [Hello Classification Python Sample](../../inference-engine/ie_bridges/python/sample/hello_classification/README.md)
+- **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs.
    - [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
    - [Hello NV12 Input Classification C Sample](../../inference-engine/ie_bridges/c/samples/hello_nv12_input_classification/README.md)
 - **Hello Query Device Sample** – Query of available Inference Engine devices and their metrics, configuration values.
    - [Hello Query Device C++ Sample](../../inference-engine/samples/hello_query_device/README.md)
    - [Hello Query Device Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_query_device/README.md)
-- **[Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)** – Inference of SSD networks resized by ShapeInfer API according to an input size.
-- **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs). 
-   - [Image Classification C++ Sample Async](../../inference-engine/samples/classification_sample_async/README.md)
-   - [Image Classification Python* Sample Async](../../inference-engine/ie_bridges/python/sample/classification_sample_async/README.md)
-- **[Image Classification Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_classification/README.md)** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API (the sample supports only images as inputs).
-- **Neural Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
-   - [Neural Style Transfer C++ Sample](../../inference-engine/samples/style_transfer_sample/README.md)
-   - [Neural Style Transfer Python* Sample](../../inference-engine/ie_bridges/python/sample/style_transfer_sample/README.md)
-- **[nGraph Function Creation C++ Sample](../../inference-engine/samples/ngraph_function_creation_sample/README.md)** – Construction of the LeNet network using the nGraph function creation sample.
-- **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs. 
-   - [Object Detection for SSD C++ Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md)
-   - [Object Detection for SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
-   - [Object Detection for SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
+- **Hello Reshape SSD Sample** – Inference of SSD networks resized by ShapeInfer API according to an input size.
+   - [Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)
+   - [Hello Reshape SSD Python Sample**](../../inference-engine/ie_bridges/python/sample/hello_reshape_ssd/README.md)
+- **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs).
+   - [Image Classification Async C++ Sample](../../inference-engine/samples/classification_sample_async/README.md)
+   - [Image Classification Async Python* Sample](../../inference-engine/ie_bridges/python/sample/classification_sample_async/README.md)
+- **Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
+   - [Style Transfer C++ Sample](../../inference-engine/samples/style_transfer_sample/README.md)
+   - [Style Transfer Python* Sample](../../inference-engine/ie_bridges/python/sample/style_transfer_sample/README.md)
+- **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
+   - [nGraph Function Creation C++ Sample](../../inference-engine/samples/ngraph_function_creation_sample/README.md)
+   - [nGraph Function Creation Python Sample](../../inference-engine/ie_bridges/python/sample/ngraph_function_creation_sample/README.md)
+- **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs.
+   - [Object Detection SSD C++ Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md)
+   - [Object Detection SSD C Sample](../../inference-engine/ie_bridges/c/samples/object_detection_sample_ssd/README.md)
+   - [Object Detection SSD Python* Sample](../../inference-engine/ie_bridges/python/sample/object_detection_sample_ssd/README.md)
  
+> **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
 ## Media Files Available for Samples
 
-To run the sample applications, you can use images and videos from the media files collection available at https://github.com/intel-iot-devkit/sample-videos.
+To run the sample applications, you can use images and videos from the media files collection available at https://storage.openvinotoolkit.org/data/test_data.
 
 ## Samples that Support Pre-Trained Models
 
-You can download the [pre-trained models](@ref omz_models_intel_index) using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use [public](@ref omz_models_group_public) or [Intel's](@ref omz_models_group_intel) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader).
 
 ## Build the Sample Applications
 
@@ -49,7 +58,7 @@ You can download the [pre-trained models](@ref omz_models_intel_index) using the
 
 The officially supported Linux* build environment is the following:
 
-* Ubuntu* 18.04 LTS 64-bit or CentOS* 7.6 64-bit
+* Ubuntu* 18.04 LTS 64-bit or CentOS* 7 64-bit
 * GCC* 7.5.0 (for Ubuntu* 18.04) or GCC* 4.8.5 (for CentOS* 7.6)
 * CMake* version 3.10 or higher
 
@@ -125,6 +134,63 @@ You can also build a generated solution manually. For example, if you want to bu
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
 
+### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
+
+The officially supported macOS* build environment is the following:
+
+* macOS* 10.15 64-bit
+* Clang* compiler from Xcode* 10.1 or higher
+* CMake* version 3.13 or higher
+
+> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+
+To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
+```sh
+build_samples.sh
+```
+
+Once the build is completed, you can find sample binaries in the following folders:
+* C samples: `~/inference_engine_c_samples_build/intel64/Release`
+* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+
+You can also build the sample applications manually:
+
+> **NOTE**: If you have installed the product as a root user, switch to root mode before you continue: `sudo -i`
+
+> **NOTE**: Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by
+```sh
+cd <INSTALL_DIR>/bin
+source setupvars.sh
+```
+
+1. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
+```sh
+mkdir build
+```
+> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/inference_engine_samples_build/`
+
+2. Go to the created directory:
+```sh
+cd build
+```
+
+3. Run CMake to generate the Make files for release or debug configuration. For example, for C++ samples:
+  - For release configuration:
+  ```sh
+  cmake -DCMAKE_BUILD_TYPE=Release <INSTALL_DIR>/inference_engine/samples/cpp
+  ```
+  - For debug configuration:
+  ```sh
+  cmake -DCMAKE_BUILD_TYPE=Debug <INSTALL_DIR>/inference_engine/samples/cpp
+  ```
+4. Run `make` to build the samples:
+```sh
+make
+```
+
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+
 ## Get Ready for Running the Sample Applications
 
 ### Get Ready for Running the Sample Applications on Linux*
@@ -146,7 +212,7 @@ vi <user_home_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -183,4 +249,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Introduction to Inference Engine](inference_engine_intro.md)
+* [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)

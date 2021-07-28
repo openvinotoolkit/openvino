@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "arg_max_min_kernel_opt.h"
 
@@ -59,7 +47,7 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         dispatchData.gws = { Align(size, 16), orgParams.inputs[0].Batch().v, 1 };
@@ -69,8 +57,10 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         size = (size / 128 + 1) * topK;
     }
 
-    kd.estimatedTime = FORCE_PRIORITY_9;
-
     return {kd};
+}
+
+KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

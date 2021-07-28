@@ -1,17 +1,6 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 
 #include "reorder_weights_winograd_2x3_kernel.h"
 #include "kernel_selector_utils.h"
@@ -53,6 +42,10 @@ ReorderWeightsWinograd2x3Kernel::DispatchData ReorderWeightsWinograd2x3Kernel::S
 KernelsData ReorderWeightsWinograd2x3Kernel::GetKernelsData(const Params& params,
                                                             const optional_params& options) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_4);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderWeightsWinograd2x3Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

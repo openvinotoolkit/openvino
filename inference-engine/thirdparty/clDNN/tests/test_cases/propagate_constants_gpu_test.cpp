@@ -1,53 +1,35 @@
-/*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "test_utils.h"
 
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include <api/concatenation.hpp>
-#include <api/reorder.hpp>
-#include <api/data.hpp>
-#include <api/reshape.hpp>
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/primitives/reorder.hpp>
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reshape.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 //We expect additional reorder to be added in between "weights1" and "reshape1".
 //This situation should be handled properly by propagate constants optimization phase
 TEST(propagate_constants, copy_dependecies_from_nodes) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     build_options build_opt;
     build_opt.set_option(build_option::optimize_data(true));
 
-    auto input = memory::allocate(engine, { data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
-    auto weights1 = memory::allocate(engine, { data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
-    auto weights2 = memory::allocate(engine, { data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
+    auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
+    auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
+    auto weights2 = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
 
     set_values(input, { FLOAT16(1.1f), FLOAT16(1.2f), FLOAT16(1.3f), FLOAT16(1.4f) });
     set_values(weights1, { FLOAT16(2.1f), FLOAT16(3.1f) });
     set_values(weights2, { 1.1f, 0.1f });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
     topology.add(reshape("reshape1", "weights1", tensor(spatial(1, 2))));
@@ -61,9 +43,8 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     auto outputs = network.execute();
 
     float epsilon = 1e-2f;
-    for (auto& it : outputs)
-    {
-        auto output = it.second.get_memory().pointer<float>();
+    for (auto& it : outputs) {
+        cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         EXPECT_NEAR(7.8f, output[0], epsilon);
     }
 }

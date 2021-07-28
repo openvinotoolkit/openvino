@@ -1,6 +1,6 @@
 # Converting EfficientDet Models from TensorFlow {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models}
 
-This tutorial explains how to convert detection EfficientDet\* public models to the Intermediate Representation (IR). 
+This tutorial explains how to convert EfficientDet\* public object detection models to the Intermediate Representation (IR). 
 
 ## <a name="efficientdet-to-ir"></a>Convert EfficientDet Model to IR
 
@@ -24,10 +24,11 @@ git checkout 96e1fee
 3. Install required dependencies:<br>
 ```sh
 python3 -m pip install --upgrade pip
-python3 -m pip install -r automl/efficientdet/requirements.txt
+python3 -m pip install -r requirements.txt
+python3 -m pip install --upgrade tensorflow-model-optimization
 ```
 4. Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz)
-referenced in the "Pretrained EfficientDet Checkpoints" section of the model repository:<br>
+referenced in the "Pre-trained EfficientDet Checkpoints" section of the model repository:<br>
 ```sh
 wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
 tar zxvf efficientdet-d4.tar.gz
@@ -38,15 +39,17 @@ python3 model_inspect.py --runmode=saved_model --model_name=efficientdet-d4  --c
 ```
 As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will be generated.
 
+> **NOTE**: For custom trained models, specify `--hparams` flag to `config.yaml` which was used during training.
+
 > **NOTE:** If you see an error `AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'` apply the fix from the [patch](https://github.com/google/automl/pull/846).
 
 ### Convert EfficientDet TensorFlow Model to the IR
 
 To generate the IR of the EfficientDet TensorFlow model, run:<br>
 ```sh
-python3 $MO_ROOT/mo.py \
+python3 $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo.py \
 --input_model savedmodeldir/efficientdet-d4_frozen.pb \
---tensorflow_use_custom_operations_config $MO_ROOT/extensions/front/tf/automl_efficientdet.json \
+--transformations_config $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/extensions/front/tf/automl_efficientdet.json \
 --input_shape [1,$IMAGE_SIZE,$IMAGE_SIZE,3] \
 --reverse_input_channels
 ```
@@ -56,7 +59,7 @@ EfficientDet models were trained with different input image sizes. To determine 
 dictionary in the [hparams_config.py](https://github.com/google/automl/blob/96e1fee/efficientdet/hparams_config.py#L304) file.
 The attribute `image_size` specifies the shape to be specified for the model conversion.
 
-The `tensorflow_use_custom_operations_config` command line parameter specifies the configuration json file containing hints
+The `transformations_config` command line parameter specifies the configuration json file containing hints
 to the Model Optimizer on how to convert the model and trigger transformations implemented in the 
 `$MO_ROOT/extensions/front/tf/AutomlEfficientDet.py`. The json file contains some parameters which must be changed if you
 train the model yourself and modified the `hparams_config` file or the parameters are different from the ones used for EfficientDet-D4.

@@ -1,24 +1,11 @@
-//*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
 #include <ngraph/op/parameter.hpp>
-#include "ngraph/factory_adapter.hpp"
-#include "ngraph/op/op.hpp"
+#include "ngraph/op/util/multi_subgraph_base.hpp"
 
 namespace ngraph
 {
@@ -26,231 +13,46 @@ namespace ngraph
     {
         namespace util
         {
-            /// \brief Abstract base class for sub-graph based ops, i.e ops that have sub-graph
+            /// \brief Abstract base class for sub-graph based ops, i.e ops that have only one
+            /// sub-graph
             ///
-            class NGRAPH_API SubGraphOp : public Op
+            class NGRAPH_API SubGraphOp : public MultiSubGraphOp
             {
             public:
-                /// \brief Describes a connection between a SubGraphOp input and the body.
-                class InputDescription
+                NGRAPH_RTTI_DECLARATION;
+
+                virtual const std::shared_ptr<Function>& get_function() const
                 {
-                protected:
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    /// \param      body_parameter_index  Body parameter to receive input
-                    ///
-                    InputDescription(uint64_t input_index, uint64_t body_parameter_index);
-                    InputDescription() = default;
-
-                public:
-                    using type_info_t = DiscreteTypeInfo;
-                    virtual ~InputDescription() = default;
-                    virtual std::shared_ptr<InputDescription> copy() const = 0;
-
-                    virtual const type_info_t& get_type_info() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
-
-                    uint64_t m_input_index{0};
-                    uint64_t m_body_parameter_index{0};
+                    return m_bodies[0];
                 };
-
-                ///
-                /// \brief      Describes a body input formed from slices of an input to
-                ///             SubGraphOp.
-                ///
-                class NGRAPH_API SliceInputDescription : public InputDescription
+                virtual void set_function(const std::shared_ptr<Function>& func)
                 {
-                public:
-                    static constexpr type_info_t type_info{"SliceInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    /// \param      body_parameter_index  Body parameter position to receive input
-                    /// \param      start                 First index for slices
-                    /// \param      stride                Step amount for slices
-                    /// \param      part_size             Width of slices
-                    /// \param      end                   Last index for slices
-                    /// \param      axis                  Axis being sliced
-                    ///
-                    SliceInputDescription(uint64_t input_index,
-                                          uint64_t body_parameter_index,
-                                          int64_t start,
-                                          int64_t stride,
-                                          int64_t part_size,
-                                          int64_t end,
-                                          int64_t axis);
-                    SliceInputDescription() = default;
-                    std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
-                    int64_t m_start{0};
-                    int64_t m_stride{0};
-                    int64_t m_part_size{0};
-                    int64_t m_end{0};
-                    int64_t m_axis{0};
+                    m_bodies[0] = func;
                 };
-
-                ///
-                /// \brief      Describes a body input initialized from a SubGraphOp input on
-                ///             the first iteration, and then a body output thereafter.
-                ///
-                class NGRAPH_API MergedInputDescription : public InputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"MergedInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    ///                                   supplying a value to body_parameter for
-                    ///                                   the initial iteration.
-                    /// \param      body_parameter_index  Body parameter position to receive input.
-                    /// \param      body_value_index      Body value to supply body_parameter for
-                    /// successive
-                    ///                                   iterations.
-                    ///
-                    MergedInputDescription(uint64_t input_index,
-                                           uint64_t body_parameter_index,
-                                           uint64_t body_value_index);
-                    MergedInputDescription() = default;
-                    std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
-                    uint64_t m_body_value_index{0};
-                };
-
-                ///
-                /// \brief      Describes a body input initialized from a SubGraphOp input on
-                ///             the first iteration, and invariant thereafter.
-                ///
-                class NGRAPH_API InvariantInputDescription : public InputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"InvariantInputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      input_index           Position of the SubGraphOp input
-                    /// \param      body_parameter_index  Body parameter to receive input
-                    ///
-                    InvariantInputDescription(uint64_t input_index, uint64_t body_parameter_index);
-                    InvariantInputDescription() = default;
-                    std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
-                };
-
-                /// \brief Describes how a SubGraphOp output is produced from the body.
-                class OutputDescription
-                {
-                protected:
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The SubGraphOp output index
-                    ///
-                    OutputDescription(uint64_t body_value_index, uint64_t output_index);
-                    OutputDescription() = default;
-
-                public:
-                    using type_info_t = DiscreteTypeInfo;
-                    virtual ~OutputDescription() = default;
-                    virtual std::shared_ptr<OutputDescription> copy() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
-                    virtual const type_info_t& get_type_info() const = 0;
-
-                    uint64_t m_body_value_index{0};
-                    uint64_t m_output_index{0};
-                };
-
-                /// \brief Produces an output by concatenating an output from each iteration
-                class NGRAPH_API ConcatOutputDescription : public OutputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"ConcatOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The SubGraphOp output index
-                    /// \param      start             First index for slices
-                    /// \param      stride            Step amount for slices
-                    /// \param      part_size         Width of slices
-                    /// \param      end               Last index for slices
-                    /// \param      axis              Axis being sliced
-                    ///
-                    ConcatOutputDescription(uint64_t body_value_index,
-                                            uint64_t output_index,
-                                            int64_t start,
-                                            int64_t stride,
-                                            int64_t part_size,
-                                            int64_t end,
-                                            int64_t axis);
-                    ConcatOutputDescription() = default;
-
-                    std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
-                    int64_t m_start{0};
-                    int64_t m_stride{0};
-                    int64_t m_part_size{0};
-                    int64_t m_end{0};
-                    int64_t m_axis{0};
-                };
-
-                /// \brief Produces an output from a specific iteration
-                class NGRAPH_API BodyOutputDescription : public OutputDescription
-                {
-                public:
-                    static constexpr type_info_t type_info{"BodyOutputDescription", 0};
-                    const type_info_t& get_type_info() const override { return type_info; }
-                    ///
-                    /// \brief      Constructs a new instance.
-                    ///
-                    /// \param      body_value_index  A body value that produces the output
-                    /// \param      output_index      The SubGraphOp output index
-                    /// \param      iteration         which iteration (typically -1, final) will
-                    ///                               supply the value
-                    ///
-                    BodyOutputDescription(uint64_t body_value_index,
-                                          uint64_t output_index,
-                                          int64_t iteration);
-                    BodyOutputDescription() = default;
-                    std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
-                    int64_t m_iteration{0};
-                };
-
-                virtual std::shared_ptr<Function> get_function() { return m_body; };
-                virtual void set_function(const std::shared_ptr<Function>& func) { m_body = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
                 {
-                    return m_input_descriptions;
+                    return m_input_descriptions[0];
                 }
                 /// \return a reference to the input descriptions. Can add input descriptions
                 /// before
                 /// validation.
                 std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions()
                 {
-                    return m_input_descriptions;
+                    return m_input_descriptions[0];
                 }
                 /// \return a reference to the output descriptions.
                 const std::vector<std::shared_ptr<OutputDescription>>&
                     get_output_descriptions() const
                 {
-                    return m_output_descriptions;
+                    return m_output_descriptions[0];
                 }
                 /// \return a reference to the output descriptions. Can add output descriptions
                 /// before
                 /// validation.
                 std::vector<std::shared_ptr<OutputDescription>>& get_output_descriptions()
                 {
-                    return m_output_descriptions;
+                    return m_output_descriptions[0];
                 }
 
                 ///
@@ -327,99 +129,34 @@ namespace ngraph
                                                              int64_t end,
                                                              int64_t axis);
 
+                SubGraphOp(const SubGraphOp&) = delete;
+                SubGraphOp(SubGraphOp&&) = default;
+
+                SubGraphOp& operator=(const SubGraphOp&) = delete;
+                SubGraphOp& operator=(SubGraphOp&&) = default;
+
+                int64_t get_num_iterations() const { return m_num_iterations; }
+
             protected:
+                int64_t m_num_iterations =
+                    -1; // -1 means infinity for Loop op, inconsistent for TensorIterator
+
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 
-                SubGraphOp() = default;
-
+                SubGraphOp();
                 explicit SubGraphOp(const OutputVector& args);
 
-                std::shared_ptr<Function> m_body;
-                std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>
-                    m_input_descriptions;
-                std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
-                    m_output_descriptions;
+            private:
+                using MultiSubGraphOp::get_function;
+
+                using MultiSubGraphOp::set_function;
             };
             using InputDescriptionPtr = std::shared_ptr<util::SubGraphOp::InputDescription>;
             using OutputDescriptionPtr = std::shared_ptr<util::SubGraphOp::OutputDescription>;
             using InputDescriptionVector = std::vector<InputDescriptionPtr>;
             using OutputDescriptionVector = std::vector<OutputDescriptionPtr>;
-        }
-    }
-    template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::InputDescription>;
+        } // namespace util
+    }     // namespace op
 
-    template <>
-    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get();
-
-    template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>
-        : public FactoryAttributeAdapter<op::util::SubGraphOp::InputDescription>
-    {
-    public:
-        using FactoryAttributeAdapter::FactoryAttributeAdapter;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
-
-    template <>
-    class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>
-        : public VisitorAdapter
-    {
-    public:
-        explicit AttributeAdapter(
-            std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& ref);
-
-        bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& m_ref;
-    };
-
-    template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::OutputDescription>;
-
-    template <>
-    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get();
-
-    template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
-        : public FactoryAttributeAdapter<op::util::SubGraphOp::OutputDescription>
-    {
-    public:
-        using FactoryAttributeAdapter::FactoryAttributeAdapter;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
-
-    template <>
-    class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>
-        : public VisitorAdapter
-    {
-    public:
-        explicit AttributeAdapter(
-            std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& ref);
-
-        bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& m_ref;
-    };
-}
+} // namespace ngraph

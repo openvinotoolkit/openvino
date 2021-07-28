@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna/gna_config.hpp>
 #endif
 
 namespace GNAPluginNS {
@@ -89,20 +90,15 @@ public:
 
     template<class A, class B, class C, class D>
     static void InitConvolutional1DComponent(intel_dnn_component_t &comp,
-                                             uint32_t num_rows_in,
                                              uint32_t num_columns_in,
-                                             uint32_t num_rows_out,
                                              uint32_t num_columns_out,
                                              uint32_t num_bytes_per_input,
                                              uint32_t num_bytes_per_output,
                                              uint32_t num_bytes_per_weight,
                                              uint32_t num_bytes_per_bias,
                                              uint32_t num_filters,
-                                             uint32_t num_filter_rows,
                                              uint32_t num_filter_coefficients,
-                                             uint32_t num_feature_maps,
-                                             uint32_t num_feature_map_rows,
-                                             uint32_t num_feature_map_columns,
+                                             uint32_t convStride,
                                              float weight_scale_factor,
                                              float output_scale_factor,
                                              A *&ptr_inputs,
@@ -110,20 +106,15 @@ public:
                                              C *&ptr_filters,
                                              D *&ptr_biases) {
         InitConvolutional1DComponentPrivate(comp,
-                                            num_rows_in,
                                             num_columns_in,
-                                            num_rows_out,
                                             num_columns_out,
                                             num_bytes_per_input,
                                             num_bytes_per_output,
                                             num_bytes_per_weight,
                                             num_bytes_per_bias,
                                             num_filters,
-                                            num_filter_rows,
                                             num_filter_coefficients,
-                                            num_feature_maps,
-                                            num_feature_map_rows,
-                                            num_feature_map_columns,
+                                            convStride,
                                             weight_scale_factor,
                                             output_scale_factor,
                                             (void *&) ptr_inputs,
@@ -133,33 +124,55 @@ public:
                                             true);
     }
 
+#if GNA_LIB_VER == 2
+    template<class A, class B, class C, class D>
+    static void InitConvolutional2DComponent(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        std::array<uint32_t, 2> zeroPadding,
+        float weight_scale_factor,
+        float output_scale_factor,
+        A*& ptr_inputs,
+        B*& ptr_outputs,
+        C*& ptr_filters,
+        D*& ptr_biases) {
+        InitConvolutional2DComponentPrivate(comp,
+            inputTensor,
+            outputTensor,
+            filterTensor,
+            biasTensor,
+            convStride,
+            zeroPadding,
+            weight_scale_factor,
+            output_scale_factor,
+            (void*&)ptr_inputs,
+            (void*&)ptr_outputs,
+            (void*&)ptr_filters,
+            (void*&)ptr_biases);
+    }
+#endif
 
     template<class A, class B>
     static void InitMaxpoolComponent(intel_dnn_component_t &cmp,
-                                     uint32_t num_rows_in,
-                                     uint32_t num_columns_in,
-                                     uint32_t num_rows_out,
-                                     uint32_t num_columns_out,
+                                     std::array<uint32_t, 3> inCHW,
+                                     std::array<uint32_t, 3> outCHW,
                                      uint32_t num_bytes_per_input,
                                      uint32_t num_bytes_per_output,
-                                     uint32_t num_pool_size,
-                                     uint32_t num_pool_step,
-                                     uint32_t num_pool_stride,
-                                     bool do_sum_not_max,
+                                     std::array<uint32_t, 2> poolingWindowXY,
+                                     std::array<uint32_t, 2> poolingStrideXY,
                                      float output_scale_factor,
                                      A *&ptr_inputs,
                                      B *&ptr_outputs) {
         InitMaxpoolComponentPrivate(cmp,
-                                    num_rows_in,
-                                    num_columns_in,
-                                    num_rows_out,
-                                    num_columns_out,
+                                    inCHW,
+                                    outCHW,
                                     num_bytes_per_input,
                                     num_bytes_per_output,
-                                    num_pool_size,
-                                    num_pool_step,
-                                    num_pool_stride,
-                                    do_sum_not_max,
+                                    poolingWindowXY,
+                                    poolingStrideXY,
                                     output_scale_factor,
                                     (void *&) ptr_inputs,
                                     (void *&) ptr_outputs,
@@ -281,7 +294,7 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
     void DestroyGNAStruct(Gna2Model *gnaModel);
 #else
 
@@ -359,16 +372,12 @@ private:
                                          bool postInitMem);
 
     static void InitMaxpoolComponentPrivate(intel_dnn_component_t &cmp,
-                                            uint32_t num_rows_in,
-                                            uint32_t num_columns_in,
-                                            uint32_t num_rows_out,
-                                            uint32_t num_columns_out,
+                                            std::array<uint32_t, 3> inCHW,
+                                            std::array<uint32_t, 3> outCHW,
                                             uint32_t num_bytes_per_input,
                                             uint32_t num_bytes_per_output,
-                                            uint32_t num_pool_size,
-                                            uint32_t num_pool_step,
-                                            uint32_t num_pool_stride,
-                                            bool do_sum_not_max,
+                                            std::array<uint32_t, 2> poolingWindowXY,
+                                            std::array<uint32_t, 2> poolingStrideXY,
                                             float output_scale_factor,
                                             void *&ptr_inputs,
                                             void *&ptr_outputs,
@@ -410,20 +419,15 @@ private:
                                                     bool postInitMem);
 
     static void InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                    uint32_t num_rows_in,
                                                     uint32_t num_columns_in,
-                                                    uint32_t num_rows_out,
                                                     uint32_t num_columns_out,
                                                     uint32_t num_bytes_per_input,
                                                     uint32_t num_bytes_per_output,
                                                     uint32_t num_bytes_per_weight,
                                                     uint32_t num_bytes_per_bias,
                                                     uint32_t num_filters,
-                                                    uint32_t num_filter_rows,
                                                     uint32_t num_filter_coefficients,
-                                                    uint32_t num_feature_maps,
-                                                    uint32_t num_feature_map_rows,
-                                                    uint32_t num_feature_map_columns,
+                                                    uint32_t convStride,
                                                     float weight_scale_factor,
                                                     float output_scale_factor,
                                                     void *&ptr_inputs,
@@ -431,6 +435,22 @@ private:
                                                     void *&ptr_filters,
                                                     void *&ptr_biases,
                                                     bool postInitMem);
+
+#if GNA_LIB_VER == 2
+    static void InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        std::array<uint32_t, 2> zeroPadding,
+        float weight_scale_factor,
+        float output_scale_factor,
+        void*& ptr_inputs,
+        void*& ptr_outputs,
+        void*& ptr_filters,
+        void*& ptr_biases);
+#endif
 
     static void InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                            uint32_t num_rows_in,

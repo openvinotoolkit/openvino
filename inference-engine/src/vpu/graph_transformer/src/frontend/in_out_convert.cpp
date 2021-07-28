@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,6 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
     env.log->trace("Add Data type conversion stages");
     VPU_LOGGER_SECTION(env.log);
 
-    const bool hasScaleBias = env.config.inputScale != 1.0f || env.config.inputBias != 0.0f;
-
     for (const auto& input : model->datas()) {
         if (input->usage() != DataUsage::Input) {
             continue;
@@ -33,37 +31,6 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         VPU_LOGGER_SECTION(env.log);
 
         switch (input->desc().type()) {
-            case DataType::FP16: {
-                if (hasScaleBias) {
-                    env.log->trace("Apply deprecated scale/bias parameters");
-
-                    std::ostringstream postfix;
-                    if (env.config.inputScale != 1.0f) {
-                        postfix << "@SCALE=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.inputScale);
-                    }
-                    if (env.config.inputBias != 0.0f) {
-                        postfix << "@BIAS=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.inputBias);
-                    }
-
-                    const auto scaledInput = model->duplicateData(
-                            input,
-                            postfix.str());
-
-                    bindData(scaledInput, input->origData());
-
-                    _stageBuilder->addPowerStage(
-                            model,
-                            scaledInput->name(),
-                            nullptr,
-                            env.config.inputScale,
-                            1.0f,
-                            env.config.inputBias,
-                            input,
-                            scaledInput);
-                }
-                break;
-            }
-
             case DataType::U8:
             case DataType::FP32: {
                 env.log->trace("Convert to FP16");
@@ -80,13 +47,17 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
 
                 bindData(inputFP16, input->origData());
 
+                for (const auto consumerEdge : input->consumerEdges()) {
+                    model->replaceStageInput(consumerEdge, inputFP16);
+                }
+
                 _stageBuilder->createConvertStage(
                         model,
                         inputFP16->name(),
                         input,
                         inputFP16,
-                        env.config.inputScale,
-                        env.config.inputBias);
+                        1.0f,
+                        0.0f);
 
                 break;
             }
@@ -126,6 +97,10 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
 
         bindData(outputFP16, output->origData());
 
+        if (const auto producerEdge = output->producerEdge()) {
+            model->replaceStageOutput(producerEdge, outputFP16);
+        }
+
         const auto stage = _stageBuilder->createConvertStage(
             model,
             outputFP16->name(),
@@ -135,7 +110,7 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
         const auto withDetectionOutput = model->attrs().getOrDefault<bool>("withDetectionOutput", false);
         stage->attrs().set<bool>("convertFromDetOutput", withDetectionOutput);
 
-        const auto haveBatch = _unbatchedOutputs.count(output->origData()) == 0;
+        const auto haveBatch = model->batchSize() != 1 && _unbatchedOutputs.count(output->origData()) == 0;
         stage->attrs().set<bool>("haveBatch", haveBatch);
     }
 }

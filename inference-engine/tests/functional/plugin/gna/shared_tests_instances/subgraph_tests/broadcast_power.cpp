@@ -1,12 +1,13 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include <vector>
 #include <string>
 #include <ie_precision.hpp>
 #include <subgraph_tests/broadcast_power.hpp>
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -38,7 +39,7 @@ const std::vector<std::vector<std::vector<size_t>>> input_shapes {
 };
 
 
-INSTANTIATE_TEST_CASE_P(PowerBroadcast, BroadcastPowerTest,
+INSTANTIATE_TEST_SUITE_P(PowerBroadcast, BroadcastPowerTest,
         ::testing::Combine(
         ::testing::ValuesIn(input_shapes),
         ::testing::ValuesIn(netPrecisions),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,4 +56,8 @@ void op::ScaleShiftIE::validate_and_infer_types() {
                           ", weights element type: ", weights_et, ").");
 
     set_output_type(0, data_et, get_input_partial_shape(0));
+}
+
+bool ngraph::op::ScaleShiftIE::visit_attributes(AttributeVisitor& visitor) {
+    return true;
 }

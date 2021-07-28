@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 #include "lpt_ngraph_functions/avg_pool_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -15,31 +16,21 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::element::Type precision,
+    const ngraph::element::Type inputPrecision,
+    const ngraph::PartialShape& inputShape,
     const bool addFQ,
-    const std::string additionalLayer,
-    const ActualValues& values) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
+    const std::vector<std::string>& additionalLayers,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-    parent = convert;
-
-    if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
-        parent = subtract;
-    }
-
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-    parent = multiply;
+    auto deqBeforeStructure = dequantizationBefore;
+    deqBeforeStructure.multiply.outPrecision = precision;
+    const auto dequantization = makeDequantization(input, deqBeforeStructure);
 
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
-        parent,
+        dequantization,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
@@ -48,20 +39,27 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         op::RoundingType::FLOOR);
 
     std::shared_ptr<Node> lastLayer = avgPool;
-
-    if (additionalLayer == "maxpool") {
-        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
-            lastLayer,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+    for (const std::string& additionalLayer : additionalLayers) {
+        if (additionalLayer == "maxpool") {
+            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+                lastLayer,
+                Strides{ 1, 1 },
+                Shape{ 1, 1 },
+                Shape{ 0, 0 },
+                Shape{ 2, 2 },
+                op::RoundingType::FLOOR);
+        } else if (additionalLayer == "softmax") {
+            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+        } else if (additionalLayer == "convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, false);
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+        }
     }
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");
@@ -72,9 +70,9 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, inputShape);
 
     const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
@@ -94,59 +92,61 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
-    const ngraph::element::Type originalFunctionPrecision,
-    const ngraph::Shape& inputShape,
+    const ngraph::element::Type precision,
+    const ngraph::element::Type inputPrecision,
+    const ngraph::PartialShape& inputShape,
     const bool addFQ,
-    const std::string additionalLayer,
-    const ExpectedValues& values) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent = input;
+    const std::vector<std::string>& additionalLayers,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationEnd) {
+    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
+    auto outPrecision = precisionAfterOperation;
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
-        parent,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        true,
-        op::RoundingType::FLOOR);
-    const auto avgPoolPrecision = addFQ ? originalFunctionPrecision : values.activationPrecision;
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, avgPoolPrecision);
-
-    parent = avgPool;
-
-    if (additionalLayer == "maxpool") {
-        parent = std::make_shared<ngraph::opset1::MaxPool>(
-            parent,
+        opset1::AvgPool(
+            deqBefore,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
             Shape{ 0, 0 },
             Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+            true,
+            op::RoundingType::FLOOR),
+        outPrecision);
+
+    std::shared_ptr<Node> lastLayer = avgPool;
+
+    auto deqStructure = dequantizationAfter;
+    deqStructure.multiply.outPrecision = precision;
+    lastLayer = makeDequantization(lastLayer, deqStructure);
+
+    for (const std::string& additionalLayer : additionalLayers) {
+        if (additionalLayer == "maxpool") {
+            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+                lastLayer,
+                Strides{ 1, 1 },
+                Shape{ 1, 1 },
+                Shape{ 0, 0 },
+                Shape{ 2, 2 },
+                op::RoundingType::FLOOR);
+        } else if (additionalLayer == "softmax") {
+            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+        } else if (additionalLayer == "convolution") {
+            lastLayer = makeConvolution(lastLayer, element::f32, dequantizationAfter.empty());
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+        }
     }
 
-    if (avgPoolPrecision != originalFunctionPrecision) {
-        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-        parent = convert;
-    }
-
-    if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
-
-        parent = subtract;
-    }
-
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-
-    std::shared_ptr<Node> lastLayer = multiply;
+    deqStructure = dequantizationEnd;
+    deqStructure.multiply.outPrecision = precision;
+    lastLayer = makeDequantization(lastLayer, deqStructure);
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, precision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");

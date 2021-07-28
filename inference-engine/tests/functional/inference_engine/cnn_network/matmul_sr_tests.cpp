@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,6 @@ struct ReshapeMatMulTestCase {
 class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
 public:
     void SetUp() override {
-        const auto& parameters = GetParam();
         const auto& test_case = std::get<0>(GetParam());
 
         std::shared_ptr<ngraph::Function> ngraph;
@@ -71,7 +70,7 @@ public:
 TEST_P(SmartReshapeMatMulTests, ReshapeMatMul) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, SmartReshapeMatMulTests, testing::Values(
+INSTANTIATE_TEST_SUITE_P(NGraph, SmartReshapeMatMulTests, testing::Values(
         ReshapeMatMulTestCase{true, {1, 20, 30}, {30, 40}, {20, -1}, false, false, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 20, 30}, {40, 30}, {20, -1}, false, true, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {30, 20}, {-1, 20}, true, false, {{"input_A", {2, 30, 20}}}},

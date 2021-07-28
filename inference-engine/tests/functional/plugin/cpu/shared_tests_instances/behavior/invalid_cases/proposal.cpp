@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ const auto proposalParams = ::testing::Combine(
         ::testing::ValuesIn(framework_)
 );
 
-INSTANTIATE_TEST_CASE_P(invalid, ProposalBehTest,
+INSTANTIATE_TEST_SUITE_P(invalid, ProposalBehTest,
                         ::testing::Combine(
                                 proposalParams,
                                 ::testing::ValuesIn(img_info_invalid),

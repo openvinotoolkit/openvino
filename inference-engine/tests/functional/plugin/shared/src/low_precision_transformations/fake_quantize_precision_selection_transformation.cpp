@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,27 +16,27 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
+    ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        netPrecision,
         inputShape,
         {
             testValues.operationBeforeLimitedOperationIsPrecisionTransparent,

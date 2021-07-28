@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,4 +96,4 @@ const BehTestParams vpuValues[] = {
         BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -151,7 +151,7 @@ TEST_P(MvncStressTests, FullCycleOfWork101Times) {
 
 }
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncStressTests,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());

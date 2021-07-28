@@ -1,28 +1,19 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_VERSION VERSION_GREATER 3.9.6)
-    include_guard(GLOBAL)
-else()
-    if(__CURRENT_FILE_VAR__)
-      return()
-    endif()
-    set(__CURRENT_FILE_VAR__ TRUE)
-endif()
-
-include(dependency_solver)
+include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "2980b6d0726107888ec7ba02c43a245a699c19a0f1e25b54f0bb928c91bfa045"
-    "c4692a7c3f44e6cdf6743c21d99570946d81ece9370fcd07725da95ad8fcd657")
+    "54a732b5fb17a0124652bc5113fa628c718a5af40621bca309471cb5ffd9271b"
+    "5750b2831c77ef54b8e243d3840c5ed1c9509681d55aee7e369d558cef628735")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1532)
+set(FIRMWARE_PACKAGE_VERSION 1717)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
@@ -90,8 +81,16 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_RUNTIME_PATH}
-        COMPONENT myriad)
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT myriad)
+
+    if(ENABLE_MYRIAD AND ENABLE_BEH_TESTS)
+        # for MyriadBehaviorTests
+        install(FILES ${${var_name}}
+                DESTINATION tests
+                COMPONENT tests
+                EXCLUDE_FROM_ALL)
+    endif()
 endforeach()
 
 add_custom_target(vpu_copy_firmware

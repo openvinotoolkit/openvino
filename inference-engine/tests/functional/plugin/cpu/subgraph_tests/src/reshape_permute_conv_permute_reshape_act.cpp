@@ -1,5 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/reshape_permute_conv_permute_reshape_act.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -29,8 +31,8 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 
 std::map<std::string, std::string> additional_config = { };
 
-namespace LayerTestsDefinitions {
-    INSTANTIATE_TEST_CASE_P(smoke_basic, ConvReshapeAct,
+namespace SubgraphTestsDefinitions {
+    INSTANTIATE_TEST_SUITE_P(smoke_basic, ConvReshapeAct,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -39,6 +41,6 @@ namespace LayerTestsDefinitions {
             ::testing::ValuesIn(output_channels),
             ::testing::Values(additional_config)),
         ConvReshapeAct::getTestCaseName);
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions
 
 

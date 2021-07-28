@@ -1,20 +1,7 @@
 #!/usr/bin/env python3
 
-"""
- Copyright (C) 2018-2020 Intel Corporation
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-"""
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
@@ -83,9 +70,10 @@ if __name__ == "__main__":  # pragma: no cover
     if argv.input_model and argv.saved_model_dir:
         print("[ ERROR ] Both keys were provided --input_model and --input_dir. Please, provide only one of them")
         sys.exit(1)
-    graph_def, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
-                                     checkpoint=argv.input_checkpoint,
-                                     model_dir=argv.saved_model_dir, saved_model_tags=argv.saved_model_tags)
+    tags = argv.saved_model_tags.split(",")
+    graph_def, _, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
+                                        checkpoint=argv.input_checkpoint,
+                                        model_dir=argv.saved_model_dir, saved_model_tags=tags)
     summary = summarize_graph(graph_def)
     print("{} input(s) detected:".format(len(summary['inputs'])))
     for input in summary['inputs']:

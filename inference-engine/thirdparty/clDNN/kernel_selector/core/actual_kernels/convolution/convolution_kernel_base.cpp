@@ -1,18 +1,6 @@
-/*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #include "convolution_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -28,15 +16,6 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-    const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
-
-    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
-
-    const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
-
-    if (!bWeightsOK) {
-        return false;
-    }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
@@ -191,7 +170,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -202,6 +180,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
                                        GetPreferredWeightsLayout(newParams),
@@ -210,11 +192,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        newParams.groups,
                                        newParams.transposed);
 
-    if (!succeed) {
-        return {};
-    }
+    bool bSupportedWeightsLayout = newParams.weights.GetLayout() == GetPreferredWeightsLayout(newParams);
+    const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
 
-    if (!Validate(params, options)) {
+    if (!succeed || !bWeightsOK) {
         return {};
     }
 
@@ -233,7 +214,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
@@ -249,26 +230,25 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      1);
 
     if (newParams.deformable_mode) {
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
     if (!newParams.weights_zero_points.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
     if (!newParams.activations_zero_points.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
     if (!newParams.compensation.empty())
-        kernel.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
 
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
         for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
             fused_deps_total++;
         }
     }
-    kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

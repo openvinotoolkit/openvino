@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I8,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NoReshape, ConvertLikeLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConvertLikeLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(netPrecisions),

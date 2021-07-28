@@ -32,24 +32,24 @@ class must not exceed `max_output_boxes_per_class`.
 * *sort_result_descending*
 
   * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
-  * **Range of values**: True of False
-    * *True* - sort selected boxes across batches.
-    * *False* - do not sort selected boxes across batches (boxes are sorted per class).
+  * **Range of values**: true of false
+    * *true* - sort selected boxes across batches.
+    * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `boxes` - floating point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. Required.
+*   **1**: `boxes` - floating-point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
 
-*   **2**: `scores` - floating point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
+*   **2**: `scores` - floating-point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
 
 *   **3**: `max_output_boxes_per_class` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: `iou_threshold` - floating point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+*   **4**: `iou_threshold` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: `score_threshold` - floating point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
+*   **5**: `score_threshold` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 

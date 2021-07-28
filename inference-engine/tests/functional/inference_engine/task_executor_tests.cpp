@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,12 +194,11 @@ static auto Executors = ::testing::Values(
                                                streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
     },
     [] {
-        auto threads = parallel_get_max_threads();
         return std::make_shared<ImmediateExecutor>();
     }
 );
 
-INSTANTIATE_TEST_CASE_P(TaskExecutorTests, TaskExecutorTests, Executors);
+INSTANTIATE_TEST_SUITE_P(TaskExecutorTests, TaskExecutorTests, Executors);
 
 static auto AsyncExecutors = ::testing::Values(
     [] {
@@ -210,5 +209,5 @@ static auto AsyncExecutors = ::testing::Values(
     }
 );
 
-INSTANTIATE_TEST_CASE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
+INSTANTIATE_TEST_SUITE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
 

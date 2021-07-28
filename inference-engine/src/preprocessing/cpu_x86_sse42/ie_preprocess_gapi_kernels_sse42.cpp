@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,11 @@
 #error CV_SIMD128 is required!
 #endif
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
+
 #include <cstring>
 
 using namespace cv;
@@ -51,17 +56,26 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(      uint8_t *dst[],
-                        const uint8_t *src0[],
-                        const uint8_t *src1[],
-                        const short    alpha[],
-                        const short    clone[],  // 4 clones of alpha
-                        const short    mapsx[],
-                        const short    beta[],
-                              uint8_t  tmp[],
-                        const Size&    inSz,
-                        const Size&    outSz,
-                              int      lpi) {
+template<>
+bool calcRowLinear8UC1Impl(sse42_tag,
+                                 uint8_t *dst[],
+                           const uint8_t *src0[],
+                           const uint8_t *src1[],
+                           const short    alpha[],
+                           const short    clone[],  // 4 clones of alpha
+                           const short    mapsx[],
+                           const short    beta[],
+                               uint8_t    tmp[],
+                           const Size&    inSz,
+                           const Size&    outSz,
+                           const int      lpi,
+                           const int) {
+    constexpr int nlanes = v_uint8::nlanes;
+    constexpr int half_nlanes = (v_uint8::nlanes / 2);
+
+    if (inSz.width < nlanes || outSz.width < half_nlanes)
+        return false;
+
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -83,16 +97,29 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
                     //      function: resize_bilinear_u8
                     //         label: vertical_pass
                     //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                     __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                     __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
                     __m128i val1lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                     __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+                                                                      *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
+#endif
                     __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                     __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                     __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);
@@ -377,15 +404,29 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
             for (int x = 0; x < outSz.width; ) {
                 for (; x <= outSz.width - 8; x += 8) {
                     v_uint8x16 t0, t1, t2, t3;
+#ifdef __i386__
+                    t0.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 0]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 1]])));
+                    t1.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 2]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 3]])));
+                    t2.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 4]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 5]])));
+                    t3.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 6]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 7]])));
+#else
                     t0.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 0]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
                     t1.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 2]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
                     t2.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 4]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
                     t3.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 6]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
-
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
+#endif
                     v_uint8x16 r0, r1, r2, r3;
                     v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
 
@@ -471,6 +512,7 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
             memcpy(dst[l], src0[l], length);
         }
     }
+    return true;
 }
 
 // Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower than original sometimes.
@@ -478,18 +520,21 @@ void calcRowLinear_8UC1(      uint8_t *dst[],
 #if 1
 // Resize (bi-linear, 8U, generic number of channels)
 template<int chanNum>
-void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
+CV_ALWAYS_INLINE bool calcRowLinear_8UC_Impl_(sse42_tag,
+                                              std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+                                              const uint8_t* src0[],
+                                              const uint8_t* src1[],
+                                              const short    alpha[],
+                                              const short    clone[],  // 4 clones of alpha
+                                              const short    mapsx[],
+                                              const short    beta[],
+                                                  uint8_t    tmp[],
+                                              const Size&    inSz,
+                                              const Size&    outSz,
+                                              const int      lpi) {
     const int half_nlanes = (v_uint8::nlanes / 2);
+    if ((inSz.width < half_nlanes) || (outSz.width < half_nlanes))
+        return false;
 
     if (4 == lpi) {
         // vertical pass
@@ -507,7 +552,20 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                 //      function: resize_bilinear_u8
                 //         label: vertical_pass
                 //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                 __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
                         *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                 __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
@@ -516,7 +574,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                         *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                 __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
                         *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+#endif
                 __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                 __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                 __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);
@@ -681,6 +739,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             }
         }
     }
+    return true;
 }
 #else
 // Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower sometimes.
@@ -693,7 +752,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                             const short    clone[],  // 4 clones of alpha
                             const short    mapsx[],
                             const short    beta[],
-                            uint8_t  tmp[],
+                            uint8_t        tmp[],
                             const Size    &inSz,
                             const Size    &outSz,
                             int      lpi) {
@@ -751,6 +810,8 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
         }
 
         // horizontal pass
+        v_uint8 val_0, val_1, val_2, val_3;
+        int shift = (half_nlanes / 4);
         GAPI_DbgAssert(outSz.width >= half_nlanes);
         for (int x = 0; x < outSz.width; ) {
             for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
@@ -759,14 +820,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                 v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
                 v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
 
-                v_uint8 val_0 = vx_setzero_u8();
-                v_uint8 val_1 = vx_setzero_u8();
-                v_uint8 val_2 = vx_setzero_u8();
-                v_uint8 val_3 = vx_setzero_u8();
-
                 for (int c = 0; c < chanNum; ++c) {
-                    int shift = (half_nlanes / 4);
-
                     v_gather_channel(val_0, tmp, mapsx, chanNum, c, x, 0);
                     v_gather_channel(val_1, tmp, mapsx, chanNum, c, x, shift);
                     v_gather_channel(val_2, tmp, mapsx, chanNum, c, x, shift * 2);
@@ -858,63 +912,41 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
 #endif
 
 // Resize (bi-linear, 8UC3)
-void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 3;
-
-    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+template<>
+bool calcRowLinear8UC3C4Impl<sse42_tag, 3>(sse42_tag,
+                                           std::array<std::array<uint8_t*, 4>, 3> &dst,
+                                           const uint8_t* src0[],
+                                           const uint8_t* src1[],
+                                           const short    alpha[],
+                                           const short    clone[],  // 4 clones of alpha
+                                           const short    mapsx[],
+                                           const short    beta[],
+                                               uint8_t    tmp[],
+                                           const Size&    inSz,
+                                           const Size&    outSz,
+                                           const int      lpi,
+                                           const int      ) {
+    constexpr int chanNum = 3;
+    return calcRowLinear_8UC_Impl_<chanNum>(sse42_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
-void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
-                  const uint8_t *src0[],
-                  const uint8_t *src1[],
-                  const short    alpha[],
-                  const short    clone[],  // 4 clones of alpha
-                  const short    mapsx[],
-                  const short    beta[],
-                        uint8_t  tmp[],
-                  const Size    &inSz,
-                  const Size    &outSz,
-                        int      lpi) {
-    constexpr const int chanNum = 4;
-    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
-}
-
-// Resize (bi-linear, 32F)
-void calcRowLinear_32F(float *dst[],
-                       const float *src0[],
-                       const float *src1[],
-                       const float  alpha[],
-                       const int    mapsx[],
-                       const float  beta[],
-                       const Size&  inSz,
-                       const Size&  outSz,
-                               int  lpi) {
-    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
-}
-
-//------------------------------------------------------------------------------
-
-void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz, const Size& outSz,
-    Q0_16 yalpha, const MapperUnit8U &ymap, int xmaxdf, const short xindex[], const Q0_16 xalpha[],
-    Q8_8 vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
-}
-
-void calcRowArea_32F(float dst[], const float *src[], const Size& inSz, const Size& outSz,
-    float yalpha, const MapperUnit32F& ymap, int xmaxdf, const int xindex[], const float xalpha[],
-    float vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
+template<>
+bool calcRowLinear8UC3C4Impl<sse42_tag, 4>(sse42_tag,
+                                           std::array<std::array<uint8_t*, 4>, 4> &dst,
+                                           const uint8_t* src0[],
+                                           const uint8_t* src1[],
+                                           const short    alpha[],
+                                           const short    clone[],  // 4 clones of alpha
+                                           const short    mapsx[],
+                                           const short    beta[],
+                                               uint8_t    tmp[],
+                                           const Size&    inSz,
+                                           const Size&    outSz,
+                                           const int      lpi,
+                                           const int      ) {
+    constexpr int chanNum = 4;
+    return calcRowLinear_8UC_Impl_<chanNum>(sse42_tag{}, dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 //------------------------------------------------------------------------------
@@ -1223,131 +1255,43 @@ void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
 }
 
 #endif  // CVKL
-//------------------------------------------------------------------------------
 
-void mergeRow_8UC2(const uint8_t in0[],
-                   const uint8_t in1[],
-                         uint8_t out[],
-                             int length) {
-    mergeRow_8UC2_Impl(in0, in1, out, length);
-}
+template void chanToPlaneRowImpl(sse42_tag, const uint8_t* in, const int chan, const int chs, uint8_t* out, const int length);
+template void chanToPlaneRowImpl(sse42_tag, const float* in, const int chan, const int chs, float* out, const int length);
 
-void mergeRow_8UC3(const uint8_t in0[],
-                   const uint8_t in1[],
-                   const uint8_t in2[],
-                         uint8_t out[],
-                             int length) {
-    mergeRow_8UC3_Impl(in0, in1, in2, out, length);
-}
+template void nv12ToRgbRowImpl(sse42_tag, const uint8_t** y_rows, const uint8_t* uv_row, uint8_t** out_rows, const int buf_width);
 
-void mergeRow_8UC4(const uint8_t in0[],
-                   const uint8_t in1[],
-                   const uint8_t in2[],
-                   const uint8_t in3[],
-                         uint8_t out[],
-                             int length) {
-    mergeRow_8UC4_Impl(in0, in1, in2, in3, out, length);
-}
+template void i420ToRgbRowImpl(sse42_tag, const uint8_t** y_rows, const uint8_t* u_row,
+                               const uint8_t* v_row, uint8_t** out_rows, const int buf_width);
 
-void mergeRow_32FC2(const float in0[],
-                    const float in1[],
-                          float out[],
-                            int length) {
-    mergeRow_32FC2_Impl(in0, in1, out, length);
-}
+template void splitRowImpl<sse42_tag, uchar, 2>(sse42_tag, const uint8_t* in, std::array<uint8_t*, 2>& outs, const int length);
+template void splitRowImpl<sse42_tag, float, 2>(sse42_tag, const float* in, std::array<float*, 2>& outs, const int length);
+template void splitRowImpl<sse42_tag, uchar, 3>(sse42_tag, const uint8_t* in, std::array<uint8_t*, 3>& outs, const int length);
+template void splitRowImpl<sse42_tag, float, 3>(sse42_tag, const float* in, std::array<float*, 3>& outs, const int length);
+template void splitRowImpl<sse42_tag, uchar, 4>(sse42_tag, const uint8_t* in, std::array<uint8_t*, 4>& outs, const int length);
+template void splitRowImpl<sse42_tag, float, 4>(sse42_tag, const float* in, std::array<float*, 4>& outs, const int length);
 
-void mergeRow_32FC3(const float in0[],
-                    const float in1[],
-                    const float in2[],
-                          float out[],
-                            int length) {
-    mergeRow_32FC3_Impl(in0, in1, in2, out, length);
-}
+template void mergeRowImpl<sse42_tag, uchar, 2>(sse42_tag, const std::array<const uint8_t*, 2>& ins, uint8_t* out, const int length);
+template void mergeRowImpl<sse42_tag, float, 2>(sse42_tag, const std::array<const float*, 2>& ins, float* out, const int length);
+template void mergeRowImpl<sse42_tag, uchar, 3>(sse42_tag, const std::array<const uint8_t*, 3>& ins, uint8_t* out, const int length);
+template void mergeRowImpl<sse42_tag, float, 3>(sse42_tag, const std::array<const float*, 3>& ins, float* out, const int length);
+template void mergeRowImpl<sse42_tag, uchar, 4>(sse42_tag, const std::array<const uint8_t*, 4>& ins, uint8_t* out, const int length);
+template void mergeRowImpl<sse42_tag, float, 4>(sse42_tag, const std::array<const float*, 4>& ins, float* out, const int length);
 
-void mergeRow_32FC4(const float in0[],
-                    const float in1[],
-                    const float in2[],
-                    const float in3[],
-                          float out[],
-                            int length) {
-    mergeRow_32FC4_Impl(in0, in1, in2, in3, out, length);
-}
+template void calcRowLinear32FC1Impl(sse42_tag, float* dst[], const float* src0[], const float* src1[],
+                                     const float alpha[], const int mapsx[],
+                                     const float beta[], const Size& inSz, const Size& outSz,
+                                     const int lpi, const int l);
 
-void splitRow_8UC2(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                             int length) {
-    splitRow_8UC2_Impl(in, out0, out1, length);
-}
+template void calcRowAreaImpl<sse42_tag, uint8_t, Q0_16, short, Q8_8>(sse42_tag, uint8_t dst[], const uint8_t* src[], const Size& inSz,
+                              const Size& outSz, Q0_16 yalpha, const MapperUnit8U &ymap,
+                              int xmaxdf, const short xindex[], const Q0_16 xalpha[],
+                              Q8_8 vbuf[]);
 
-void splitRow_8UC3(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                         uint8_t out2[],
-                             int length) {
-    splitRow_8UC3_Impl(in, out0, out1, out2, length);
-}
-
-void splitRow_8UC4(const uint8_t in[],
-                         uint8_t out0[],
-                         uint8_t out1[],
-                         uint8_t out2[],
-                         uint8_t out3[],
-                             int length) {
-    splitRow_8UC4_Impl(in, out0, out1, out2, out3, length);
-}
-
-void splitRow_32FC2(const float in[],
-                          float out0[],
-                          float out1[],
-                            int length) {
-    splitRow_32FC2_Impl(in, out0, out1, length);
-}
-
-void splitRow_32FC3(const float in[],
-                          float out0[],
-                          float out1[],
-                          float out2[],
-                            int length) {
-    splitRow_32FC3_Impl(in, out0, out1, out2, length);
-}
-
-void splitRow_32FC4(const float in[],
-                          float out0[],
-                          float out1[],
-                          float out2[],
-                          float out3[],
-                            int length) {
-    splitRow_32FC4_Impl(in, out0, out1, out2, out3, length);
-}
-
-void calculate_nv12_to_rgb(const  uchar **srcY,
-                           const  uchar *srcUV,
-                                  uchar **dstRGBx,
-                                    int width) {
-    calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
-}
-
-void calculate_i420_to_rgb(const  uchar **srcY,
-                           const  uchar *srcU,
-                           const  uchar *srcV,
-                                  uchar **dstRGBx,
-                                    int width) {
-    calculate_i420_to_rgb_impl(srcY, srcU, srcV, dstRGBx, width);
-}
-
-void copyRow_8U(const uint8_t in[],
-                 uint8_t out[],
-                 int length) {
-    copyRow_8U_impl(in, out, length);
-}
-
-void copyRow_32F(const float in[],
-                 float out[],
-                 int length) {
-    copyRow_32F_impl(in, out, length);
-}
-
+template void calcRowAreaImpl<sse42_tag, float, float, int, float>(sse42_tag, float dst[], const float *src[], const Size& inSz,
+                              const Size& outSz, float yalpha, const MapperUnit32F& ymap,
+                              int xmaxdf, const int xindex[], const float xalpha[],
+                              float vbuf[]);
 }  // namespace kernels
 }  // namespace gapi
 }  // namespace InferenceEngine

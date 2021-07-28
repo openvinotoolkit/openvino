@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 
         EXPECT_PRED_FORMAT2(
             testing::IsSubstring,
-            std::string("data/tensor.data, offset: 0, data_lenght: 0, sha1_digest: 0)"),
+            std::string("data/tensor.data, offset: 0, data_length: 0, sha1_digest: 0)"),
             e.what());
     }
     catch(...) {

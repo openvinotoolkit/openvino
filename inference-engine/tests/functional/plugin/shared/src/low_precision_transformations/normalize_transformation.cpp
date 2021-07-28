@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -23,7 +23,7 @@ namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
@@ -45,9 +45,8 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
 
 void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
@@ -56,7 +55,7 @@ void NormalizeL2Transformation::SetUp() {
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
-        params.precisionsOnActivations[0],
+        ngraph::element::u8,
         axes,
         fuseMultiply,
         shift);

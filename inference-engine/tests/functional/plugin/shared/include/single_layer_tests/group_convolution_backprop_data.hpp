@@ -1,46 +1,20 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        size_t,
-        ngraph::op::PadType> groupConvBackpropDataSpecificParams;
-typedef std::tuple<
-        groupConvBackpropDataSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
-        InferenceEngine::Layout,       // Output layout
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> groupConvBackpropDataLayerTestParamsSet;
+#include "shared_test_classes/single_layer/group_convolution_backprop_data.hpp"
 
 namespace LayerTestsDefinitions {
 
-class GroupConvBackpropDataLayerTest : public testing::WithParamInterface<groupConvBackpropDataLayerTestParamsSet>,
-                                       virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet> obj);
+// DEPRECATED, remove this old API when KMB (#58495) and ARM (#58496) plugins are migrated to new API
+TEST_P(GroupConvBackpropDataLayerTest, CompareWithRefs) {
+    Run();
+}
 
-protected:
-    void SetUp() override;
-};
+TEST_P(GroupConvBackpropLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

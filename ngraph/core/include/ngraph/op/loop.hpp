@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -64,7 +52,6 @@ namespace ngraph
                 /// iteration or not.
                 Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
-                int64_t get_num_iterations() const { return m_num_iterations; }
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
@@ -85,11 +72,31 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
+
+            protected:
+                Loop(const Loop&);
 
             private:
+                void clone_to(Loop& dst, const OutputVector& new_args) const;
+
                 SpecialBodyPorts m_special_body_ports;
-                int64_t m_num_iterations = -1; // -1 means infinity
             };
+        } // namespace v5
+    }     // namespace op
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+        : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>
+    {
+    public:
+        AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
+            : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value)
+        {
         }
-    }
-}
+
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+} // namespace ngraph

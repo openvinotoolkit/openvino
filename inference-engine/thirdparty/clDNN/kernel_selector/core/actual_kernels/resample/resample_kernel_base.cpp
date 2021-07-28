@@ -1,16 +1,6 @@
-﻿// Copyright (c) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "resample_kernel_base.h"
 #include "kernel_selector_utils.h"
@@ -22,7 +12,7 @@
 
 namespace {
 int getAxisIndex(kernel_selector::InterpolateAxis axis) {
-    switch(axis) {
+    switch (axis) {
     case kernel_selector::InterpolateAxis::BATCH:
         return 0;
     case kernel_selector::InterpolateAxis::FEATURE:
@@ -77,8 +67,6 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
     }
-
-    dispatchData.efficiency = FORCE_PRIORITY_7;
 
     return dispatchData;
 }
@@ -179,13 +167,29 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
-        MakeJitConstant("PADDING_USED", (int)paddingUsed),
+        MakeJitConstant("PADDING_USED", static_cast<int>(paddingUsed)),
         MakeJitConstant("AXES_USED", axesUsed),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
         MakeJitConstant("KERNEL_W", 2),
         MakeJitConstant("ANTIALIAS", params.antialias),
         MakeJitConstant("CUBE_COEFF", params.cube_coeff),
     });
+
+    if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
+        if (axesUsed[0] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
+        if (axesUsed[1] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
+        if (axesUsed[2] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
+        if (axesUsed[3] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
+        if (axesUsed[4] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
+
+        jit.AddConstants({
+            MakeJitConstant("PADDED_B", b_size_padded),
+            MakeJitConstant("PADDED_F", f_size_padded),
+            MakeJitConstant("PADDED_X", x_size_padded),
+            MakeJitConstant("PADDED_Y", y_size_padded),
+            MakeJitConstant("PADDED_Z", z_size_padded),
+        });
+    }
 
     size_t feature_block_size = GetFeatureBlockSize(params);
 
@@ -217,15 +221,13 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     resample_params& newParams = *static_cast<resample_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

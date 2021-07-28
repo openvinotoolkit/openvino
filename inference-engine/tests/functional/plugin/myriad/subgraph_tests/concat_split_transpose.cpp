@@ -1,8 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include "vpu/private_plugin_config.hpp"
 
 #include <ngraph_functions/builders.hpp>
@@ -24,7 +24,6 @@ using Parameters = std::tuple<
 class Concat_Split_Transpose : public testing::WithParamInterface<Parameters>, virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES] = CONFIG_VALUE(YES);
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
@@ -75,7 +74,7 @@ std::vector<std::vector<std::size_t>> length = {
         {500, 500}
 };
 
-INSTANTIATE_TEST_CASE_P(SpecialStages, Concat_Split_Transpose,
+INSTANTIATE_TEST_SUITE_P(SpecialStages, Concat_Split_Transpose,
                         ::testing::Combine(
                                 ::testing::Values(ngraph::element::i32),
                                 ::testing::ValuesIn(dims),

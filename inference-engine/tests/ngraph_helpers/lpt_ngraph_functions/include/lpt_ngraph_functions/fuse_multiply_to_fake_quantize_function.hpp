@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,8 @@ namespace subgraph {
 class FuseMultiplyToFakeQuantizeFunction {
 public:
     static std::shared_ptr<ngraph::Function> get(
-        const ngraph::Shape& inputShape,
-        const FakeQuantizeOnData& fqOnData,
+        const ngraph::PartialShape& inputShape,
+        const FakeQuantizeOnDataWithConstant& fqOnData,
         const DequantizationOperations& dequantization);
 };
 

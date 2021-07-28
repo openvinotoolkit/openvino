@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,8 @@ class ConvoluionLayerMatcher : public ::testing::MatcherInterface<const gna_nnet
         if (foo == nullptr)
             return false;
         for(int i = 0; i < foo->nLayers; i++) {
-            if (foo->pLayers[i].nLayerKind != INTEL_CONVOLUTIONAL) continue;
-
-            auto conv = (gna_convolutional_layer_t*)foo->pLayers[i].pLayerStruct;
+            if (foo->pLayers[i].nLayerKind != INTEL_CONVOLUTIONAL)
+                continue;
 
             return matchInserted;
         }

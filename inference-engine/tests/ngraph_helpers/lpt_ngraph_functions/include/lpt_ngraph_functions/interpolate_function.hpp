@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace subgraph {
 class InterpolateFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::op::InterpolateAttrs& interpAttrs,
         const ngraph::element::Type precisionBeforeDequantization,
@@ -23,12 +23,12 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::op::InterpolateAttrs& interpAttrs);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::op::InterpolateAttrs& interpAttrs,
         const ngraph::element::Type precisionBeforeDequantization,
@@ -38,7 +38,7 @@ public:
 
     // v4::Interpolate
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::Shape& scalesShape,
         const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,
@@ -53,7 +53,7 @@ public:
         const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
+        const ngraph::PartialShape& inputShape,
         const ngraph::Shape& outputShape,
         const ngraph::Shape& scalesShape,
         const ngraph::op::v4::Interpolate::InterpolateAttrs& interp4Attrs,

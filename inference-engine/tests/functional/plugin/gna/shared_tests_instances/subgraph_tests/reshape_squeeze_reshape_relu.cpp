@@ -1,10 +1,12 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 #include <vector>
 #include "subgraph_tests/reshape_squeeze_reshape_relu.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<ShapeAxesTuple> inputs{
@@ -36,7 +38,7 @@ namespace {
             ngraph::helpers::SqueezeOpType::UNSQUEEZE
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
+    INSTANTIATE_TEST_SUITE_P(smoke_reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),

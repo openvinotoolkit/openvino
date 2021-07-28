@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,8 @@
 
 #include <vpu/utils/string.hpp>
 #include <vpu/utils/small_vector.hpp>
+
+#include <ie_common.h>
 
 namespace vpu {
 

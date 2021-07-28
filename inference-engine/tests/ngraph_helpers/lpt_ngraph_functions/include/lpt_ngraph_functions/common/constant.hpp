@@ -1,8 +1,12 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <ostream>
+#include <string>
+#include <vector>
 
 #include <ngraph/ngraph.hpp>
 
@@ -28,7 +32,22 @@ private:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const Constant& constant) {
-    return out << "_" << constant.values << "_" << constant.outPrecision << "_" << constant.shape;
+    auto toStream = [](const std::vector<float>& values) -> std::string {
+        std::stringstream os;
+        os << "{";
+        for (size_t i = 0; i < values.size(); ++i) {
+            const float& value = values[i];
+            if (i > 0) {
+                os << value;
+            } else {
+                os << ", " << value;
+            }
+        }
+        os << "}";
+        return os.str();
+    };
+
+    return out << "_" << toStream(constant.values) << "_" << constant.outPrecision << "_" << constant.shape;
 }
 
 }  // namespace subgraph

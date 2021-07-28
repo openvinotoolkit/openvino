@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #include "ngraph/axis_set.hpp"
 #include "ngraph/axis_vector.hpp"
@@ -56,6 +44,8 @@ namespace ngraph
                               const BroadcastModeSpec& broadcast_mode = BroadcastType::NUMPY);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
                 /// \return true and the AxisSet if broadcast axes can be fully determined.
                 virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
@@ -71,17 +61,20 @@ namespace ngraph
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
                                         const Shape output_shape) const;
 
-                bool evaluate(const HostTensorPtr& arg0,
-                              const HostTensorPtr& out,
-                              const AxisSet& broadcast_axes) const;
+                bool evaluate_broadcast(const HostTensorPtr& arg0,
+                                        const HostTensorPtr& out,
+                                        const AxisSet& broadcast_axes) const;
+
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
                 PartialShape
                     get_result_shape_pdpd(const PartialShape& arg0_shape,
-                                          const Shape& target_shape,
+                                          const PartialShape& target_shape,
                                           const op::BroadcastModeSpec& broadcast_spec) const;
 
                 void validate_target_shape_numpy(const PartialShape& arg_shape,
-                                                 const Shape& target_shape) const;
+                                                 const PartialShape& target_shape) const;
 
                 static std::pair<bool, AxisSet>
                     get_broadcast_axes_numpy_pdpd(const Shape& arg_shape,
@@ -92,12 +85,12 @@ namespace ngraph
                     get_broadcast_axes_none(const AxisVector axes_mapping_val,
                                             const size_t target_shape);
 
-                void validate_target_shape_none(const Shape& arg_shape,
+                void validate_target_shape_none(const PartialShape& arg_shape,
                                                 const AxisVector& axes_mapping_val,
-                                                const Shape& target_shape) const;
+                                                const PartialShape& target_shape) const;
 
                 Shape get_target_shape(const HostTensorPtr& input1) const;
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

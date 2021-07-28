@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,7 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_istreams_executor.hpp>
 
-#include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_internal.hpp>
-#include <cpp_interfaces/exception2status.hpp>
-#include <ie_system_conf.h>
+#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 
 #include <exception>
 #include <future>
@@ -40,21 +37,26 @@ namespace InferenceEngine {
  *
  * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
-class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInternal {
-    using AtomicCallback = std::atomic<IInferRequest::CompletionCallback>;
+class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
+    enum InferState {Idle, Busy, Canceled, Stop};
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
     enum Stage_e : std::uint8_t { executor, task };
-    InferRequestInternal::Ptr _syncRequest;
+    IInferRequestInternal::Ptr _syncRequest;
 
+    friend struct DisableCallbackGuard;
     struct DisableCallbackGuard {
-        explicit DisableCallbackGuard(AtomicCallback& callback)
-            : _callbackRef(callback), _callback(callback.exchange(nullptr)) {}
+        explicit DisableCallbackGuard(AsyncInferRequestThreadSafeDefault* this_)
+            : _this{this_} {
+                std::lock_guard<std::mutex> lock{_this->_mutex};
+                std::swap(_callback, _this->_callback);
+            }
         ~DisableCallbackGuard() {
-            _callbackRef = _callback;
+            std::lock_guard<std::mutex> lock{_this->_mutex};
+            _this->_callback = _callback;
         }
-        AtomicCallback& _callbackRef;
-        IInferRequest::CompletionCallback _callback;
+        AsyncInferRequestThreadSafeDefault* _this = nullptr;
+        Callback _callback;
     };
 
     struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
@@ -63,6 +65,63 @@ class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInt
         IStreamsExecutor::Ptr _streamsExecutor;
     };
 
+    template<typename F>
+    void InferImpl(const F& f) {
+        _syncRequest->checkBlobs();
+        InferState state = InferState::Idle;
+        {
+            std::lock_guard<std::mutex> lock{_mutex};
+            state = _state;
+            switch (_state) {
+            case InferState::Busy :
+                IE_THROW(RequestBusy);
+            case InferState::Canceled :
+                IE_THROW(InferCancelled);
+            case InferState::Idle : {
+                _futures.erase(std::remove_if(std::begin(_futures), std::end(_futures),
+                                                [](const std::shared_future<void>& future) {
+                                                    if (future.valid()) {
+                                                        return (std::future_status::ready ==
+                                                                future.wait_for(std::chrono::milliseconds {0}));
+                                                    } else {
+                                                        return true;
+                                                    }
+                                                }),
+                                _futures.end());
+                _promise = {};
+                _futures.emplace_back(_promise.get_future().share());
+            } break;
+            case InferState::Stop : break;
+            }
+            _state = InferState::Busy;
+        }
+        if (state != InferState::Stop) {
+            try {
+                f();
+            } catch (...) {
+                _promise.set_exception(std::current_exception());
+                std::lock_guard<std::mutex> lock{_mutex};
+                _state = InferState::Idle;
+                throw;
+            }
+        }
+    }
+
+protected:
+    /**
+     * @brief Throws exception if inference request is busy or canceled
+     */
+    void CheckState() const {
+        std::lock_guard<std::mutex> lock {_mutex};
+        switch (_state) {
+        case InferState::Busy :
+            IE_THROW(RequestBusy);
+        case InferState::Canceled :
+            IE_THROW(InferCancelled);
+        default: break;
+        }
+    }
+
 public:
     /**
      * @brief A shared pointer to AsyncInferRequestThreadSafeDefault
@@ -70,25 +129,25 @@ public:
     using Ptr = std::shared_ptr<AsyncInferRequestThreadSafeDefault>;
 
     /**
-     * @brief      Wraps a InferRequestInternal::Ptr implementation and constructs a
-     * AsyncInferRequestThreadSafeDefault::_pipeline where `taskExecutor` is used to run InferRequestInternal::Infer
+     * @brief      Wraps a IInferRequestInternal::Ptr implementation and constructs a
+     * AsyncInferRequestThreadSafeDefault::_pipeline where `taskExecutor` is used to run IInferRequestInternal::Infer
      * asynchronously.
      *
      * @param[in]  request           The synchronous request
      * @param[in]  taskExecutor      The task executor
      * @param[in]  callbackExecutor  The callback executor
      */
-    AsyncInferRequestThreadSafeDefault(const InferRequestInternal::Ptr& request,
+    AsyncInferRequestThreadSafeDefault(const IInferRequestInternal::Ptr& request,
                                        const ITaskExecutor::Ptr& taskExecutor,
                                        const ITaskExecutor::Ptr& callbackExecutor) :
         _syncRequest {request},
         _requestExecutor {taskExecutor},
         _callbackExecutor {callbackExecutor},
-        _pipeline {{taskExecutor, [this] {_syncRequest->Infer();}}},
-        _syncPipeline {{std::make_shared<ImmediateExecutor>(), [this] {_syncRequest->Infer();}}} {
+        _pipeline {{taskExecutor, [this] {_syncRequest->InferImpl();}}},
+        _syncPipeline {{std::make_shared<ImmediateExecutor>(), [this] {_syncRequest->InferImpl();}}} {
         auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(taskExecutor);
         if (streamsExecutor != nullptr) {
-            _syncPipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streamsExecutor)), [this] {_syncRequest->Infer();}}};
+            _syncPipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streamsExecutor)), [this] {_syncRequest->InferImpl();}}};
         }
     }
 
@@ -102,13 +161,14 @@ public:
     /**
      * @brief Waits for completion of all pipeline stages
      *        If the pipeline raises an exception it will be rethrown here
-     * @param millis_timeout A timeout is `ms` to wait or special enum value of IInferRequest::WaitMode
+     * @param millis_timeout A timeout is `ms` to wait or special enum value of InferRequest::WaitMode
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {
-        if (millis_timeout < IInferRequest::WaitMode::RESULT_READY) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str + "Timeout can't be less "
-                               << IInferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
+        if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
+            IE_THROW(ParameterMismatch)
+                << " Timeout can't be less "
+                << InferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
         }
         auto status = std::future_status::deferred;
 
@@ -123,11 +183,11 @@ public:
         }
 
         switch (millis_timeout) {
-        case IInferRequest::WaitMode::RESULT_READY: {
+        case InferRequest::WaitMode::RESULT_READY: {
             future.wait();
             status = std::future_status::ready;
         } break;
-        case IInferRequest::WaitMode::STATUS_ONLY: {
+        case InferRequest::WaitMode::STATUS_ONLY: {
             status = future.wait_for(std::chrono::milliseconds {0});
         } break;
         default: {
@@ -143,17 +203,67 @@ public:
         }
     }
 
-    /**
-     * @brief Sets the pointer to public interface.
-     * @note Needed to correctly handle ownership between objects
-     * @param[in]  ptr A shared pointer to a public IInferRequest interface.
-     */
-    void SetPointerToPublicInterface(InferenceEngine::IInferRequest::Ptr ptr) {
-        _publicInterface = std::shared_ptr<IInferRequest>(ptr.get(), [](IInferRequest*) {});
+    void StartAsync() override {
+        InferImpl([&] {StartAsync_ThreadUnsafe();});
     }
 
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override {
+    void Infer() override {
+        DisableCallbackGuard disableCallbackGuard{this};
+        InferImpl([&] {Infer_ThreadUnsafe();});
+        Wait(InferRequest::WaitMode::RESULT_READY);
+    }
+
+    std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {
+        CheckState();
+        return _syncRequest->GetPerformanceCounts();
+    }
+
+    void SetBlob(const std::string& name, const Blob::Ptr& data) override {
+        CheckState();
+        _syncRequest->SetBlob(name, data);
+    }
+
+    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) override {
+        CheckState();
+        _syncRequest->SetBlob(name, data, info);
+    }
+
+    Blob::Ptr GetBlob(const std::string& name) override {
+        CheckState();
+        return _syncRequest->GetBlob(name);
+    }
+
+    const PreProcessInfo& GetPreProcess(const std::string& name) const override {
+        return _syncRequest->GetPreProcess(name);
+    }
+
+    void SetBatch(int batch) override {
+        CheckState();
+        _syncRequest->SetBatch(batch);
+    };
+
+    void SetCallback(Callback callback) override {
+        CheckState();
+        _callback = std::move(callback);
+    }
+
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override {
+        CheckState();
         return _syncRequest->QueryState();
+    }
+
+    void ThrowIfCanceled() const {
+        std::lock_guard<std::mutex> lock{_mutex};
+        if (_state == InferState::Canceled) {
+            IE_THROW(InferCancelled);
+        }
+    }
+
+    void Cancel() override {
+        std::lock_guard<std::mutex> lock{_mutex};
+        if (_state == InferState::Busy) {
+            _state = InferState::Canceled;
+        }
     }
 
 protected:
@@ -176,36 +286,9 @@ protected:
      */
     void RunFirstStage(const Pipeline::iterator itBeginStage, const Pipeline::iterator itEndStage,
                        const ITaskExecutor::Ptr callbackExecutor = {}) {
-        _promise = {};
-        bool stop = [&] {
-            std::lock_guard<std::mutex> lock(_mutex);
-            if (!_stop) {
-                _futures.erase(std::remove_if(std::begin(_futures), std::end(_futures),
-                                              [](const std::shared_future<void>& future) {
-                                                  if (future.valid()) {
-                                                      return (std::future_status::ready ==
-                                                              future.wait_for(std::chrono::milliseconds {0}));
-                                                  } else {
-                                                      return true;
-                                                  }
-                                              }),
-                               _futures.end());
-
-                _futures.emplace_back(_promise.get_future().share());
-            }
-            return _stop;
-        }();
-
-        if (!stop) {
-            try {
-                auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
-                IE_ASSERT(nullptr != firstStageExecutor);
-                firstStageExecutor->run(MakeNextStageTask(itBeginStage, itEndStage, std::move(callbackExecutor)));
-            } catch (...) {
-                _promise.set_exception(std::current_exception());
-                throw;
-            }
-        }
+        auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
+        IE_ASSERT(nullptr != firstStageExecutor);
+        firstStageExecutor->run(MakeNextStageTask(itBeginStage, itEndStage, std::move(callbackExecutor)));
     }
 
     /**
@@ -214,39 +297,26 @@ protected:
      * pipeline tasks
      */
     void StopAndWait() {
-        _callback = nullptr;
+        Futures futures;
+        InferState state = InferState::Idle;
         {
-            std::lock_guard<std::mutex> lock(_mutex);
-            if (!_stop) {
-                _stop = true;
-                for (auto&& future : _futures) {
-                    if (future.valid()) {
-                        future.wait();
-                    }
+            std::lock_guard<std::mutex> lock{_mutex};
+            state = _state;
+            if (state != InferState::Stop) {
+                _callback = {};
+                _state = InferState::Stop;
+                futures = std::move(_futures);
+            }
+        }
+        if (state != InferState::Stop) {
+            for (auto&& future : futures) {
+                if (future.valid()) {
+                    future.wait();
                 }
             }
         }
     }
 
-    /**
-     * @brief Implements Infer() using StartAsync() and Wait()
-     */
-    void InferUsingAsync() {
-        DisableCallbackGuard disableCallbackGuard{_callback};
-        StartAsync_ThreadUnsafe();
-        Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    }
-
-    /**
-     * @brief Implements Infer() using synchronous pipeline and Wait()
-     */
-    void InferUsingSync() {
-        DisableCallbackGuard disableCallbackGuard{_callback};
-        _syncRequest->checkBlobs();
-        RunFirstStage(_syncPipeline.begin(), _syncPipeline.end(), _syncCallbackExecutor);
-        // If we have exception we should extract it from future using Wait() method
-        Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    }
 
     ITaskExecutor::Ptr _requestExecutor;  //!< Used to run inference CPU tasks.
     ITaskExecutor::Ptr _callbackExecutor;  //!< Used to run post inference callback in asynchronous pipline
@@ -254,50 +324,27 @@ protected:
     Pipeline _pipeline;  //!< Pipeline variable that should be filled by inherited class.
     Pipeline _syncPipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
 
-    void StartAsync_ThreadUnsafe() override {
-        _syncRequest->checkBlobs();
+    /**
+     * @brief Starts an asynchronous pipeline thread unsafe.
+     * @note Used by StartAsync which ensures thread-safety and calls this method after.
+     */
+    virtual void StartAsync_ThreadUnsafe() {
         RunFirstStage(_pipeline.begin(), _pipeline.end(), _callbackExecutor);
     }
 
-    void Infer_ThreadUnsafe() override {
-        InferUsingSync();
+    /**
+     * @brief Performs inference of pipeline in syncronous mode
+     * @note Used by Infer which ensures thread-safety and calls this method after.
+     */
+    virtual void Infer_ThreadUnsafe() {
+        RunFirstStage(_syncPipeline.begin(), _syncPipeline.end(), _syncCallbackExecutor);
     }
 
-    void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
-        _syncRequest->GetPerformanceCounts(perfMap);
-    }
-
-    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data) override {
-        _syncRequest->SetBlob(name, data);
-    }
-
-    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
-        _syncRequest->SetBlob(name, data, info);
-    }
-
-    void GetBlob_ThreadUnsafe(const char* name, Blob::Ptr& data) override {
-        _syncRequest->GetBlob(name, data);
-    }
-
-    void GetPreProcess_ThreadUnsafe(const char* name, const PreProcessInfo** info) const override {
-        _syncRequest->GetPreProcess(name, info);
-    }
-
-    void SetCompletionCallback_ThreadUnsafe(IInferRequest::CompletionCallback callback) override {
-        _callback = callback;
-    }
-
-    void GetUserData_ThreadUnsafe(void** data) override {
-        if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
-        *data = _userData;
-    }
-
-    void SetUserData_ThreadUnsafe(void* data) override {
-        _userData = data;
-    }
-
-    void SetBatch_ThreadUnsafe(int batch) override {
-        _syncRequest->SetBatch(batch);
+    /**
+     * @brief Implements Infer() using StartAsync() and Wait()
+     */
+    void InferUsingAsync() {
+        StartAsync_ThreadUnsafe();
     }
 
 private:
@@ -316,48 +363,44 @@ private:
     Task MakeNextStageTask(const Pipeline::iterator itStage, const Pipeline::iterator itEndStage,
                            const ITaskExecutor::Ptr callbackExecutor) {
         return std::bind([this, itStage, itEndStage](ITaskExecutor::Ptr& callbackExecutor) mutable {
-            StatusCode requestStatus = StatusCode::OK;
-            std::exception_ptr localCurrentException = nullptr;
+            std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
-
             try {
                 auto& stageTask = std::get<Stage_e::task>(thisStage);
                 IE_ASSERT(nullptr != stageTask);
                 stageTask();
-               if (itEndStage != itNextStage) {
+                if (itEndStage != itNextStage) {
                     auto& nextStage = *itNextStage;
                     auto& nextStageExecutor = std::get<Stage_e::executor>(nextStage);
                     IE_ASSERT(nullptr != nextStageExecutor);
                     nextStageExecutor->run(MakeNextStageTask(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
-            } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
-                requestStatus = ie_ex.hasStatus() ? ie_ex.getStatus() : StatusCode::GENERAL_ERROR;
-                localCurrentException = std::make_exception_ptr(ie_ex);
             } catch (...) {
-                requestStatus = StatusCode::GENERAL_ERROR;
-                localCurrentException = std::current_exception();
+                currentException = std::current_exception();
             }
 
-            if ((itEndStage == itNextStage) || (nullptr != localCurrentException)) {
-                auto lastStageTask = [this, requestStatus, localCurrentException]() mutable {
+            if ((itEndStage == itNextStage) || (nullptr != currentException)) {
+                auto lastStageTask = [this, currentException]() mutable {
                     auto promise = std::move(_promise);
-                    auto callback = _callback.load();
-                    if (setIsRequestBusy(false)) {
-                        if (nullptr != callback) {
-                            InferenceEngine::CurrentException() = localCurrentException;
-                            try {
-                                callback(_publicInterface, requestStatus);
-                            } catch (...) {
-                                localCurrentException = std::current_exception();
-                            }
-                            InferenceEngine::CurrentException() = nullptr;
+                    Callback callback;
+                    {
+                        std::lock_guard<std::mutex> lock{_mutex};
+                        _state = InferState::Idle;
+                        callback = _callback;
+                    }
+                    if (callback) {
+                        try {
+                            auto local_callback = std::move(callback);
+                            local_callback(currentException);
+                        } catch (...) {
+                            currentException = std::current_exception();
                         }
-                        if (nullptr == localCurrentException) {
-                            promise.set_value();
-                        } else {
-                            promise.set_exception(localCurrentException);
-                        }
+                    }
+                    if (nullptr == currentException) {
+                        promise.set_value();
+                    } else {
+                        promise.set_exception(currentException);
                     }
                 };
 
@@ -370,12 +413,9 @@ private:
         }, std::move(callbackExecutor));
     }
 
-    void* _userData = nullptr;
-    AtomicCallback _callback = {nullptr};
-    IInferRequest::Ptr _publicInterface;
     std::promise<void> _promise;
     mutable std::mutex _mutex;
     Futures _futures;
-    bool _stop = false;
+    InferState _state = InferState::Idle;
 };
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,8 @@ public:
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
         const std::vector<float>& outputHighValues,
-        const ngraph::element::Type outputPrecision = ngraph::element::undefined);
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const std::vector<std::shared_ptr<Variant>>& attributes = {});
 
     virtual ~FakeQuantizeOnData();
 
@@ -37,6 +38,7 @@ public:
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
+    std::vector<std::shared_ptr<Variant>> attributes;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -59,6 +61,22 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
 
 class FakeQuantizeOnDataWithConstant {
 public:
+    FakeQuantizeOnDataWithConstant();
+
+    FakeQuantizeOnDataWithConstant(
+        const size_t quantizationLevel,
+        const std::vector<ngraph::Shape>& constantShapes,
+        const std::vector<float>& inputLowValues,
+        const std::vector<float>& inputHighValues,
+        const std::vector<float>& outputLowValues,
+        const std::vector<float>& outputHighValues,
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined,
+        const std::vector<std::shared_ptr<Variant>>& attributes = {});
+
+    virtual ~FakeQuantizeOnDataWithConstant();
+
+    virtual bool empty() const;
+
     size_t quantizationLevel;
     std::vector<ngraph::Shape> constantShapes;
     std::vector<float> inputLowValues;
@@ -66,6 +84,7 @@ public:
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
     ngraph::element::Type outputPrecision;
+    std::vector<std::shared_ptr<Variant>> attributes;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithConstant& data) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,5 +75,5 @@ TEST_F(NGraphReaderTests, DISABLED_ReadIncorrectNetwork) {
 
     Blob::CPtr blob;
     Core reader;
-    ASSERT_THROW(reader.ReadNetwork(model, blob), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(reader.ReadNetwork(model, blob), InferenceEngine::Exception);
 }

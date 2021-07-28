@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ class GNAPluginForGNAWaitTest : public GNAPlugin {
  public:
     // Prepare underlining object to enable GNAInferRequest::Wait() working
     GNAPluginForGNAWaitTest() {
-        InferenceEngine::TensorDesc td{ InferenceEngine::Precision::FP32, {}, InferenceEngine::Layout::HW };
+        InferenceEngine::TensorDesc td{ InferenceEngine::Precision::FP32, {1, 1}, InferenceEngine::Layout::HW };
         auto fakeInfo = std::make_shared<InferenceEngine::InputInfo>();
         auto fakePtr = std::make_shared<InferenceEngine::Data>("fakeName", td);
         fakeInfo->setInputData(fakePtr);

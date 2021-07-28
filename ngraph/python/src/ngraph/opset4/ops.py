@@ -1,20 +1,7 @@
-# ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ******************************************************************************
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
-"""! Factory functions for all ngraph ops."""
+"""Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -70,7 +57,7 @@ def ctc_loss(
     unique: bool = False,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs CTCLoss.
+    """Return a node which performs CTCLoss.
 
     @param logits:                        3-D tensor of logits.
     @param logit_length:                  1-D tensor of lengths for each object from a batch.
@@ -108,7 +95,7 @@ def non_max_suppression(
     output_type: str = "i64",
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs NonMaxSuppression.
+    """Return a node which performs NonMaxSuppression.
 
     @param boxes: Tensor with box coordinates.
     @param scores: Tensor with box scores.
@@ -141,7 +128,7 @@ def non_max_suppression(
 
 @nameable_op
 def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply SoftPlus operation on each element of input tensor.
+    """Apply SoftPlus operation on each element of input tensor.
 
     @param data: The tensor providing input data.
     @return The new node with SoftPlus operation applied on each element.
@@ -151,7 +138,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
-    """! Return a node which performs Mish.
+    """Return a node which performs Mish.
 
     @param data: Tensor with input data floating point type.
     @return The new node which performs Mish
@@ -161,7 +148,7 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 @nameable_op
 def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
-    """! Return a node which performs HSwish (hard version of Swish).
+    """Return a node which performs HSwish (hard version of Swish).
 
     @param data: Tensor with input data floating point type.
     @return The new node which performs HSwish
@@ -175,7 +162,7 @@ def swish(
     beta: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
+    """Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
 
     @param data: Tensor with input data floating point type.
     @return The new node which performs Swish
@@ -187,7 +174,7 @@ def swish(
 
 @nameable_op
 def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply hyperbolic inverse cosine function on the input node element-wise.
+    """Apply hyperbolic inverse cosine function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -198,7 +185,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply hyperbolic inverse sinus function on the input node element-wise.
+    """Apply hyperbolic inverse sinus function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -209,7 +196,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
 
 @nameable_op
 def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """! Apply hyperbolic inverse tangent function on the input node element-wise.
+    """Apply hyperbolic inverse tangent function on the input node element-wise.
 
     @param node: One of: input node, array or scalar.
     @param name: Optional new name for output node.
@@ -226,7 +213,7 @@ def proposal(
         attrs: dict,
         name: Optional[str] = None,
 ) -> Node:
-    """! Filter bounding boxes and outputs only those with the highest prediction confidence.
+    """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
     @param  class_probs:        4D input floating point tensor with class prediction scores.
     @param  bbox_deltas:        4D input floating point tensor with corrected predictions of bounding boxes
@@ -295,8 +282,9 @@ def proposal(
                                                   Object Detection API models
                     Default value: "" (empty string)
                     Required: no
+
     Example of attribute dictionary:
-    ~~~~~~~~~~~~~~~~~~~~~~~~{.py}
+    @code{.py}
         # just required ones
         attrs = {
             'base_size': 85,
@@ -308,7 +296,7 @@ def proposal(
             'ratio': [0.1, 1.5, 2.0, 2.5],
             'scale': [2, 3, 3, 4],
         }
-    ~~~~~~~~~~~~~~~~~~~~~~~~
+    @endcode
     Optional attributes which are absent from dictionary will be set with corresponding default.
     @return Node representing Proposal operation.
     """
@@ -340,7 +328,7 @@ def proposal(
 def reduce_l1(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! L1-reduction operation on input tensor, eliminating the specified reduction axes.
+    """L1-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to mean-reduce.
     @param reduction_axes: The axes to eliminate through mean operation.
@@ -357,7 +345,7 @@ def reduce_l1(
 def reduce_l2(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """! L2-reduction operation on input tensor, eliminating the specified reduction axes.
+    """L2-reduction operation on input tensor, eliminating the specified reduction axes.
 
     @param node:           The tensor we want to mean-reduce.
     @param reduction_axes: The axes to eliminate through mean operation.
@@ -385,7 +373,7 @@ def lstm_cell(
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
-    """! Return a node which performs LSTMCell operation.
+    """Return a node which performs LSTMCell operation.
 
     @param X: The input tensor with shape: [batch_size, input_size].
     @param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].

@@ -1,24 +1,13 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
 #include <memory>
 #include <numeric>
 
 #include "itt.hpp"
-#include "matmul.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/matmul.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 
@@ -40,6 +29,7 @@ op::MatMul::MatMul(const Output<Node>& A,
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes);
     visitor.on_attribute("transpose_a", m_transpose_a);
     visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
@@ -47,6 +37,7 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
@@ -131,7 +122,7 @@ namespace matmul
         // 4. Usual rules of the broadcasting are applied for batch dimensions.
         // Broadcast all batches (last two dimensions represent matrix),
         // expand dim with value 1 to bigger dim if dimensions are not equal.
-        for (auto i = 0; i < max_rank - 2; i++)
+        for (uint64_t i = 0; i < max_rank - 2; i++)
         {
             auto min_dim_val =
                 std::min(arg0_shape_tmp[i].get_min_length(), arg1_shape_tmp[i].get_min_length());
@@ -245,33 +236,44 @@ namespace matmul
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_matmul, i32, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, i64, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, u32, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, u64, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, f16, arg0, arg1, output, transpose_a, transpose_b);
+            NGRAPH_TYPE_CASE(evaluate_matmul, f32, arg0, arg1, output, transpose_a, transpose_b);
         default: rc = false; break;
         }
         return rc;
     }
-} // namespace
+} // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
+    NGRAPH_OP_SCOPE(v0_MatMul_evaluate);
     return matmul::evaluate_matmul(
         inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
 
+bool op::MatMul::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_MatMul_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
 void ngraph::op::v0::MatMul::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_MatMul_validate_and_infer_types);
     element::Type result_et;
 
     NODE_VALIDATION_CHECK(

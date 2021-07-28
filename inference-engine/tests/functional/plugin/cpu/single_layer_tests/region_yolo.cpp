@@ -1,8 +1,7 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/region_yolo.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -68,13 +67,16 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = std::string("unknown_") + inPrc.name();
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
-        auto param = std::make_shared<ngraph::op::Parameter>(ngPrc, inputShape);
-        auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(param, attributes.coordinates, attributes.classes, attributes.num_regions,
-                                                                        attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
-        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(region_yolo), ngraph::ParameterVector{param}, "RegionYolo");
+        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        auto paramRegionYolo = ngraph::builder::makeParams(ngPrc, {inputShape});
+
+        const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
+                                                                              attributes.coordinates, attributes.classes, attributes.num_regions,
+                                                                              attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
+
+        function = makeNgraphFunction(ngPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
 };
 
@@ -82,7 +84,7 @@ TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "RegionYolo");
+    CheckPluginRelatedResults(executableNetwork, "RegionYolo");
 }
 
 namespace {
@@ -100,7 +102,10 @@ const std::vector<ngraph::Shape> inShapes_mxnet = {
         {1, 75, 26, 26},
         {1, 75, 16, 16},
         {1, 75, 13, 13},
-        {1, 75, 8, 8}
+        {1, 75, 8, 8},
+        {1, 303, 7, 7},
+        {1, 303, 14, 14},
+        {1, 303, 28, 28},
 };
 
 const std::vector<ngraph::Shape> inShapes_v3 = {
@@ -118,9 +123,6 @@ const std::vector<std::vector<int64_t>> masks = {
 const std::vector<bool> do_softmax = {true, false};
 const std::vector<size_t> classes = {80, 20};
 const std::vector<size_t> num_regions = {5, 9};
-const size_t coords = 4;
-const int start_axis = 1;
-const int end_axis = 3;
 
 const regionYoloAttributes yoloV3attr = {80, 4, 9, false, 1, 3};
 
@@ -158,8 +160,8 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYolov3CPU, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYoloMxnetCPU, RegionYoloCPULayerTest, testCase_yolov3_mxnet, RegionYoloCPULayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYoloCaffeCPU, RegionYoloCPULayerTest, testCase_yolov2_caffe, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3CPU, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnetCPU, RegionYoloCPULayerTest, testCase_yolov3_mxnet, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffeCPU, RegionYoloCPULayerTest, testCase_yolov2_caffe, RegionYoloCPULayerTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

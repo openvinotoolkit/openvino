@@ -13,7 +13,6 @@
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -43,9 +42,9 @@
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification of *GRUCell* described in the formula in the [ONNX documentation](https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU).
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 **Inputs**
@@ -66,7 +65,7 @@
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 ```xml

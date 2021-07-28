@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,45 +11,17 @@
 
 #include <ngraph/ngraph.hpp>
 
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+
 namespace ngraph {
 namespace builder {
 namespace subgraph {
-
-class NormalizeL2ActualValues {
-public:
-    ngraph::element::Type precision;
-    std::vector<int64_t> axes;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
-};
-
-inline std::ostream& operator<<(std::ostream& out, const NormalizeL2ActualValues& values) {
-    return out <<
-        "_" << values.precision << "_" << values.axes.size() <<
-        "_subtract" << values.subtractValues.size() <<
-        "_mutliply" << values.mutliplyValues.size();
-}
-
-class NormalizeL2ExpectedValues {
-public:
-    ngraph::element::Type precision;
-    std::vector<int64_t> axes;
-    std::vector<float> subtractValues;
-    std::vector<float> mutliplyValues;
-};
-
-inline std::ostream& operator<<(std::ostream& out, const NormalizeL2ExpectedValues& values) {
-    return out <<
-        "_" << values.precision << "_" << values.axes.size() <<
-        "_subtract" << values.subtractValues.size() <<
-        "_mutliply" << values.mutliplyValues.size();
-}
 
 class NormalizeL2Function {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+        const std::pair<ngraph::PartialShape, ngraph::Shape>& shapes,
         const ngraph::element::Type precisionOnActivation,
         const std::vector<uint64_t>& axes,
         const bool fuseMultiply,
@@ -57,15 +29,21 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& shape,
+        const ngraph::element::Type inputPrecision,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
-        const NormalizeL2ActualValues& actualValues);
+        const std::vector<size_t>& axes,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
-        const ngraph::Shape& shape,
+        const ngraph::element::Type inputPrecision,
+        const ngraph::PartialShape& shape,
         const ngraph::op::EpsMode& epsMode,
-        const NormalizeL2ExpectedValues& expectedValues);
+        const std::vector<size_t>& axes,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOperation,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph

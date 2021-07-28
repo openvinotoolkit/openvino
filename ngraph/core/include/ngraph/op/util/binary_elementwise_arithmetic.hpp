@@ -1,18 +1,6 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
 
@@ -54,8 +42,6 @@ namespace ngraph
             class NGRAPH_API BinaryElementwiseArithmetic : public Op
             {
             protected:
-                NGRAPH_RTTI_DECLARATION;
-
                 BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
 
                 /// \brief Constructs a binary elementwise arithmetic operation.
@@ -67,16 +53,20 @@ namespace ngraph
                                             const AutoBroadcastSpec& autob);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }
                 void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             private:
                 AutoBroadcastSpec m_autob;
                 void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
             };
-        }
-    }
-}
+        } // namespace util
+    }     // namespace op
+} // namespace ngraph

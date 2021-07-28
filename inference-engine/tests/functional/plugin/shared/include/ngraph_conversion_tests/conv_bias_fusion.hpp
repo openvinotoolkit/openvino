@@ -1,5 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
-//
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +15,7 @@
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace NGraphConversionTestsDefinitions {
 

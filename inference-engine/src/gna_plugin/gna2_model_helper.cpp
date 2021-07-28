@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,10 @@
 #include <mm_malloc.h>
 #endif
 
+#include <map>
 #include <gna2-model-api.h>
-#include "gna2_model_helper.hpp"
 #include "gna_plugin_log.hpp"
+#include "gna2_model_helper.hpp"
 
 Gna2DataType Gna2DataTypeFromBytes(uint32_t num_bytes_per_input) {
     if (num_bytes_per_input == 1)
@@ -58,6 +59,32 @@ Gna2Tensor HelperGna2TensorInit3D(uint32_t x, uint32_t y, uint32_t z, Gna2DataTy
     return t;
 }
 
+Gna2DataType FromOvDataType(OvGnaType t) {
+    static const std::map< OvGnaType, Gna2DataType> m = {
+        {OvGnaTypeInt8, Gna2DataTypeInt8},
+        {OvGnaTypeInt16, Gna2DataTypeInt16},
+        {OvGnaTypeInt32, Gna2DataTypeInt32},
+        {OvGnaTypePwl, Gna2DataTypePwlSegment}
+    };
+    const auto r = m.find(t);
+    if (r != m.end()) {
+        return r->second;
+    }
+    THROW_GNA_EXCEPTION << "FromOvDataType: unknown type";
+}
+
+Gna2Tensor HelperGna2TensorInit(OvGnaTensor tensor, void* data) {
+    Gna2Tensor t{};
+    IE_ASSERT(tensor.dimensions.size() <= 8);
+    for (auto d : tensor.dimensions) {
+        t.Shape.Dimensions[t.Shape.NumberOfDimensions] = d;
+        t.Shape.NumberOfDimensions++;
+    }
+    t.Data = data;
+    t.Type = FromOvDataType(tensor.type);
+    return t;
+}
+
 Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
@@ -88,6 +115,13 @@ Gna2Tensor * createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void*
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
     IE_ASSERT(input != nullptr);
     *input = HelperGna2TensorInit2D(x, y, Gna2DataTypeFromBytes(byteSize), data);
+    return input;
+}
+
+Gna2Tensor* createGna2Tensor(OvGnaTensor tensor, void* data) {
+    auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));
+    IE_ASSERT(input != nullptr);
+    *input = HelperGna2TensorInit(tensor, data);
     return input;
 }
 
@@ -122,7 +156,7 @@ Gna2Shape* create_shape2D_parameter(uint32_t x, uint32_t y) {
 
 void freeGna2Operation(Gna2Operation& operation) {
     if (operation.Operands != nullptr) {
-        for (auto i = 0; i < operation.NumberOfOperands; i++) {
+        for (uint32_t i = 0; i < operation.NumberOfOperands; i++) {
             if (operation.Operands[i] != nullptr) {
                 gnaUserFree(const_cast<Gna2Tensor*>(operation.Operands[i]));
                 operation.Operands[i] = nullptr;
@@ -133,7 +167,7 @@ void freeGna2Operation(Gna2Operation& operation) {
         operation.NumberOfOperands = 0;
     }
     if (operation.Parameters != nullptr) {
-        for (auto i = 0; i < operation.NumberOfParameters; i++) {
+        for (uint32_t i = 0; i < operation.NumberOfParameters; i++) {
             if (operation.Parameters[i] != nullptr) {
                 gnaUserFree(operation.Parameters[i]);
                 operation.Parameters[i] = nullptr;
@@ -238,11 +272,13 @@ void HelperGna2OperationInitConvolution(Gna2Operation * operation,
     Gna2Tensor * filters, Gna2Tensor * biases,
     Gna2Tensor * activation,
     Gna2Shape * convolutionStride,
-    Gna2BiasMode * biasMode) {
+    Gna2BiasMode * biasMode,
+    Gna2Shape* zeroPadding) {
     HelperGna2OperationInitElementWiseAffine(operation, userAllocator, userFree, inputs, outputs, filters, biases, activation);
     operation->Type = Gna2OperationTypeConvolution;
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, ConvStrideParamIdx, convolutionStride);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, BiasModeCnnParamIdx, biasMode);
+    HelperGna2OperationSetParameter(operation, userAllocator, userFree, ZeroPaddingParamIdx, zeroPadding);
 }
 
 void HelperGna2OperationInitCopy(Gna2Operation * operation,

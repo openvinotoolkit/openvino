@@ -1,20 +1,12 @@
-//*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
 
 #pragma once
+
+#include <ngraph/op/normalize_l2.hpp>
+#include <ngraph/runtime/reference/sum.hpp>
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
 namespace ngraph
 {
@@ -30,27 +22,31 @@ namespace ngraph
                               float eps,
                               op::EpsMode eps_mode)
             {
-                AxisSet axes = reduction_axes;
                 if (reduction_axes.empty())
                 {
-                    std::vector<size_t> axes_vec(data_shape.size());
-                    std::iota(axes_vec.begin(), axes_vec.end(), 0);
-                    axes = AxisSet(axes_vec);
+                    // When axes is an empty list, then each `data` element is divided by itself
+                    // resulting value 1 for all non-zero elements
+                    for (size_t i = 0; i < shape_size(data_shape); ++i)
+                    {
+                        out[i] = data[i] == 0 ? 0 : 1;
+                    }
+                    return;
                 }
+
                 std::vector<T> sqr_data(shape_size(data_shape));
-                for (size_t i = 0; i < shape_size(data_shape); i++)
+                for (size_t i = 0; i < shape_size(data_shape); ++i)
                 {
                     sqr_data[i] = data[i] * data[i];
                 }
 
                 Shape reduce_shape = data_shape;
-                for (auto axis : axes)
+                for (auto axis : reduction_axes)
                 {
                     reduce_shape[axis] = 1;
                 }
 
                 std::vector<T> sum_data(shape_size(reduce_shape));
-                sum(sqr_data.data(), sum_data.data(), data_shape, axes, true);
+                sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
                 autobroadcast_binop(data,
                                     sum_data.data(),
                                     out,

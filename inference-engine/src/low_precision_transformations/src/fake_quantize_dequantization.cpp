@@ -1,7 +1,8 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -16,21 +17,27 @@ namespace low_precision {
 FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
-    Output<Node> data,
-    std::shared_ptr<opset1::Convert> convert,
-    std::shared_ptr<opset1::Subtract> subtract,
-    std::shared_ptr<opset1::Multiply> multiply) :
+    const Output<Node>& data,
+    const std::shared_ptr<opset1::Convert>& convert,
+    const std::shared_ptr<opset1::Subtract>& subtract,
+    const std::shared_ptr<ngraph::opset1::Convert>& subtractConvert,
+    const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+    const std::shared_ptr<opset1::Multiply>& multiply,
+    const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant) :
     data(data),
     convert(convert),
     subtract(subtract),
-    multiply(multiply) {
+    subtractConvert(subtractConvert),
+    subtractConstant(subtractConstant),
+    multiply(multiply),
+    multiplyConstant(multiplyConstant) {
 }
 
 bool FakeQuantizeDequantization::empty() const {
     return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
 }
 
-bool FakeQuantizeDequantization::multiplyHasZero() const {
+bool FakeQuantizeDequantization::multiplyHasZeroOrDenormal() const {
     if (multiply == nullptr) {
         return false;
     }
@@ -44,7 +51,7 @@ bool FakeQuantizeDequantization::multiplyHasZero() const {
     }
 
     auto const values = multiplyConstant->cast_vector<float>();
-    return std::any_of(values.begin(), values.end(), [](const float value) { return value == 0.f; });
+    return std::any_of(values.begin(), values.end(), [](const float value) { return (value == 0.f) || (std::abs(value) < 1.e-32); });
 }
 
 bool FakeQuantizeDequantization::isShared() const {
@@ -67,19 +74,38 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return (data.get_element_type() == element::i8) || (data.get_element_type() == element::u8);
 }
 
-bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
-    const ngraph::PartialShape partialShape = dequantizationElementwise->get_input_partial_shape(0);
-    if (partialShape.is_dynamic()) {
+bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ngraph::Node>& elementwise) noexcept {
+    std::shared_ptr<ngraph::opset1::Convert> convert;
+    std::shared_ptr<ngraph::opset1::Constant> constant;
+    const int branchIndex = FakeQuantizeDequantization::fillDequantizationParams(elementwise, convert, constant);
+    if (branchIndex == -1) {
+        return true;
+    }
+
+    const auto inPShape = elementwise->get_input_partial_shape(branchIndex == 1 ? 0 : 1);
+    const auto outPShape = elementwise->get_output_partial_shape(0);
+    if (inPShape.rank() != outPShape.rank()) {
         return false;
     }
 
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantizationElementwise->get_input_node_shared_ptr(1));
-    if (constant == nullptr) {
-        constant = as_type_ptr<opset1::Constant>(dequantizationElementwise->get_input_node_shared_ptr(0));
+    if (!inPShape.rank().is_dynamic()) {
+        for (int i = 0; i < inPShape.rank().get_length(); ++i) {
+            if (inPShape[i] != outPShape[i] && !inPShape.is_dynamic()) {
+                return false;
+            }
+        }
     }
+
+    return true;
+}
+
+bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
+    std::shared_ptr<ngraph::opset1::Convert> convert;
+    std::shared_ptr<ngraph::opset1::Constant> constant;
+    FakeQuantizeDequantization::fillDequantizationParams(dequantizationElementwise, convert, constant);
+
     if (constant == nullptr) {
-        THROW_IE_LPT_EXCEPTION(*dequantizationElementwise) << "unexpected operation type " <<
-            dequantizationElementwise->get_type_info().name << " on the second branch";
+        return false;
     }
 
     const ngraph::Shape constShape = constant->get_output_shape(0);
@@ -91,9 +117,20 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return true;
     }
 
-    const ngraph::Shape shape = partialShape.to_shape();
-    if (constShape.size() == shape.size()) {
-        if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
+    const auto partialShape = dequantizationElementwise->get_input_partial_shape(0);
+    if (partialShape.rank().is_dynamic()) {
+        return false;
+    }
+
+    const auto channelsDimension = partialShape[1];
+    if (channelsDimension.is_dynamic()) {
+        return false;
+    }
+
+    const size_t channelsShapeVal = channelsDimension.get_length();
+    const size_t rank = partialShape.rank().get_length();
+    if (constShape.size() == rank) {
+        if ((constShape[0] != 1ul) || (constShape[1] != channelsShapeVal)) {
             return false;
         }
         for (size_t i = 2ul; i < constShape.size(); ++i) {
@@ -101,8 +138,8 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
                 return false;
             }
         }
-    } else if (constShape.size() == (shape.size() - 1)) {
-        if (constShape[0] != shape[1]) {
+    } else if (constShape.size() == (rank - 1)) {
+        if (constShape[0] != channelsShapeVal) {
             return false;
         }
         for (size_t i = 1ul; i < constShape.size(); ++i) {
@@ -115,6 +152,52 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
     }
 
     return true;
+}
+
+int FakeQuantizeDequantization::fillDequantizationParams(
+    const std::shared_ptr<ngraph::Node>& elementwise,
+    std::shared_ptr<ngraph::opset1::Convert>& convert,
+    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    auto fill = [](
+        const std::shared_ptr<ngraph::Node>& elementwise,
+        const size_t branchIndex,
+        std::shared_ptr<ngraph::opset1::Convert>& convert,
+        std::shared_ptr<ngraph::opset1::Constant>& constant) {
+        convert = as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
+        if (convert != nullptr) {
+            constant = as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0));
+        } else {
+            constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex));
+        }
+    };
+
+    fill(elementwise, 1ul, convert, constant);
+    if (constant != nullptr) {
+        return 1;
+    }
+
+    fill(elementwise, 0ul, convert, constant);
+    if (constant != nullptr) {
+        return 0;
+    }
+
+    return -1;
+}
+
+int FakeQuantizeDequantization::fillDequantizationParams(
+    const std::shared_ptr<ngraph::Node>& elementwise,
+    std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept {
+    constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul));
+    if (constant != nullptr) {
+        return 1;
+    }
+
+    constant = as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul));
+    if (constant != nullptr) {
+        return 0;
+    }
+
+    return -1;
 }
 
 }  // namespace low_precision

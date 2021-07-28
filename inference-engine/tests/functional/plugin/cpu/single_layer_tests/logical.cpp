@@ -1,8 +1,8 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/logical.hpp>
+#include <shared_test_classes/single_layer/logical.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -79,7 +79,7 @@ TEST_P(LogicalLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 namespace {
@@ -150,9 +150,9 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(emptyCPUSpec));
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Logical_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParams, LogicalLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParams, LogicalLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Logical_Not_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParamsNot, LogicalLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Logical_Not_Eltwise_CPU_BF16, LogicalLayerCPUTest, LogicalTestParamsNot, LogicalLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

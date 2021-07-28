@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ static const std::vector<ExpDetectionOutputParams> s_layerParams_list =
     {{ 10.0, 10.0, 5.0, 5.0 }, 4.135166645050049, 0.5, 0.05, _MaxDetections, _NumClasses, 2000, 0 },
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsExpDetectionOutput_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadTestsExpDetectionOutput_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_sizeParams_list),
         ::testing::ValuesIn(s_layerParams_list))
