@@ -30,7 +30,7 @@ set(DEPENDENCIES
     sharedTestClasses
 )
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
+if (NOT NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
@@ -52,9 +52,9 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        NGRAPH_ONNX_IMPORT_ENABLE
+        NGRAPH_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()

@@ -90,7 +90,7 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "ngraph"
 ie_coverage_genhtml(INFO_FILE "ngraph"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(NGRAPH_ONNX_IMPORT_ENABLE)
+if(NGRAPH_ONNX_FRONTEND_ENABLE)
     ie_coverage_extract(INPUT "openvino" OUTPUT "onnx"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx/*"
         "${OV_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx/*")

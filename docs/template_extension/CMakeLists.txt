@@ -30,7 +30,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
 
 if (ngraph_onnx_ngraph_frontend_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_FRONTEND_LIBRARIES})
-    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
+    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_FRONTEND_ENABLED)
 endif()
 # [cmake:extension]
 

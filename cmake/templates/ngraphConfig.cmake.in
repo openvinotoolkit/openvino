@@ -45,11 +45,7 @@ endif()
 set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
 
-set(ngraph_onnx_ngraph_frontend_FOUND @NGRAPH_ONNX_IMPORT_ENABLE@)
-if(ngraph_onnx_ngraph_frontend_FOUND)
-    set(ONNX_FRONTEND_LIBRARIES ngraph::onnx_ngraph_frontend)
-endif()
-
+set(ngraph_onnx_ngraph_frontend_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)

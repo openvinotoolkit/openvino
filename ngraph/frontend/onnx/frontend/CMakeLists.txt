@@ -30,6 +30,10 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 # Create shared library
 add_library(onnx_ngraph_frontend SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_ngraph_frontend ALIAS onnx_ngraph_frontend)
+# to make sure we don't break existing onnxruntime builds
+# we need to keep ngraph::onnx_importer alias for backward compatibility
+# until we switch from onnx_importer to FE onnxruntime
+add_library(ngraph::onnx_importer ALIAS onnx_ngraph_frontend)
 
 add_clang_format_target(onnx_ngraph_frontend_clang FOR_TARGETS onnx_ngraph_frontend)
 

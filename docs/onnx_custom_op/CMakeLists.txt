@@ -11,8 +11,7 @@ find_package(ngraph REQUIRED COMPONENTS onnx_ngraph_frontend)
 
 add_library(${TARGET_NAME} STATIC onnx_custom_op.cpp onnx_custom_op.hpp)
 
-message("ONNX FE LIBRARIES ${ONNX_FRONTEND_LIBRARIES}")
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} ${ONNX_FRONTEND_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph::ngraph ngraph::onnx_ngraph_frontend)
 # [cmake:onnx_custom_op]
 
 # Enable code style check
