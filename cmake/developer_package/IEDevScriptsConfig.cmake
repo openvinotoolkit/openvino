@@ -254,8 +254,10 @@ endfunction()
 function(ie_check_pip_package name message_type)
     find_package(PythonInterp 3 REQUIRED)
 
+    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
     execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
+        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
         RESULT_VARIABLE PIP_EXIT_CODE
         OUTPUT_QUIET
     )

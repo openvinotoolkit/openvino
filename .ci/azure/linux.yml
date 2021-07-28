@@ -155,6 +155,10 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: false
+
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
       . $(SETUPVARS) -pyver 3.6 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
