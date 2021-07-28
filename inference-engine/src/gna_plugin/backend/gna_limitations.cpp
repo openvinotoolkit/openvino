@@ -32,7 +32,7 @@ bool RangeLimit2D::isValid(const uint32_t h, const uint32_t w) const {
 }
 
 std::string RangeLimit2D::GetErrorOrEmpty(const uint32_t h, const uint32_t w) const {
-    return hLimit.GetErrorOrEmpty(h) + hLimit.GetErrorOrEmpty(w);
+    return hLimit.GetErrorOrEmpty(h) + wLimit.GetErrorOrEmpty(w);
 }
 
 RangeMultipleLimit::RangeMultipleLimit(RangeLimit rlIn, uint32_t multiplierIn) : RangeLimit(rlIn), multiplier(multiplierIn) {
@@ -94,7 +94,7 @@ std::string VectorOrSquareLimitByChannelsAndPrecision::GetErrorOrEmpty(const uin
     return GetByPrecision(precision).GetErrorOrEmpty(h, w, channels, what);
 }
 
-void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+void Validator_30::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
     const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const {
     const std::string prefix = "Layer Convolution2D: " + name + ":";
@@ -108,7 +108,7 @@ void Validator::ValidateCnn2D(std::string name, const uint32_t inHeight, const u
     ThrowIfNotEmpty(prefix, error);
 }
 
-void Validator::ValidatePooling2D(std::string name,
+void Validator_30::ValidatePooling2D(std::string name,
     const uint32_t windowH, const uint32_t windowW,
     const uint32_t strideH, const uint32_t strideW) const {
     const std::string prefix = "Layer Pooling2D: " + name + ":";
@@ -123,7 +123,32 @@ void Validator::ValidatePooling2D(std::string name,
     ThrowIfNotEmpty(prefix, error);
 }
 
-void Validator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {
+void Validator_35::ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
+    const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+    const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const {
+    const std::string prefix = "Layer Convolution2D: " + name + ":";
+    auto error = inputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+
+    error += kernelNumberLimit.GetErrorOrEmpty(kN);
+    auto& inputChannelsNumberLimit = inPrecision == OvGnaTypeInt8 ? inputChannelsNumberLimit_1B : inputChannelsNumberLimit_2B;
+    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
+    error += kerneHWlLimit.GetErrorOrEmpty(kH, kW);
+    error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+    ThrowIfNotEmpty(prefix, error);
+}
+
+void Validator_35::ValidatePooling2D(std::string name,
+    const uint32_t windowH, const uint32_t windowW,
+    const uint32_t strideH, const uint32_t strideW) const {
+    const std::string prefix = "Layer Pooling2D: " + name + ":";
+
+    auto error = poolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
+    error += poolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    ThrowIfNotEmpty(prefix, error);
+}
+
+void AbstractValidator::ThrowIfNotEmpty(const std::string prefix, const std::string error) {
     if (!error.empty()) {
         THROW_GNA_EXCEPTION << prefix << error;
     }
