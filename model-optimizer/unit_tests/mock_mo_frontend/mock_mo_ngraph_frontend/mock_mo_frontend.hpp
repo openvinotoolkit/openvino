@@ -21,6 +21,35 @@ using namespace ngraph;
 using namespace ngraph::frontend;
 
 ////////////////////////////////
+/// \brief This structure holds number static setup values
+/// It will be used by Python unit tests to setup particular mock behavior
+struct MOCK_API MockSetup
+{
+    static std::string m_equal_data_node1;
+    static std::string m_equal_data_node2;
+    static int m_max_input_port_index;
+    static int m_max_output_port_index;
+
+    static void clear_setup()
+    {
+        m_equal_data_node1 = {};
+        m_equal_data_node2 = {};
+        m_max_input_port_index = 0;
+        m_max_output_port_index = 0;
+    }
+
+    static void set_equal_data(const std::string& node1, const std::string& node2)
+    {
+        m_equal_data_node1 = node1;
+        m_equal_data_node2 = node2;
+    }
+
+    static void set_max_port_counts(int max_input, int max_output)
+    {
+        m_max_input_port_index = max_input;
+        m_max_output_port_index = max_output;
+    }
+};
 
 /// \brief This structure holds number of calls of particular methods of Place objects
 /// It will be used by Python unit tests to verify that appropriate API
@@ -90,7 +119,7 @@ public:
     {
         m_stat.m_get_input_port++;
         m_stat.m_lastArgInt = inputPortIndex;
-        if (inputPortIndex < 10)
+        if (inputPortIndex < MockSetup::m_max_input_port_index)
         {
             return std::make_shared<PlaceMockPy>(m_name, false, inputPortIndex);
         }
@@ -124,7 +153,7 @@ public:
     {
         m_stat.m_get_output_port++;
         m_stat.m_lastArgInt = outputPortIndex;
-        if (outputPortIndex < 10)
+        if (outputPortIndex < MockSetup::m_max_output_port_index)
         {
             return std::make_shared<PlaceMockPy>(m_name, false, outputPortIndex);
         }
@@ -173,16 +202,15 @@ public:
         m_stat.m_is_equal_data++;
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
-        if (mock->m_name.find("conv2d") != std::string::npos &&
-            m_name.find("conv2d") != std::string::npos)
+        if (!MockSetup::m_equal_data_node1.empty() && !MockSetup::m_equal_data_node2.empty())
         {
-            return true;
-        }
-        if ((mock->m_name.find("8") != std::string::npos ||
-             mock->m_name.find("9") != std::string::npos) &&
-            (m_name.find("8") != std::string::npos || m_name.find("9") != std::string::npos))
-        {
-            return true;
+            if ((mock->m_name.find(MockSetup::m_equal_data_node1) != std::string::npos ||
+                 mock->m_name.find(MockSetup::m_equal_data_node2) != std::string::npos) &&
+                (m_name.find(MockSetup::m_equal_data_node1) != std::string::npos ||
+                 m_name.find(MockSetup::m_equal_data_node2) != std::string::npos))
+            {
+                return true;
+            }
         }
         return mock->m_is_op == m_is_op;
     }
@@ -390,7 +418,7 @@ public:
 
     static void clear_stat() { m_stat = {}; }
 
-protected:
+private:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
         if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))

@@ -21,6 +21,13 @@ static void register_mock_frontend_stat(py::module m)
     feStat.def_property_readonly("convert_model", &FeStat::convert_model);
 }
 
+static void register_mock_setup(py::module m)
+{
+    m.def("clear_setup", &MockSetup::clear_setup);
+    m.def("set_equal_data", &MockSetup::set_equal_data);
+    m.def("set_max_port_counts", &MockSetup::set_max_port_counts);
+}
+
 static void register_mock_model_stat(py::module m)
 {
     m.def("get_model_statistic", &InputModelMockPy::get_stat);
@@ -75,6 +82,7 @@ PYBIND11_MODULE(mock_mo_python_api, m)
 {
     m.doc() = "Mock frontend call counters for testing Pyngraph frontend bindings";
     register_mock_frontend_stat(m);
+    register_mock_setup(m);
     register_mock_model_stat(m);
     register_mock_place_stat(m);
 }

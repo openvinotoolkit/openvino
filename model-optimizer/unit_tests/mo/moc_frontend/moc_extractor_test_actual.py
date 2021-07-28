@@ -10,10 +10,12 @@ import pytest
 
 
 mock_available = True
+
 try:
     # pylint: disable=no-name-in-module,import-error
     from mock_mo_python_api import get_model_statistic, get_place_statistic, \
-        clear_frontend_statistic, clear_model_statistic, clear_place_statistic
+        clear_frontend_statistic, clear_model_statistic, clear_place_statistic, \
+        clear_setup, set_equal_data, set_max_port_counts
 
     # pylint: disable=no-name-in-module,import-error
     from ngraph.frontend import FrontEndManager
@@ -38,6 +40,8 @@ class TestMainFrontend(unittest.TestCase):
         clear_frontend_statistic()
         clear_model_statistic()
         clear_place_statistic()
+        clear_setup()
+        set_max_port_counts(10, 10)
         self.fe = fem.load_by_framework('mock_mo_ngraph_frontend')
         self.model = self.fe.load('abc.bin')
 
@@ -193,6 +197,7 @@ class TestMainFrontend(unittest.TestCase):
     # So no collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_equal_data_out(self):
+        set_equal_data('conv2d', 'conv2d')
         node = decode_name_with_port(self.model, 'conv2d:0')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
@@ -208,6 +213,7 @@ class TestMainFrontend(unittest.TestCase):
     # So no collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_equal_data_in(self):
+        set_equal_data('conv2d', 'conv2d')
         node = decode_name_with_port(self.model, '0:conv2d')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
@@ -226,6 +232,7 @@ class TestMainFrontend(unittest.TestCase):
     # All places point to same data - no collision is expected
     @mock_needed
     def test_decode_name_with_port_delim_all_same_data(self):
+        set_equal_data('8', '9')
         node = decode_name_with_port(self.model, '8:9')
         model_stat = get_model_statistic()
         place_stat = get_place_statistic()
