@@ -58,7 +58,6 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         }
 
         const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, axis);
-
         auto& rtInfo = concat->get_rt_info();
         rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
 
@@ -74,16 +73,11 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     }
     else {
         const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input1, input2 }, axis);
-
         auto& rtInfo = concat->get_rt_info();
         rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
-
-        std::shared_ptr<Node> fq = makeFakeQuantizeTypeRelaxed(concat, inputPrecision, fqOnData3);
-
-        const auto lastDequantization = makeDequantization(fq, dequantizationAfter);
-        lastDequantization->set_friendly_name("output");
-
-        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(lastDequantization) };
+        concat->set_friendly_name("output");
+        std::shared_ptr<Node> fq = makeFakeQuantize(concat, inputPrecision, fqOnData3);
+        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fq) };
         std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
             results,
             ngraph::ParameterVector{ input1, input2 },
