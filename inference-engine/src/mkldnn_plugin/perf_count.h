@@ -46,4 +46,5 @@ public:
 
 }  // namespace MKLDNNPlugin
 
-#define PERF(_counter) PerfHelper __helper##__counter (_counter->PerfCounter());
+#define GET_PERF(_counter) std::unique_ptr<PerfHelper>(new PerfHelper(_counter->PerfCounter()))
+#define PERF(_need, _counter) auto pc = _need ? GET_PERF(_counter) : nullptr;
