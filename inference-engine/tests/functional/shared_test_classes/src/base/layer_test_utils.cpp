@@ -310,10 +310,7 @@ void LayerTestsCommon::ConfigureNetwork() {
     auto isdm = cnnNetwork.getInputsInfo();
     for (auto&& idm : isdm) {
         shapes[idm.first] = isdm[idm.first]->getInputData()->getPartialShape();
-        auto i = 0;
-        for (auto&& d : std::vector<ngraph::Dimension>(inputDynamicShape)) {
-            shapes[idm.first][i++] = d;
-        }
+        shapes[idm.first] = std::vector<ngraph::Dimension>(inputDynamicShape);
     }
     cnnNetwork.reshape(shapes);
 }

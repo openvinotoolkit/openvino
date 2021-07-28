@@ -17,24 +17,24 @@ namespace LayerTestsDefinitions {
 
 // ! [test_convolution:definition]
 typedef std::tuple<
-        InferenceEngine::SizeVector,      // Kernel size
-        InferenceEngine::SizeVector,      // Strides
-        std::vector<ptrdiff_t>,           // Pad begin
-        std::vector<ptrdiff_t>,           // Pad end
-        InferenceEngine::SizeVector,      // Dilation
-        size_t,                           // Num out channels
-        ngraph::op::PadType               // Padding type
+        InferenceEngine::SizeVector,            // Kernel size
+        InferenceEngine::SizeVector,            // Strides
+        std::vector<ptrdiff_t>,                 // Pad begin
+        std::vector<ptrdiff_t>,                 // Pad end
+        InferenceEngine::SizeVector,            // Dilation
+        size_t,                                 // Num out channels
+        ngraph::op::PadType                     // Padding type
 > convSpecificParams;
 typedef std::tuple<
         convSpecificParams,
-        InferenceEngine::Precision,       // Net precision
-        InferenceEngine::Precision,       // Input precision
-        InferenceEngine::Precision,       // Output precision
-        InferenceEngine::Layout,          // Input layout
-        InferenceEngine::Layout,          // Output layout
-        std::vector<std::vector<size_t>>, // Input shape
-        std::vector<size_t>,              // target shape
-        LayerTestsUtils::TargetDevice     // Device name
+        InferenceEngine::Precision,             // Net precision
+        InferenceEngine::Precision,             // Input precision
+        InferenceEngine::Precision,             // Output precision
+        InferenceEngine::Layout,                // Input layout
+        InferenceEngine::Layout,                // Output layout
+        std::vector<std::pair<size_t, size_t>>, // Input shape
+        std::vector<size_t>,                    // target shape
+        LayerTestsUtils::TargetDevice           // Device name
 > convLayerTestParamsSet;
 
 class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>,
@@ -44,7 +44,6 @@ public:
 
 protected:
     void SetUp() override;
-    ngraph::PartialShape vec2partialshape(std::vector<std::vector<size_t>> inputShape);
 };
 // ! [test_convolution:definition]
 

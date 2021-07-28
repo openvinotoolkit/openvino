@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <utility>
+
 #include "shared_test_classes/single_layer/convolution.hpp"
+#include "functional_test_utils/partial_shape_utils.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -11,7 +14,7 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    std::vector<std::vector<size_t>> inputShape;
+    std::vector<std::pair<size_t, size_t>> inputShape;
     InferenceEngine::SizeVector targetShape;
     std::string targetDevice;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) =
@@ -43,11 +46,11 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
-    std::vector<std::vector<size_t>> inputShape;
+    std::vector<std::pair<size_t, size_t>> inputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetStaticShape, targetDevice) =
         this->GetParam();
-    inputDynamicShape = vec2partialshape(inputShape);
+    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShape);
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -70,17 +73,4 @@ void ConvolutionLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
 
-ngraph::PartialShape ConvolutionLayerTest::vec2partialshape(std::vector<std::vector<size_t>> inputShape) {
-    if (inputShape.empty()) {
-        for (auto&& item : targetStaticShape) {
-            inputShape.push_back({item, item});
-        }
-    }
-    std::vector<ngraph::Dimension> dimensions;
-    dimensions.reserve(inputShape.size());
-    for (auto&& item : inputShape) {
-        dimensions.emplace_back(item[0], item[1]);
-    }
-    return ngraph::PartialShape(dimensions);
-}
 }  // namespace LayerTestsDefinitions
