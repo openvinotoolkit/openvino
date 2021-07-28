@@ -112,17 +112,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check)
               std::unordered_set<std::string>{"Y"});
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_abc)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
-
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
-    test_case.add_expected_output(Shape{1}, std::vector<float>{6});
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_binary_add_abc)
 {
     auto function =

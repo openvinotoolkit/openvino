@@ -688,7 +688,7 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
 
     function(prototxt_2_onnx_converter SRC DST OUT)
         file(GLOB_RECURSE onnx_prototxt_files RELATIVE "${SRC}" "${SRC}/*.prototxt")
-        # file(GLOB_RECURSE onnx_files RELATIVE "${SRC}" "${SRC}/*.onnx")
+        file(GLOB_RECURSE onnx_files RELATIVE "${SRC}" "${SRC}/*.onnx")
 
         list(REMOVE_ITEM onnx_prototxt_files
             # ngraph models
