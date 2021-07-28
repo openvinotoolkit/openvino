@@ -169,8 +169,11 @@ bool convert_precision(pass::PassBase& pass,
                 is_changed |= convert_node_input_precision(node);
             }
 
-            if (is_changed)
-                ops = f->get_ordered_ops();
+                if (is_changed)
+                {
+                    f->reset_cached_ops();
+                    ops = f->get_ordered_ops();
+                }
 
             // Register internal constants only after fixing input type that could lead to nodes
             // replacement
@@ -182,10 +185,12 @@ bool convert_precision(pass::PassBase& pass,
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
 
-            if (is_output_precision_changed) {
-                ops = f->get_ordered_ops();
-                is_changed |= is_output_precision_changed;
-            }
+                if (is_output_precision_changed)
+                {
+                    f->reset_cached_ops();
+                    ops = f->get_ordered_ops();
+                    is_changed |= is_output_precision_changed;
+                }
 
             if (!is_subgraph) {
                 if (is_changed)
