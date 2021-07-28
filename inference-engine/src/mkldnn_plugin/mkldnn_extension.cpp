@@ -90,6 +90,7 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         NGRAPH_OP(GRN, ngraph::op::v0)
         NGRAPH_OP(HardSigmoid, ngraph::op::v0)
         NGRAPH_OP(Interpolate, ngraph::op::v0)
+        NGRAPH_OP(Interpolate, ngraph::op::v4)
         NGRAPH_OP(Less, ngraph::op::v1)
         NGRAPH_OP(LessEqual, ngraph::op::v1)
         NGRAPH_OP(Log, ngraph::op::v0)
@@ -158,6 +159,9 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         NGRAPH_OP(Unsqueeze, ngraph::op::v0)
         NGRAPH_OP(VariadicSplit, ngraph::op::v1)
         NGRAPH_OP(Xor, ngraph::op::v0)
+        NGRAPH_OP(MVN, ngraph::op::v0)
+        NGRAPH_OP(MVN, ngraph::op::v6)
+        NGRAPH_OP(Select, ngraph::op::v1)
 #undef NGRAPH_OP
 
         return opset;
