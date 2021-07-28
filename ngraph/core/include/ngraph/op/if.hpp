@@ -39,16 +39,22 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
+                /// \brief     gets then_body as ngraph::Function.
+                ///
                 /// \return then_body as ngraph::Function.
                 std::shared_ptr<Function> get_then_body() const
                 {
                     return m_bodies[then_body_index];
                 }
+
+                /// \brief     gets else_body as ngraph::Function.
+                ///
                 /// \return else_body as ngraph::Function.
                 std::shared_ptr<Function> get_else_body() const
                 {
                     return m_bodies[else_body_index];
                 }
+
                 /// \brief     sets new ngraph::Function as new then_body.
                 ///
                 /// \param     body   new body for 'then' branch.
@@ -56,6 +62,7 @@ namespace ngraph
                 {
                     m_bodies[then_body_index] = body;
                 }
+
                 /// \brief     sets new ngraph::Function as new else_body.
                 ///
                 /// \param     body   new body for 'else' branch.
@@ -63,6 +70,7 @@ namespace ngraph
                 {
                     m_bodies[else_body_index] = body;
                 }
+
                 /// \brief     sets new input to the operation associated with parameters
                 /// of each sub-graphs
                 ///
@@ -72,6 +80,7 @@ namespace ngraph
                 void set_input(const Output<Node>& value,
                                const std::shared_ptr<Parameter>& then_parameter,
                                const std::shared_ptr<Parameter>& else_parameter);
+
                 /// \brief     sets new output from the operation associated with results
                 /// of each sub-graphs
                 ///
