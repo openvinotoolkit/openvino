@@ -146,7 +146,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
 
     for (size_t split_index = 0; split_index < split_channels; split_index++) {
         ngraph::Output<ngraph::Node>& flat_filter = flat_filters[split_index];
-        if (horizontal_permute) {
+        if (horizontal_permute && !vertical_permute) {
             result.push_back(std::make_shared<ngraph::opset7::Transpose>(flat_filter,
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{0, 1, 3, 2})));
         } else {
@@ -326,14 +326,18 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
         if (horizontal_permute) {
             // Horizontal split - transform input accordingly
             ngraph::OutputVector dilated_chunks;
-            for (size_t filter_width = 0; filter_width < conv_data.filter_width; filter_width++) {
-                size_t offset = filter_width * conv_data.filter_dilation_width * h_1_filter_channel_count;
-                auto slice = FlatCrop(row, offset, h_1_filter_channel_count * conv_data.output_width);
-                copy_runtime_info(graph_data.conv, slice);
-                dilated_chunks.push_back(slice);
-            }
+            std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node_shared_ptr();
 
-            auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_chunks, 0);
+            if (conv_data.filter_width > 1) {
+                for (size_t filter_width = 0; filter_width < conv_data.filter_width; filter_width++) {
+                    size_t offset = filter_width * conv_data.filter_dilation_width * h_1_filter_channel_count;
+                    auto slice = FlatCrop(row, offset, h_1_filter_channel_count * conv_data.output_width);
+                    copy_runtime_info(graph_data.conv, slice);
+                    dilated_chunks.push_back(slice);
+                }
+
+                dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_chunks, 0);
+            }
 
             auto transposed_dilated_chunks = std::make_shared<ngraph::op::Transpose>(dilated_chunks_concat,
                 ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
