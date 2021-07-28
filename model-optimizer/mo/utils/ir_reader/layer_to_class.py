@@ -356,7 +356,6 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         if op_type in custom_ops:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
-            # assert op_type in Op.registered_ops, 'Operation {} not found in MO operations, please check it!'.format(op_type)
             if op_type not in Op.registered_ops:
                 log.warning('Operation {} not found in MO operations, please check it!'.format(op_type))
                 node = Op(new_graph, op.attrs()).create_node()
