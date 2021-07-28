@@ -515,10 +515,7 @@ public:
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
-    void convert(std::shared_ptr<ngraph::Function> func) const override
-    {
-        m_stat.m_convert++;
-    }
+    void convert(std::shared_ptr<ngraph::Function> func) const override { m_stat.m_convert++; }
 
     std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override
     {

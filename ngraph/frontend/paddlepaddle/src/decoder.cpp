@@ -166,7 +166,7 @@ namespace ngraph
                 }
                 return res;
             }
-        }
+        } // namespace
 
         std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_input(
             const std::function<Output<Node>(const std::string&, size_t)>& func) const
