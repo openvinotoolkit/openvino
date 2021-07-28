@@ -43,7 +43,7 @@ TEST(type_prop, if_simple_test)
     if_op->set_input(Y, Yt, Ye);
     auto res = if_op->set_output(then_op_res, else_op_res);
     if_op->validate_and_infer_types();
-    
+
     auto result0 = make_shared<op::Result>(res);
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
@@ -121,4 +121,86 @@ TEST(type_prop, if_clone_test)
     auto new_if = std::dynamic_pointer_cast<op::v8::If>(
         if_op->clone_with_new_inputs(OutputVector{cond, Xnew, Ynew}));
     EXPECT_EQ(true, true);
+}
+
+TEST(type_prop, if_multiple_outputs)
+{
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
+    auto cond = make_shared<op::Parameter>(element::boolean, Shape{1});
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yt = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xnew = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Ynew = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
+    auto then_body_res_1 = make_shared<op::Result>(then_op);
+    auto then_body_res_2 = make_shared<op::Result>(Xt);
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_body_res_1, then_body_res_2},
+                                                   ParameterVector{Xt, Yt});
+    auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
+    auto else_const = std::make_shared<ngraph::opset5::Constant>(
+        ngraph::element::f32, ngraph::Shape{1, 1, 1}, std::vector<float>{0.5f});
+    auto else_body_res_1 = make_shared<op::Result>(else_op);
+    auto else_body_res_2 = make_shared<op::Result>(else_const);
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_body_res_1, else_body_res_2},
+                                                   ParameterVector{Xe, Ye});
+
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res1 = if_op->set_output(then_body_res_1, else_body_res_1);
+    auto res2 = if_op->set_output(then_body_res_2, else_body_res_2);
+    if_op->validate_and_infer_types();
+    auto result1 = make_shared<op::Result>(res1);
+    auto result2 = make_shared<op::Result>(res2);
+    Shape out0_shape{32, 40, 10};
+    auto sh = result1->get_output_shape(0);
+    auto is_dynamic = result2->is_dynamic();
+    EXPECT_EQ(out0_shape, sh);
+    EXPECT_EQ(is_dynamic, true);
+}
+
+TEST(type_prop, if_scalar_condition)
+{
+    // That which we iterate over
+    auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
+    auto cond = make_shared<op::Parameter>(element::boolean, Shape{});
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yt = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
+    auto then_body_res = make_shared<op::Result>(then_op);
+    auto then_body =
+        make_shared<ngraph::Function>(OutputVector{then_body_res}, ParameterVector{Xt, Yt});
+
+    auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
+    auto else_body_res = make_shared<op::Result>(else_op);
+    auto else_body =
+        make_shared<ngraph::Function>(OutputVector{else_body_res}, ParameterVector{Xe, Ye});
+
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_body_res, else_body_res);
+    if_op->validate_and_infer_types();
+    auto result0 = make_shared<op::Result>(res);
+    Shape out0_shape{32, 40, 10};
+    auto sh = result0->get_output_shape(0);
+    EXPECT_EQ(sh, out0_shape);
 }

@@ -70,16 +70,16 @@ namespace ngraph
                 /// \param     then_parameter  parameter for then_body
                 /// \param     else_parameter  parameter for else_body
                 void set_input(const Output<Node>& value,
-                               const std::shared_ptr<Parameter> then_parameter,
-                               const std::shared_ptr<Parameter> else_parameter);
+                               const std::shared_ptr<Parameter>& then_parameter,
+                               const std::shared_ptr<Parameter>& else_parameter);
                 /// \brief     sets new output from the operation associated with results
                 /// of each sub-graphs
                 ///
                 /// \param     then_result     result from then_body
                 /// \param     else_parameter  pesult from else_body
                 /// \return    output from operation
-                Output<Node> set_output(const std::shared_ptr<Result> then_result,
-                                        const std::shared_ptr<Result> else_result);
+                Output<Node> set_output(const std::shared_ptr<Result>& then_result,
+                                        const std::shared_ptr<Result>& else_result);
 
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
@@ -87,9 +87,9 @@ namespace ngraph
 
             private:
                 void validate_and_infer_type_body(
-                    std::shared_ptr<Function> body,
-                    ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
-                void fill_body(std::shared_ptr<op::v8::If> new_op,
+                    const std::shared_ptr<Function>& body,
+                    const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
+                void fill_body(const std::shared_ptr<op::v8::If>& new_op,
                                size_t branch_index,
                                const OutputVector& new_args) const;
             };

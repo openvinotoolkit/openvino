@@ -3,9 +3,7 @@
 //
 
 #include "ngraph/runtime/reference/if.hpp"
-#include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/function.hpp"
-#include "ngraph/runtime/reference/split.hpp"
 namespace ngraph
 {
     namespace runtime
@@ -30,17 +28,17 @@ namespace ngraph
                                                       : if_body_indexes::else_body_index;
                 HostTensorVector inputs_to_body;
                 HostTensorVector outs_from_body;
-                // TODO: need find num of inputs in bode and reserve inputs_to_body
                 inputs_to_body.resize(input_descs[branch_index].size());
-                for (auto input_desc : input_descs[branch_index])
+                for (const auto& input_desc : input_descs[branch_index])
                 {
                     inputs_to_body[input_desc->m_body_parameter_index] =
                         args[input_desc->m_input_index];
                 }
                 reference::function(bodies[branch_index], inputs_to_body, outs_from_body);
-                for (auto out_descr : out_descs[branch_index])
+                for (const auto& out_descr : out_descs[branch_index])
                 {
                     auto res = outs_from_body[out_descr->m_body_value_index];
+                    out[out_descr->m_output_index]->set_shape(res->get_shape());
                     out[out_descr->m_output_index]->write(res->get_data_ptr(),
                                                           res->get_size_in_bytes());
                 }

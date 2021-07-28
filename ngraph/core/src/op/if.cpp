@@ -35,8 +35,8 @@ op::v8::If::If(const Output<Node>& execution_condition)
     set_argument(0, execution_condition);
 }
 
-ngraph::PartialShape resolve_shape(ngraph::PartialShape then_pshape,
-                                   ngraph::PartialShape else_pshape)
+ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
+                                   const ngraph::PartialShape& else_pshape)
 {
     auto then_rank = then_pshape.rank();
     auto else_rank = else_pshape.rank();
@@ -86,30 +86,16 @@ bool op::v8::If::visit_attributes(AttributeVisitor& visitor)
 }
 
 void op::v8::If::validate_and_infer_type_body(
-    std::shared_ptr<Function> body,
-    ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors)
+    const std::shared_ptr<Function>& body,
+    const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors)
 {
-    auto layer_id_map = std::map<size_t, std::shared_ptr<op::Parameter>>();
-    for (auto param : body->get_parameters())
-    {
-        layer_id_map.insert({param->get_instance_id(), param});
-    }
     for (const auto& input_description : input_descriptors)
     {
         auto index = input_description->m_input_index;
 
         auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
         auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-        if (input_partial_shape.is_static())
-        {
-            auto input_shape = input_partial_shape.to_shape();
-            Shape out_shape{input_shape};
-            body_parameter->set_partial_shape(out_shape);
-        }
-        else
-        {
-            body_parameter->set_partial_shape(input_partial_shape);
-        }
+        body_parameter->set_partial_shape(input_partial_shape);
     }
     body->validate_nodes_and_infer_types();
 }
@@ -141,33 +127,14 @@ void op::v8::If::validate_and_infer_types()
         auto input_descriptors = m_input_descriptions[cond_index];
         validate_and_infer_type_body(body, input_descriptors);
         auto output_nodes = outputs();
-        for (auto output_descr : m_output_descriptions[cond_index])
+        for (const auto& output_descr : m_output_descriptions[cond_index])
         {
             auto body_value =
                 body->get_results().at(output_descr->m_body_value_index)->input_value(0);
             auto body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(output_descr->m_body_value_index,
+            set_output_type(output_descr->m_output_index,
                             body_value.get_element_type(),
-                            PartialShape::dynamic());
-            if (body_value_partial_shape.is_static())
-            {
-                auto body_value_shape = body_value_partial_shape.to_shape();
-                Shape out_shape{body_value_shape};
-
-                if (body_value_shape.empty())
-                {
-                    out_shape = Shape(1);
-                }
-
-                set_output_type(
-                    output_descr->m_output_index, body_value.get_element_type(), out_shape);
-            }
-            else
-            {
-                set_output_type(output_descr->m_output_index,
-                                body_value.get_element_type(),
-                                PartialShape::dynamic(body_value.get_partial_shape().rank()));
-            }
+                            body_value_partial_shape);
         }
     }
     else // condition is non constant
@@ -178,13 +145,13 @@ void op::v8::If::validate_and_infer_types()
         std::set<int64_t> then_output_indexes{};
         std::set<int64_t> else_output_indexes{};
         auto output_nodes = outputs();
-        for (auto then_output_description : m_output_descriptions[then_body_index])
+        for (const auto& then_output_description : m_output_descriptions[then_body_index])
         {
             auto out_index = then_output_description->m_output_index;
             auto cond = [=](Output<Node>& node) { return node.get_index() == out_index; };
             auto it = std::find_if(output_nodes.begin(), output_nodes.end(), cond);
             NGRAPH_CHECK(it != output_nodes.end(),
-                         "Incorrect output with index %i i n \'then_body\'",
+                         "Incorrect output with index %i in \'then_body\'",
                          out_index);
             then_output_indexes.insert(then_output_description->m_output_index);
         }
@@ -193,21 +160,22 @@ void op::v8::If::validate_and_infer_types()
             then_output_indexes.size() == output_nodes.size(),
             "Incorect then_body! Number of then_body outputs must be same as number If outputs");
 
-        for (auto else_output_description : m_output_descriptions[else_body_index])
+        for (const auto& else_output_description : m_output_descriptions[else_body_index])
         {
             auto out_index = else_output_description->m_output_index;
-
-            NGRAPH_CHECK(then_output_indexes.find(out_index) != then_output_indexes.end(),
+            auto cond = [=](Output<Node>& node) { return node.get_index() == out_index; };
+            auto it = std::find_if(output_nodes.begin(), output_nodes.end(), cond);
+            NGRAPH_CHECK(it != output_nodes.end(),
                          "Incorrect output with index %i in \'else_body\'",
                          out_index);
             else_output_indexes.insert(else_output_description->m_output_index);
         }
 
         NGRAPH_CHECK(
-            else_output_indexes.size() == else_output_indexes.size(),
-            "Incorect else_body! Number of then_body outputs must be same as number If outputs");
+            else_output_indexes.size() == output_nodes.size(),
+            "Incorect else_body! Number of else_body outputs must be same as number If outputs");
 
-        for (auto output_index : then_output_indexes)
+        for (const auto& output_index : then_output_indexes)
         {
             auto description_find_lambda = [=](MultiSubgraphOutputDescriptionPtr& descr) {
                 return descr->m_output_index == static_cast<uint64_t>(output_index);
@@ -227,16 +195,18 @@ void op::v8::If::validate_and_infer_types()
                                      ->get_results()
                                      .at(else_output_description->m_body_value_index)
                                      ->input_value(0);
-            // TODO: check_types
             auto then_node_partial_shape = then_out_node.get_partial_shape();
             auto else_node_partial_shape = else_out_node.get_partial_shape();
+            NGRAPH_CHECK(then_out_node.get_element_type() == else_out_node.get_element_type(),
+                         "type of then_body output is not equal type of else_body output");
+
             auto partial_shape = resolve_shape(then_node_partial_shape, else_node_partial_shape);
             set_output_type(output_index, then_out_node.get_element_type(), partial_shape);
         }
     }
 }
 
-void op::v8::If::fill_body(std::shared_ptr<op::v8::If> new_op,
+void op::v8::If::fill_body(const std::shared_ptr<op::v8::If>& new_op,
                            size_t branch_index,
                            const OutputVector& new_args) const
 {
@@ -264,11 +234,11 @@ void op::v8::If::fill_body(std::shared_ptr<op::v8::If> new_op,
     new_op->m_bodies[branch_index] = std::make_shared<Function>(
         spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
-    for (auto& input_description : input_descriptions)
+    for (const auto& input_description : input_descriptions)
     {
         new_op->m_input_descriptions[branch_index].push_back(input_description->copy());
     }
-    for (auto& output_description : m_output_descriptions[branch_index])
+    for (const auto& output_description : m_output_descriptions[branch_index])
     {
         new_op->m_output_descriptions[branch_index].push_back(output_description->copy());
     }
@@ -284,8 +254,6 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
                  description(),
                  " operation with name ",
                  get_friendly_name());
-
-    // TODO: check size of output
     op->set_output_size(m_output_descriptions[0].size());
     fill_body(op, then_body_index, new_args);
     fill_body(op, else_body_index, new_args);
@@ -302,11 +270,12 @@ bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 }
 
 void op::v8::If::set_input(const Output<Node>& value,
-                           const std::shared_ptr<Parameter> then_parameter,
-                           const std::shared_ptr<Parameter> else_parameter)
+                           const std::shared_ptr<Parameter>& then_parameter,
+                           const std::shared_ptr<Parameter>& else_parameter)
 {
     ParameterVector param_vec;
-    if (then_parameter != nullptr) {
+    if (then_parameter != nullptr)
+    {
         param_vec.push_back(then_parameter);
     }
     if (else_parameter != nullptr)
@@ -316,8 +285,8 @@ void op::v8::If::set_input(const Output<Node>& value,
     set_invariant_inputs(value, param_vec);
 }
 
-Output<Node> op::v8::If::set_output(const std::shared_ptr<Result> then_result,
-                                    const std::shared_ptr<Result> else_result)
+Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
+                                    const std::shared_ptr<Result>& else_result)
 {
     return set_body_outputs({then_result, else_result});
 }
