@@ -214,6 +214,7 @@ namespace ngraph
                 /// count
                 ///
                 /// \param shape The shape of the tensor constant.
+                NGRAPH_DEPRECATED("Use Constant c-tor with shape argument instead")
                 void set_data_shape(const Shape& shape);
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
