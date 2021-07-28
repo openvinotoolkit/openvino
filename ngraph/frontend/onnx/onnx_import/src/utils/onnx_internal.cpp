@@ -61,7 +61,7 @@ namespace ngraph
                 }
             }
 
-            std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function)
+            void convert_decoded_function(std::shared_ptr<Function> function)
             {
                 for (const auto& node : function->get_ordered_ops())
                 {
