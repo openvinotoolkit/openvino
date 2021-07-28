@@ -308,11 +308,6 @@ namespace ngraph
                     return rc;
                 }
 
-                std::shared_ptr<runtime::AlignedBuffer> get_aligned_buffer() const
-                {
-                    return m_data;
-                }
-
                 const void* get_data_ptr() const { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <typename T>
                 const T* get_data_ptr() const
