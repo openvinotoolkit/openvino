@@ -364,11 +364,9 @@ namespace ngraph
             return f;
         }
 
-        std::shared_ptr<ngraph::Function>
-            FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const
+        void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const
         {
-            auto function = clone_function(*partiallyConverted.get());
-            for (const auto& node : function->get_ordered_ops())
+            for (const auto& node : partiallyConverted->get_ordered_ops())
             {
                 if (is_type<PDPDFrameworkNode>(node))
                 {
@@ -377,11 +375,10 @@ namespace ngraph
                         pdpd::get_supported_ops());
                 }
             }
-            for (auto result : function->get_results())
+            for (auto result : partiallyConverted->get_results())
             {
                 result->validate_and_infer_types();
             }
-            return function;
         }
 
         std::shared_ptr<ngraph::Function>
@@ -414,32 +411,6 @@ namespace ngraph
             auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
             return f;
         }
-
-        void FrontEndPDPD::normalize(std::shared_ptr<ngraph::Function> function) const
-        {
-            for (const auto& node : function->get_ordered_ops())
-            {
-                if (is_type<PDPDFrameworkNode>(node))
-                {
-                    try
-                    {
-                        pdpd::normalize_framework_node(
-                            std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
-                            pdpd::get_supported_ops());
-                    }
-                    catch (const OpConversionFailure&)
-                    {
-                        // do nothing if conversion failed
-                        continue;
-                    }
-                }
-            }
-            for (auto result : function->get_results())
-            {
-                result->validate_and_infer_types();
-            }
-        }
-
     } // namespace frontend
 } // namespace ngraph
 

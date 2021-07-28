@@ -46,11 +46,11 @@ namespace ngraph
 
             std::string get_op_type() const override;
 
-            std::map<std::string, OutputVector>
-                map_for_each_input(std::function<Output<Node>(const std::string&)> func) const;
+            std::map<std::string, OutputVector> map_for_each_input(
+                const std::function<Output<Node>(const std::string&, size_t)>& func) const;
 
-            std::map<std::string, OutputVector>
-                map_for_each_output(std::function<Output<Node>(const std::string&)> func) const;
+            std::map<std::string, OutputVector> map_for_each_output(
+                const std::function<Output<Node>(const std::string&, size_t)>& func) const;
 
         private:
             std::vector<paddle::framework::proto::OpDesc_Attr>

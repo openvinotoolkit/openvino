@@ -146,38 +146,38 @@ namespace ngraph
             return attrs;
         }
 
-        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_input(
-            std::function<Output<Node>(const std::string&)> func) const
+        namespace
         {
-            std::map<std::string, OutputVector> res;
-            for (const auto& port : op_place->get_desc().inputs())
+            inline std::map<std::string, OutputVector> map_for_each_input_impl(
+                const google::protobuf::RepeatedPtrField<paddle::framework::proto::OpDesc_Var>& c,
+                const std::function<Output<Node>(const std::string&, size_t)>& func)
             {
-                std::vector<Output<Node>> v;
-                v.reserve(port.arguments_size());
-                for (const auto& inp : port.arguments())
+                size_t idx = 0;
+                std::map<std::string, OutputVector> res;
+                for (const auto& port : c)
                 {
-                    v.push_back(func(inp));
+                    std::vector<Output<Node>> v;
+                    v.reserve(port.arguments_size());
+                    for (const auto& inp : port.arguments())
+                    {
+                        v.push_back(func(inp, idx++));
+                    }
+                    res.emplace(std::make_pair(port.parameter(), v));
                 }
-                res.emplace(std::make_pair(port.parameter(), v));
+                return res;
             }
-            return res;
+        }
+
+        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_input(
+            const std::function<Output<Node>(const std::string&, size_t)>& func) const
+        {
+            return map_for_each_input_impl(op_place->get_desc().inputs(), func);
         }
 
         std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_output(
-            std::function<Output<Node>(const std::string&)> func) const
+            const std::function<Output<Node>(const std::string&, size_t)>& func) const
         {
-            std::map<std::string, OutputVector> res;
-            for (const auto& port : op_place->get_desc().outputs())
-            {
-                std::vector<Output<Node>> v;
-                v.reserve(port.arguments_size());
-                for (const auto& out : port.arguments())
-                {
-                    v.push_back(func(out));
-                }
-                res.emplace(std::make_pair(port.parameter(), v));
-            }
-            return res;
+            return map_for_each_input_impl(op_place->get_desc().outputs(), func);
         }
 
     } // namespace frontend
