@@ -102,11 +102,11 @@ class MapFNInputSlicing(FrontReplacementSubgraph):
 
             for internal_match in internal_matches:
                 # check if TensorListGetItem from the body graph is connected with TensorListFromTensor
-                # from the main graph.
-                # If yes, the transformation detected input slicing by this port and can use Loop axis attribute
+                # from the main graph. If yes, the transformation detects input slicing by this port
+                # and can use Loop axis attribute
                 unstack_node = Loop.get_external_node_by_internal_id(loop_node,
                                                                      internal_match['tensor_list'].internal_layer_id)
-                unstack_node = unstack_node[0] if (unstack_node is not None and len(unstack_node) == 1
+                unstack_node = unstack_node[0] if (len(unstack_node) == 1
                                                    and unstack_node[0].op == 'TensorListFromTensor') else None
                 if unstack_node is None:
                     continue
@@ -210,19 +210,18 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
 
             for internal_match in internal_matches:
                 # check if TensorListReserve from the main graph is connected with Parameter node from the body graph
-                # that is assigned for storing intermediate output results of While Loop.
-                # If yes, the transformation detected intermediate outputs concatentation by this port
-                # and can use Loop axis attribute
+                # that is assigned for storing intermediate output results of While Loop. If yes, the transformation
+                # detects intermediate outputs concatentation by this port and can use Loop axis attribute
                 reserve_node = Loop.get_external_node_by_internal_id(loop_node,
                                                                      internal_match['container'].internal_layer_id)
-                reserve_node = reserve_node[0] if (reserve_node is not None and len(reserve_node) == 1 and
+                reserve_node = reserve_node[0] if (len(reserve_node) == 1 and
                                                    reserve_node[0].op == 'TensorListReserve') else None
                 if reserve_node is None:
                     continue
                 stack_node = Loop.get_external_node_by_internal_id(loop_node,
                                                                    internal_match[
                                                                        'concatenation_result'].internal_layer_id)
-                stack_node = stack_node if (stack_node is not None and len(stack_node) == 1) else None
+                stack_node = stack_node if len(stack_node) == 1 else None
 
                 # skip StopGradient node if it exists between While loop output port and TensorListStack operation
                 if stack_node is None:
@@ -230,7 +229,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                 if stack_node[0].op == 'StopGradient':
                     stack_node = [dest.node for dest in stack_node[0].out_port(0).get_destinations()]
 
-                stack_node = stack_node[0] if (stack_node is not None and len(stack_node) == 1 and
+                stack_node = stack_node[0] if (len(stack_node) == 1 and
                                                stack_node[0].op == 'TensorListStack') else None
                 if stack_node is None:
                     continue
