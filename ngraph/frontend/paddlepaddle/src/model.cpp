@@ -80,14 +80,13 @@ namespace ngraph
 
                 for (const auto& var : block.vars())
                 {
-                    m_var_places[var.name()] = std::make_shared<TensorPlacePDPD>(
-                        m_input_model, std::make_shared<VarDesc>(var));
+                    m_var_places[var.name()] =
+                        std::make_shared<TensorPlacePDPD>(m_input_model, var);
                 }
 
                 for (const auto& op : block.ops())
                 {
-                    auto op_place =
-                        std::make_shared<OpPlacePDPD>(m_input_model, std::make_shared<OpDesc>(op));
+                    auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, op);
                     m_op_places.push_back(op_place);
 
                     for (const auto& output : op.outputs())
@@ -98,12 +97,12 @@ namespace ngraph
 
                             // connect out_port and tensor
                             const auto& tensor = m_var_places.at(var_name);
-                            tensor->addProducingPort(out_port);
-                            out_port->setTargetTensor(tensor);
+                            tensor->add_producing_port(out_port);
+                            out_port->set_target_tensor(tensor);
 
                             // connect out_port and op
-                            op_place->addOutPort(out_port, output.parameter());
-                            out_port->setOp(op_place);
+                            op_place->add_out_port(out_port, output.parameter());
+                            out_port->set_op(op_place);
                         }
                     }
 
@@ -115,34 +114,34 @@ namespace ngraph
 
                             // connect in_port and tensor
                             const auto& tensor = m_var_places.at(var_name);
-                            tensor->addConsumingPort(in_port);
-                            in_port->setSourceTensor(tensor);
+                            tensor->add_consuming_port(in_port);
+                            in_port->set_source_tensor(tensor);
 
                             // connect in_port and op
-                            op_place->addInPort(in_port, input.parameter());
-                            in_port->setOp(op_place);
+                            op_place->add_in_port(in_port, input.parameter());
+                            in_port->set_op(op_place);
                         }
                     }
 
                     // Determine outputs and inputs
                     if (op.type() == "feed")
                     {
-                        const auto& place = op_place->getOutputPortPDPD("Out", 0);
+                        const auto& place = op_place->get_output_port_pdpd("Out", 0);
                         const auto& var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(
-                            place->getTargetTensorPDPD());
+                            place->get_target_tensor_pdpd());
                         const auto& tensor_desc =
-                            var_place->getDesc()->type().lod_tensor().tensor();
+                            var_place->get_desc().type().lod_tensor().tensor();
                         const auto& dims = tensor_desc.dims();
 
-                        var_place->setElementType(TYPE_MAP[tensor_desc.data_type()]);
-                        var_place->setPartialShape(
+                        var_place->set_element_type(TYPE_MAP[tensor_desc.data_type()]);
+                        var_place->set_partial_shape(
                             PartialShape(std::vector<Dimension>(dims.begin(), dims.end())));
                         m_inputs.push_back(var_place);
                     }
                     else if (op.type() == "fetch")
                     {
-                        auto place = op_place->getInputPortPDPD("X", 0);
-                        m_outputs.push_back(place->getSourceTensorPDPD());
+                        auto place = op_place->get_input_port_pdpd("X", 0);
+                        m_outputs.push_back(place->get_source_tensor_pdpd());
                     }
                 }
             }
@@ -150,7 +149,7 @@ namespace ngraph
 
         namespace pdpd
         {
-            void read_tensor(std::istream& is, char* data, size_t len)
+            bool read_tensor(std::istream& is, char* data, size_t len)
             {
                 std::vector<char> header(16);
                 is.read(&header[0], 16);
@@ -159,6 +158,9 @@ namespace ngraph
                 std::vector<char> dims_struct(dims_len);
                 is.read(&dims_struct[0], dims_len);
                 is.read(data, len);
+                if (is.gcount() != len)
+                    return false;
+                return true;
             }
 
             template <typename T>
@@ -232,25 +234,26 @@ namespace ngraph
         {
             for (const auto& item : m_var_places)
             {
-                const auto& var_desc = item.second->getDesc();
+                const auto& var_desc = item.second->get_desc();
                 const auto& name = item.first;
                 if (pdpd::endsWith(name, std::string{"feed"}) ||
                     pdpd::endsWith(name, std::string{"fetch"}))
                     continue;
-                if (!var_desc->persistable())
+                if (!var_desc.persistable())
                     continue;
 
-                FRONT_END_GENERAL_CHECK(var_desc->type().type() ==
+                FRONT_END_GENERAL_CHECK(var_desc.type().type() ==
                                         paddle::framework::proto::VarType::LOD_TENSOR);
-                const auto& tensor = var_desc->type().lod_tensor().tensor();
+                const auto& tensor = var_desc.type().lod_tensor().tensor();
                 Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
                 const auto& type = TYPE_MAP[tensor.data_type()];
                 const auto& data_length = shape_size(shape) * type.size();
                 std::vector<uint8_t> tensor_data(data_length);
 
+                bool read_succeed = false;
                 if (weight_stream)
                 {
-                    pdpd::read_tensor(
+                    read_succeed = pdpd::read_tensor(
                         *weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else if (!folder_with_weights.empty())
@@ -259,13 +262,18 @@ namespace ngraph
                                      std::ios::in | std::ifstream::binary);
                     FRONT_END_GENERAL_CHECK(is && is.is_open(),
                                             "Cannot open file for constant value.");
-                    pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+                    read_succeed = pdpd::read_tensor(
+                        is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
                 }
                 else
                 {
                     FRONT_END_GENERAL_CHECK(
                         false, "Either folder with weights or stream must be provided.");
                 }
+                FRONT_END_GENERAL_CHECK(read_succeed,
+                                        "File containing constant with name ",
+                                        name,
+                                        " wasn't successfully read.");
 
                 auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
                 const_node->set_friendly_name(name);
@@ -289,8 +297,14 @@ namespace ngraph
                                     "Model can't be parsed");
 
             loadPlaces();
-            loadConsts(weights_stream && weights_stream.is_open() ? std::basic_string<T>{} : path,
-                       &weights_stream);
+            if (weights_stream && weights_stream.is_open())
+            {
+                loadConsts(std::basic_string<T>{}, &weights_stream);
+            }
+            else
+            {
+                loadConsts(path, nullptr);
+            }
         }
 
         InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(
@@ -309,7 +323,7 @@ namespace ngraph
 
             loadPlaces();
             if (streams.size() > 1)
-                loadConsts(std::string{""}, streams[1]);
+                loadConsts(std::string(), streams[1]);
         }
 
         std::vector<Place::Ptr> InputModelPDPD::InputModelPDPDImpl::getInputs() const
@@ -340,11 +354,11 @@ namespace ngraph
                 }
                 else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlacePDPD>(place))
                 {
-                    return in_port_place->getSourceTensorPDPD();
+                    return in_port_place->get_source_tensor_pdpd();
                 }
                 else if (auto out_port_place = std::dynamic_pointer_cast<OutPortPlacePDPD>(place))
                 {
-                    return out_port_place->getTargetTensorPDPD();
+                    return out_port_place->get_target_tensor_pdpd();
                 }
                 FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
             }
@@ -388,26 +402,26 @@ namespace ngraph
             InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
                                                                 const ngraph::PartialShape& p_shape)
         {
-            pdpd::castToTensorPlace(place)->setPartialShape(p_shape);
+            pdpd::castToTensorPlace(place)->set_partial_shape(p_shape);
         }
 
         ngraph::PartialShape
             InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const
         {
-            return pdpd::castToTensorPlace(place)->getPartialShape();
+            return pdpd::castToTensorPlace(place)->get_partial_shape();
         }
 
         void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place,
                                                                 const ngraph::element::Type& type)
         {
-            pdpd::castToTensorPlace(place)->setElementType(type);
+            pdpd::castToTensorPlace(place)->set_element_type(type);
         }
 
         void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const void* value)
         {
             auto tensor_place = pdpd::castToTensorPlace(place);
-            auto p_shape = tensor_place->getPartialShape();
-            auto type = tensor_place->getElementType();
+            auto p_shape = tensor_place->get_partial_shape();
+            auto type = tensor_place->get_element_type();
             auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);
             auto name = tensor_place->get_names()[0];
             constant->set_friendly_name(name);
