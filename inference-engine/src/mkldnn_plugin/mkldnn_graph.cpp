@@ -45,7 +45,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/low_precision.hpp>
 
 /*****************************************************
  * Debug capability
@@ -94,7 +94,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->reuse_io_tensors = false;
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(subgraph);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
@@ -192,7 +192,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     }
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -965,29 +965,32 @@ Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
-void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : inputNodesMap) {
-        resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
+    auto itr = inputNodesMap.find(name);
+    if (itr != inputNodesMap.end()) {
+        return itr->second->getChildEdgeAt(0)->getBlob();
     }
+    return nullptr;
 }
 
-void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : outputNodesMap) {
-        resp[it.first] = it.second->getParentEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
+    auto itr = outputNodesMap.find(name);
+    if (itr != outputNodesMap.end()) {
+        return itr->second->getParentEdgeAt(0)->getBlob();
+    }
+    return nullptr;
+}
+
+void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {
+    for (auto it = graphEdges.begin(); it != graphEdges.end(); it++) {
+        if ((*it) == edge) {
+            graphEdges.erase(it);
+            return;
+        }
     }
 }
 
 void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1009,14 +1012,14 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1026,16 +1029,6 @@ void MKLDNNGraph::DropNode(const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
-    auto removeEdge = [](MKLDNNGraph &graph, MKLDNNEdgePtr& edge) {
-        auto& edges = graph.GetEdges();
-        for (auto it = edges.begin(); it != edges.end(); it++) {
-            if ((*it) == edge) {
-                edges.erase(it);
-                return;
-            }
-        }
-    };
-
     auto children = node->childEdges;
     auto parents = node->parentEdges;
 
@@ -1062,14 +1055,14 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
             if (remEdge) {
                 inNum = remEdge->getInputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             remEdge = children[j].lock();
             int outNum = 0;
             if (remEdge) {
                 outNum = remEdge->getOutputNum();
                 remEdge->drop();
-                removeEdge(*this, remEdge);
+                RemoveEdge(remEdge);
             }
             MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
             graphEdges.push_back(newEdge);
@@ -1088,7 +1081,7 @@ void MKLDNNGraph::DropDWConvNode(const MKLDNNNodePtr &node) {
         if (remEdge) {
             inNum = remEdge->getInputNum();
             remEdge->drop();
-            removeEdge(*this, remEdge);
+            RemoveEdge(remEdge);
         }
         int outNum = parentConv->parentEdges.size();
 

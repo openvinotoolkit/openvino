@@ -26,6 +26,7 @@
 
 namespace LayerTestsDefinitions {
 
+
 typedef std::tuple<
         size_t,              // levels
         std::vector<size_t>, // const inputs shape
@@ -48,7 +49,45 @@ typedef std::tuple<
 class FakeQuantizeLayerTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+protected:
+    void SetUp() override;
+    void UpdateSeed();
+
+ protected:
+    float inputDataMin        = 0.0;
+    float inputDataMax        = 10.0;
+    float inputDataResolution = 1.0;
+    int32_t  seed = 1;
+};
+
+
+//TODO after update all plugins remove *Revise types
+typedef std::tuple<
+        size_t,                         // fake quantize levels
+        std::vector<size_t>,            // fake quantize inputs shape
+        std::vector<float>,             // fake quantize (inputLow, inputHigh, outputLow, outputHigh) or empty for random
+        std::vector<float>,             // input generator data (low, high, resolution) or empty for default
+        ngraph::op::AutoBroadcastSpec   // fake quantize broadcast mode
+> fqSpecificParamsRevise;
+typedef std::tuple<
+        fqSpecificParamsRevise,
+        InferenceEngine::Precision,        // Net precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
+        InferenceEngine::SizeVector,       // Input shapes
+        LayerTestsUtils::TargetDevice,     // Device name
+
+        std::pair<std::string, std::map<std::string, std::string>> // Additional backend configuration and alis name to it
+> fqLayerTestParamsSetRevise;
+
+class FakeQuantizeLayerTestRevise : public testing::WithParamInterface<fqLayerTestParamsSetRevise>,
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSetRevise>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;

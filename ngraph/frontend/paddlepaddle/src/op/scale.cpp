@@ -32,12 +32,12 @@ namespace ngraph
                     }
                     else
                     {
-                        scale = builder::make_constant(
-                            dtype, Shape{1}, node.get_attribute<float>("scale"));
+                        auto scale_val = node.get_attribute<float>("scale");
+                        scale = ngraph::opset6::Constant::create(dtype, Shape{1}, {scale_val});
                     }
 
-                    bias =
-                        builder::make_constant(dtype, Shape{1}, node.get_attribute<float>("bias"));
+                    auto bias_val = node.get_attribute<float>("bias");
+                    bias = ngraph::opset6::Constant::create(dtype, Shape{1}, {bias_val});
                     auto bias_after_scale = node.get_attribute<bool>("bias_after_scale");
 
                     std::shared_ptr<Node> result_node;

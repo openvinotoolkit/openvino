@@ -13,7 +13,8 @@ const std::vector<std::vector<std::vector<size_t>>> shapes = {
     {{1, 64}, {64, 1}},
     {{8, 256}, {16, 128}},
     {{6, 384}, {18, 128}},
-    {{8, 2048}, {32, 512}}
+    {{8, 2048}, {32, 512}},
+    {{2, 4, 64, 64}, {1, 8, 64, 64}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {

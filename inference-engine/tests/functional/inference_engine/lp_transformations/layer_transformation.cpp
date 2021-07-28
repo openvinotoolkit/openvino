@@ -11,68 +11,137 @@
 using namespace testing;
 using namespace ngraph::pass;
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8U8() {
-    return low_precision::LayerTransformation::Params(
-        true,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::u8 },
-        { ngraph::element::u8 });
+TestTransformationParams::TestTransformationParams(
+    bool updatePrecisions,
+    std::vector<element::Type> precisionsOnActivations,
+    std::vector<element::Type> precisionsOnWeights,
+    bool supportAsymmetricQuantization,
+    element::Type deqPrecision,
+    bool support3DTensorOnActivations,
+    bool deconvolutionSpecificChannelsRatio) :
+    updatePrecisions(updatePrecisions),
+    precisionsOnActivations(precisionsOnActivations),
+    precisionsOnWeights(precisionsOnWeights),
+    supportAsymmetricQuantization(supportAsymmetricQuantization),
+    deqPrecision(deqPrecision),
+    support3DTensorOnActivations(support3DTensorOnActivations),
+    deconvolutionSpecificChannelsRatio(deconvolutionSpecificChannelsRatio) {
+    if (precisionsOnActivations.size() == 0ul) {
+        THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
+    }
+
+    if (precisionsOnWeights.size() == 0ul) {
+        THROW_TRANSFORMATION_EXCEPTION << "precisions on weights are not specisifed";
+    }
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8() {
-    return low_precision::LayerTransformation::Params(
-        true,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::u8 },
-        { ngraph::element::i8 });
+TestTransformationParams& TestTransformationParams::setUpdatePrecisions(const bool updatePrecisions) {
+    this->updatePrecisions = updatePrecisions;
+    return *this;
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsI8I8() {
-    return low_precision::LayerTransformation::Params(
-        true,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::i8 },
-        { ngraph::element::i8 });
+TestTransformationParams& TestTransformationParams::setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization) {
+    this->supportAsymmetricQuantization = supportAsymmetricQuantization;
+    return *this;
 }
 
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8AndI8() {
-    return low_precision::LayerTransformation::Params(
-        true,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        { ngraph::element::u8, ngraph::element::i8 },
-        { ngraph::element::i8 });
+TestTransformationParams& TestTransformationParams::setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations) {
+    this->precisionsOnActivations = precisionsOnActivations;
+    return *this;
 }
 
-std::string LayerTransformation::toString(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+TestTransformationParams& TestTransformationParams::setPrecisionsOnWeights(const std::vector<element::Type>& precisionsOnWeights) {
+    this->precisionsOnWeights = precisionsOnWeights;
+    return *this;
+}
+
+TestTransformationParams& TestTransformationParams::setSupport3DTensorOnActivations(const bool support3DTensorOnActivations) {
+    this->support3DTensorOnActivations = support3DTensorOnActivations;
+    return *this;
+}
+
+TestTransformationParams& TestTransformationParams::setDeconvolutionSpecificChannelsRatio(const bool deconvolutionSpecificChannelsRatio) {
+    this->deconvolutionSpecificChannelsRatio = deconvolutionSpecificChannelsRatio;
+    return *this;
+}
+
+TestTransformationParams LayerTransformation::createParamsU8U8() {
+    return TestTransformationParams(true, { ngraph::element::u8 }, { ngraph::element::u8 });
+}
+
+TestTransformationParams LayerTransformation::createParamsU8I8() {
+    return TestTransformationParams(true, { ngraph::element::u8 }, { ngraph::element::i8 });
+}
+
+TestTransformationParams LayerTransformation::createParamsI8I8() {
+    return TestTransformationParams(true, { ngraph::element::i8 }, { ngraph::element::i8 });
+}
+
+TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
+    return TestTransformationParams(true, { ngraph::element::u8, ngraph::element::i8 }, { ngraph::element::i8 });
+}
+
+pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
+    return low_precision::LayerTransformation::Params(
+        params.updatePrecisions,
+        params.deqPrecision);
+}
+
+//TestTransformationParams LayerTransformation::createParamsU8U8() {
+//    return low_precision::LayerTransformation::Params(
+//        true,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+//        true,
+//        { ngraph::element::u8 },
+//        { ngraph::element::u8 });
+//}
+//
+//TestTransformationParams LayerTransformation::createParamsU8I8() {
+//    return low_precision::LayerTransformation::Params(
+//        true,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+//        true,
+//        { ngraph::element::u8 },
+//        { ngraph::element::i8 });
+//}
+//
+//TestTransformationParams LayerTransformation::createParamsI8I8() {
+//    return low_precision::LayerTransformation::Params(
+//        true,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+//        true,
+//        { ngraph::element::i8 },
+//        { ngraph::element::i8 });
+//}
+//
+//TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
+//    return low_precision::LayerTransformation::Params(
+//        true,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+//        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+//        true,
+//        { ngraph::element::u8, ngraph::element::i8 },
+//        { ngraph::element::i8 });
+//}
+
+std::string LayerTransformation::toString(const TestTransformationParams& params) {
     std::ostringstream result;
     result <<
         (params.supportAsymmetricQuantization ? "asymmetric_" : "symmetric_") <<
         (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<
         params.precisionsOnActivations[0] << "_" <<
-        params.precisionsOnWeights[0] << "_" <<
-        params.quantizedTensorAlignmentOnActivations;
+        params.precisionsOnWeights[0];
 
     return result.str();
-}
-
-void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) {
-    ngraph::pass::low_precision::LowPrecisionTransformations transformations = ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
-    ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
-    transformer.transform(function);
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type& type,
     const ngraph::PartialShape& shape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+    const TestTransformationParams& params) {
     std::ostringstream result;
     result << type << "_" << shape << "_" << toString(params);
     return result.str();

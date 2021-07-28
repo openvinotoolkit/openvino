@@ -44,8 +44,8 @@ public:
     void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
-    void getInputBlobs(InferenceEngine::BlobMap &in_map);
-    void getOutputBlobs(InferenceEngine::BlobMap &out_map);
+    InferenceEngine::Blob::Ptr getInputBlob(const std::string& name);
+    InferenceEngine::Blob::Ptr getOutputBlob(const std::string& name);
 
     template<typename NET>
     void CreateGraph(NET &network,
@@ -101,6 +101,7 @@ public:
 
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
+    void RemoveEdge(MKLDNNEdgePtr& edge);
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 

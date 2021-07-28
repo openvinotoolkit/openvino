@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Erf::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Erf, "Erf", 0, util::UnaryElementwiseArithmetic);
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 {
@@ -51,7 +51,6 @@ namespace erfop
 
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_erf, boolean, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_erf, i32, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_erf, i64, arg0, out, count);
             NGRAPH_TYPE_CASE(evaluate_erf, u32, arg0, out, count);
@@ -75,7 +74,6 @@ bool op::Erf::has_evaluate() const
     NGRAPH_OP_SCOPE(v0_Erf_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
     case ngraph::element::i32:
     case ngraph::element::i64:
     case ngraph::element::u32:

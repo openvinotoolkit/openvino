@@ -9,30 +9,50 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-void InterpolateTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset4::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>(), make_op_label<opset1::Constant>() }));
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset4::Interpolate>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>(),
-            make_op_label<opset1::Constant>() }));
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::InterpolateTransformation, "InterpolateTransformation", 0);
+
+InterpolateTransformation::InterpolateTransformation(const Params& params) : LayerTransformation(params) {
+    auto mul = pattern::wrap_type<opset1::Multiply>();
+
+    auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
+        mul,
+        pattern::wrap_type<opset1::Constant>() });
+
+    auto interpolate4 = pattern::wrap_type<opset4::Interpolate>({
+        mul,
+        pattern::wrap_type<opset1::Constant>(),
+        pattern::wrap_type<opset1::Constant>() });
+
+    auto interpolate4_2 = pattern::wrap_type<opset4::Interpolate>({
+        mul,
+        pattern::wrap_type<opset1::Constant>(),
+        pattern::wrap_type<opset1::Constant>(),
+        pattern::wrap_type<opset1::Constant>() });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(
+        std::make_shared<pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
+        "InterpolateTransformation");
+
+    this->register_matcher(matcher, callback);
 }
 
-bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+bool InterpolateTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;

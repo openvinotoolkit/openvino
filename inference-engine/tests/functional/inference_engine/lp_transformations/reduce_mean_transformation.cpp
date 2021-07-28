@@ -33,15 +33,14 @@ class ReduceMeanTransformation : public ReduceTransformation<opset1::ReduceMean>
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMeanTransformation, ngraph::opset1::ReduceMean>(
-            low_precision::LayerTransformation::Params(transformationParams));
+        transform.add<ngraph::pass::low_precision::ReduceMeanTransformation, ngraph::opset1::ReduceMean>(transformationParams);
         transform.transform(actualFunction);
     }
 };
 
 TEST_P(ReduceMeanTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
