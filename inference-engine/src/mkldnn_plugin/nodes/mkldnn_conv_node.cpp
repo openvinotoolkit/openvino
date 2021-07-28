@@ -69,7 +69,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         biasesDims = { groupOC };
 
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(convolutionOp->get_strides()[i]));
+            stride.push_back(convolutionOp->get_strides()[i]);
         }
         for (int i = 0; i < convolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
@@ -91,7 +91,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         biasesDims = {groupOC * groupNum};
 
         for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
+            stride.push_back(groupConvolutionOp->get_strides()[i]);
         }
         for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
@@ -407,9 +407,8 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                 auto biasPrc = memory::data_type::f32;
 
-                std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
-                                                   static_cast<size_t>(dw_conv_kernel[X_AXIS])});
-                std::vector<size_t> dwBiasesDims({static_cast<size_t>(dw_conv_oc)});
+                std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                std::vector<size_t> dwBiasesDims({dw_conv_oc});
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
@@ -594,9 +593,8 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
                 auto weightsPrc = MKLDNNExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == mkldnn_u8 ? Precision::I8 : Precision::FP32);
                 auto biasPrc = memory::data_type::f32;
 
-                std::vector<size_t> dwWeightsDims({static_cast<size_t>(dw_conv_oc), 1, 1, static_cast<size_t>(dw_conv_kernel[Y_AXIS]),
-                                                   static_cast<size_t>(dw_conv_kernel[X_AXIS])});
-                std::vector<size_t> dwBiasesDims({static_cast<size_t>(dw_conv_oc)});
+                std::vector<size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                std::vector<size_t> dwBiasesDims({dw_conv_oc});
 
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;

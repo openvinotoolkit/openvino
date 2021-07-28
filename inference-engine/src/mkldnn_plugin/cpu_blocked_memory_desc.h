@@ -18,7 +18,9 @@ public:
                       const std::vector<size_t>& order, size_t offsetPadding = 0, const std::vector<size_t>& offsetPaddingToData = {},
                       const std::vector<size_t>& strides = {});
 
-    MemoryDescPtr clone() const override;
+    MemoryDescPtr clone() const override {
+        return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
+    }
 
     bool isDefined() const override;
 
@@ -28,39 +30,52 @@ public:
 
     bool isCompatible(const MKLDNNMemoryDesc& rhs) const;
 
-    InferenceEngine::Precision getPrecision() const override;
+    InferenceEngine::Precision getPrecision() const override {
+        return precision;
+    }
 
-    void setPrecision(InferenceEngine::Precision prc) override;
+    void setPrecision(InferenceEngine::Precision prc) override {
+        precision = std::move(prc);
+    }
 
-    const std::vector<size_t>& getBlockDims() const;
+    const std::vector<size_t>& getBlockDims() const {
+        return blockedDims;
+    }
 
     /**
      * @brief Returns the vector of order
      *
      * @return order
      */
-    const std::vector<size_t>& getOrder() const;
+    const std::vector<size_t>& getOrder() const {
+        return order;
+    }
 
     /**
      * @brief Returns the per-dimension offset vector
      *
      * @return offsets
      */
-    const std::vector<size_t>& getOffsetPaddingToData() const;
-
+    const std::vector<size_t>& getOffsetPaddingToData() const {
+        return offsetPaddingToData;
+    }
     /**
      * @brief Returns the offset to the current memory block
      *
      * @return offset
      */
-    size_t getOffsetPadding() const;
+    size_t getOffsetPadding() const {
+        return offsetPadding;
+    }
 
     /**
      * @brief Returns strides for each dimension
      *
      * @return strides
      */
-    const std::vector<size_t>& getStrides() const;
+    const std::vector<size_t>& getStrides() const {
+        return strides;
+    }
 
     bool hasLayoutType(LayoutType layoutType) const override;
 

@@ -49,7 +49,7 @@ public:
     std::vector<int32_t> outputCompensation;
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
-    const std::vector<ptrdiff_t> &getStride() { return stride; }
+    const std::vector<size_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
@@ -77,18 +77,18 @@ private:
     bool withDWConv;
     bool isGrouped;
     bool isPrimitivesPriorityDefined = false;
-    std::vector<ptrdiff_t> stride;
+    std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
 
-    ptrdiff_t dw_conv_oc;
-    ptrdiff_t dw_conv_ih;
-    ptrdiff_t dw_conv_iw;
-    std::vector<ptrdiff_t> dw_conv_kernel;
-    std::vector<ptrdiff_t> dw_conv_strides;
+    size_t dw_conv_oc;
+    size_t dw_conv_ih;
+    size_t dw_conv_iw;
+    std::vector<size_t> dw_conv_kernel;
+    std::vector<size_t> dw_conv_strides;
     mkldnn::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;

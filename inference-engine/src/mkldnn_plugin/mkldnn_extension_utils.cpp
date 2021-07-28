@@ -78,17 +78,9 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
 }
 
 InferenceEngine::SizeVector MKLDNNExtensionUtils::convertToSizeVector(const mkldnn::memory::dims& dims) {
-    InferenceEngine::SizeVector size;
-    for (auto i : dims) {
-        size.push_back(i);
-    }
-    return size;
+    return InferenceEngine::SizeVector(dims.begin(), dims.end());
 }
 
 std::vector<dnnl::memory::dim> MKLDNNExtensionUtils::convertToDnnlDims(const InferenceEngine::SizeVector& dims) {
-    std::vector<dnnl::memory::dim> size;
-    for (auto i : dims) {
-        size.push_back(i);
-    }
-    return size;
+    return std::vector<dnnl::memory::dim>(dims.begin(), dims.end());;
 }

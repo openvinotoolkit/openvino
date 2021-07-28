@@ -77,7 +77,7 @@ std::string vec2str(const std::vector<T> &vec) {
 }
 
 /**
- * @brief Compares that two dims are equal and not undefined
+ * @brief Compares that two dims are equal and defined
  * @param lhs
  * first dim
  * @param rhs
