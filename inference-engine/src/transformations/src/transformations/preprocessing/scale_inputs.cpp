@@ -52,9 +52,10 @@ ScaleInputs::ScaleInputs(float scale_factor): MatcherPass(), m_scale_factor(scal
     }));
 }
 
+/// Calculate features dimension index based on input info
+/// If initial_idx is not -1, use it if dimension equals to values_size
+/// E.g. node_shape = {1,3,224,224}, scale_size=3 ==> Result will be "1" - dimension #1 is a 'features index'
 static int guess_features_dim_idx(const std::shared_ptr<Node>& matched, size_t values_size, int initial_idx) {
-    // Calculate shape of 'constant' based on node's partial shape
-    // E.g. node_shape = {1,3,224,224}, scale_size=3 ==> constant shape will be {1,3,1,1}
     auto param_shape = matched->get_output_partial_shape(0);
     if (values_size == 1) {
         // Single scale value is always fine for any shape
@@ -102,6 +103,8 @@ ScaleInputs::ScaleInputs(const std::map<std::string, std::vector<float>>& scale_
                 m_features_dim_idx = guess_features_dim_idx(matched, values.size(), m_features_dim_idx);
                 auto param_shape = matched->get_output_partial_shape(0);
                 std::vector<size_t> v(param_shape.rank().get_length(), 1);
+                // Calculate shape of 'constant' based on node's partial shape and 'features dimension index'
+                // E.g. node_shape = {1,3,224,224}, scale_size=3 ==> constant shape will be {1,3,1,1}
                 ngraph::Shape constShape(v);
                 constShape[m_features_dim_idx] = values.size();
                 std::transform(values.begin(), values.end(), values.begin(), [](float val) -> float {
