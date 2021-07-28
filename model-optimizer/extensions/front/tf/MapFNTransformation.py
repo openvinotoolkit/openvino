@@ -9,6 +9,7 @@ from extensions.front.tf.WhileNormalize import WhileNormalize
 from extensions.ops.loop import Loop
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.pattern_match import find_pattern_matches, inverse_dict
@@ -228,7 +229,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                     continue
                 stack_node = Loop.get_external_nodes_by_internal_id(
                     loop_node, internal_match['concatenation_result'].internal_layer_id)
-                stack_node = stack_node if len(stack_node) == 1 else None
+                stack_node = stack_node[0] if len(stack_node) == 1 else None
 
                 if stack_node is None:
                     log.info("A sub-graph around the loop node {} does not match "
@@ -236,10 +237,8 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                     continue
 
                 # skip StopGradient node if it exists between While loop output port and TensorListStack operation
-                if stack_node[0].op == 'StopGradient':
-                    stack_node = [dest.node for dest in stack_node[0].out_port(0).get_destinations()]
-                stack_node = stack_node[0] if (len(stack_node) == 1 and
-                                               stack_node[0].op == 'TensorListStack') else None
+                stack_node = skip_nodes_by_condition(stack_node, lambda x: x.has_and_set('identity'), True)
+                stack_node = stack_node if stack_node.op == 'TensorListStack' else None
                 if stack_node is None:
                     log.info("A sub-graph around the loop node {} does not match "
                              "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))

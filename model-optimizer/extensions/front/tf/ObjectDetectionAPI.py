@@ -31,6 +31,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
     create_op_with_const_inputs
@@ -344,12 +345,6 @@ def swap_weights_xy(graph: Graph, nodes: list):
         for m in [n.node for n in node.out_port(0).get_destinations()]:
             if m.soft_get('type') in ['Add', 'BiasAdd']:
                 insert_weights_swap_xy_sub_graph(graph, m.in_port(1).get_connection())
-
-
-def skip_nodes_by_condition(current_node: Node, condition: callable):
-    while condition(current_node):
-        current_node = current_node.in_node()
-    return current_node
 
 
 def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
