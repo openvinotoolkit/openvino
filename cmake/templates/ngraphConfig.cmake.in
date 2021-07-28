@@ -30,7 +30,6 @@
 #
 #   ngraph_onnx_ngraph_frontend_FOUND      - True if the system has onnx_ngraph_frontend library
 #   ngraph::onnx_ngraph_frontend           - ONNX FrontEnd target (optional)
-#   ONNX_FRONTEND_LIBRARIES                - ONNX FrontEnd libraries
 #
 #   ngraph_paddlepaddle_frontend_FOUND     - True if the system has PDPD frontend
 #   ngraph::paddlepaddle_ngraph_frontend   - nGraph PDPD frontend (optional)
