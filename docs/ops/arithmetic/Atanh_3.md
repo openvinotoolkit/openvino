@@ -22,7 +22,7 @@
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any supported numeric type.
 
 **Examples**
 
