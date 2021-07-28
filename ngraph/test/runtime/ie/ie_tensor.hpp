@@ -17,13 +17,11 @@ namespace ngraph
     {
         namespace ie
         {
-            class IETensor : public ngraph::runtime::Tensor
+            class IE_BACKEND_API IETensor : public ngraph::runtime::Tensor
             {
             public:
-                IE_BACKEND_API IETensor(const ngraph::element::Type& element_type,
-                                        const Shape& shape);
-                IE_BACKEND_API IETensor(const ngraph::element::Type& element_type,
-                                        const PartialShape& shape);
+                IETensor(const ngraph::element::Type& element_type, const Shape& shape);
+                IETensor(const ngraph::element::Type& element_type, const PartialShape& shape);
 
                 ///
                 /// \brief      Write bytes directly into the tensor
@@ -50,6 +48,6 @@ namespace ngraph
                 IETensor& operator=(const IETensor&) = delete;
                 AlignedBuffer m_data;
             };
-        }
-    }
-}
+        } // namespace ie
+    }     // namespace runtime
+} // namespace ngraph
