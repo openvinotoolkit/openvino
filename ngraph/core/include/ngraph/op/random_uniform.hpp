@@ -53,11 +53,11 @@ namespace ngraph
 
                 /// \return The global seed value.
                 uint64_t get_global_seed() const { return m_global_seed; }
-                void set_global_seed(const uint64_t& seed) { m_global_seed = seed; }
+                void set_global_seed(uint64_t seed) { m_global_seed = seed; }
 
                 /// \return The operational seed value.
                 uint64_t get_op_seed() const { return m_op_seed; }
-                void set_op_seed(const uint64_t& seed2) { m_op_seed = seed2; }
+                void set_op_seed(uint64_t seed2) { m_op_seed = seed2; }
 
             protected:
                 ngraph::element::Type m_output_type;

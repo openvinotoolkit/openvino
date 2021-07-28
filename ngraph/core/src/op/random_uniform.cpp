@@ -33,7 +33,7 @@ void op::v8::RandomUniform::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           shape_et.is_dynamic() || shape_et == element::i32 ||
                               shape_et == element::i64,
-                          "Output shape must have int32 or int64 element type.");
+                          "Type of the input should be int32 or int64.");
 
     PartialShape output_shape = PartialShape::dynamic();
     const auto& input_shape = get_input_partial_shape(0);
@@ -102,7 +102,10 @@ void op::v8::RandomUniform::validate_and_infer_types()
                                       ", max value: ",
                                       max_val);
             }
-            else
+            else if (get_out_type() == ngraph::element::Type_t::f16 ||
+                     get_out_type() == ngraph::element::Type_t::f32 ||
+                     get_out_type() == ngraph::element::Type_t::f64 ||
+                     get_out_type() == ngraph::element::Type_t::bf16)
             {
                 double min_val = const_min->cast_vector<double>()[0];
                 double max_val = const_max->cast_vector<double>()[0];
@@ -114,6 +117,11 @@ void op::v8::RandomUniform::validate_and_infer_types()
                                       min_val,
                                       ", max value: ",
                                       max_val);
+            }
+            else
+            {
+                throw ngraph_error("Unsupported output type of RandomUniform: " +
+                                   get_out_type().get_type_name());
             }
         }
     }

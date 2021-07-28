@@ -66,7 +66,7 @@ TEST(type_prop, random_uniform_invalid_out_shape_type)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Output shape must have int32 or int64 element type."));
+                             std::string("Type of the input should be int32 or int64."));
     }
     catch (...)
     {
