@@ -59,8 +59,6 @@ class GNADeviceHelper {
     std::string compileTarget;
     bool useDeviceEmbeddedExport = false;
     Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
-    bool isGnaLibVersion2_1 = false;
-    bool isGnaLibVersion3_0 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -102,15 +100,7 @@ public:
         initGnaPerfCounters();
 
         // check GNA Library version
-        const auto gnaLibVersion = GetGnaLibraryVersion();
-#if GNA_LIB_VER == 2
-        if (gnaLibVersion.rfind("2.1", 0) == 0) {
-            isGnaLibVersion2_1 = true;
-        }
-        if (gnaLibVersion.rfind("3.", 0) == 0) {
-            isGnaLibVersion3_0 = true;
-        }
-#endif
+        GetGnaLibraryVersion();
 
         if (use_openmp) {
             uint8_t num_cores = std::thread::hardware_concurrency();
@@ -129,6 +119,7 @@ public:
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
     void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
 
+    static bool isGnaLibVersionSupportGna3();
 #if GNA_LIB_VER == 1
     uint32_t propagate(const intel_nnet_type_t *pNeuralNetwork,
                        const uint32_t *pActiveIndices,
@@ -194,7 +185,9 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
-    std::string getEffectiveGnaCompileTarget() const;
+
+    std::string GetCompileTarget() const;
+
  private:
     void open(uint8_t const n_threads);
 

@@ -54,6 +54,7 @@ static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode
 static const std::set<std::string> supportedTargets = {
     GNAConfigParams::GNA_TARGET_2_0,
     GNAConfigParams::GNA_TARGET_3_0,
+    GNAConfigParams::GNA_TARGET_3_5,
     ""
 };
 

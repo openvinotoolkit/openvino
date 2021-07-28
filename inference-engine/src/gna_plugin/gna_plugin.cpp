@@ -395,6 +395,17 @@ GNAPlugin::GNAPlugin() {
     UpdateFieldsFromConfig();
 }
 
+std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
+    if (gnadevice) {
+        return gnadevice->GetCompileTarget();
+    } else if (!config.gnaCompileTarget.empty()) {
+        return config.gnaCompileTarget;
+    } else if (GNADeviceHelper::isGnaLibVersionSupportGna3()) {
+        return InferenceEngine::GNAConfigParams::GNA_TARGET_3_0;
+    }
+    return InferenceEngine::GNAConfigParams::GNA_TARGET_2_0;
+}
+
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
     Init();
     SetConfig(configMap);
@@ -678,7 +689,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
     if (gnadevice) {
-        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
+        effectiveGnaCompileTarget = gnadevice->GetCompileTarget();
     }
 
     bool isNgraphPassesUsed = false;
@@ -904,6 +915,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnamem = std::make_shared<gna_memory_float>(memory::GNAFloatAllocator{});
         graphCompiler.setGNAMemoryPtr(gnamem);
     }
+
+    graphCompiler.SetValidatorTarget(GetCompileTarget());
 
     // keep inputs information and create input primitives
     inputsDataMap = newNet.getInputsInfo();
