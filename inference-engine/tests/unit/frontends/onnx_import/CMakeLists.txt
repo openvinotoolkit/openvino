@@ -15,7 +15,7 @@ addIeTargetTest(
             ONNX_MODELS_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/models\"
         ADD_CPPLINT
         DEPENDENCIES
-            onnx_test_models
+            openvino_test_models
         LABELS
             ONNX
 )

@@ -31,7 +31,7 @@ set(DEPENDENCIES
     template_extension
     lptNgraphFunctions
     sharedTestClasses
-    onnx_test_models
+    openvino_test_models
 )
 
 if (NOT NGRAPH_ONNX_IMPORT_ENABLE)
