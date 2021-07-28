@@ -66,12 +66,6 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         inputPrecisions.push_back(i);
     }
 
-    enum LayoutType {
-        Planar,
-        ChannelsFirst,
-        Blocked
-    };
-
     auto hasBroadcastByC = [this]() -> bool {
         for (auto op : ngraph::as_type_ptr<ngraph::snippets::op::Subgraph>(snippet)->get_body()->get_ops()) {
             if (ngraph::op::supports_auto_broadcast(op)) {
@@ -91,101 +85,54 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
         return false;
     };
 
-    auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
-        auto div_up = [](const int a, const int b) -> int {
-            if (!b)
-                return 0;
-            return (a + b - 1) / b;
-        };
+    Precision prec = Precision::FP32;
 
-        auto createMemoryDesc = [lt, div_up, this](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
-            if (lt == ChannelsFirst && edge->getDims().ndims() != 1) {
-                auto dims = edge->getDims().ToSizeVector();
-                auto ndims = dims.size();
-                std::vector<size_t> order(ndims);
-                std::iota(order.begin(), order.end(), 0);
-                if (ndims > 1) {
-                    order.erase(order.begin() + 1);
-                    order.push_back(1);
-                }
+    InferenceEngine::LayerConfig config;
+    config.dynBatchSupport = outDims.front().ndims() > 1 && inDims.front() == outDims.front();
+    config.inConfs.resize(inDims.size());
+    for (auto k = 0; k < inDims.size(); k++) {
+        config.inConfs[k].inPlace = (!k && canBeInPlace() && inputPrecisions[k] == Precision(Precision::FP32)) ? 0 : -1;
+        config.inConfs[k].constant = false;
+    }
+    InferenceEngine::DataConfig outDataConfig;
+    outDataConfig.inPlace = -1;
+    outDataConfig.constant = false;
+    config.outConfs.resize(outDims.size(), outDataConfig);
 
-                std::vector<size_t> blocks(ndims);
-                for (size_t i = 0; i < order.size(); i++) {
-                    blocks[i] = dims[order[i]];
-                }
-
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
-            } else if (lt == Blocked && edge->getDims()[1] != 1 && edge->getDims().ndims() != 1) {
-                size_t blockSize = host_isa == dnnl::impl::cpu::x64::avx512_common ? 16 : 8;
-
-                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
-                std::vector<size_t> order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                blocks[1] = div_up(blocks[1], blockSize);
-                blocks.push_back(blockSize);
-                order.push_back(1);
-
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
-            } else {
-                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
-                std::vector<size_t> order(blocks.size());
-                std::iota(order.begin(), order.end(), 0);
-
-                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
-            }
-        };
-
-        size_t offset = std::numeric_limits<size_t>::max();
-        InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = getChildEdgeAt(0)->getDims().ndims() > 1 && getChildEdgeAt(0)->getDims() == getParentEdgeAt(0)->getDims();
-
-        for (auto k = 0; k < this->inDims.size(); k++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = (!k && canBeInPlace() && inputPrecisions[k] == Precision(Precision::FP32)) ? 0 : -1;
-            dataConfig.constant = false;
-
-            dataConfig.desc = createMemoryDesc(getParentEdgesAtPort(k)[0], /*inputPrecisions[i]*/Precision(Precision::FP32), offset);
-
-            config.inConfs.push_back(dataConfig);
-        }
-
-        for (auto k = 0; k < this->outDims.size(); k++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
-
-            dataConfig.desc = createMemoryDesc(getChildEdgeAt(k), Precision(Precision::FP32), offset);
-
-            config.outConfs.push_back(dataConfig);
-        }
-
-        return {config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs[0].desc).getFormat()};
-    };
-
-    bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isChannelsFirstApplicable = isChannelsFirstApplicable && dnnl::impl::utils::one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 2, 4, 5);
-
-        for (size_t j = 0; j < getChildEdges().size(); j++) {
-            isChannelsFirstApplicable = isChannelsFirstApplicable && getChildEdgeAt(j)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+    bool dimRanksAreEqual = true;
+    for (size_t i = 0; dimRanksAreEqual && i < getParentEdges().size(); i++) {
+        for (size_t j = 0; dimRanksAreEqual && j < getChildEdges().size(); j++) {
+            if (getParentEdgeAt(i)->getDims().ndims() != getChildEdgeAt(j)->getDims().ndims())
+                dimRanksAreEqual = false;
         }
     }
 
-    bool isBlockedApplicable = dnnl::impl::utils::one_of(getChildEdgeAt(0)->getDims().ndims(),  4, 5);
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        isBlockedApplicable = isBlockedApplicable && dnnl::impl::utils::one_of(getParentEdgeAt(i)->getDims().ndims(), 4, 5);
+    const size_t ndims = outDims.front().ndims();
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 4, 5) && dimRanksAreEqual;
+    const bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !hasBroadcastByC();
 
-        for (size_t j = 0; j < getChildEdges().size(); j++) {
-            isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(j)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
-        }
+    std::vector<TensorDescCreatorTypes> tdCreatorTypes;
+    if (isChannelsFirstApplicable) {
+        tdCreatorTypes.push_back(TensorDescCreatorTypes::nspc);
     }
+    if (isBlockedApplicable) {
+        if (host_isa == dnnl::impl::cpu::x64::avx512_common)
+            tdCreatorTypes.push_back(TensorDescCreatorTypes::nCsp16c);
+        else if (host_isa == dnnl::impl::cpu::x64::avx2)
+            tdCreatorTypes.push_back(TensorDescCreatorTypes::nCsp8c);
+    }
+    tdCreatorTypes.push_back(TensorDescCreatorTypes::ncsp);
 
-    if (isChannelsFirstApplicable)
-        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
-    if (isBlockedApplicable && !hasBroadcastByC())
-        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
-    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+    auto creatorsMap = TensorDescCreator::getCommonCreators();
+    for (auto type : tdCreatorTypes) {
+        for (auto k = 0; k < inDims.size(); k++)
+            config.inConfs[k].desc = creatorsMap[type]->createDesc(prec, inDims[k].ToSizeVector());
+
+        for (auto k = 0; k < outDims.size(); k++)
+            config.outConfs[k].desc = creatorsMap[type]->createDesc(prec, outDims[k].ToSizeVector());
+
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
+    }
 }
 
 void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
