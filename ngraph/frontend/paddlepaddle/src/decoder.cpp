@@ -109,6 +109,21 @@ namespace ngraph
             return res;
         }
 
+        std::map<std::string, std::vector<ngraph::element::Type>>
+            DecoderPDPDProto::get_output_type_map() const
+        {
+            std::map<std::string, std::vector<ngraph::element::Type>> output_types;
+            for (const auto& out_port_pair : op_place->get_output_ports())
+            {
+                for (const auto& p_place : out_port_pair.second)
+                {
+                    output_types[out_port_pair.first].push_back(
+                        p_place->get_target_tensor_pdpd()->get_element_type());
+                }
+            }
+            return output_types;
+        }
+
         ngraph::element::Type
             DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
         {

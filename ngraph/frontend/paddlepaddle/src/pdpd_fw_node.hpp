@@ -26,7 +26,11 @@ namespace ngraph
                 op::FrameworkNodeAttrs attrs;
                 attrs.set_type_name(m_decoder.get_op_type());
                 set_attrs(attrs);
+
+                validate_and_infer_types();
             }
+
+            void validate_and_infer_types() override;
 
             std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override
             {

@@ -195,17 +195,7 @@ namespace ngraph
                 }
                 else
                 {
-                    pdpd::NamedOutputs named_outputs;
-                    try
-                    {
-                        named_outputs = func(nodes_dict, op_place);
-                    }
-                    catch (OpConversionFailure)
-                    {
-                        // TODO: define exception types
-                        // In case of partial conversion we need to create generic ngraph op here
-                        continue;
-                    }
+                    pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
                     if (!named_outputs.empty())
                     {

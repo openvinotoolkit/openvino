@@ -9,6 +9,17 @@ namespace ngraph
     namespace frontend
     {
         NGRAPH_RTTI_DEFINITION(PDPDFrameworkNode, "PDPDFrameworkNode", 1);
+                
+        void PDPDFrameworkNode::validate_and_infer_types()
+        {
+            FrameworkNode::validate_and_infer_types();
+            size_t idx = 0;
+            for (const auto& port_pair : m_decoder.get_output_type_map()) {
+                for (const auto& p_type : port_pair.second) {
+                    set_output_type(idx++, p_type, PartialShape::dynamic());
+                }
+            }
+        }
 
         std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_inputs() const
         {
