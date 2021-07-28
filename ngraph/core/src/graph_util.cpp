@@ -421,11 +421,11 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     {
         for (const auto& op : node_map)
         {
-            if (auto read_val = std::dynamic_pointer_cast<ngraph::opset8::ReadValue>(op.second))
+            if (auto read_val = std::dynamic_pointer_cast<VariableExtension>(op.second))
             {
                 read_val->set_variable(var_map.at(read_val->get_variable_id()));
             }
-            else if (auto assign = std::dynamic_pointer_cast<ngraph::opset8::Assign>(op.second))
+            else if (auto assign = std::dynamic_pointer_cast<VariableExtension>(op.second))
             {
                 assign->set_variable(var_map.at(assign->get_variable_id()));
             }
