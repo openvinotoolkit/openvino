@@ -32,7 +32,7 @@ public:
     NmsStaticShapeIE(const Output<Node>& boxes,
                      const Output<Node>& scores,
                      const Attributes& attrs) : BaseNmsOp(boxes, scores, attrs) {
-        validate_and_infer_types();
+        this->constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
