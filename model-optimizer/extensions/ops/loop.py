@@ -69,7 +69,8 @@ class Loop(TensorIterator):
 
         :param loop_node: The Loop node
         :param internal_layer_id: Internal layer ID of the node in the body graph
-        :return: A list of nodes that are connected with a node with internal_layer_id from the body graph
+        :return: A list of external nodes (from the main graph) that are connected with a node with
+        internal_layer_id from the body graph
         """
         for map_item in loop_node.input_port_map:
             if map_item['internal_layer_id'] == internal_layer_id \
