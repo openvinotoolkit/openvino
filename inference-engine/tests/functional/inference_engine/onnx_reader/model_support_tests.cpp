@@ -40,10 +40,6 @@ TEST(ONNXReader_ModelSupported, DISABLED_varint_on_two_bytes) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/varint_on_two_bytes.onnx")));
 }
 
-TEST(ONNXReader_ModelSupported, prototxt_basic) {
-    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.onnx")));
-}
-
 TEST(ONNXReader_ModelSupported, scrambled_keys) {
     // same as the prototxt_basic but with a different order of keys
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.onnx")));
