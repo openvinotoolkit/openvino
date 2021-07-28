@@ -7,12 +7,13 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include "exceptions.hpp"
 #include "model.hpp"
-#include "place.hpp"
 
 namespace ngraph
 {
     namespace frontend
     {
+        class OpPlacePDPD;
+
         class PDPD_API FrontEndPDPD : public FrontEnd
         {
         public:

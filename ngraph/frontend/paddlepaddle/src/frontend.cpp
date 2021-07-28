@@ -93,7 +93,7 @@ namespace ngraph
                 auto node = std::make_shared<ngraph::frontend::PDPDFrameworkNode>(
                     DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
-                return node->get_named_outputs();
+                return node->return_named_outputs();
             }
 
             bool
@@ -109,7 +109,7 @@ namespace ngraph
                     creator_it->second(NodeContext(node->get_decoder(), node->get_named_inputs()));
                 auto new_node = new_node_outputs.begin()->second[0].get_node_shared_ptr();
                 new_node->set_friendly_name(node->get_friendly_name());
-                auto node_outputs = node->get_named_outputs();
+                auto node_outputs = node->return_named_outputs();
 
                 auto new_ports = new_node_outputs.begin();
                 auto old_ports = node_outputs.begin();

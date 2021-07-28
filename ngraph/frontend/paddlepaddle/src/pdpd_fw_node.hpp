@@ -39,7 +39,7 @@ namespace ngraph
 
             std::map<std::string, OutputVector> get_named_inputs() const;
 
-            std::map<std::string, OutputVector> get_named_outputs();
+            std::map<std::string, OutputVector> return_named_outputs();
 
         private:
             const DecoderPDPDProto m_decoder;

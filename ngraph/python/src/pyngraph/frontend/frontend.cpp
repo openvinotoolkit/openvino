@@ -56,7 +56,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
              )");
 
     fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
+            static_cast<void (ngraph::frontend::FrontEnd::*)(
                 std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert),
             py::arg("function"),
             R"(

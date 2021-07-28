@@ -12,7 +12,7 @@ namespace ngraph
 
         std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_inputs() const
         {
-            return m_decoder.map_for_each_input([&](const std::string&, size_t) {
+            return m_decoder.map_for_each_input([&](const std::string& name, size_t) {
                 auto it = std::find(m_inputs_names.begin(), m_inputs_names.end(), name);
                 if (it != m_inputs_names.end())
                 {
@@ -25,7 +25,7 @@ namespace ngraph
             });
         }
 
-        std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_outputs()
+        std::map<std::string, OutputVector> PDPDFrameworkNode::return_named_outputs()
         {
             return m_decoder.map_for_each_output(
                 [&](const std::string&, size_t idx) { return output(idx); });
