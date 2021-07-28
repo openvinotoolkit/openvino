@@ -19,7 +19,7 @@ public:
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 };
 
-class ReadIRTest : public testing::WithParamInterface<std::tuple<std::string, std::string>>, ReadIRBase {
+class ReadIRTest : public testing::WithParamInterface<std::tuple<std::string, std::string>>, public ReadIRBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj);
 
