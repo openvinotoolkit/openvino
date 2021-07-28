@@ -11,7 +11,6 @@
 
 #include "base_reference_test.hpp"
 
-using namespace reference_tests;
 using namespace ngraph;
 using namespace InferenceEngine;
 using namespace reference_tests;
