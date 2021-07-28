@@ -9,10 +9,6 @@
 #include "ie_core.hpp"
 #include "ngraph_functions/builders.hpp"
 
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
-#endif
-
 class SerializationCleanupTest : public CommonTestUtils::TestsCommon {
 protected:
     const std::string test_name = GetTestName() + "_" + GetTimestamp();

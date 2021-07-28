@@ -14,7 +14,7 @@
 #include "transformations/serialize.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 #ifndef IE_BUILD_POSTFIX  // should be already defined by cmake
@@ -62,7 +62,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.prototxt";
+    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.onnx";
 
     InferenceEngine::Core ie;
     ie.AddExtension(

@@ -9,7 +9,7 @@
 #include "ie_core.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 class SerializationDeterministicityTest : public ::testing::Test {
@@ -49,7 +49,7 @@ protected:
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
+    const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.onnx";
 
     InferenceEngine::Core ie;
     auto expected = ie.ReadNetwork(model);
@@ -67,7 +67,7 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
+        IR_SERIALIZATION_MODELS_PATH "addmul_abc.onnx";
 
     InferenceEngine::Core ie;
     auto expected = ie.ReadNetwork(model);

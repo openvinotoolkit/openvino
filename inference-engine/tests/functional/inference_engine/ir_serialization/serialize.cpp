@@ -9,7 +9,7 @@
 #include "ie_core.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 typedef std::tuple<std::string, std::string> SerializationParams;
@@ -77,9 +77,9 @@ INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 INSTANTIATE_TEST_SUITE_P(ONNXSerialization, SerializationTest,
-        testing::Values(std::make_tuple("add_abc.prototxt", ""),
-                        std::make_tuple("split_equal_parts_2d.prototxt", ""),
-                        std::make_tuple("addmul_abc.prototxt", ""),
-                        std::make_tuple("add_abc_initializers.prototxt", "")));
+        testing::Values(std::make_tuple("add_abc.onnx", ""),
+                        std::make_tuple("split_equal_parts_2d.onnx", ""),
+                        std::make_tuple("addmul_abc.onnx", ""),
+                        std::make_tuple("add_abc_initializers.onnx", "")));
 
 #endif

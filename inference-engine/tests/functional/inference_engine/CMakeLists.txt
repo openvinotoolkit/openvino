@@ -25,12 +25,16 @@ set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
+    HeteroPlugin
+    AutoPlugin
+    MultiDevicePlugin
     template_extension
     lptNgraphFunctions
     sharedTestClasses
+    onnx_test_models
 )
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
@@ -259,4 +263,6 @@ else()
 endif()
 
 # ir serialization functional tests variables
-target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")
+set(IR_SERIALIZATION_MODELS_PATH "${CMAKE_CURRENT_BINARY_DIR}/ir_serialization/models/")
+target_compile_definitions(${TARGET_NAME} PRIVATE
+    IR_SERIALIZATION_MODELS_PATH="${IR_SERIALIZATION_MODELS_PATH}")

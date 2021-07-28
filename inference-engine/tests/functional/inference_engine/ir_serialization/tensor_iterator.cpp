@@ -12,7 +12,7 @@
 #include "pugixml.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 class SerializationTensorIteratorTest : public ::testing::Test {
