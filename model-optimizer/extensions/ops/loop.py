@@ -74,11 +74,11 @@ class Loop(TensorIterator):
         """
         for map_item in loop_node.input_port_map:
             if map_item['internal_layer_id'] == internal_layer_id \
-                    and not loop_node.in_port(map_item['external_port_id']).disconnected():
+                    and loop_node.is_in_port_connected(map_item['external_port_id']):
                 return [loop_node.in_port(map_item['external_port_id']).get_source().node]
         for map_item in loop_node.output_port_map:
             if map_item['internal_layer_id'] == internal_layer_id \
-                    and not loop_node.out_port(map_item['external_port_id']).disconnected():
+                    and loop_node.is_out_port_connected(map_item['external_port_id']):
                 return [dest.node for dest in loop_node.out_port(map_item['external_port_id']).get_destinations()]
         return []
 

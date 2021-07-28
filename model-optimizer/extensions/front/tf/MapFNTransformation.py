@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import logging as log
+
 import numpy as np
 
 from extensions.front.tf.WhileNormalize import WhileNormalize
@@ -96,6 +98,7 @@ class MapFNInputSlicing(FrontReplacementSubgraph):
 
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
+            loop_name = loop_node.soft_get('name', loop_node.id)
             body_graph = loop_node['body']
             body_pattern = MapFNInputSlicing.get_body_pattern()
             internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
@@ -105,10 +108,12 @@ class MapFNInputSlicing(FrontReplacementSubgraph):
                 # from the main graph. If yes, the transformation detects input slicing by this port
                 # and can use Loop axis attribute
                 unstack_node = Loop.get_external_nodes_by_internal_id(loop_node,
-                                                                     internal_match['tensor_list'].internal_layer_id)
+                                                                      internal_match['tensor_list'].internal_layer_id)
                 unstack_node = unstack_node[0] if (len(unstack_node) == 1
                                                    and unstack_node[0].op == 'TensorListFromTensor') else None
                 if unstack_node is None:
+                    log.info("A sub-graph around the loop node {} does not match "
+                             "TensorFlow 2 MapFN pattern for input slicing".format(loop_name))
                     continue
 
                 external_match = {'while': loop_node,
@@ -204,6 +209,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
 
     def find_and_replace_pattern(self, graph: Graph):
         for loop_node in graph.get_op_nodes(op='Loop'):
+            loop_name = loop_node.soft_get('name', loop_node.id)
             body_graph = loop_node['body']
             body_pattern = MapFNOutputConcatenation.get_body_pattern()
             internal_matches = find_subgraph_match_to_pattern(body_graph, body_pattern)
@@ -213,25 +219,30 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
                 # that is assigned for storing intermediate output results of While Loop. If yes, the transformation
                 # detects intermediate outputs concatentation by this port and can use Loop axis attribute
                 reserve_node = Loop.get_external_nodes_by_internal_id(loop_node,
-                                                                     internal_match['container'].internal_layer_id)
+                                                                      internal_match['container'].internal_layer_id)
                 reserve_node = reserve_node[0] if (len(reserve_node) == 1 and
                                                    reserve_node[0].op == 'TensorListReserve') else None
                 if reserve_node is None:
+                    log.info("A sub-graph around the loop node {} does not match "
+                             "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
                     continue
-                stack_node = Loop.get_external_nodes_by_internal_id(loop_node,
-                                                                   internal_match[
-                                                                       'concatenation_result'].internal_layer_id)
+                stack_node = Loop.get_external_nodes_by_internal_id(
+                    loop_node, internal_match['concatenation_result'].internal_layer_id)
                 stack_node = stack_node if len(stack_node) == 1 else None
 
-                # skip StopGradient node if it exists between While loop output port and TensorListStack operation
                 if stack_node is None:
+                    log.info("A sub-graph around the loop node {} does not match "
+                             "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
                     continue
+
+                # skip StopGradient node if it exists between While loop output port and TensorListStack operation
                 if stack_node[0].op == 'StopGradient':
                     stack_node = [dest.node for dest in stack_node[0].out_port(0).get_destinations()]
-
                 stack_node = stack_node[0] if (len(stack_node) == 1 and
                                                stack_node[0].op == 'TensorListStack') else None
                 if stack_node is None:
+                    log.info("A sub-graph around the loop node {} does not match "
+                             "TensorFlow 2 MapFN pattern for intermediate outputs concatenation".format(loop_name))
                     continue
 
                 external_match = {'while': loop_node,
