@@ -897,6 +897,7 @@ private:
             const auto extension_ptr = std::make_shared<Extension>(path);
             AddExtensionUnsafe(extension_ptr);
         } catch (const NotFound&) {}
+        catch (const GeneralError&) {}
     }
 };
 
