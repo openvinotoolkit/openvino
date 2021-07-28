@@ -180,7 +180,16 @@ namespace ngraph
     std::vector<size_t> normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank);
-
+    /// \brief      Handle out of range axes in vector.
+    /// If any negative axis in vector, it counts from the last to the first axis,
+    /// by adding tensor_rank to axis. Changes axes vector inplace.
+    ///
+    /// \param[in]  node  The node with requested axes.
+    /// \param[in]  tensor_rank       The corresponding tensor rank.
+    /// \param[in]  axes              The requested vector of axes.
+    ///
+    NGRAPH_API
+    void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
     /// \brief      Handle out of range axis.
     ///
     /// \param[in]  node_description   The node with requested axis.
