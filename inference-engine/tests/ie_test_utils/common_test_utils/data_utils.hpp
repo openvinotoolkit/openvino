@@ -242,7 +242,7 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int32_t> distribution(k * start_from, k * (start_from + range));
+    std::uniform_real_distribution<float> distribution(k * start_from, k * (start_from + range));
 
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     for (size_t i = 0; i < blob->size(); i++) {
