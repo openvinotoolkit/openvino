@@ -84,11 +84,10 @@ private:
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
 
-    void nmsWithEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides, const InferenceEngine::SizeVector& scoresStrides,
-                    std::vector<filteredBoxes>& filtBoxes);
+    void nmsWithEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides, const InferenceEngine::SizeVector& scoresStrides);
 
     void nmsWithoutEta(const float* boxes, const float* scores, const InferenceEngine::SizeVector& boxesStrides,
-                       const InferenceEngine::SizeVector& scoresStrides, std::vector<filteredBoxes>& filtBoxes);
+                       const InferenceEngine::SizeVector& scoresStrides);
 };
 
 }  // namespace MKLDNNPlugin

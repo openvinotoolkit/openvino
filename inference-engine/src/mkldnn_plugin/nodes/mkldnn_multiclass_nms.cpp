@@ -151,9 +151,9 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getDesc().getBlockingDesc().getStrides();
 
     if ((nms_eta >= 0) && (nms_eta < 1)) {
-        nmsWithEta(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
+        nmsWithEta(boxes, scores, boxesStrides, scoresStrides);
     } else {
-        nmsWithoutEta(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
+        nmsWithoutEta(boxes, scores, boxesStrides, scoresStrides);
     }
 
     size_t startOffset = numFiltBox[0][0];
@@ -297,8 +297,7 @@ float MKLDNNMultiClassNmsNode::intersectionOverUnion(const float* boxesI, const 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides,
-                                         std::vector<filteredBoxes>& filtBoxes) {
+void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -364,8 +363,7 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
     });
 }
 
-void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides,
-                                            std::vector<filteredBoxes>& filtBoxes) {
+void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* scores, const SizeVector& boxesStrides, const SizeVector& scoresStrides) {
     parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
         if (class_idx != background_class) {
             const float* boxesPtr = boxes + batch_idx * boxesStrides[0];
