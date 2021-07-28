@@ -8,7 +8,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::Bucketize::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Bucketize, "Bucketize", 3);
 
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
                              const Output<Node>& buckets,
