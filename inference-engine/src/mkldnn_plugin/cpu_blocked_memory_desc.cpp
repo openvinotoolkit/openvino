@@ -245,35 +245,3 @@ std::string BlockedMemoryDesc::serializeFormat() const {
 
     return result.str();
 }
-
-MemoryDescPtr BlockedMemoryDesc::clone() const {
-    return MKLDNNPlugin::make_unique<BlockedMemoryDesc>(*this);
-}
-
-InferenceEngine::Precision BlockedMemoryDesc::getPrecision() const {
-    return precision;
-}
-
-void BlockedMemoryDesc::setPrecision(InferenceEngine::Precision prc) {
-    precision = std::move(prc);
-}
-
-const std::vector<size_t>& BlockedMemoryDesc::getBlockDims() const {
-    return blockedDims;
-}
-
-const std::vector<size_t>& BlockedMemoryDesc::getOrder() const {
-    return order;
-}
-
-const std::vector<size_t>& BlockedMemoryDesc::getOffsetPaddingToData() const {
-    return offsetPaddingToData;
-}
-
-size_t BlockedMemoryDesc::getOffsetPadding() const {
-    return offsetPadding;
-}
-
-const std::vector<size_t>& BlockedMemoryDesc::getStrides() const {
-    return strides;
-}
