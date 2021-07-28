@@ -151,7 +151,7 @@ void Summary::updateOPsStats(const std::shared_ptr<ngraph::Function> &function, 
 }
 
 #ifdef IE_TEST_DEBUG
-void Summary::savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+void Summary::saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
                              unsigned long skipped, unsigned long crashed) {
     std::string outputFilePath = "./part_report.txt";
     std::ofstream file;

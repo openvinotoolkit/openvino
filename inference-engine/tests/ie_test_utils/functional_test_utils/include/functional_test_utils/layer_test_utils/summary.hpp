@@ -95,7 +95,7 @@ public:
     // #define IE_TEST_DEBUG
 
     #ifdef IE_TEST_DEBUG
-    void savePartReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+    void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
                         unsigned long skipped, unsigned long crashed);
     #endif  //IE_TEST_DEBUG
 
