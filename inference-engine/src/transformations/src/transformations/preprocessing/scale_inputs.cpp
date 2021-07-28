@@ -46,44 +46,68 @@ void ScaleInputs::register_scale_matcher(ngraph::matcher_pass_callback callback)
     register_matcher(m, callback);
 }
 
-ScaleInputs::ScaleInputs(float scale_factor): MatcherPass() {
+ScaleInputs::ScaleInputs(float scale_factor): MatcherPass(), m_scale_factor(scale_factor) {
     register_scale_matcher(std::bind(matcher_callback, std::placeholders::_1, [&](std::shared_ptr<Node>) {
-        return opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {scale_factor});
+        return opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.f / m_scale_factor});
     }));
 }
 
-ScaleInputs::ScaleInputs(const std::map<std::string, std::vector<float>>& scale_map) {
-    register_scale_matcher([&](pattern::Matcher& m) {
+static int guess_features_dim_idx(const std::shared_ptr<Node>& matched, size_t values_size, int initial_idx) {
+    // Calculate shape of 'constant' based on node's partial shape
+    // E.g. node_shape = {1,3,224,224}, scale_size=3 ==> constant shape will be {1,3,1,1}
+    auto param_shape = matched->get_output_partial_shape(0);
+    if (values_size == 1) {
+        // Single scale value is always fine for any shape
+        return 0;
+    } else if (param_shape.rank().is_dynamic()) {
+        throw ngraph_error("Scale of full dynamic input is not supported: " + matched->get_friendly_name());
+    } else if (initial_idx >= 0) {
+        if (initial_idx < param_shape.rank().get_length() &&
+                param_shape[initial_idx].is_static() &&
+                values_size == static_cast<size_t>(param_shape[initial_idx].get_length())) {
+            return initial_idx;
+        } else {
+            throw ngraph_error("Feature dimension index " + std::to_string(initial_idx) +
+                               " is invalid for node " + matched->get_friendly_name());
+        }
+    } else { // initial_idx is not specified
+        auto rank_length = param_shape.rank().get_length();
+        int found = 0;
+        int foundIndex = -1;
+        for (auto i = 0; i < rank_length; i++) {
+            if (param_shape[i].is_static() &&
+                    values_size == static_cast<size_t>(param_shape[i].get_length())) {
+                found++;
+                foundIndex = i;
+            }
+        }
+        if (found == 1) {
+            return foundIndex;
+        } else {
+            // Raise an exception, not clear how to calculate constant shape for inputs like {1,3,3,3}
+            throw ngraph_error(
+                    "Not clear how to apply scale vector to input " + matched->get_friendly_name());
+        }
+    }
+}
+
+ScaleInputs::ScaleInputs(const std::map<std::string, std::vector<float>>& scale_map, int features_dim_idx):
+        MatcherPass(), m_scale_map(scale_map), m_features_dim_idx(features_dim_idx) {
+    register_scale_matcher([this](pattern::Matcher& m) {
         auto node = m.get_match_root();
-        auto it = scale_map.find(node->get_friendly_name());
-        if (it != scale_map.end()) {
-            return matcher_callback(m, [&it](std::shared_ptr<Node> matched) {
-                // TODO: this can probably be improved
-                // It calculates shape of 'constant' based on node's partial shape
-                // E.g. node_shape = {1,3,224,224}, scale_size=3 ==> constant shape will be {1,3,1,1}
+        auto it = m_scale_map.find(node->get_friendly_name());
+        if (it != m_scale_map.end()) {
+            return matcher_callback(m, [&it, this](std::shared_ptr<Node> matched) {
+                auto values = it->second;
+                m_features_dim_idx = guess_features_dim_idx(matched, values.size(), m_features_dim_idx);
                 auto param_shape = matched->get_output_partial_shape(0);
-                if (param_shape.rank().is_dynamic()) {
-                    throw ngraph_error("Scale of full dynamic input is not supported: " + matched->get_friendly_name());
-                } else {
-                    auto rank_length = param_shape.rank().get_length();
-                    std::vector<size_t> v(rank_length, 1);
-                    ngraph::Shape constShape(v);
-                    int found = 0;
-                    for (auto i = 0; i < rank_length; i++) {
-                        if (param_shape[i].is_static() &&
-                                it->second.size() == static_cast<size_t>(param_shape[i].get_length())) {
-                            constShape[i] = it->second.size();
-                            found++;
-                        }
-                    }
-                    if (found == 1 || it->second.size() == 1) {
-                        return opset7::Constant::create(ngraph::element::f32, constShape, it->second);
-                    } else {
-                        // Raise an exception, not clear how to calculate constant shape for inputs like {1,3,3,3}
-                        throw ngraph_error(
-                                "Not clear how to apply scale vector to input " + matched->get_friendly_name());
-                    }
-                }
+                std::vector<size_t> v(param_shape.rank().get_length(), 1);
+                ngraph::Shape constShape(v);
+                constShape[m_features_dim_idx] = values.size();
+                std::transform(values.begin(), values.end(), values.begin(), [](float val) -> float {
+                    return 1.f / val;
+                });
+                return opset7::Constant::create(ngraph::element::f32, constShape, values);
             });
         }
         return false;

@@ -36,7 +36,7 @@ TEST(TransformationTests, ScaleInputs_float) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ScaleInputs>(0.5);
+        m.register_pass<ngraph::pass::ScaleInputs>(2.0);
         m.run_passes(f);
     }
 
@@ -62,7 +62,47 @@ TEST(TransformationTests, ScaleInputs_float) {
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::NAMES_ALL);
+            FunctionsComparator::with_default()
+                    .enable(FunctionsComparator::NAMES_ALL)
+                    .enable(FunctionsComparator::CONST_VALUES);
+    const FunctionsComparator::Result res = func_comparator(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, ScaleInputs_float_dyn_shape) {
+    ngraph::PartialShape shape = {ngraph::Dimension::dynamic(), 1, ngraph::Dimension::dynamic()};
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data1 = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, shape);
+        data1->set_friendly_name("input1");
+        auto res = std::make_shared<ngraph::opset7::Result>(data1);
+        res->set_friendly_name("Result");
+
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data1});
+
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ScaleInputs>(4.0);
+        m.run_passes(f);
+    }
+
+    {
+        auto data1 = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, shape);
+        data1->set_friendly_name("input1");
+        auto mul_const1 = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0.25});
+        mul_const1->set_friendly_name("input1/scale/Fused_Mul_Factor");
+        auto mul1 = std::make_shared<ngraph::opset7::Multiply>(data1, mul_const1);
+        mul1->set_friendly_name("input1/scale/Fused_Mul");
+        auto res = std::make_shared<ngraph::opset7::Result>(mul1);
+        res->set_friendly_name("Result");
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data1});
+    }
+
+    const FunctionsComparator func_comparator =
+            FunctionsComparator::with_default()
+                    .enable(FunctionsComparator::NAMES_ALL)
+                    .enable(FunctionsComparator::CONST_VALUES);
     const FunctionsComparator::Result res = func_comparator(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
@@ -84,15 +124,16 @@ TEST(TransformationTests, ScaleInputs_map) {
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
         std::map<std::string, std::vector<float>> map;
-        map.insert({"input1", {0.1, 0.2, 0.3}});
-        m.register_pass<ngraph::pass::ScaleInputs>(map);
+        map.insert({"input1", {2.f, 4.f, 8.f}});
+        m.register_pass<ngraph::pass::ScaleInputs>(map, -1);
         m.run_passes(f);
     }
 
     {
         auto data1 = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 5, 5});
         data1->set_friendly_name("input1");
-        auto mul_const1 = ngraph::opset7::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 1, 1}, {0.1, 0.2, 0.3});
+        auto mul_const1 = ngraph::opset7::Constant::create(
+                ngraph::element::f32, ngraph::Shape{1, 3, 1, 1}, {0.5f, 0.25f, 0.125f});
         mul_const1->set_friendly_name("input1/scale/Fused_Mul_Factor");
         auto mul1 = std::make_shared<ngraph::opset7::Multiply>(data1, mul_const1);
         mul1->set_friendly_name("input1/scale/Fused_Mul");
@@ -107,69 +148,9 @@ TEST(TransformationTests, ScaleInputs_map) {
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::NAMES_ALL);
+            FunctionsComparator::with_default()
+                .enable(FunctionsComparator::NAMES_ALL)
+                .enable(FunctionsComparator::CONST_VALUES);
     const FunctionsComparator::Result res = func_comparator(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
-
-//TEST(TransformationTests, ConvertDivideNegative) {
-//    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-//    {
-//        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
-//        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-//        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
-//
-//        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
-//
-//        ngraph::pass::Manager m;
-//        m.register_pass<ngraph::pass::InitNodeInfo>();
-//        m.register_pass<ngraph::pass::ConvertDivide>();
-//        m.run_passes(f);
-//        ASSERT_NO_THROW(check_rt_info(f));
-//    }
-//
-//    {
-//        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});
-//        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::i32, ngraph::Shape{1}, {2});
-//        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
-//
-//        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
-//    }
-//
-//    auto res = compare_functions(f, f_ref);
-//    ASSERT_TRUE(res.first) << res.second;
-//}
-//
-//TEST(TransformationTests, ConvertDivideScalar) {
-//    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-//    {
-//        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-//        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
-//        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
-//
-//        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
-//
-//        NGRAPH_CHECK(divide->get_output_partial_shape(0).rank().get_length() == 0);
-//
-//        ngraph::pass::Manager m;
-//        m.register_pass<ngraph::pass::InitNodeInfo>();
-//        m.register_pass<ngraph::pass::ConvertDivide>();
-//        m.run_passes(f);
-//        ASSERT_NO_THROW(check_rt_info(f));
-//    }
-//
-//    {
-//        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{});
-//        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.5});
-//        auto pow = std::make_shared<ngraph::opset1::Power>(divide_constant,
-//                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-1}));
-//        auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
-//
-//        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data});
-//
-//        NGRAPH_CHECK(mul->get_output_partial_shape(0).rank().get_length() == 0);
-//    }
-//
-//    auto res = compare_functions(f, f_ref);
-//    ASSERT_TRUE(res.first) << res.second;
-//}

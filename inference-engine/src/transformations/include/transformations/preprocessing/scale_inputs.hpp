@@ -31,10 +31,13 @@ public:
     };
     NGRAPH_RTTI_DECLARATION;
 
-    ScaleInputs(float scale_factor = 1.0f);
+    ScaleInputs(float scale_factor = 1.f);
 
-    ScaleInputs(const std::map<std::string, std::vector<float>> &scale_map);
+    ScaleInputs(const std::map<std::string, std::vector<float>> &scale_map, int features_dim_idx = -1);
 
 private:
     void register_scale_matcher(ngraph::matcher_pass_callback callback);
+    float m_scale_factor = 1.f;
+    std::map<std::string, std::vector<float>> m_scale_map = {};
+    int m_features_dim_idx = -1;
 };
