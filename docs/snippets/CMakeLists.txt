@@ -45,7 +45,7 @@ if(OpenCV_FOUND)
 endif()
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE onnx_importer)
+    target_link_libraries(${TARGET_NAME} PRIVATE onnx_ngraph_frontend)
 endif()
 
 if(NOT MSVC)
