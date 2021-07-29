@@ -11,12 +11,12 @@
 
 #include <map>
 #include <memory>
+#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include "ie_iextension.h"
 #include "details/ie_so_pointer.hpp"
+#include "ie_iextension.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -46,9 +46,8 @@ public:
      *
      * @param name Full or relative path to extension library
      */
-    template <typename C,
-              typename = details::enableIfSupportedChar<C>>
-    explicit Extension(const std::basic_string<C>& name): actual(name) {}
+    template <typename C, typename = details::enableIfSupportedChar<C>>
+    explicit Extension(const std::basic_string<C>& name) : actual(name) {}
 
     /**
      * @brief Gets the extension version information
@@ -107,7 +106,7 @@ protected:
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
@@ -120,7 +119,7 @@ inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);
@@ -144,15 +143,17 @@ public:
 
     virtual const type_info_t& get_type_info() const = 0;
     friend void setSharedObject(const std::shared_ptr<NewExtension>&, const details::SharedObjectLoader&);
+
 private:
     details::SharedObjectLoader so = {};
 };
 
-class INFERENCE_ENGINE_API_CLASS(IRExtension): public NewExtension {
+class INFERENCE_ENGINE_API_CLASS(IRExtension) : public NewExtension {
     std::string m_opset;
+
 public:
     NGRAPH_RTTI_DECLARATION;
-    IRExtension(const std::string& opsetVersion): m_opset(opsetVersion) {}
+    IRExtension(const std::string& opsetVersion) : m_opset(opsetVersion) {}
 
     const std::string& get_opset() {
         return m_opset;
@@ -162,10 +163,10 @@ public:
     virtual ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) = 0;
 };
 
-template<class T>
-class INFERENCE_ENGINE_API_CLASS(DefaultIRExtension): public IRExtension {
+template <class T>
+class INFERENCE_ENGINE_API_CLASS(DefaultIRExtension) : public IRExtension {
 public:
-    DefaultIRExtension(const std::string opsetVersion): IRExtension(opsetVersion) {}
+    DefaultIRExtension(const std::string opsetVersion) : IRExtension(opsetVersion) {}
     ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
         std::shared_ptr<ngraph::Node> node = std::make_shared<T>();
 
@@ -189,9 +190,10 @@ public:
     const NewExtension::Ptr& getExtension() {
         return extension;
     }
+
 private:
-    NewExtension::Ptr extension;
     details::SharedObjectLoader so;
+    NewExtension::Ptr extension;
 };
 
 /**
@@ -231,48 +233,48 @@ std::vector<NewExtension::Ptr> load_extensions(const std::basic_string<C>& name)
 }  // namespace InferenceEngine
 
 namespace ngraph {
-    /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
-    /// Type*/shared_ptr<Type>
-    template <typename Type>
-    typename std::enable_if<
-        std::is_convertible<
-            decltype(std::declval<std::shared_ptr<InferenceEngine::NewExtension>>()->get_type_info().is_castable(Type::type_info)),
-            bool>::value,
-        bool>::type
-        is_type(const std::shared_ptr<InferenceEngine::NewExtension>& value) {
-            bool result = value->get_type_info().is_castable(Type::type_info);
-            if (value->get_type_info().is_castable(InferenceEngine::SOExtension::type_info)) {
-                auto realExt = std::static_pointer_cast<InferenceEngine::SOExtension>(value)->getExtension();
-                result |= realExt->get_type_info().is_castable(Type::type_info);
-            }
-            return result;
+/// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
+/// Type*/shared_ptr<Type>
+template <typename Type>
+typename std::enable_if<std::is_convertible<decltype(std::declval<std::shared_ptr<InferenceEngine::NewExtension>>()
+                                                         ->get_type_info()
+                                                         .is_castable(Type::type_info)),
+                                            bool>::value,
+                        bool>::type
+is_type(const std::shared_ptr<InferenceEngine::NewExtension>& value) {
+    bool result = value->get_type_info().is_castable(Type::type_info);
+    if (value->get_type_info().is_castable(InferenceEngine::SOExtension::type_info)) {
+        auto realExt = std::static_pointer_cast<InferenceEngine::SOExtension>(value)->getExtension();
+        result |= realExt->get_type_info().is_castable(Type::type_info);
     }
-    /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
-    template <typename Type>
-    typename std::enable_if<
-        std::is_convertible<decltype(static_cast<Type*>(std::declval<InferenceEngine::NewExtension*>())), Type*>::value,
-        Type*>::type
-        as_type(InferenceEngine::NewExtension* value) {
-        if (is_type<InferenceEngine::SOExtension>(value)) {
-            auto* realExt = static_cast<InferenceEngine::SOExtension*>(value)->getExtension().get();
-            if (is_type<Type>(realExt)) return static_cast<Type*>(realExt);
-        }
-        return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+    return result;
+}
+/// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
+template <typename Type>
+typename std::enable_if<
+    std::is_convertible<decltype(static_cast<Type*>(std::declval<InferenceEngine::NewExtension*>())), Type*>::value,
+    Type*>::type
+as_type(InferenceEngine::NewExtension* value) {
+    if (is_type<InferenceEngine::SOExtension>(value)) {
+        auto* realExt = static_cast<InferenceEngine::SOExtension*>(value)->getExtension().get();
+        if (is_type<Type>(realExt)) return static_cast<Type*>(realExt);
     }
+    return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
+}
 
-    /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
-    /// Type, nullptr otherwise
-    template <typename Type>
-    typename std::enable_if<
-        std::is_convertible<decltype(std::static_pointer_cast<Type>(std::declval<std::shared_ptr<InferenceEngine::NewExtension>>())),
-                            std::shared_ptr<Type>>::value,
-        std::shared_ptr<Type>>::type
-        as_type_ptr(std::shared_ptr<InferenceEngine::NewExtension> value) {
-        if (is_type<InferenceEngine::SOExtension>(value)) {
-            auto realExt = std::static_pointer_cast<InferenceEngine::SOExtension>(value)->getExtension();
+/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
+/// Type, nullptr otherwise
+template <typename Type>
+typename std::enable_if<std::is_convertible<decltype(std::static_pointer_cast<Type>(
+                                                std::declval<std::shared_ptr<InferenceEngine::NewExtension>>())),
+                                            std::shared_ptr<Type>>::value,
+                        std::shared_ptr<Type>>::type
+as_type_ptr(std::shared_ptr<InferenceEngine::NewExtension> value) {
+    if (is_type<InferenceEngine::SOExtension>(value)) {
+        auto realExt = std::static_pointer_cast<InferenceEngine::SOExtension>(value)->getExtension();
 
-            if (is_type<Type>(realExt)) return std::static_pointer_cast<Type>(realExt);
-        }
-        return is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+        if (is_type<Type>(realExt)) return std::static_pointer_cast<Type>(realExt);
     }
-} // namespace ngraph
+    return is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+}
+}  // namespace ngraph
