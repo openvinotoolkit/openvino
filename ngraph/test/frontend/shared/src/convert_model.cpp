@@ -72,20 +72,3 @@ TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert)
     const FunctionsComparator::Result res = func_comparator(function, function_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
-
-TEST_P(FrontEndConvertModelTest, test_decode_normalize_equal_convert)
-{
-    ASSERT_NO_THROW(doLoadFromFile());
-    std::shared_ptr<ngraph::Function> function_ref;
-    ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
-    ASSERT_NE(function_ref, nullptr);
-    std::shared_ptr<ngraph::Function> function;
-    ASSERT_NO_THROW(function = m_frontEnd->decode(m_inputModel));
-    ASSERT_NE(function, nullptr);
-    ASSERT_NO_THROW(m_frontEnd->normalize(function));
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
-    const FunctionsComparator::Result res = func_comparator(function, function_ref);
-    ASSERT_TRUE(res.valid) << res.message;
-}
