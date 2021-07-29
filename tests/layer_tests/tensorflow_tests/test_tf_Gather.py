@@ -43,25 +43,15 @@ class TestGather(CommonTFLayerTest):
     test_data_nightly = [
         dict(data_shape=[2, 3], axis=1, indices=[0, 2], batch_dims=0),
         dict(data_shape=[10, 12], axis=0, indices=[3, 6], batch_dims=0),
-        dict(data_shape=[10, 12], axis=-1, indices=[4, 7], batch_dims=0),
         dict(data_shape=[10, 12], axis=1, indices=[[0, 1, 3, 4, 5], [6, 7, 9, 10, 11]], batch_dims=0),
         dict(data_shape=[8, 10, 12], axis=0, indices=[3, 6], batch_dims=0),
-        dict(data_shape=[2, 14, 10, 12], axis=1, indices=[[0, 1, 3, 4, 5], [6, 7, 9, 10, 11]], batch_dims=1),
-        dict(data_shape=[8, 10, 12], axis=1, indices=[4, 7], batch_dims=0),
-        dict(data_shape=[8, 10, 12], axis=2, indices=[5, 8], batch_dims=0),
         dict(data_shape=[8, 10, 12], axis=-1, indices=[5, 8], batch_dims=0),
         dict(data_shape=[6, 8, 10, 12], axis=0, indices=[2, 5], batch_dims=0),
-        dict(data_shape=[6, 8, 10, 12], axis=1, indices=[3, 6], batch_dims=0),
-        dict(data_shape=[6, 8, 10, 12], axis=2, indices=[4, 7], batch_dims=0),
-        dict(data_shape=[6, 8, 10, 12], axis=3, indices=[5, 8], batch_dims=0),
         dict(data_shape=[6, 8, 10, 12], axis=-1, indices=[5, 8], batch_dims=0),
         dict(data_shape=[6, 8, 10, 12], axis=2, indices=[[0, 2, 4], [5, 7, 9]], batch_dims=0),
+        dict(data_shape=[2, 14, 10, 12], axis=1, indices=[[0, 1, 3, 4, 5], [6, 7, 9, 10, 11]], batch_dims=1),
         dict(data_shape=[4, 6, 8, 10, 12], axis=0, indices=[1, 3], batch_dims=0),
-        dict(data_shape=[4, 6, 8, 10, 12], axis=1, indices=[2, 5], batch_dims=0),
-        dict(data_shape=[4, 6, 8, 10, 12], axis=2, indices=[3, 6], batch_dims=0),
-        dict(data_shape=[4, 6, 8, 10, 12], axis=3, indices=[4, 7], batch_dims=0),
-        dict(data_shape=[4, 6, 8, 10, 12], axis=4, indices=[5, 8], batch_dims=0),
-        dict(data_shape=[4, 6, 8, 10, 12], axis=-1, indices=[5, 8], batch_dims=0)
+        dict(data_shape=[4, 6, 8, 10, 12], axis=-1, indices=[5, 8], batch_dims=0),
     ]
 
     @pytest.mark.parametrize("params", test_data_nightly)

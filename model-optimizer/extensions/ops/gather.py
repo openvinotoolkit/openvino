@@ -31,9 +31,7 @@ class Gather(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version == 'opset8':
-            return ['batch_dims']
-        if version == 'opset7':
+        if version in ['opset7', 'opset8']:
             return ['batch_dims']
         elif version == 'opset1':
             return []
