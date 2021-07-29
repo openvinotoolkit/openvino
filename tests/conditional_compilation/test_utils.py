@@ -72,15 +72,18 @@ def run_infer(model, out_file, install_dir):
     return return_code, output
 
 
-def make_build(openvino_root_dir, build_dir, install_dir, cmake_additional_args=None, log=None):
+def make_build(openvino_root_dir, build_dir, install_dir, build_target=None, cmake_additional_args=None, log=None):
     """Parametrized build and install OpenVINO package."""
     additional_args_line = " ".join(cmake_additional_args) + " " if cmake_additional_args else ""
+    build_target_arg_line = f"cmake --build {build_dir} --target " + " ".join(
+        build_target) + " && " if build_target else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
         f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "
         f"-DPYTHON_EXECUTABLE={sys.executable} {additional_args_line}"
-        f"-S {openvino_root_dir} -B {build_dir} &&"
+        f"-S {openvino_root_dir} -B {build_dir} && "
         f"cmake --build {build_dir} -j{nproc} && "
+        f"{build_target_arg_line}"
         f"cmake --install {build_dir} --prefix {install_dir}"
     )
     return cmd_exec([cmd], shell=True, log=log)
