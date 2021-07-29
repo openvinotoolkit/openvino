@@ -21,6 +21,18 @@ NGRAPH_RTTI_DEFINITION(ConvertMatmulToPointWiseConvolution, "ConvertMatmulToPoin
 NGRAPH_RTTI_DEFINITION(ConvertMatmulWithBiasToPointWiseConvolution, "ConvertMatmulWithBiasToPointWiseConvolution", 0);
 NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmulWithFqToPointWiseConvolution", 0);
 
+static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
+    auto bias_output_shape = output.get_node()->get_output_shape(0);
+    if (bias_output_shape.size() == 1) {
+        return bias_output_shape[0] == 1;
+    }
+
+    size_t count = 0;
+    for (auto el : bias_output_shape)
+        count += el > 1 ? 1 : 0;
+    return count < 2;
+}
+
 static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std::shared_ptr<ngraph::Node> matmul_node) {
     auto input1_shape = matmul_node->get_input_shape(0);
     auto input2_shape = matmul_node->get_input_shape(1);
@@ -92,20 +104,19 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
             return false;
         }
 
-        std::vector<size_t> axes(4, 1);
-        std::transform(bias_output_shape.begin(), bias_output_shape.end(),
-            axes.begin() + (axes.size() - bias_output_shape.size()), [](size_t value) { return value; });
-        auto bias_reshape_constant = std::make_shared<ngraph::opset7::Constant>(ngraph::element::Type_t::i64,
-            ngraph::Shape{axes.size()}, axes);
-        auto bias_reshape = std::make_shared<ngraph::opset7::Reshape>(bias, bias_reshape_constant, false);
-        auto bias_transpose = std::make_shared<ngraph::opset7::Transpose>(bias_reshape,
-            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{axes.size()},
-                GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW)));
-        auto bias_function = std::make_shared<ngraph::Function>(bias_transpose, ngraph::ParameterVector{});
-        ngraph::pass::Manager bias_pass_manager;
-        bias_pass_manager.register_pass<ngraph::pass::ConstantFolding>();
-        bias_pass_manager.run_passes(bias_function);
-        auto new_bias = ngraph::as_type_ptr<ngraph::opset7::Constant>(bias_function->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        std::shared_ptr<ngraph::Node> new_bias = bias;
+        if (bias_output_shape.size() > 1) {
+            std::vector<size_t> axes(4, 1);
+            auto iter = std::find_if(bias_output_shape.begin(), bias_output_shape.end(), [](size_t value) { return value > 1; });
+            if (iter != bias_output_shape.end()) {
+                axes.at(1) = *iter;
+            }
+            new_bias = std::make_shared<ngraph::opset7::Constant>(
+                bias->get_output_element_type(0),
+                axes,
+                std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias)->get_data_ptr());
+        }
+
         conv_node = std::make_shared<ngraph::opset7::Add>(conv_node, new_bias);
         ngraph::copy_runtime_info(transpose_before, conv_node);
         root_node = add;
@@ -168,7 +179,7 @@ ConvertMatmulWithBiasToPointWiseConvolution::ConvertMatmulWithBiasToPointWiseCon
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
     auto second_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{const_input, const_fq});
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(), second_input});
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(BiasValidation);
     auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({matmul, bias});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
@@ -191,7 +202,7 @@ ConvertMatmulWithFqToPointWiseConvolution::ConvertMatmulWithFqToPointWiseConvolu
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
     auto second_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{const_input, const_fq});
     auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({ngraph::pattern::any_input(), second_input});
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
+    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(BiasValidation);
     auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({matmul, bias});
     auto matmul_out = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{add, matmul});
     auto out_fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({matmul_out,
