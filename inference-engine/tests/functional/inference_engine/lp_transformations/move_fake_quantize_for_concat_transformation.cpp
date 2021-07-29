@@ -4,11 +4,14 @@
 
 #include "layer_transformation.hpp"
 
+#include <string>
 #include <sstream>
 #include <memory>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <low_precision/concat.hpp>
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
@@ -28,6 +31,7 @@
 #include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/relu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;

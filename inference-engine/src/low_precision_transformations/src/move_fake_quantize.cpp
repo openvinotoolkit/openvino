@@ -24,7 +24,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
-        }
+}
 
         return transform(*context, m);
     };
@@ -55,6 +55,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto fq = m.get_match_root();
     auto concat = fq->get_input_node_shared_ptr(0);
     auto result = *fq->output(0).get_target_inputs().begin();
+    
     auto input1 = concat->get_input_node_shared_ptr(0);
     auto input2 = concat->get_input_node_shared_ptr(1);
     auto fq1 = std::make_shared<opset1::FakeQuantize>(input1,
