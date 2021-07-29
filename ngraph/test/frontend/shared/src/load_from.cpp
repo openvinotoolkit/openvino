@@ -67,7 +67,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStream)
 {
     auto ifs =
         std::ifstream(FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_stream),
-                      std::ios::in | std::ifstream::binary);
+                      std::ios::in | std::ios::binary);
     std::istream* is = &ifs;
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
@@ -87,10 +87,10 @@ TEST_P(FrontEndLoadFromTest, testLoadFromTwoStreams)
 {
     auto model_ifs = std::ifstream(
         FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[0]),
-        std::ios::in | std::ifstream::binary);
+        std::ios::in | std::ios::binary);
     auto weights_ifs = std::ifstream(
         FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_streams[1]),
-        std::ios::in | std::ifstream::binary);
+        std::ios::in | std::ios::binary);
     std::istream* model_is(&model_ifs);
     std::istream* weights_is(&weights_ifs);
 
