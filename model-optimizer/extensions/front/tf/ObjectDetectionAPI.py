@@ -1201,6 +1201,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
         swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
                          not pipeline_config.get_param('use_matmul_crop_and_resize')
+        if swap_proposals:
+            proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
 
         return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
                                                                                           max_proposals,
