@@ -451,6 +451,17 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
+def raise_no_node(node_name: str):
+    raise Error('No node with name {}'.format(node_name))
+
+
+def raise_node_name_collision(node_name: str, found_nodes: list):
+    raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
+                'If your intention was to specify port for node, please instead specify node names connected to '
+                'this port. If your intention was to specify the node name, please add port to the node '
+                'name'.format(node_name, found_nodes))
+
+
 def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
@@ -483,12 +494,9 @@ def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
 
             found_names.append((in_port, out_port, name))
     if len(found_names) == 0:
-        raise Error('No node with name {}'.format(node_name))
+        raise_no_node(node_name)
     if len(found_names) > 1:
-        raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
-                    'If your intention was to specify port for node, please instead specify node names connected to '
-                    'this port. If your intention was to specify the node name, please add port to the node '
-                    'name'.format(node_name, [name for _, _, name in found_names]))
+        raise_node_name_collision(node_name, [name for _, _, name in found_names])
     in_port, out_port, name = found_names[0]
     node_id = graph.get_node_id_by_name(name)
     if in_port is not None:
