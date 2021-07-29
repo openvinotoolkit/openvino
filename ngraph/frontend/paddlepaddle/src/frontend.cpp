@@ -303,7 +303,7 @@ extern "C" PDPD_API FrontEndVersion GetAPIVersion()
 extern "C" PDPD_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "pdpd";
+    res->m_name = "paddle";
     res->m_creator = []() { return std::make_shared<FrontEndPDPD>(); };
     return res;
 }
