@@ -30,6 +30,10 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
+        const auto& input = pattern_value_map.at(input_pattern);
+        const auto& type = input.get_element_type();
+        if (type.bitwidth() < element::f32.bitwidth())
+            return false;
         auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
@@ -95,7 +99,7 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         std::shared_ptr<Node> new_input_high = get_constant_from_source(input_high_sub);
         if (!new_input_high)
             new_input_high = input_high_sub;
-        auto new_fq = register_new_node<opset5::FakeQuantize>(pattern_value_map.at(input_pattern),
+        auto new_fq = register_new_node<opset5::FakeQuantize>(input,
                                                               new_input_low,
                                                               new_input_high,
                                                               fq->input_value(3),

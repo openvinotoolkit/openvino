@@ -30,6 +30,10 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
+        const auto& input = pattern_value_map.at(input_pattern);
+        const auto& type = input.get_element_type();
+        if (type.bitwidth() < element::f32.bitwidth())
+            return false;
         auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
@@ -105,11 +109,9 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             new_input_high = input_high_div;
 
         auto mul = pattern_value_map.at(mul_pattern).get_node_shared_ptr();
-        const auto& mul_data = pattern_value_map.at(input_pattern);
-
         std::shared_ptr<Node> new_fq;
         if (all_negative) {
-            new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low, new_input_high,
+            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
                     fq->input_value(4), fq->input_value(3), fq->get_levels());
             copy_runtime_info({mul, fq}, {new_const, new_input_low, new_input_high, new_fq});
         } else if (any_negative) {
@@ -147,10 +149,10 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             std::shared_ptr<Node> new_output_high = get_constant_from_source(output_high_tmp);
             if (!new_output_high)
                 new_output_high = output_high_tmp;
-            new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low,
+            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low,
                     new_input_high, new_output_low, new_output_high, fq->get_levels());
         } else {
-            new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low, new_input_high,
+            new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
                     fq->input_value(3), fq->input_value(4), fq->get_levels());
         }
 
