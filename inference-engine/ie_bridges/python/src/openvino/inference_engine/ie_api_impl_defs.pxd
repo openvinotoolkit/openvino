@@ -160,21 +160,21 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name) except +
         object getConfig(const string & metric_name) except +
-        int wait(int num_requests, int64_t timeout)
-        int getIdleRequestId()
+        int wait(int num_requests, int64_t timeout) nogil
+        int getIdleRequestId() nogil
         shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
-        IENetwork() except +
+        IENetwork() nogil except +
         IENetwork(object) except +
         IENetwork(const string &, const string &) except +
         string name
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const map[string, InputInfo.Ptr] getInputsInfo() except +
+        const map[string, InputInfo.Ptr] getInputsInfo() nogil except +
         const map[string, DataPtr] getInputs() except +
-        map[string, DataPtr] getOutputs() except +
+        map[string, DataPtr] getOutputs() nogil except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
@@ -195,23 +195,23 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
         const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
-        void infer() except +
-        void infer_async() except +
-        int wait(int64_t timeout) except +
+        void infer() nogil except +
+        void infer_async() nogil except +
+        int wait(int64_t timeout) nogil except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
         vector[CVariableState] queryState() except +
 
     cdef cppclass IECore:
-        IECore() except +
-        IECore(const string & xml_config_file) except +
+        IECore() nogil except +
+        IECore(const string & xml_config_file) nogil except +
         map[string, Version] getVersions(const string & deviceName) except +
-        IENetwork readNetwork(const string& modelPath, const string& binPath) except +
-        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
+        IENetwork readNetwork(const string& modelPath, const string& binPath) nogil except +
+        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) nogil except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
-                                              const map[string, string] & config, int num_requests) except +
+                                              const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] loadNetworkFromFile(const string & modelPath, const string & deviceName,
-                                              const map[string, string] & config, int num_requests) except +
+                                              const map[string, string] & config, int num_requests) nogil except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
                                                 const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
@@ -221,7 +221,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void unregisterPlugin(const string & deviceName) except +
         void registerPlugins(const string & xmlConfigFile) except +
         void addExtension(const string & ext_lib_path, const string & deviceName) except +
-        vector[string] getAvailableDevices() except +
+        vector[string] getAvailableDevices() nogil except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
 
