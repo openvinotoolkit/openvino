@@ -419,13 +419,12 @@ public:
             auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node_shared_ptr());
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ngraph::op::AutoBroadcastType::NONE) {
-                for (auto const_node : fq_params_nodes) {
+                for (auto node : fq_params_nodes) {
+                    auto const_node = std::dynamic_pointer_cast<op::Constant>(node);
+                    if (!const_node) throw ngraph_error("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
                                                              m_input.get_partial_shape().rank().get_length());
-                    auto const_copy = const_node->clone_with_new_inputs(const_node->input_values());
-                    auto new_const = std::dynamic_pointer_cast<op::Constant>(const_copy);
-                    new_const->set_data_shape(new_shape);
-                    new_const->validate_and_infer_types();
+                    auto new_const = std::make_shared<op::Constant>(*const_node, new_shape);
                     new_const->set_friendly_name(const_node->get_friendly_name());
                     ngraph::copy_runtime_info(const_node, new_const);
                     ngraph::replace_node(const_node, new_const);
