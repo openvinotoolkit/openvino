@@ -18,33 +18,39 @@ install(TARGETS ${TARGET_NAME}
         EXCLUDE_FROM_ALL)
 
 # Test model generating
-ie_check_pip_package(paddlepaddle FATAL_ERROR)
+ie_check_pip_package(paddlepaddle WARNING)
 
-set(PADDLE_TEST_MODELS_DIRNAME test_model_zoo/paddle_test_models)
-target_compile_definitions(${TARGET_NAME} PRIVATE -D PADDLE_TEST_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\")
-set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PADDLE_TEST_MODELS_DIRNAME}/)
+# If 'paddlepaddle' is not found, code will still be compiled
+# but models will not be generated and tests will fail
+# This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
+# 'paddlepaddle' installed to check code style
+if (paddlepaddle_FOUND)
+    set(PADDLE_TEST_MODELS_DIRNAME test_model_zoo/paddle_test_models)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -D PADDLE_TEST_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\")
+    set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PADDLE_TEST_MODELS_DIRNAME}/)
 
-file(GLOB_RECURSE PADDLE_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
-file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
-set(OUT_FILES "")
-foreach(GEN_SCRIPT ${PADDLE_GEN_SCRIPTS})
-    get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-    set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
-    set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
-    add_custom_command(OUTPUT ${OUT_DONE_FILE}
-            COMMAND ${PYTHON_EXECUTABLE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
-            ${GEN_SCRIPT}
-            ${TEST_PADDLE_MODELS}
-            ${OUT_DONE_FILE}
-            DEPENDS ${PADDLE_ALL_SCRIPTS}
-            )
-endforeach()
-add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
-add_dependencies(${TARGET_NAME} paddlepaddle_test_models)
-add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+    file(GLOB_RECURSE PADDLE_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
+    file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+    set(OUT_FILES "")
+    foreach(GEN_SCRIPT ${PADDLE_GEN_SCRIPTS})
+        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+        add_custom_command(OUTPUT ${OUT_DONE_FILE}
+                COMMAND ${PYTHON_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+                ${GEN_SCRIPT}
+                ${TEST_PADDLE_MODELS}
+                ${OUT_DONE_FILE}
+                DEPENDS ${PADDLE_ALL_SCRIPTS}
+                )
+    endforeach()
+    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(${TARGET_NAME} paddlepaddle_test_models)
+    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 
-install(DIRECTORY ${TEST_PADDLE_MODELS}
-        DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
+    install(DIRECTORY ${TEST_PADDLE_MODELS}
+            DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()

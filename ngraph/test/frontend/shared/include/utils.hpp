@@ -25,7 +25,8 @@ namespace FrontEndTestUtils
     {
         auto frontend = fem.load_by_framework(frontend_name);
         auto inputModel = frontend->load(model_file);
-        return {frontend, inputModel};
+        return std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>{
+            frontend, inputModel};
     }
 
     inline std::string fileToTestName(const std::string& fileName)
