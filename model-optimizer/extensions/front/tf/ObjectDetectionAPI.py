@@ -1199,48 +1199,12 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         proposal_node = proposal_op.create_node([reshape_permute_node, anchors_node, input_with_image_size_node],
                                                 dict(name='proposals'))
 
-        # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
-        swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
-                         not pipeline_config.get_param('use_matmul_crop_and_resize')
+        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
+                                                                                          max_proposals,
+                                                                                          pipeline_config)}
 
-        if swap_proposals:
-            proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
-
-        proposal_reshape_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
-                                                                    dict(name="reshape_swap_proposals_2d"),
-                                                                    proposal_node)
-        mark_input_as_in_correct_layout(proposal_reshape_2d_node, 0)
-
-        crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
-                                     graph.node[node_id]['op'] == 'CropAndResize']
-        if len(crop_and_resize_nodes_ids) != 0 and swap_proposals:
-            # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
-            # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
-            # box coordinates data after the Proposal node
-            crop_and_resize_node = Node(graph, crop_and_resize_nodes_ids[0])
-            # set a marker that an input with box coordinates has been pre-processed so the CropAndResizeReplacement
-            # transform doesn't try to merge the second and the third inputs
-            crop_and_resize_node['inputs_preprocessed'] = True
-            crop_and_resize_node.in_port(1).disconnect()
-            proposal_reshape_2d_node.out_port(0).connect(crop_and_resize_node.in_port(1))
-
-        tf_proposal_reshape_4d_node = create_op_node_with_second_input(graph, Reshape,
-                                                                       int64_array([-1, 1, max_proposals, 5]),
-                                                                       dict(name="reshape_proposal_4d"),
-                                                                       proposal_node)
-
-        crop_op = Crop(graph, dict(axis=int64_array([3]), offset=int64_array([1]), dim=int64_array([4]),
-                                   nchw_layout=True))
-        crop_node = crop_op.create_node([tf_proposal_reshape_4d_node], dict(name='crop_proposals'))
-
-        mark_as_correct_data_layout(tf_proposal_reshape_4d_node)
-
-        tf_proposals_crop_reshape_3d_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 4]),
-                                                                             dict(name="reshape_crop_3d"), crop_node)
-        mark_input_as_in_correct_layout(tf_proposals_crop_reshape_3d_node, 0)
-        return {'proposal_node': tf_proposals_crop_reshape_3d_node}
-
-    def insert_detection_output_instead_of_proposal(self, graph: Graph, match: SubgraphMatch):
+    @staticmethod
+    def insert_detection_output_instead_of_proposal(graph: Graph, match: SubgraphMatch):
         """
         The function inserts DetectionOutput operation instead of Proposal operation which may result in an increase of
         the accuracy for some models. The function is enabled with the custom attribute "operation_to_insert" with
@@ -1370,14 +1334,33 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                        'name': 'proposals'}).create_node()
         do_split.out_port(0).connect(proposal_node.in_port(0))
         clamped_xyxy_coord.out_port(0).connect(proposal_node.in_port(1))
+        return {'proposal_node': ObjectDetectionAPIProposalReplacement.ie_to_tf_proposals(graph, proposal_node, match,
+                                                                                          max_proposals,
+                                                                                          pipeline_config, True)}
 
-        # TODO FIXME Check for other models
-        # swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
-        #                  not pipeline_config.get_param('use_matmul_crop_and_resize')
-        #
-        # if swap_proposals:
-        #     proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
-        #
+    @staticmethod
+    def ie_to_tf_proposals(graph: Graph, proposal_node: Node, match: SubgraphMatch, max_proposals: int,
+                           pipeline_config: PipelineConfig, force_not_swap_crop_and_resize: bool = False):
+        """
+        Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
+        swapping of XYXY to YXYX (if needed), and cropping the IE output of format [batch, x1, y1, x2, y2] to simply
+        [x1, y1, x2, y2] and reshaping tensor to an appropriate shape.
+
+        :param graph: the graph to operate on
+        :param proposal_node: the node producing IE proposals
+        :param match: the object containing information about matched sub-graph
+        :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
+        :param pipeline_config: object containing information from the pipeline.config file of the model
+        :param force_not_swap_crop_and_resize: flag to force not swap proposals for CropAndResize op
+        :return: the node producing output in the TF format.
+        """
+        # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
+        swap_proposals = not match.custom_replacement_desc.custom_attributes.get('do_not_swap_proposals', False) and \
+                         not pipeline_config.get_param('use_matmul_crop_and_resize')
+
+        if swap_proposals:
+            proposal_node = add_convolution_to_swap_xy_coordinates(graph, proposal_node, 5)
+
         proposal_reshape_2d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 5]),
                                                                     dict(name="reshape_swap_proposals_2d"),
                                                                     proposal_node)
@@ -1385,7 +1368,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
                                      graph.node[node_id]['op'] == 'CropAndResize']
-        if len(crop_and_resize_nodes_ids) != 0:  # and swap_proposals: TODO CHECK THIS CHANGE
+        if len(crop_and_resize_nodes_ids) != 0 and swap_proposals and not force_not_swap_crop_and_resize:
             # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
             # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
             # box coordinates data after the Proposal node
@@ -1410,7 +1393,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         tf_proposals_crop_reshape_3d_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 4]),
                                                                              dict(name="reshape_crop_3d"), crop_node)
         mark_input_as_in_correct_layout(tf_proposals_crop_reshape_3d_node, 0)
-        return {'proposal_node': tf_proposals_crop_reshape_3d_node}
+        return tf_proposals_crop_reshape_3d_node
 
 
 class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFileSubGraph):
