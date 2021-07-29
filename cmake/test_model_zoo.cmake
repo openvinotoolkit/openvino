@@ -25,7 +25,7 @@ function(ov_model_convert SRC DST OUT)
         "models/onnx/external_data/inner_scope/external_data_file_in_up_dir.prototxt"
 
         # IE models
-        # "models/onnx_external_data.prototxt"
+        "models/onnx_external_data.prototxt"
         )
 
     foreach(in_file IN LISTS model_files)
