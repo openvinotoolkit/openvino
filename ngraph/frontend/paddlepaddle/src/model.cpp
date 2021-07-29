@@ -259,7 +259,8 @@ namespace ngraph
                 {
                     auto pdpd_output_op =
                         std::dynamic_pointer_cast<OpPlacePDPD>(output->get_producing_operation());
-                    if (pdpd_output_op && !visited.count(pdpd_output_op.get())) {
+                    if (pdpd_output_op && !visited.count(pdpd_output_op.get()))
+                    {
                         visited.insert(pdpd_output_op.get());
                         q.push(pdpd_output_op.get());
                         new_op_places.push_back(pdpd_output_op);
