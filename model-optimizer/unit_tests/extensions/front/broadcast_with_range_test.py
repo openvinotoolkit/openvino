@@ -29,7 +29,9 @@ class TestRangeBroadcast(unittest.TestCase):
             **regular_op_with_shaped_data('shape', [2], {'type': 'Parameter'}),
             **valued_const_with_data('value', np.arange(0, 384).reshape((1, 384))),
             **regular_op_with_empty_data('bc', {'type': 'Broadcast'}),
-            **regular_op_with_empty_data('shapeof', {'type': 'ShapeOf'}),
+            'shapeof0': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+            'shapeof1': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+            **regular_op_with_empty_data('max_shape', {'type': 'Maximum'}),
 
             # start
             **valued_const_with_data('start', np.array(0)),
@@ -48,8 +50,10 @@ class TestRangeBroadcast(unittest.TestCase):
             **result(),
         },
             edges=[
-                *connect('value', 'shapeof'),
-                *connect('shapeof', '0:range_dim'),
+                *connect('value', 'shapeof0'),
+                ('shapeof0', 'max_shape', {'in': 0}),
+                ('shapeof1', 'max_shape', {'in': 1}),
+                *connect('max_shape', '0:range_dim'),
                 *connect('minus_one', '1:range_dim'),
                 *connect('zero', '2:range_dim'),
                 *connect('start', '0:range'),
@@ -59,6 +63,8 @@ class TestRangeBroadcast(unittest.TestCase):
                 *connect('axes', '1:keep_shape'),
                 *connect('keep_shape', '0:bc'),
                 *connect('shape', '1:bc'),
+                ('shape_d', 'shapeof1', {'out': 0}),
+                # *connect('shape', 'shapeof1'),
                 *connect('bc', 'output'),
             ],
             update_attributes={

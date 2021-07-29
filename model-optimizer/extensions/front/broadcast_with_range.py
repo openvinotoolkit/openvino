@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from extensions.ops.elementwise import Maximum
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
@@ -52,19 +53,27 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
 
         positive_idx = non_one_dims.item(0)
         negative_idx = positive_idx - len(shape)
+
+        node_name = node.soft_get('name', node.id)
         gather = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
-                                             {'name': node.soft_get('name', node.id) + '/BroadcastingDim'})
+                                             {'name': node_name + '/BroadcastingDim'})
 
         range_node = create_op_with_const_inputs(graph, Range,
                                                  {0: np.array(0, dtype=value.dtype),
                                                   2: np.array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
 
-        shapeof_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
-        shapeof_node.out_port(0).connect(gather.in_port(0))
+        shapeof0_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
+        shapeof1_node = Shape(graph, {'name': node_name + '/ShapeOf'}).create_node()
+        max_node = Maximum(graph, {'name': node_name + '/MaxInputShape'}).create_node([shapeof0_node, shapeof1_node])
+        max_node.out_port(0).connect(gather.in_port(0))
+
+        const.out_port(0).connect(shapeof0_node.in_port(0))
+        node.in_port(1).get_connection().add_destination(shapeof1_node.in_port(0))
+
         gather.out_port(0).connect(range_node.in_port(1))
+
         node.in_port(0).get_connection().set_source(range_node.out_port(0))
-        const.out_port(0).connect(shapeof_node.in_port(0))
 
         if one_dims.size:
             unsqueeze = create_op_node_with_second_input(graph, Unsqueeze, one_dims,
