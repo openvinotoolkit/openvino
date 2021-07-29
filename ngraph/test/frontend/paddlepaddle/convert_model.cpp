@@ -24,6 +24,6 @@ INSTANTIATE_TEST_SUITE_P(
     PDPDConvertModelTest,
     FrontEndConvertModelTest,
     ::testing::Combine(::testing::Values(PDPD),
-                       ::testing::Values(std::string(TEST_PDPD_MODELS_DIRNAME)),
+                       ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
                        ::testing::ValuesIn(models)),
     FrontEndConvertModelTest::getTestCaseName);
