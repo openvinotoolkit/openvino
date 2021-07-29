@@ -1337,7 +1337,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
     @staticmethod
     def ie_to_tf_proposals(graph: Graph, proposal_node: Node, match: SubgraphMatch, max_proposals: int,
-                           pipeline_config: PipelineConfig, force_not_swap_crop_and_resize: bool = False):
+                           pipeline_config: PipelineConfig, force_swap_crop_and_resize: bool = False):
         """
         Builds a graph which converts the proposals data in IE format to the format of TensorFlow. This includes
         swapping of XYXY to YXYX (if needed), and cropping the IE output of format [batch, x1, y1, x2, y2] to simply
@@ -1348,7 +1348,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         :param match: the object containing information about matched sub-graph
         :param max_proposals: maximum number of proposal boxes. Needed for the reshaping of the tensor
         :param pipeline_config: object containing information from the pipeline.config file of the model
-        :param force_not_swap_crop_and_resize: flag to force not swap proposals for CropAndResize op
+        :param force_swap_crop_and_resize: flag to force swapping proposals for CropAndResize op
         :return: the node producing output in the TF format.
         """
         # models with use_matmul_crop_and_resize = True should not swap order of elements (YX to XY) after the Proposal
@@ -1365,7 +1365,7 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         crop_and_resize_nodes_ids = [node_id for node_id in bfs_search(graph, [match.single_input_node(0)[0].id]) if
                                      graph.node[node_id]['op'] == 'CropAndResize']
-        if len(crop_and_resize_nodes_ids) != 0 and swap_proposals and not force_not_swap_crop_and_resize:
+        if len(crop_and_resize_nodes_ids) != 0 and (force_swap_crop_and_resize or swap_proposals):
             # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
             # find the first CropAndResize node in the BFS order. This is needed in the case when we already swapped
             # box coordinates data after the Proposal node
