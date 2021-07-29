@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <algorithm>
 
 namespace ngraph
 {
@@ -20,7 +20,8 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::atanh(std::min(std::max(arg[i], static_cast<T>(-1.0)), static_cast<T>(1.0f)));
+                    out[i] = std::atanh(
+                        std::min(std::max(arg[i], static_cast<T>(-1.0)), static_cast<T>(1.0)));
                 }
             }
 
@@ -30,7 +31,8 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::roundl(std::atanh(std::min(std::max(arg[i], static_cast<T>(-1.0)), static_cast<T>(1.0f))));
+                    out[i] = std::roundl(std::atanh(
+                        std::min(std::max(arg[i], static_cast<T>(-1)), static_cast<T>(1))));
                 }
             }
         } // namespace reference
