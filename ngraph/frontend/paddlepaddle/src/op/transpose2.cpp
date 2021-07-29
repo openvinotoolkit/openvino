@@ -18,12 +18,13 @@ namespace ngraph
                     auto data = node.get_ng_input("X");
                     auto perm = node.get_attribute<std::vector<int>>("axis");
 
+                    PDPD_OP_VALIDATION_CHECK(
+                        node,
+                        data.get_partial_shape().rank().is_static(),
+                        "[Frontend]Paddle transpose2 input data rank must be static");
+
                     auto rank =
                         static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
-
-                    PDPD_OP_VALIDATION_CHECK(node,
-                                             perm.size() == rank,
-                                             "transpose2: axis size must equal to data rank!");
 
                     auto input_order =
                         ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);

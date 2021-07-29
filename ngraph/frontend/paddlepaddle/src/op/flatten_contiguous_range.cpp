@@ -48,7 +48,8 @@ namespace ngraph
 
                     auto new_shape_node = std::make_shared<opset6::Concat>(axes, 0);
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Reshape>(x_node, new_shape_node, true)}, {"Out"});
+                        {std::make_shared<opset6::Reshape>(x_node, new_shape_node, false)},
+                        {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
