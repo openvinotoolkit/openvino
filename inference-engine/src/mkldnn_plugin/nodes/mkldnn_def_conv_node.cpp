@@ -1188,22 +1188,25 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                                 h_im < IH);
                     }
                     if (!skip_compute) {
-//                    if (h_im >= 0 && w_im >= 0 && h_im < IH && w_im < IW) {
-                        const int cur_height = IH - h_in;
-                        const int cur_width = IW - w_in;
-                        int h_low = std::max(static_cast<int>(floorf(map_h)), 0);
-                        int w_low = std::max(static_cast<int>(floorf(map_w)), 0);
-                        int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_height - 1);
-                        int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_width - 1);
+                        const int cur_h_end = IH - h_in;
+                        const int cur_w_end = IW - w_in;
+                        int h_low = with_bi_pad ? static_cast<int>(floorf(map_h)) :
+                                std::max(static_cast<int>(floorf(map_h)), 0);
+                        int w_low = with_bi_pad ? static_cast<int>(floorf(map_w)) :
+                                std::max(static_cast<int>(floorf(map_w)), 0);
+                        const int cur_h_start = h_low + h_in;
+                        const int cur_w_start = w_low + w_in;
+                        int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
+                        int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
                         float lh = map_h - h_low;
                         float lw = map_w - w_low;
                         float hh = 1 - lh, hw = 1 - lw;
 
-                        float v1 = (w_low >= 0 && h_low >= 0) ? data_im_ptr[h_low * src_strides[2] + w_low * src_strides[3]] : 0.0f;
-                        float v2 = (w_high < cur_width && h_low >= 0) ? data_im_ptr[h_low * src_strides[2] + w_high * src_strides[3]] : 0.0f;
-                        float v3 = (w_low >= 0 && h_high < cur_height) ? data_im_ptr[h_high * src_strides[2] + w_low * src_strides[3]] : 0.0f;
-                        float v4 = (w_high < cur_width && h_high < cur_height) ? data_im_ptr[h_high * src_strides[2] + w_high * src_strides[3]] : 0.0f;
+                        float v1 = (cur_w_start >= 0 && cur_h_start >= 0) ? data_im_ptr[h_low * src_strides[2] + w_low * src_strides[3]] : 0.0f;
+                        float v2 = (w_high < cur_w_end && cur_h_start >= 0) ? data_im_ptr[h_low * src_strides[2] + w_high * src_strides[3]] : 0.0f;
+                        float v3 = (cur_w_start >= 0 && h_high < cur_h_end) ? data_im_ptr[h_high * src_strides[2] + w_low * src_strides[3]] : 0.0f;
+                        float v4 = (w_high < cur_w_end && h_high < cur_h_end) ? data_im_ptr[h_high * src_strides[2] + w_high * src_strides[3]] : 0.0f;
                         float w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
 
                         float val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
