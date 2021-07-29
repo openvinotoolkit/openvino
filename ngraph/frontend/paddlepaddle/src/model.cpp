@@ -248,61 +248,50 @@ namespace ngraph
 
         void InputModelPDPD::InputModelPDPDImpl::determine_cut_nodes()
         {
-            // Marking nodes from inputs to outputs
             std::queue<OpPlacePDPD*> q;
             std::unordered_set<OpPlacePDPD*> visited;
+            std::vector<std::shared_ptr<OpPlacePDPD>> new_op_places;
+            new_op_places.reserve(m_op_places.size());
             // Marking nodes from outputs to inputs/constants
-            for (auto& output : getOutputs())
+            for (const auto& output : getOutputs())
             {
                 if (!output->is_input())
                 {
                     auto pdpd_output_op =
                         std::dynamic_pointer_cast<OpPlacePDPD>(output->get_producing_operation());
-                    visited.insert(pdpd_output_op.get());
-                    q.push(pdpd_output_op.get());
+                    if (pdpd_output_op && !visited.count(pdpd_output_op.get())) {
+                        visited.insert(pdpd_output_op.get());
+                        q.push(pdpd_output_op.get());
+                        new_op_places.push_back(pdpd_output_op);
+                    }
                 }
             }
             while (!q.empty())
             {
                 auto p_op = q.front();
                 q.pop();
-                for (auto map_pair : p_op->get_input_ports())
+                for (const auto& map_pair : p_op->get_input_ports())
                 {
-                    for (auto port : map_pair.second)
+                    for (const auto& port : map_pair.second)
                     {
                         auto tensor = port->get_source_tensor();
                         if (tensor && !tensor->is_input() &&
                             !m_tensor_values.count(tensor->get_names()[0]))
                         {
-                            try
+                            std::shared_ptr<OpPlacePDPD> pdpd_op =
+                                std::dynamic_pointer_cast<OpPlacePDPD>(
+                                    tensor->get_producing_operation());
+                            if (pdpd_op && !visited.count(pdpd_op.get()))
                             {
-                                std::shared_ptr<OpPlacePDPD> pdpd_op =
-                                    std::dynamic_pointer_cast<OpPlacePDPD>(
-                                        tensor->get_producing_operation());
-                                if (pdpd_op)
-                                {
-                                    visited.insert(pdpd_op.get());
-                                    q.push(pdpd_op.get());
-                                }
-                            }
-                            catch (GeneralFailure)
-                            {
-                                // tensor might not have producer op
-                                continue;
+                                visited.insert(pdpd_op.get());
+                                q.push(pdpd_op.get());
+                                new_op_places.push_back(pdpd_op);
                             }
                         }
                     }
                 }
             }
-            std::vector<std::shared_ptr<OpPlacePDPD>> new_op_places;
-            new_op_places.reserve(m_op_places.size());
-            for (auto op_place : m_op_places)
-            {
-                if (visited.count(op_place.get()))
-                {
-                    new_op_places.push_back(op_place);
-                }
-            }
+            std::reverse(new_op_places.begin(), new_op_places.end());
             m_op_places.swap(new_op_places);
         }
 
