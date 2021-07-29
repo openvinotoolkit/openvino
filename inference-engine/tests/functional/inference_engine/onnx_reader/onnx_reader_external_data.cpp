@@ -14,8 +14,7 @@
 #include <streambuf>
 #include <ngraph/ngraph.hpp>
 
-// TODO: CVS-61224
-TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromFile) {
+TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx", "");
     auto function = cnnNetwork.getFunction();
@@ -47,8 +46,7 @@ TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromFile) {
     ASSERT_TRUE(external_data_node_const->get_vector<float>() == (std::vector<float>{1, 2, 3, 4}));
 }
 
-// TODO: CVS-61224
-TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromStringException) {
+TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
     const auto path = std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx";
     InferenceEngine::Blob::CPtr weights; //not used
@@ -75,8 +73,7 @@ TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromStringException)
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-// TODO: CVS-61224
-TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromWstringNamedFile) {
+TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
     std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');

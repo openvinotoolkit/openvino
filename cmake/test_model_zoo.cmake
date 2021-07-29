@@ -11,24 +11,7 @@ function(ov_model_convert SRC DST OUT)
     file(GLOB_RECURSE onnx_models RELATIVE "${SRC}" "${SRC}/*.onnx")
     file(GLOB_RECURSE data_models RELATIVE "${SRC}" "${SRC}/*.data")
 
-    set(model_files ${prototxt_models} ${xml_models} ${bin_models} ${onnx_models} ${data_models})
-
-    # TODO: these models failed to be converted
-    list(REMOVE_ITEM model_files
-        # ngraph models
-        "models/onnx/external_data/external_data.prototxt"
-        "models/onnx/external_data/external_data_different_paths.prototxt"
-        "models/onnx/external_data/external_data_file_not_found.prototxt"
-        "models/onnx/external_data/external_data_optional_fields.prototxt"
-        "models/onnx/external_data/external_data_sanitize_test.prototxt"
-        "models/onnx/external_data/external_data_two_tensors_data_in_the_same_file.prototxt"
-        "models/onnx/external_data/inner_scope/external_data_file_in_up_dir.prototxt"
-
-        # IE models
-        "models/onnx_external_data.prototxt"
-        )
-
-    foreach(in_file IN LISTS model_files)
+    foreach(in_file IN LISTS prototxt_models xml_models bin_models onnx_models data_models)
         get_filename_component(ext "${in_file}" EXT)
         get_filename_component(rel_dir "${in_file}" DIRECTORY)
         get_filename_component(name_we "${in_file}" NAME_WE)

@@ -59,7 +59,7 @@ set_ie_threading_interface_for(${TARGET_NAME})
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
-        ONNX_TEST_MODELS="${CMAKE_CURRENT_BINARY_DIR}/onnx_reader/models/")
+        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 

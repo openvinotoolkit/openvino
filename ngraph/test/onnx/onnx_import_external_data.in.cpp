@@ -21,8 +21,7 @@ static std::string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx"));
@@ -34,8 +33,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data)
     test_case.run();
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_from_stream)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_from_stream)
 {
     std::string path =
         file_util::path_join(SERIALIZED_ZOO, "onnx/external_data/external_data.onnx");
@@ -52,8 +50,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_from_stream)
     stream.close();
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_optional_fields)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_optional_fields)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/external_data/external_data_optional_fields.onnx"));
@@ -65,8 +62,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_optional_fields)
     test_case.run();
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_in_different_paths)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_in_different_paths)
 {
     auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/external_data/external_data_different_paths.onnx"));
@@ -79,8 +75,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_in_different_paths)
     test_case.run();
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_two_tensors_data_in_the_same_file)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_two_tensors_data_in_the_same_file)
 {
     auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO,
@@ -94,8 +89,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_two_tensors_data_in_the_same
     test_case.run();
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_invalid_external_data_exception)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_external_data_exception)
 {
     try
     {
@@ -116,8 +110,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_invalid_external_data_except
     }
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_invalid_up_dir_path)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_invalid_up_dir_path)
 {
     try
     {
@@ -139,8 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_invalid_up_dir_path)
     }
 }
 
-// TODO: CVS-61224
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_onnx_external_data_sanitize_path)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_external_data_sanitize_path)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/external_data/external_data_sanitize_test.onnx"));
