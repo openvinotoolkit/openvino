@@ -16,6 +16,7 @@ enum Type {
     Deconvolution,
     Lrn,
     Pooling,
+    AdaptivePooling,
     FullyConnected,
     Softmax,
     Split,
@@ -94,6 +95,10 @@ enum Algorithm {
     // Pooling algorithms
     PoolingMax,
     PoolingAvg,
+
+    // Adaptive pooling algorithms
+    AdaptivePoolingMax,
+    AdaptivePoolingAvg,
 
     // Convolution algorithms
     ConvolutionCommon,
