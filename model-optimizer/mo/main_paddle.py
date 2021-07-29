@@ -11,4 +11,4 @@ from ngraph.frontend import FrontEndManager  # pylint: disable=no-name-in-module
 if __name__ == "__main__":
     from mo.main import main
     fem = FrontEndManager()
-    sys.exit(main(get_all_cli_parser(fem), fem, 'pdpd'))
+    sys.exit(main(get_all_cli_parser(fem), fem, 'paddle'))

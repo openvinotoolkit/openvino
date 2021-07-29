@@ -5,4 +5,4 @@
 
 if __name__ == "__main__":
     from mo.subprocess_main import subprocess_main
-    subprocess_main(framework='pdpd')
+    subprocess_main(framework='paddle')

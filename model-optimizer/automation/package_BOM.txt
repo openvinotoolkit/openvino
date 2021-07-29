@@ -944,7 +944,7 @@ mo/main_caffe.py
 mo/main_kaldi.py
 mo/main_mxnet.py
 mo/main_onnx.py
-mo/main_pdpd.py
+mo/main_paddle.py
 mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py
@@ -1090,6 +1090,7 @@ mo_caffe.py
 mo_kaldi.py
 mo_mxnet.py
 mo_onnx.py
+mo_paddle.py
 mo_tf.py
 requirements.txt
 requirements_caffe.txt

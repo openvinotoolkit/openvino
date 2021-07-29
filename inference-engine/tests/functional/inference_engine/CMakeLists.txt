@@ -61,7 +61,7 @@ endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        PDPD_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader/models/")
+            PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
     add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 endif()
 
