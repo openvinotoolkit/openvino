@@ -56,7 +56,7 @@ jobs:
 
   - script: |
       branch=`tr -s '\n ' < $(ONNXRUNTIME_UTILS)/version`
-      git clone --branch $branch --single-branch --recursive https://github.com/mateusztabaka/onnxruntime.git $(ONNXRUNTIME_REPO_DIR)
+      git clone --branch $branch --single-branch --recursive https://github.com/intel/onnxruntime.git $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Clone onnxruntime'
 
   - script: |
