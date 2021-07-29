@@ -20,7 +20,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
     std::vector<float> inputArg;
-    std::tie(levels, constShape, fqDirectArgs, inputArg) = fqParams;
+    ngraph::op::AutoBroadcastSpec broadcast;
+    std::tie(levels, constShape, fqDirectArgs, inputArg, broadcast) = fqParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -41,6 +42,7 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     if (inputArg.size() == 3) {
         result << "_inputArg=" << inputArg[0] << "_" << inputArg[1] << "_" << inputArg[2];
     }
+    result << "_" << broadcast.m_type;
     return result.str();
 }
 
@@ -55,7 +57,8 @@ void FakeQuantizeLayerTest::SetUp() {
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArg;
     std::vector<float> inputArg;
-    std::tie(levels, constShape, fqDirectArg, inputArg) = fqParams;
+    ngraph::op::AutoBroadcastSpec broadcast;
+    std::tie(levels, constShape, fqDirectArg, inputArg, broadcast) = fqParams;
     if (inputArg.size() == 3) {
         inputDataMin = inputArg[0];
         inputDataMax = inputArg[1];
