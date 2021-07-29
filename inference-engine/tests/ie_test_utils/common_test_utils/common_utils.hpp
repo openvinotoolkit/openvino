@@ -142,5 +142,4 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     os << ")";
     return os;
 }
-
 }  // namespace CommonTestUtils

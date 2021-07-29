@@ -43,12 +43,14 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,
                             ::testing::Combine(
+                                    ::testing::Values(1u),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                     ::testing::ValuesIn(configs)),
                              InferRequestConfigTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestConfigTest,
                             ::testing::Combine(
+                                    ::testing::Values(1u),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                              InferRequestConfigTest::getTestCaseName);

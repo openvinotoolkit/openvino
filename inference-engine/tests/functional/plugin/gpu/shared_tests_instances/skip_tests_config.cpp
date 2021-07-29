@@ -61,6 +61,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
 
             // Not allowed dynamic loop tests on GPU
-            R"(.*smoke_StaticShapeLoop_dynamic_exit.*)"
+            R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
+            // CVS-58963: Not implemented yet
+            R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+            // Not expected behavior
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
     };
 }

@@ -73,7 +73,15 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // need to implement Export / Import
-        R"(.*IEClassImportExportTestP.*)"
+        R"(.*IEClassImportExportTestP.*)",
+        // CVS-58963: Not implemented yet
+        R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
+        // Not expected behavior
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
     };
 #ifdef __APPLE__
         // TODO: Issue 55717

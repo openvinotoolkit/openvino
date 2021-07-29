@@ -26,6 +26,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestConfigTest,
                             ::testing::Combine(
+                                    ::testing::Values(0u),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(configs)),
                             InferRequestConfigTest::getTestCaseName);

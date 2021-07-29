@@ -81,9 +81,7 @@ public:
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice;
         if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
-            }
+            result << "config=" << configuration;
         }
         return result.str();
     }
