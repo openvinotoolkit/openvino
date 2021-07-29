@@ -56,6 +56,26 @@ TEST(CNNNGraphImplTests, TestReshapeWithSameShape) {
     ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 4000})}}));
 }
 
+TEST(CNNNGraphImplTests, TestTwoResultsFromOneTensor) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result1 = std::make_shared<ngraph::op::Result>(relu);
+        auto result2 = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result1, result2};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    ASSERT_NO_THROW(auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet));
+}
+
 TEST(CNNNGraphImplTests, TestInvalidReshape) {
     std::shared_ptr<ngraph::Function> f;
     {
