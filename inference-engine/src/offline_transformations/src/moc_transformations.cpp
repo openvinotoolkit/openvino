@@ -28,6 +28,9 @@
 #include <transformations/common_optimizations/split_squeeze_concat_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/broadcast_elementwise_fusion.hpp>
+#include <transformations/op_conversions/batch_norm_decomposition.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -76,6 +79,18 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
     manager.register_pass<ngraph::pass::ConvToBinaryConv>();
+
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.run_passes(f);
 
