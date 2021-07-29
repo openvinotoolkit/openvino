@@ -78,6 +78,13 @@ void MKLDNNConcatNode::getSupportedDescriptors() {
             IE_THROW() << "Incorrect input dimensions for concat node " << getName();
         }
     }
+
+    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this concat
+    const auto childDims = outputShapes[0].getStaticDims();
+    const size_t prevDimIdx = std::max(static_cast<int>(axis), 0);
+    if (std::accumulate(childDims.begin(), childDims.begin() + prevDimIdx, size_t(1), std::multiplies<size_t>()) == 1) {
+        canOptimize = true;
+    }
 }
 
 void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
@@ -158,7 +165,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             return;
         }
     }
-    if (axis != channelAxis)
+    if (!canOptimize)
         return;
 
     // Optimized inplace case
@@ -200,8 +207,6 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
     std::vector<size_t> canSelectPrimitive;
 
-    bool canOptimize = true;
-
     // The double connection marks that some tensor should
     // be replicated. Inplace approach is not applicable
     // for that case.
@@ -211,13 +216,8 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    if (axis != channelAxis) {
-        canOptimize = false;
-    }
-
     std::map<LayoutType, size_t> formatFrequency;
     std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
-
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
