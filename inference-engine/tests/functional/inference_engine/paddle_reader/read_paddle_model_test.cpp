@@ -15,7 +15,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
-    auto model = std::string(PDPD_TEST_MODELS) + "relu.pdmodel";
+    auto model = std::string(PADDLE_TEST_MODELS) + "relu.pdmodel";
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(model);
     auto function = cnnNetwork.getFunction();
@@ -48,7 +48,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
-    std::string win_dir_path{ PDPD_TEST_MODELS };
+    std::string win_dir_path{ PADDLE_TEST_MODELS };
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
     auto model = unicode_win_dir_path + L"ひらがな日本語.pdmodel";
