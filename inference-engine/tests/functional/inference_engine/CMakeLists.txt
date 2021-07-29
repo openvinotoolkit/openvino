@@ -31,7 +31,11 @@ set(DEPENDENCIES
 )
 
 if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+endif()
+
+if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader")
 endif()
 
 addIeTargetTest(
@@ -53,6 +57,12 @@ if(NGRAPH_ONNX_IMPORT_ENABLE)
         NGRAPH_ONNX_IMPORT_ENABLE
         ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
+endif()
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        PDPD_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader/models/")
+    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -209,7 +219,7 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS -Werror-all -Werror -Wall)
+                                                 FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()

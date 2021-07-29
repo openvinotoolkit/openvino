@@ -45,7 +45,7 @@
 #include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/low_precision.hpp>
 
 /*****************************************************
  * Debug capability
@@ -94,7 +94,7 @@ void MKLDNNGraph::Replicate(const std::shared_ptr<const ngraph::Function> &subgr
     this->reuse_io_tensors = false;
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(subgraph);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ngraph::Node>, std::pair<MKLDNNNodePtr, int>> op2node;
@@ -192,7 +192,7 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
     }
 
     isQuantizedFlag = (config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(func);
+                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -347,6 +347,8 @@ void MKLDNNGraph::InitGraph() {
         graphNode->cleanup();
     }
 #endif
+    ExtractConstantNodes();
+
     ExecuteConstantNodesOnly();
 }
 
@@ -390,6 +392,16 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNGraph::ExtractConstantNodes() {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExtractConstantNodes");
+    for (auto& graphNode : graphNodes) {
+        if (graphNode->isConstant())
+            constantGraphNodes.emplace_back(graphNode);
+        else
+            mutableGraphNodes.emplace_back(graphNode);
+    }
+}
+
 void MKLDNNGraph::ExecuteConstantNodesOnly() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
     mkldnn::stream stream(eng);
@@ -418,10 +430,7 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (auto &graphNode : graphNodes) {
-        if (!graphNode->isConstant())
-            continue;
-
+    for (auto &graphNode : constantGraphNodes) {
         if (weightsCache) {
             auto sharedOutputs = acquireSharedOutputs(graphNode);
 
@@ -810,24 +819,30 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
     ENABLE_CPU_DEBUG_CAP(NodeDumper nd(config.debugCaps, infer_count));
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        if (request != nullptr) {
+#ifdef CPU_DEBUG_CAPS
+    for (const auto& node : constantGraphNodes) {
+        if (request != nullptr)
             request->ThrowIfCanceled();
-        }
 
-        PERF(graphNodes[i]);
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
+    }
+#endif
+
+    for (const auto& node : mutableGraphNodes) {
+        PERF(config.collectPerfCounters, node);
+        if (request != nullptr)
+            request->ThrowIfCanceled();
 
         if (batch > 0)
-            graphNodes[i]->setDynamicBatchLim(batch);
+            node->setDynamicBatchLim(batch);
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
-        if (!graphNodes[i]->isConstant()) {
-            OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
-            graphNodes[i]->execute(stream);
-        }
+        OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
+        node->execute(stream);
 
-        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(graphNodes[i]));
+        ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
     }
 
     if (infer_count != -1) infer_count++;
@@ -965,16 +980,20 @@ Config MKLDNNGraph::getProperty() const {
     return config;
 }
 
-void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : inputNodesMap) {
-        resp[it.first] = it.second->getChildEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
+    auto itr = inputNodesMap.find(name);
+    if (itr != inputNodesMap.end()) {
+        return itr->second->getChildEdgeAt(0)->getBlob();
     }
+    return nullptr;
 }
 
-void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {
-    for (auto &it : outputNodesMap) {
-        resp[it.first] = it.second->getParentEdgeAt(0)->getBlob();
+Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
+    auto itr = outputNodesMap.find(name);
+    if (itr != outputNodesMap.end()) {
+        return itr->second->getParentEdgeAt(0)->getBlob();
     }
+    return nullptr;
 }
 
 void MKLDNNGraph::RemoveEdge(MKLDNNEdgePtr& edge) {

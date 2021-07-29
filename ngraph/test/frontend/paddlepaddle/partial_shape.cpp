@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/partial_shape.hpp"
+#include "partial_shape.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -64,7 +64,7 @@ static PartShape getTestShape_conv2d_relu()
 INSTANTIATE_TEST_SUITE_P(PDPDPartialShapeTest,
                          FrontEndPartialShapeTest,
                          ::testing::Combine(::testing::Values(BaseFEParam{
-                                                PDPD, std::string(TEST_PDPD_MODELS)}),
+                                                PDPD, std::string(TEST_PDPD_MODELS_DIRNAME)}),
                                             ::testing::ValuesIn(std::vector<PartShape>{
                                                 getTestShape_2in_2out(),
                                                 getTestShape_conv2d_relu(),

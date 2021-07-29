@@ -77,6 +77,13 @@ namespace ngraph
                 return node;
             }
 
+            template <typename T>
+            std::shared_ptr<T> register_new_node(const std::shared_ptr<T>& node)
+            {
+                m_new_nodes.push_back(node);
+                return node;
+            }
+
             const std::vector<std::shared_ptr<ngraph::Node>>& get_new_nodes()
             {
                 return m_new_nodes;
