@@ -572,9 +572,9 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(PDPD_TEST_MODELS_DIRNAME pdpd_test_models)
-        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PDPD_TEST_MODELS_DIRNAME}/)
-        add_definitions("-DTEST_PDPD_MODELS_DIRNAME=\"${PDPD_TEST_MODELS_DIRNAME}/\"")
+        set(PADDLE_TEST_MODELS_DIRNAME paddle_test_models)
+        set(TEST_PADDLE_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PADDLE_TEST_MODELS_DIRNAME}/)
+        add_definitions("-DTEST_PADDLE_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\"")
     endif()
 endif()
 # ---- End PaddlePaddle FrontEnd testing ------
@@ -660,23 +660,23 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
                 COMMAND ${PYTHON_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
-                        ${TEST_PDPD_MODELS}
+                        ${TEST_PADDLE_MODELS}
                         ${OUT_DONE_FILE}
                 DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                 )
     endforeach()
-    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(unit-test pdpd_test_models)
+    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test paddlepaddle_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 
-    install(DIRECTORY ${TEST_PDPD_MODELS}
-            DESTINATION tests/${PDPD_TEST_MODELS_DIRNAME}
+    install(DIRECTORY ${TEST_PADDLE_MODELS}
+            DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 endif()
