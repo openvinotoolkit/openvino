@@ -3,7 +3,8 @@
 
 import copy
 
-from extensions.front.tf.while_ext import update_body_graph
+from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, get_graph_proto, \
+    create_internal_graph
 from extensions.ops.If import If
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
@@ -17,63 +18,22 @@ from mo.ops.op import PermuteAttrs
 def extract_method(cls, if_node: Node):
     If.update_node_stat(if_node, {})
 
-    if_name = if_node.soft_get('name', if_node.id)
-
     # check that required body and condition functions exist in the graph library
     main_graph = if_node.graph
-    then_graph_name = if_node.pb.attr['then_branch'].func.name
-    else_graph_name = if_node.pb.attr['else_branch'].func.name
-    assert 'library' in main_graph.graph, 'The graph does not contain a library that is required ' \
-                                          'by node with name "{}".'.format(if_name)
-    library_graph = main_graph.graph['library']
+    then_graph_proto = get_graph_proto(main_graph, 'then_branch', if_node)
+    else_graph_proto = get_graph_proto(main_graph, 'else_branch', if_node)
 
-    assert then_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
-                                             'that is required by node ' \
-                                             'with name "{}".'.format(then_graph_name, if_name)
-    then_graph_proto = library_graph[then_graph_name]
+    create_internal_graph(main_graph, if_node, 'then_graph')
+    then_graph = if_node['then_graph']
 
-    assert else_graph_name in library_graph, 'The library does not contain a function with name "{}" ' \
-                                             'that is required by node ' \
-                                             'with name "{}".'.format(else_graph_name, if_name)
-    else_graph_proto = library_graph[else_graph_name]
-
-    # create "then" graph
-    then_graph = Graph()
-    # fill the body graph
-    for attr_key in main_graph.graph.keys():
-        if attr_key != 'library':
-            then_graph.graph[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
-        else:
-            # it is sufficient to have a link to the library
-            then_graph.graph['library'] = main_graph.graph['library']
-    if_node['then_graph'] = then_graph
-
-    # create "else" graph
-    else_graph = Graph()
-    # fill the body graph
-    for attr_key in main_graph.graph.keys():
-        if attr_key != 'library':
-            else_graph.graph[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
-        else:
-            # it is sufficient to have a link to the library
-            else_graph.graph['library'] = main_graph.graph['library']
-    if_node['else_graph'] = else_graph
+    create_internal_graph(main_graph, if_node, 'else_graph')
+    else_graph = if_node['else_graph']
 
     # create Parameter nodes for the then/else graphs
     for input_index, (body_graph, body_graph_proto) in enumerate(zip((then_graph, else_graph), (then_graph_proto,
                                                                                                 else_graph_proto))):
-        body_parameters = []
-        body_parameter_names = []
-        for idx, pb_node in enumerate(body_graph_proto['input_arg']):
-            param_id = body_graph.unique_id(pb_node.name)
-            body_graph.add_node(param_id, name=param_id, kind='op', op='Parameter', pb=None, shape=None)
-            parameter_node = Node(body_graph, pb_node.name)
-            Parameter.update_node_stat(parameter_node,
-                                       {'data_type': tf_dtype_extractor(pb_node.type),
-                                        'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])}
-                                       )
-            body_parameters.append(parameter_node)
-            body_parameter_names.append(param_id)
+
+        body_parameters, body_parameter_names = convert_graph_inputs_to_parameters(body_graph, body_graph_proto)
 
         # update the If body graph with the body function graph
         body_results = []
@@ -91,6 +51,7 @@ def extract_method(cls, if_node: Node):
 
         # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+
     return cls.enabled
 
 
