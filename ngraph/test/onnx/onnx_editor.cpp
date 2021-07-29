@@ -1578,9 +1578,3 @@ NGRAPH_TEST(onnx_editor, is_correct_tensor_name)
     EXPECT_FALSE(editor.is_correct_tensor_name("not_existed"));
     EXPECT_FALSE(editor.is_correct_tensor_name(""));
 }
-
-NGRAPH_TEST(onnx_editor, yyy)
-{
-    ONNXModelEditor editor{"/home/mbencer/workspace/openvino/model-optimizer/bert_large_v1_1_fake_quant.onnx"};
-    std::cout << editor.model_inputs().size();
-}
