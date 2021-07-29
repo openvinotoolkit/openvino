@@ -183,7 +183,7 @@ Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) 
     return nullptr;
 }
 
-Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name)
+Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const
 {
     return nullptr;
 }
