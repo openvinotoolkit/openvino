@@ -37,8 +37,11 @@ endif()
 if (DEFINED SANITIZER_COMPILER_FLAGS)
     # ensure symbols are present
     set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
-    # GPU plugin tests compilation is slow with -fvar-tracking-assignments.
-    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
+    if(NOT OV_COMPILER_IS_CLANG)
+        # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
+        # Clang has no var-tracking-assignments.
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
+    endif()
     # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
 
