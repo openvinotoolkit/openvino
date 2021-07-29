@@ -36,6 +36,7 @@ namespace InferenceEngine {
 
 Blob::~Blob() {}
 MemoryBlob::~MemoryBlob() {}
+NewExtension::~NewExtension() {}
 
 //
 // ie_iextension.h
@@ -59,7 +60,6 @@ void setSharedObject(const std::shared_ptr<NewExtension>& extension, const detai
 
 
 NGRAPH_RTTI_DEFINITION(IRExtension, "IRExtension", 0);
-NGRAPH_RTTI_DEFINITION(SOExtension, "SOExtension", 0);
 namespace details {
 
 void Rethrow() {

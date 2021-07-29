@@ -895,16 +895,9 @@ public:
     }
 
     void AddExtension(const std::string& library_path) {
-        details::SharedObjectLoader so(library_path.c_str());
-        try {
-            using CreateF = void(std::vector<InferenceEngine::NewExtension::Ptr>&);
-            std::vector<InferenceEngine::NewExtension::Ptr> ext;
-            reinterpret_cast<CreateF*>(so.get_symbol("CreateExtensions"))(ext);
-            for (const auto& ex : ext) {
-                new_extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
-            }
-        } catch (...) {
-            details::Rethrow();
+        const auto extensions = load_extensions(library_path);
+        for (const auto& ext : extensions) {
+            new_extensions.emplace_back(ext);
         }
     }
 
