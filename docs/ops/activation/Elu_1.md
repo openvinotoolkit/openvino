@@ -29,12 +29,11 @@ where α corresponds to *alpha* attribute.
   * **Description**: scale for the negative factor
   * **Range of values**: non-negative arbitrary floating-point number
   * **Type**: `float`
-  * **Default value**: none
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: A tensor of type *T* and arbitrary shape. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 

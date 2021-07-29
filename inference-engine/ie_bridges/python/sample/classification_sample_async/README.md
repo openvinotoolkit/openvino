@@ -28,15 +28,15 @@ each sample step at [Integration Steps](../../../../../docs/IE_DG/Integrate_with
 
 ## Running
 
-Run the application with the <code>-h</code> option to see the usage message:
+Run the application with the `-h` option to see the usage message:
 
-```sh
-python classification_sample_async.py -h
+```
+python <path_to_sample>/classification_sample_async.py -h
 ```
 
 Usage message:
 
-```sh
+```
 usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
                                       [-l EXTENSION] [-c CONFIG] [-d DEVICE]
                                       [--labels LABELS] [-nt NUMBER_TOP]
@@ -79,55 +79,67 @@ To run the sample, you need specify a model and image:
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a pre-trained model on a GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name alexnet
+```
 
-```sh
-python classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to_image>/cat.bmp <path_to_image>/car.bmp -d GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name alexnet
+```
+
+3. Perform inference of `car.bmp` and `cat.jpg` using `alexnet` model on a `GPU`, for example:
+
+```
+python <path_to_sample>/classification_sample_async.py -m <path_to_model>/alexnet.xml -i <path_to_image>/car.bmp <path_to_image>/cat.jpg -d GPU
 ```
 
 ## Sample Output
 
 The sample application logs each step in a standard output stream and outputs top-10 inference results.
 
-```sh
+```
 [ INFO ] Creating Inference Engine
-[ INFO ] Reading the network: models\alexnet.xml
+[ INFO ] Reading the network: c:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\alexnet\FP32\alexnet.xml
 [ INFO ] Configuring input and output blobs
 [ INFO ] Loading the model to the plugin
-[ WARNING ] Image images\cat.bmp is resized from (300, 300) to (227, 227)
-[ WARNING ] Image images\car.bmp is resized from (259, 787) to (227, 227)
+[ WARNING ] Image c:\images\car.bmp is resized from (637, 749) to (227, 227)
+[ WARNING ] Image c:\images\cat.jpg is resized from (300, 300) to (227, 227)
 [ INFO ] Starting inference in asynchronous mode
 [ INFO ] Infer request 0 returned 0
-[ INFO ] Image path: images\cat.bmp
+[ INFO ] Image path: c:\images\car.bmp
 [ INFO ] Top 10 results:
 [ INFO ] classid probability
 [ INFO ] -------------------
-[ INFO ] 435     0.0996898
-[ INFO ] 876     0.0900239
-[ INFO ] 999     0.0691452
-[ INFO ] 587     0.0390186
-[ INFO ] 666     0.0360390
-[ INFO ] 419     0.0308306
-[ INFO ] 285     0.0306287
-[ INFO ] 700     0.0293007
-[ INFO ] 696     0.0202707
-[ INFO ] 631     0.0199126
+[ INFO ] 656     0.6645315
+[ INFO ] 654     0.1121185
+[ INFO ] 581     0.0698451
+[ INFO ] 874     0.0334973
+[ INFO ] 436     0.0259718
+[ INFO ] 817     0.0173190
+[ INFO ] 675     0.0109321
+[ INFO ] 511     0.0109075
+[ INFO ] 569     0.0083093
+[ INFO ] 717     0.0063173
 [ INFO ]
 [ INFO ] Infer request 1 returned 0
-[ INFO ] Image path: images\car.bmp
+[ INFO ] Image path: c:\images\cat.jpg
 [ INFO ] Top 10 results:
 [ INFO ] classid probability
 [ INFO ] -------------------
-[ INFO ] 479     0.7561803
-[ INFO ] 511     0.0755696
-[ INFO ] 436     0.0730265
-[ INFO ] 817     0.0460268
-[ INFO ] 656     0.0303792
-[ INFO ] 661     0.0055282
-[ INFO ] 581     0.0031296
-[ INFO ] 468     0.0029875
-[ INFO ] 717     0.0022792
-[ INFO ] 627     0.0016297
+[ INFO ] 876     0.1320105
+[ INFO ] 435     0.1210389
+[ INFO ] 285     0.0712640
+[ INFO ] 282     0.0570528
+[ INFO ] 281     0.0319335
+[ INFO ] 999     0.0285931
+[ INFO ] 94      0.0270323
+[ INFO ] 36      0.0240510
+[ INFO ] 335     0.0198461
+[ INFO ] 186     0.0183939
 [ INFO ]
 [ INFO ] This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool
 ```

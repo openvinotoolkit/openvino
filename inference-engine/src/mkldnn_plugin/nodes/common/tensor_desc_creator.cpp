@@ -13,17 +13,17 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public TensorDescCreator {
 public:
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
+    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
         return TensorDesc(precision, srcDims, {srcDims, order});
     }
-    virtual size_t getMinimalRank() const { return 0lu; }
+    size_t getMinimalRank() const override { return 0lu; }
 };
 
 class PerChannelCreator : public TensorDescCreator {
 public:
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const {
+    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision &precision, const InferenceEngine::SizeVector &srcDims) const override {
         SizeVector order(srcDims.size());
         std::iota(order.begin(), order.end(), 0);
         SizeVector blkDims = srcDims;
@@ -39,13 +39,13 @@ public:
 
         return TensorDesc(precision, srcDims, {blkDims, order});
     }
-    virtual size_t getMinimalRank() const { return 3lu; }
+    size_t getMinimalRank() const override { return 3lu; }
 };
 
 class ChannelBlockedCreator : public TensorDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    virtual InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const {
+    InferenceEngine::TensorDesc createDesc(const InferenceEngine::Precision& precision, const InferenceEngine::SizeVector& srcDims) const override {
         if (srcDims.size() < 2) {
             IE_THROW() << "Can't create blocked tensor descriptor!";
         }
@@ -60,7 +60,7 @@ public:
 
         return TensorDesc(precision, srcDims, {blkDims, order});
     }
-    virtual size_t getMinimalRank() const { return 3lu; }
+    size_t getMinimalRank() const override { return 3lu; }
 
 private:
     size_t _blockSize;

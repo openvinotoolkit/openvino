@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../shared/include/basic_api.hpp"
+#include "basic_api.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -20,9 +20,10 @@ static const std::vector<std::string> models{
     std::string("2in_2out_dynbatch/2in_2out_dynbatch.pdmodel"),
 };
 
-INSTANTIATE_TEST_SUITE_P(PDPDBasicTest,
-                        FrontEndBasicTest,
-                        ::testing::Combine(::testing::Values(PDPD),
-                                           ::testing::Values(std::string(TEST_PDPD_MODELS)),
-                                           ::testing::ValuesIn(models)),
-                        FrontEndBasicTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    PDPDBasicTest,
+    FrontEndBasicTest,
+    ::testing::Combine(::testing::Values(PDPD),
+                       ::testing::Values(std::string(TEST_PDPD_MODELS_DIRNAME)),
+                       ::testing::ValuesIn(models)),
+    FrontEndBasicTest::getTestCaseName);

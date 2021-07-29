@@ -55,27 +55,6 @@ void PReluTransformation::SetUp() {
     function = ngraph::builder::subgraph::PReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void PReluTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    PReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
-
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    if ((!testValues.fakeQuantize.empty()) && (!testValues.isSubtract)) {
-        ASSERT_EQ("ScaleShiftIE", typeName);
-    } else {
-        ASSERT_EQ("ReLUIE", typeName);
-    }
 }
 
 TEST_P(PReluTransformation, CompareWithRefImpl) {

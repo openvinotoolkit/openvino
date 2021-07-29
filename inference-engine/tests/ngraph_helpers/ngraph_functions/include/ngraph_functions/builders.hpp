@@ -291,6 +291,11 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool normalizeVariance,
                                       double eps);
 
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
+                                      bool normalizeVariance,
+                                      double eps);
+
 std::shared_ptr<ngraph::Node> makeMVN6(const Output<Node>& in,
                                        const Output<Node>& axesNode,
                                        bool normalizeVariance,

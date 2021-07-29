@@ -7,6 +7,9 @@
 #include "myriad_test_case.h"
 #include <memory>
 
+#include "vpu/vpu_plugin_config.hpp"
+#include "vpu/myriad_config.hpp"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
