@@ -268,7 +268,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
     // of the output shape. Hence, all components of the output shape should be dynamic.
-    if (input_values().size() == 4 && !is_type<op::Constant>(input_value(3).get_node()))
+    if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3)))
     {
         PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);
@@ -439,6 +439,7 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin)
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform input_transform(input_shape);
     CoordinateTransform padded_transform(padded_input_shape);
 
@@ -455,6 +456,7 @@ static void pad_input_data(const uint8_t* data_ptr,
         const uint8_t* src_ptr = data_ptr + type_size * input_transform.index(input_coord);
         memcpy(dst_ptr, src_ptr, type_size);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
@@ -538,6 +540,19 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v4_Interpolate_evaluate);
     return evaluate_interpolate(outputs, inputs);
+}
+
+bool op::v4::Interpolate::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::u8:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }
 
 namespace ngraph

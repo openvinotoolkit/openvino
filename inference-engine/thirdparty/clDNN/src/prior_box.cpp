@@ -4,7 +4,7 @@
 
 #include "prior_box_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 
 #include <cmath>
@@ -21,7 +21,7 @@ primitive_type_id prior_box::type_id() {
 
 namespace {
 template <typename dtype>
-void calculate_prior_box_output(memory_impl& output_mem, layout const& input_layout, prior_box& argument) {
+void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout const& input_layout, prior_box& argument) {
     // Calculate output.
     // All the inputs for this layer are known at this point,
     // so the output buffer is written here and not in execute().
@@ -39,10 +39,10 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
     const float offset = argument.offset;
     int num_priors = argument.is_clustered() ?
         static_cast<int>(argument.widths.size()) :
-        output_mem.get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+        output_mem->get_layout().size.spatial[1] / 4 / layer_width / layer_height;
     int var_size = static_cast<int>(argument.variance.size());
 
-    mem_lock<dtype> lock{output_mem};
+    mem_lock<dtype> lock{output_mem, stream};
     auto out_ptr = lock.begin();
     int dim = layer_height * layer_width * num_priors * 4;
 
@@ -204,7 +204,7 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
     }
 
     // set the variance.
-    int count = output_mem.get_layout().size.spatial[0] * output_mem.get_layout().size.spatial[1];
+    int count = output_mem->get_layout().size.spatial[0] * output_mem->get_layout().size.spatial[1];
     int var_loop_count = argument.is_clustered() ? var_size : 4;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
@@ -224,7 +224,7 @@ prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program_impl
 }
 
 void prior_box_node::calc_result() {
-    if (result != (memory_impl::ptr) nullptr)
+    if (result != nullptr)
         return;
 
     auto& argument = *typed_desc();
@@ -340,15 +340,17 @@ void prior_box_node::calc_result() {
     CLDNN_ERROR_BOOL(id(), "Prior box padding", is_padded(), "Prior-box layer doesn't support output padding.");
 
     // allocate storage
-    result = get_program().get_engine().allocate_memory(get_output_layout(), 0, false);
+    result = get_program().get_engine().allocate_memory(get_output_layout());
 
     // perform calculations
     if (get_output_layout().data_type == data_types::f16)
-        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(*result,
+        calculate_prior_box_output<data_type_to_type<data_types::f16>::type>(result,
+                                                                             get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
     else
-        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(*result,
+        calculate_prior_box_output<data_type_to_type<data_types::f32>::type>(result,
+                                                                             get_program().get_stream(),
                                                                              input().get_output_layout(),
                                                                              *typed_desc());
 }

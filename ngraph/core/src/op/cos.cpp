@@ -5,17 +5,16 @@
 #include "itt.hpp"
 
 #include "ngraph/op/cos.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/negative.hpp"
-#include "ngraph/op/sin.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 
+#include "ngraph/validation_util.hpp"
+
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Cos::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Cos, "Cos", 0, util::UnaryElementwiseArithmetic);
 
 op::Cos::Cos(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -69,5 +68,23 @@ namespace cosop
 bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Cos_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return cosop::evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+}
+
+bool op::Cos::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Cos_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

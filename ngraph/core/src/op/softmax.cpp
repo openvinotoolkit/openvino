@@ -51,7 +51,7 @@ namespace
 } // namespace
 
 // *** SOFTMAX OP SET V1 ***
-constexpr NodeTypeInfo op::v1::Softmax::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Softmax, "Softmax", 1);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
     : Op({arg})
@@ -97,4 +97,18 @@ bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+}
+
+bool op::v1::Softmax::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Softmax_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64: return true;
+    default: break;
+    }
+    return false;
 }

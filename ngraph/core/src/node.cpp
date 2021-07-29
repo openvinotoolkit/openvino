@@ -210,7 +210,7 @@ descriptor::Output& Node::get_output_descriptor(size_t position)
             make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
         m_outputs.emplace_back(this, i, tensor_descriptor);
     }
-    return m_outputs.at(position);
+    return m_outputs[position];
 }
 
 void Node::set_argument(size_t position, const Output<Node>& argument)
@@ -943,10 +943,22 @@ vector<Output<const Node>> Node::outputs() const
     return result;
 }
 
+bool Node::has_evaluate() const
+{
+    return false;
+}
+
 bool Node::evaluate(const HostTensorVector& output_values,
                     const HostTensorVector& input_values) const
 {
     return false;
+}
+
+bool Node::evaluate(const HostTensorVector& output_values,
+                    const HostTensorVector& input_values,
+                    const EvaluationContext& evaluationContext) const
+{
+    return evaluate(output_values, input_values);
 }
 
 bool Node::evaluate_lower(const HostTensorVector& output_values) const

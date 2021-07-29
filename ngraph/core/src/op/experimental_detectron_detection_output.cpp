@@ -64,7 +64,7 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
             this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
 
         NODE_VALIDATION_CHECK(this,
-                              rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
+                              rois_shape[1].is_dynamic() || rois_shape[1].get_length() == 4u,
                               "The last dimension of the 'input_rois' input must be equal to 4. "
                               "Got: ",
                               rois_shape[1]);
@@ -75,14 +75,12 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
         NODE_VALIDATION_CHECK(
             this, deltas_shape.rank().get_length() == 2, "Input deltas rank must be equal to 2.");
 
-        if (deltas_shape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(this,
+                              deltas_shape[1].is_dynamic() ||
                                   deltas_shape[1].get_length() == m_attrs.num_classes * 4,
-                                  "The last dimension of the 'input_deltas' input must be equal to "
-                                  "the value of the attribute 'num_classes' * 4. Got: ",
-                                  deltas_shape[1]);
-        }
+                              "The last dimension of the 'input_deltas' input must be equal to "
+                              "the value of the attribute 'num_classes' * 4. Got: ",
+                              deltas_shape[1]);
     }
 
     if (scores_shape.rank().is_static())
@@ -90,14 +88,12 @@ void op::v6::ExperimentalDetectronDetectionOutput::validate_and_infer_types()
         NODE_VALIDATION_CHECK(
             this, scores_shape.rank().get_length() == 2, "Input scores rank must be equal to 2.");
 
-        if (scores_shape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(this,
+                              scores_shape[1].is_dynamic() ||
                                   scores_shape[1].get_length() == m_attrs.num_classes,
-                                  "The last dimension of the 'input_scores' input must be equal to "
-                                  "the value of the attribute 'num_classes'. Got: ",
-                                  scores_shape[1]);
-        }
+                              "The last dimension of the 'input_scores' input must be equal to "
+                              "the value of the attribute 'num_classes'. Got: ",
+                              scores_shape[1]);
     }
 
     if (im_info_shape.rank().is_static())

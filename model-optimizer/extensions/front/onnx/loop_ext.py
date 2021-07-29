@@ -47,6 +47,8 @@ class LoopExtractor(FrontExtractorOp):
             # create an NX node
             id = body_graph.unique_id(node_id(pb_node))
             body_graph.add_node(id, pb=pb_node, kind='op')
+            if hasattr(body_graph, 'op_names_statistic') and hasattr(pb_node, 'op_type'):
+                body_graph.op_names_statistic[pb_node.op_type] += 1
 
             # add incoming edges based on data_nodes_map
             for dst_port, inp in enumerate(pb_node.input):

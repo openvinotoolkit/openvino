@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::TensorIterator, "TensorIterator", 0, op::util::SubGraphOp);
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
     : op::util::SubGraphOp(values)
@@ -21,9 +21,9 @@ op::v0::TensorIterator::TensorIterator(const OutputVector& values)
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
-    visitor.on_attribute("body", m_body);
-    visitor.on_attribute("input_descriptions", m_input_descriptions);
-    visitor.on_attribute("output_descriptions", m_output_descriptions);
+    visitor.on_attribute("body", m_bodies[0]);
+    visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
+    visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
 
     return true;
 }
@@ -33,7 +33,7 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
     std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
     std::unordered_set<std::shared_ptr<Node>> nodes_done;
 
-    for (const auto& r : m_body->get_results())
+    for (const auto& r : m_bodies[0]->get_results())
     {
         nodes_to_do.push(r);
     }
@@ -75,8 +75,19 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 void op::v0::TensorIterator::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
+
+    NODE_VALIDATION_CHECK(
+        this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions.size(),
+                          m_input_descriptions.size() == 1,
+                          "Loop contains input descriptions for other bodies");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_descriptions.size() == 1,
+                          "Loop contains output descriptions for other bodies");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_size() == m_input_descriptions[0].size(),
                           "Number of inputs must be the same as number of input descriptions");
 
     std::vector<std::shared_ptr<Node>> ends;
@@ -89,15 +100,16 @@ void op::v0::TensorIterator::validate_and_infer_types()
         return value;
     };
 
+    auto body = get_function();
     // Input
-    for (const auto& input_description : m_input_descriptions)
+    for (const auto& input_description : m_input_descriptions[0])
     {
         auto index = input_description->m_input_index;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
             auto body_parameter =
-                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+                body->get_parameters().at(slice_input_description->m_body_parameter_index);
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.is_static())
             {
@@ -125,13 +137,14 @@ void op::v0::TensorIterator::validate_and_infer_types()
         else if (auto merged_input_description =
                      as_type_ptr<MergedInputDescription>(input_description))
         {
-            auto body_value =
-                m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
+            auto body_value = m_bodies[0]
+                                  ->get_results()
+                                  .at(merged_input_description->m_body_value_index)
+                                  ->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
-            auto body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
-                m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
+                m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
@@ -140,8 +153,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
         else if (auto invariant_input_description =
                      as_type_ptr<InvariantInputDescription>(input_description))
         {
-            auto body_parameter =
-                m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            auto body_parameter = m_bodies[0]->get_parameters().at(
+                invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
@@ -155,12 +168,12 @@ void op::v0::TensorIterator::validate_and_infer_types()
     // Output
     try_to_set_num_iterations_if_no_slice_inputs();
 
-    for (const auto& output_description : m_output_descriptions)
+    for (const auto& output_description : m_output_descriptions[0])
     {
         auto index = output_description->m_output_index;
 
         auto body_value =
-            m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
+            m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description =
                 as_type_ptr<ConcatOutputDescription>(output_description))
@@ -208,13 +221,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
     }
 
     NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
+                          get_output_size() == m_output_descriptions[0].size(),
                           "Number of outputs must be the same as number of output descriptions");
-}
-
-std::shared_ptr<Function> op::v0::TensorIterator::get_function()
-{
-    return get_body();
 }
 
 namespace
@@ -236,7 +244,7 @@ void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs()
         return;
     }
 
-    for (const auto& output_description : m_output_descriptions)
+    for (const auto& output_description : m_output_descriptions[0])
     {
         if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
         {
@@ -257,14 +265,14 @@ std::shared_ptr<Node>
                  description(),
                  " operation with name ",
                  get_friendly_name());
-    op->set_output_size(m_output_descriptions.size());
+    op->set_output_size(m_output_descriptions[0].size());
 
-    std::vector<::ngraph::element::Type> types(m_body->get_parameters().size());
-    std::vector<::ngraph::PartialShape> new_shapes(m_body->get_parameters().size());
+    std::vector<::ngraph::element::Type> types(m_bodies[0]->get_parameters().size());
+    std::vector<::ngraph::PartialShape> new_shapes(m_bodies[0]->get_parameters().size());
 
     for (size_t input_index = 0; input_index < new_args.size(); ++input_index)
     {
-        for (auto& input_description : m_input_descriptions)
+        for (auto& input_description : m_input_descriptions[0])
         {
             if (input_description->m_input_index == input_index)
             {
@@ -289,19 +297,19 @@ std::shared_ptr<Node>
 
     op->m_num_iterations = m_num_iterations;
     auto func = std::make_shared<Function>(
-        m_body->get_results(), m_body->get_sinks(), m_body->get_parameters());
+        m_bodies[0]->get_results(), m_bodies[0]->get_sinks(), m_bodies[0]->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body = std::make_shared<Function>(
+    op->m_bodies[0] = std::make_shared<Function>(
         spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
 
-    for (auto& input_description : m_input_descriptions)
+    for (auto& input_description : m_input_descriptions[0])
     {
-        op->m_input_descriptions.push_back(input_description->copy());
+        op->m_input_descriptions[0].push_back(input_description->copy());
     }
-    for (auto& output_description : m_output_descriptions)
+    for (auto& output_description : m_output_descriptions[0])
     {
-        op->m_output_descriptions.push_back(output_description->copy());
+        op->m_output_descriptions[0].push_back(output_description->copy());
     }
     op->validate_and_infer_types();
     return op;

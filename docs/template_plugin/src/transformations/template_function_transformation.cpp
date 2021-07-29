@@ -4,6 +4,8 @@
 
 #include "template_function_transformation.hpp"
 
+#include <openvino/cc/ngraph/itt.hpp>
+
 using namespace ngraph;
 
 // ! [function_pass:template_transformation_cpp]
@@ -11,11 +13,12 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MyFunctionTransformation, "MyFunctionTransformation", 0);
 
 bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(MyFunctionTransformation);
     // Example transformation code
     NodeVector nodes;
 
     // Traverse nGraph Function in topological order
-    for (auto & node : f->get_ordered_ops()) {
+    for (auto& node : f->get_ordered_ops()) {
         // Check that number of input and output ports are equal to 1
         if (node->inputs().size() == 1 && node->outputs().size() == 1) {
             // Check that input and output shape a fully defined (not dynamic) and number of consumers equal to 1
@@ -28,9 +31,8 @@ bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Fun
     }
 
     // Print types and names for collected nodes
-    for (auto & node : nodes) {
-        std::cout << "Type: " << node->get_type_info().name << std::endl
-                  << "Name: " << node->get_friendly_name() << std::endl;
+    for (auto& node : nodes) {
+        std::cout << "Type: " << node->get_type_info().name << std::endl << "Name: " << node->get_friendly_name() << std::endl;
     }
 
     // Return false because we didn't change nGraph Function

@@ -59,6 +59,9 @@ public:
     /** Construct blocked Channel PartialBlkDesc based on dims information */
     static PartialBlkDesc makeCBlocked(const InferenceEngine::SizeVector &dims, size_t block_size);
 
+    /** Construct per Channel PartialBlkDesc based on dims information */
+    static PartialBlkDesc makeTailC(const InferenceEngine::SizeVector &dims);
+
     /** Compare operators. Allow to use it as key for std::map */
     bool operator == (const PartialBlkDesc& it) const;
     bool operator < (const PartialBlkDesc& it) const;

@@ -195,6 +195,13 @@ def groupconv_to_conv(op: Node):
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
     # we need to set this attrs for correct shape infer as convolution
     op['group'] = group
+    # The only way GroupConvolution with 'group' = 1 appears in IR is by converting from TF DepthwiseConv2dNative.
+    # In this case we need to specify 'op' parameter for the
+    # extensions.back.ConvolutionNormalizer.ConvolutionWithGroupsResolver to work properly.
+    # Otherwise  there will be 'Convolution' instead 'GroupConvolution' in restored IR, since 'GroupConvolution' is
+    # extended as node with 'type' = 'Convolution' by IR reader
+    if group == 1:
+        op['op'] = 'DepthwiseConv2dNative'
     op.type = 'Convolution'
 
 
@@ -275,7 +282,8 @@ postprocessing_op_nodes = {
     'TensorIterator': ti_add_edge_attrs,
     'TopK': TopKNormalizer.normalize_outputs,
     # Call normalize Split outputs for generated IR by ir-reader
-    'Split': AddFakeOutputsToSplit.split_normalize_outputs
+    'Split': AddFakeOutputsToSplit.split_normalize_outputs,
+    'VariadicSplit': AddFakeOutputsToSplit.split_normalize_outputs,
 }
 
 

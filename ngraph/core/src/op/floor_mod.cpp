@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::FloorMod::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::FloorMod, "FloorMod", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::FloorMod::FloorMod(const Output<Node>& arg0,
                            const Output<Node>& arg1,
@@ -75,8 +75,28 @@ bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
     return floor_mod::evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
+bool op::v1::FloorMod::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_FloorMod_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v1::FloorMod::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_FloorMod_visit_attributes);
+    BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }

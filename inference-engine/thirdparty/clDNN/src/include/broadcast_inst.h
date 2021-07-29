@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <api/broadcast.hpp>
+#include "cldnn/primitives/broadcast.hpp"
 
 #include "primitive_inst.h"
 #include <string>

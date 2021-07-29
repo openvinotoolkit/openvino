@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "data_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
+#include "cldnn/runtime/memory.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -19,28 +19,28 @@ primitive_type_id data::type_id() {
 }
 
 namespace {
-memory_impl::ptr attach_or_copy_data(network_impl& network, memory_impl& mem) {
+memory::ptr attach_or_copy_data(network_impl& network, memory::ptr mem) {
     auto& engine = network.get_engine();
-    if (mem.is_allocated_by(engine))
-        return (memory_impl::ptr) &mem;
+    if (mem->is_allocated_by(engine))
+        return mem;
 
-    memory_impl::ptr result = engine.allocate_memory(mem.get_layout(), network.get_id(), false);
-    mem_lock<char> src(mem);
-    mem_lock<char> dst(result);
+    memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
+    mem_lock<char> src(mem, network.get_stream());
+    mem_lock<char> dst(result, network.get_stream());
     std::copy(src.begin(), src.end(), dst.begin());
     return result;
 }
 }  // namespace
 
 data_node::typed_program_node(const std::shared_ptr<data> dprim, program_impl& prog)
-    : parent(dprim, prog), mem(dprim->mem.get()) {
+    : parent(dprim, prog), mem(dprim->mem) {
     constant = true;
     can_share_buffer(false);
     recalc_output_layout(false);
 }
 
-void data_node::attach_memory(memory_impl& new_mem, bool invalidate_users_if_changed) {
-    mem = (memory_impl::ptr) &new_mem;
+void data_node::attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed) {
+    mem = new_mem;
     recalc_output_layout(invalidate_users_if_changed);
 }
 
@@ -54,6 +54,6 @@ std::string data_inst::to_string(data_node const& node) {
 }
 
 data_inst::typed_primitive_inst(network_impl& network, data_node const& node)
-    : parent(network, node, *attach_or_copy_data(network, node.get_attached_memory())) {}
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr())) {}
 
 }  // namespace cldnn

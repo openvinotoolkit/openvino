@@ -18,6 +18,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition)
+    : SubGraphOp()
 {
     set_argument(0, trip_count);
     set_argument(1, execution_condition);
@@ -26,9 +27,9 @@ op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v5_Loop_visit_attributes);
-    visitor.on_attribute("body", m_body);
-    visitor.on_attribute("input_descriptions", m_input_descriptions);
-    visitor.on_attribute("output_descriptions", m_output_descriptions);
+    visitor.on_attribute("body", m_bodies[0]);
+    visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
+    visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
     visitor.on_attribute("special_body_ports", m_special_body_ports);
 
     return true;
@@ -37,9 +38,21 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 void op::v5::Loop::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v5_Loop_validate_and_infer_types);
+
+    NODE_VALIDATION_CHECK(
+        this, m_bodies.size() == 1, "Number of bodies for loop is greater than 1");
+
+    NODE_VALIDATION_CHECK(this,
+                          m_input_descriptions.size() == 1,
+                          "Loop contains input descriptions for other bodies");
+    NODE_VALIDATION_CHECK(this,
+                          m_output_descriptions.size() == 1,
+                          "Loop contains output descriptions for other bodies");
+
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
-        const auto& cur_iter_rank = m_body->get_parameters()
+        const auto& cur_iter_rank = m_bodies[0]
+                                        ->get_parameters()
                                         .at(m_special_body_ports.current_iteration_input_idx)
                                         ->get_partial_shape()
                                         .rank();
@@ -78,8 +91,10 @@ void op::v5::Loop::validate_and_infer_types()
         // special body ports were not set yet, so we can't calculate output shape
         return;
 
-    const auto& body_execution_condition =
-        m_body->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
+    const auto& body_execution_condition = m_bodies[0]
+                                               ->get_results()
+                                               .at(m_special_body_ports.body_condition_output_idx)
+                                               ->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
     if (body_condition_rank.is_static())
     {
@@ -110,7 +125,7 @@ void op::v5::Loop::validate_and_infer_types()
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions())
         {
-            if (m_body->get_parameters().at(desc->m_body_parameter_index) == cond_param)
+            if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param)
             {
                 if (const auto& cond_value =
                         get_constant_from_source(input_value(desc->m_input_index)))
@@ -156,7 +171,7 @@ void op::v5::Loop::validate_and_infer_types()
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     size_t input_offset = 2;
-    for (const auto& in_desc : m_input_descriptions)
+    for (const auto& in_desc : m_input_descriptions[0])
     {
         if (in_desc->m_input_index == 0 || in_desc->m_input_index == 1)
         {
@@ -169,18 +184,18 @@ void op::v5::Loop::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, input_offset >= 0, "External port id 0 or 1 is duplicated.");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions.size() + input_offset,
+                          get_input_size() == m_input_descriptions[0].size() + input_offset,
                           "Number of inputs must be the same as number of input descriptions");
 
     // Input
-    for (const auto& input_description : m_input_descriptions)
+    for (const auto& input_description : m_input_descriptions[0])
     {
         auto index = input_description->m_input_index;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
             auto body_parameter =
-                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+                m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
             const auto& input_partial_shape =
                 inputs().at(index).get_source_output().get_partial_shape();
             if (input_partial_shape.rank().is_dynamic())
@@ -200,10 +215,10 @@ void op::v5::Loop::validate_and_infer_types()
                      as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
-                m_body->get_results().at(merged_input_description->m_body_value_index);
+                m_bodies[0]->get_results().at(merged_input_description->m_body_value_index);
 
             auto body_parameter =
-                m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
+                m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
@@ -213,8 +228,8 @@ void op::v5::Loop::validate_and_infer_types()
         else if (auto invariant_input_description =
                      as_type_ptr<TensorIterator::InvariantInputDescription>(input_description))
         {
-            auto body_parameter =
-                m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
+            auto body_parameter = m_bodies[0]->get_parameters().at(
+                invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
@@ -224,15 +239,15 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     // Body
-    m_body->validate_nodes_and_infer_types();
+    m_bodies[0]->validate_nodes_and_infer_types();
 
     // Output
-    for (const auto& output_description : m_output_descriptions)
+    for (const auto& output_description : m_output_descriptions[0])
     {
         auto index = output_description->m_output_index;
 
         auto body_value =
-            m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
+            m_bodies[0]->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description =
                 as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description))
@@ -286,7 +301,7 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
+                          get_output_size() == m_output_descriptions[0].size(),
                           "Number of outputs must be the same as number of output descriptions");
 }
 
@@ -322,9 +337,25 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v5_Loop_evaluate);
-    runtime::reference::loop(
-        m_body, m_output_descriptions, m_input_descriptions, m_special_body_ports, outputs, inputs);
+    runtime::reference::loop(m_bodies[0],
+                             m_output_descriptions[0],
+                             m_input_descriptions[0],
+                             m_special_body_ports,
+                             outputs,
+                             inputs);
     return true;
+}
+
+bool op::v5::Loop::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v5_Loop_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64: return true;
+    default: break;
+    }
+    return false;
 }
 
 void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) const
@@ -335,20 +366,21 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     dst.m_num_iterations = m_num_iterations;
     dst.m_special_body_ports = m_special_body_ports;
 
-    dst.m_body = clone_function(*get_function());
+    dst.m_bodies[0] = clone_function(*get_function());
 
-    for (auto& input_description : m_input_descriptions)
+    for (auto& input_description : m_input_descriptions[0])
     {
-        dst.m_input_descriptions.push_back(input_description->copy());
+        dst.m_input_descriptions[0].push_back(input_description->copy());
     }
-    for (auto& output_description : m_output_descriptions)
+    for (auto& output_description : m_output_descriptions[0])
     {
-        dst.m_output_descriptions.push_back(output_description->copy());
+        dst.m_output_descriptions[0].push_back(output_description->copy());
     }
     dst.validate_and_infer_types();
 }
 
 op::v5::Loop::Loop(const op::v5::Loop& other)
+    : SubGraphOp()
 {
     other.clone_to(*this, other.input_values());
 }

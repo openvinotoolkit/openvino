@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides the steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Linux* and further installation.  
+This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Linux* and its further usage.  
 
 ## System Requirements
 
@@ -10,25 +10,31 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 - Ubuntu\* 18.04 long-term support (LTS), 64-bit
 - Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- CentOS\* 7.6
-- Red Hat* Enterprise Linux* 8.2 (64 bit)
+- CentOS\* 7
+- Red Hat\* Enterprise Linux* 8 (64 bit)
 
 **Host Operating Systems**
 
-- Linux with installed GPU driver and with Linux kernel supported by GPU driver
+- Linux
 
 ## Prebuilt images
 
-Prebuilt images are available on: 
+Prebuilt images are available on:
+
 - [Docker Hub](https://hub.docker.com/u/openvino)
 - [Red Hat* Quay.io](https://quay.io/organization/openvino)
 - [Red Hat* Ecosystem Catalog](https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3)
+
+## Build a Docker* Image
+
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of OpenVINO™ Docker containers.
 
 ## Use Docker* Image for CPU
 
 - Kernel reports the same information for all containers as for native application, for example, CPU, memory information.
 - All instructions that are available to host process available for process in container, including, for example, AVX2, AVX512. No restrictions.
-- Docker* does not use virtualization or emulation. The process in Docker* is just a regular Linux process, but it is isolated from external world on kernel level. Performance penalty is small.
+- Docker\* does not use virtualization or emulation. The process in Docker* is just a regular Linux process, but it is isolated from external world on kernel level. Performance penalty is small.
 
 ### <a name="building-for-cpu"></a>Build a Docker* Image for CPU
 
@@ -155,7 +161,6 @@ ARG BUILD_DEPENDENCIES="autoconf \
                         unzip \
                         udev"
 
-# hadolint ignore=DL3031, DL3033
 RUN yum update -y && yum install -y ${BUILD_DEPENDENCIES} && \
     yum group install -y "Development Tools" && \
     yum clean all && rm -rf /var/cache/yum
@@ -248,12 +253,14 @@ $HDDL_INSTALL_DIR/hddldaemon
 ```
 
 ### Run the Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+
 To run the built Docker* image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, use the following command:
 ```sh
 docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 ```
 
 > **NOTES**:
+> 
 > - The device `/dev/ion` need to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
@@ -262,6 +269,7 @@ In some cases, the ion driver is not enabled (for example, due to a newer kernel
 docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
 ```
 > **NOTES**:
+> 
 > - When building docker images, create a user in the docker file that has the same UID and GID as the user which runs hddldaemon on the host.
 > - Run the application in the docker with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
@@ -310,10 +318,6 @@ If you got proxy issues, please setup proxy settings for Docker. See the Proxy s
 
 * [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
-* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
-
-* OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 
 * Intel® Neural Compute Stick 2 Get Started: [https://software.intel.com/en-us/neural-compute-stick/get-started](https://software.intel.com/en-us/neural-compute-stick/get-started)
-
-* Intel® Distribution of OpenVINO™ toolkit Docker Hub* home page: [https://hub.docker.com/u/openvino](https://hub.docker.com/u/openvino)

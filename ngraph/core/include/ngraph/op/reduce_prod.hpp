@@ -30,15 +30,17 @@ namespace ngraph
                            const Output<Node>& reduction_axes,
                            bool keep_dims = false);
 
-                size_t get_version() const override { return 1; }
                 /// \return The default value for Product.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
             };

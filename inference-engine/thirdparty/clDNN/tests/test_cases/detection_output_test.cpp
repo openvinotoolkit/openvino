@@ -3,21 +3,18 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include "api/detection_output.hpp"
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
+
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/detection_output.hpp>
 
 namespace cldnn {
     template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
 }
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 
 template <typename T>
 class detection_output_test : public ::testing::Test {
@@ -26,12 +23,12 @@ public:
     detection_output_test() :
         nms_threshold(0.1f) {}
 
-    void init_buffers(cldnn::memory prior_memory, cldnn::memory confidence_memory, cldnn::memory location_memory,
+    void init_buffers(cldnn::memory::ptr prior_memory, cldnn::memory::ptr confidence_memory, cldnn::memory::ptr location_memory,
                       bool share_location, bool variance_encoded_in_target = false,
                       int prior_info_size = 4, int prior_coordinates_offset = 0, bool prior_is_normalized = true) {
-        auto location_ptr = location_memory.pointer<T>();
-        auto confidence_ptr = confidence_memory.pointer<T>();
-        auto prior_box_ptr = prior_memory.pointer<T>();
+        cldnn::mem_lock<T> location_ptr(location_memory, get_test_stream());
+        cldnn::mem_lock<T> confidence_ptr(confidence_memory, get_test_stream());
+        cldnn::mem_lock<T> prior_box_ptr(prior_memory, get_test_stream());
 
         T* prior_data = prior_box_ptr.data();
         T* confidence_data = confidence_ptr.data();
@@ -93,10 +90,10 @@ public:
         }
     }
 
-    void init_buffer_sort(cldnn::memory input_buff) {
-        auto input_data_ptr = input_buff.pointer<T>();
+    void init_buffer_sort(cldnn::memory::ptr input_buff) {
+        cldnn::mem_lock<T> input_data_ptr(input_buff, get_test_stream());
 
-        EXPECT_EQ((int)input_buff.count(), 128);
+        EXPECT_EQ((int)input_buff->count(), 128);
 
         T* input_data = input_data_ptr.data();
         input_data[0] = 8;
@@ -119,8 +116,8 @@ public:
         input_data[121] = -1; input_data[122] = 0; input_data[123] = 0; input_data[124] = 0; input_data[125] = 0; input_data[126] = 0; input_data[127] = 0;
     }
 
-    void check_results(const memory& output, const int num, const std::string values) {
-        assert(num < output.get_layout().size.spatial[1]);
+    void check_results(const memory::ptr output, const int num, const std::string values) {
+        assert(num < output->get_layout().size.spatial[1]);
 
         // Split values to vector of items.
         std::vector<std::string> items;
@@ -129,13 +126,13 @@ public:
         EXPECT_EQ((int)items.size(), 7);
 
         // Check data.
-        auto out_ptr = output.pointer<T>();
+        cldnn::mem_lock<T> out_ptr(output, get_test_stream());
         const T* data = out_ptr.data();
         for (int i = 0; i < 2; ++i) {
-            EXPECT_EQ(static_cast<int>((float)data[num * output.get_layout().size.spatial[0] + i]), atoi(items[i].c_str()));
+            EXPECT_EQ(static_cast<int>((float)data[num * output->get_layout().size.spatial[0] + i]), atoi(items[i].c_str()));
         }
         for (int i = 2; i < 7; ++i) {
-            EXPECT_TRUE(floating_point_equal(data[num * output.get_layout().size.spatial[0] + i], (T)(float)atof(items[i].c_str())));
+            EXPECT_TRUE(floating_point_equal(data[num * output->get_layout().size.spatial[0] + i], (T)(float)atof(items[i].c_str())));
         }
     }
 
@@ -144,15 +141,15 @@ public:
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
 
@@ -167,10 +164,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
     }
 
     void setup_two_layers() {
@@ -178,15 +175,15 @@ public:
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output_1", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
         topology.add(detection_output("detection_output_2", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
@@ -205,10 +202,10 @@ public:
 
             EXPECT_EQ(it->first, "detection_output_" + std::to_string(i));
 
-            EXPECT_EQ(it->second.get_memory().get_layout().size.batch[0], 1);
-            EXPECT_EQ(it->second.get_memory().get_layout().size.feature[0], 1);
-            EXPECT_EQ(it->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-            EXPECT_EQ(it->second.get_memory().get_layout().size.spatial[0], 7);
+            EXPECT_EQ(it->second.get_memory()->get_layout().size.batch[0], 1);
+            EXPECT_EQ(it->second.get_memory()->get_layout().size.feature[0], 1);
+            EXPECT_EQ(it->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+            EXPECT_EQ(it->second.get_memory()->get_layout().size.spatial[0], 7);
             i++;
         }
     }
@@ -219,17 +216,17 @@ public:
         const int keep_top_k = 4;
         const int background_label_id = 0;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
@@ -244,10 +241,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -267,17 +264,17 @@ public:
         const int keep_top_k = 1;
         const int background_label_id = 0;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
@@ -292,10 +289,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -309,17 +306,17 @@ public:
         const int keep_top_k = 6;
         const int background_label_id = 0;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
@@ -334,10 +331,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -362,17 +359,17 @@ public:
         const int top_k = 2;
         const int background_label_id = 0;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
@@ -387,10 +384,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -406,17 +403,17 @@ public:
         const int keep_top_k = 10;
         const int background_label_id = -1;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
@@ -431,10 +428,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -467,17 +464,17 @@ public:
         const int background_label_id = -1;
         const int top_k = 2;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
@@ -492,10 +489,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -515,17 +512,17 @@ public:
         const int keep_top_k = 5;
         const int background_label_id = 0;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
@@ -540,10 +537,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -566,17 +563,17 @@ public:
         const int background_label_id = 0;
         const int top_k = 2;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
 
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
@@ -591,10 +588,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -611,18 +608,18 @@ public:
         const int background_label_id = -1;
         const int top_k = 2;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 2, 1, this->num_priors * 4 } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location);
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location.get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location.get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
+        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
         topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
@@ -637,10 +634,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -668,20 +665,20 @@ public:
         const int32_t prior_coordinates_offset = 1;
         const bool prior_is_normalized = true;
 
-        const auto& engine = get_test_engine();
-        cldnn::memory input_location = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
-        cldnn::memory input_confidence = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
-        cldnn::memory input_prior_box = memory::allocate(engine, { type_to_data_type<T>::value, format::bfyx,{ 1, 1, 1, this->num_priors * prior_info_size } });
+        auto& engine = get_test_engine();
+        cldnn::memory::ptr input_location = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * num_loc_classes * 4, 1, 1 } });
+        cldnn::memory::ptr input_confidence = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ this->num_of_images, this->num_priors * this->num_classes, 1, 1 } });
+        cldnn::memory::ptr input_prior_box = engine.allocate_memory({ type_to_data_type<T>::value, format::bfyx,{ 1, 1, 1, this->num_priors * prior_info_size } });
 
         this->init_buffers(input_prior_box, input_confidence, input_location, share_location, variance_encoded_in_target,
             prior_info_size, prior_coordinates_offset, prior_is_normalized);
 
         topology topology;
-        topology.add(input_layout("input_location", input_location.get_layout()));
-        topology.add(input_layout("input_confidence", input_confidence.get_layout()));
-        topology.add(input_layout("input_prior_box", input_prior_box.get_layout()));
-        topology.add(reorder("input_location_padded", "input_location", input_location.get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
-        topology.add(reorder("input_confidence_padded", "input_confidence", input_location.get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
+        topology.add(input_layout("input_location", input_location->get_layout()));
+        topology.add(input_layout("input_confidence", input_confidence->get_layout()));
+        topology.add(input_layout("input_prior_box", input_prior_box->get_layout()));
+        topology.add(reorder("input_location_padded", "input_location", input_location->get_layout().with_padding(padding{ { 0, 0, 12, 3 },{ 0, 0, 5, 11 } })));
+        topology.add(reorder("input_confidence_padded", "input_confidence", input_location->get_layout().with_padding(padding{ { 0, 0, 2, 7 },{ 0, 0, 13, 1 } })));
 
         topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box",
             this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k,
@@ -700,10 +697,10 @@ public:
         EXPECT_EQ(outputs.size(), size_t(1));
         EXPECT_EQ(outputs.begin()->first, "detection_output");
 
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-        EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.batch[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.feature[0], 1);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[1], keep_top_k * this->num_of_images);
+        EXPECT_EQ(outputs.begin()->second.get_memory()->get_layout().size.spatial[0], 7);
 
         auto output_prim = outputs.begin()->second.get_memory();
 
@@ -725,7 +722,7 @@ public:
 };
 
 typedef ::testing::Types<float, FLOAT16> detection_output_test_types;
-TYPED_TEST_CASE(detection_output_test, detection_output_test_types);
+TYPED_TEST_SUITE(detection_output_test, detection_output_test_types);
 
 TYPED_TEST(detection_output_test, test_setup_basic) {
     this->setup_basic();

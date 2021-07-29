@@ -18,7 +18,7 @@
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
-#include "ie_mkldnn.h"
+#include "mkldnn/ie_mkldnn.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -29,7 +29,7 @@ namespace {
         uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
         for (size_t i = 0; i < size; ++i) {
             if ((u32data[i] & (0xFF << 23)) == 0) {
-                u32data[i] = 0.0f;
+                u32data[i] = 0;
             }
         }
     }

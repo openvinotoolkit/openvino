@@ -18,6 +18,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::BroadcastBase, "BroadcastBase", 0);
+
 op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                        const Output<Node>& target_shape,
                                        const Output<Node>& axes_mapping,
@@ -365,9 +367,9 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
-                                       const HostTensorPtr& out,
-                                       const AxisSet& broadcast_axes) const
+bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
+                                                 const HostTensorPtr& out,
+                                                 const AxisSet& broadcast_axes) const
 {
     NGRAPH_OP_SCOPE(util_BroadcastBase_evaluate_axes);
     auto arg0_shape = arg0->get_shape();
@@ -491,7 +493,7 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     out->set_shape(output_shape);
     out->set_element_type(arg0->get_element_type());
 
-    return evaluate(arg0, out, pair_broadcast_axes.second);
+    return evaluate_broadcast(arg0, out, pair_broadcast_axes.second);
 }
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) const

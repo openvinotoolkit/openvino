@@ -15,6 +15,7 @@
 #include "layer_quantizer.hpp"
 #include "scale_factor_calc.hpp"
 #include "weights_converter.hpp"
+#include "gna_itt.hpp"
 
 namespace GNAPluginNS {
 
@@ -40,6 +41,7 @@ class ModelQuantizer {
 
     template <class PreQuantisationCb>
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork &model, const PreQuantisationCb &cb, std::vector<float> scaleFactor) const {
+        OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "ModelQuantizer::quantize");
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
             transformLayer(newLayer, WeightsConverter());

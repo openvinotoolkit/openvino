@@ -6,7 +6,7 @@
 
 #include <deconv_ref.hpp>
 #include "myriad_layers_tests.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 
 using std::tuple;
 using std::get;

@@ -14,6 +14,8 @@ CNNNetwork::CNNNetwork() :
     network(), actual() {
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network)
     : network(network) {
     actual = network.get();
@@ -69,7 +71,6 @@ size_t CNNNetwork::getBatchSize() const {
     return actual->getBatchSize();
 }
 
-
 CNNNetwork::operator ICNNNetwork::Ptr() {
     return network;
 }
@@ -121,6 +122,14 @@ void CNNNetwork::reshape(const ICNNNetwork::InputShapes& inputShapes) {
 
 void CNNNetwork::serialize(const std::string& xmlPath, const std::string& binPath) const {
     CALL_STATUS_FNC(serialize, xmlPath, binPath);
+}
+
+void CNNNetwork::serialize(std::ostream& xmlBuf, std::ostream& binBuf) const {
+    CALL_STATUS_FNC(serialize, xmlBuf, binBuf);
+}
+
+void CNNNetwork::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob) const {
+    CALL_STATUS_FNC(serialize, xmlBuf, binBlob);
 }
 
 std::string CNNNetwork::getOVNameForTensor(const std::string& orig_name) const {

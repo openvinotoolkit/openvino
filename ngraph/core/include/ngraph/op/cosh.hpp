@@ -16,8 +16,8 @@ namespace ngraph
             class NGRAPH_API Cosh : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Cosh", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a hyperbolic cosine operation.
                 Cosh() = default;
                 /// \brief Constructs a hyperbolic cosine operation.
@@ -30,6 +30,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
             };
         } // namespace v0
         using v0::Cosh;

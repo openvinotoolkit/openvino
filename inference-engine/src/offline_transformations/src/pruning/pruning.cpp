@@ -15,7 +15,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Pruning, "Pruning", 0);
 
 bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
     Manager manager(get_pass_config());
+
+    // Initialize masks only for Convolutions/GroupConvolutions weights (needed to init mask in source Constant of
+    // weights-calculating subgraph). For other node types masks initialized in PropagateMasks pass.
+    manager.register_pass<InitMasks>();
     manager.register_pass<PropagateMasks>();
+
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // VisualizeTree modifier helps to print Masks and mark nodes with masks
@@ -51,7 +56,6 @@ bool ngraph::pass::Pruning::run_on_function(std::shared_ptr<Function> f) {
 #endif
 
     manager.register_pass<ShrinkWeights>();
-    manager.register_pass<ConstantFolding>();
 
 #ifdef NGRAPH_DEBUG_ENABLE
     // Uncomment following line and change path to resulting svg file

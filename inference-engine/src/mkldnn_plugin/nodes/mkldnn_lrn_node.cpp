@@ -19,7 +19,7 @@ bool MKLDNNLrnNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op
         }
 
         const auto dataDims = lrn->get_input_shape(0);
-        if (dataDims.size() < 2 && dataDims.size() > 5) {
+        if (dataDims.size() < 2 || dataDims.size() > 5) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }

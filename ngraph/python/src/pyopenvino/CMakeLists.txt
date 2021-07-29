@@ -32,7 +32,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${NGRAPH_LIBRARIES})
 
 # perform copy
-if(OpenVINO_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET ${PROJECT_NAME}
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/openvino
@@ -40,7 +40,11 @@ if(OpenVINO_MAIN_SOURCE_DIR)
             )
 endif()
 
-if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
+    if(COMMAND ie_python_minimal_api)
+        ie_python_minimal_api(${PROJECT_NAME})
+    endif()
+
     add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
     ie_cpack_add_component(pyopenvino_${PYTHON_VERSION})

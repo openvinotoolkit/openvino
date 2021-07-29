@@ -15,7 +15,6 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include <string>
 #include <ie_core.hpp>
 #include <thread>
@@ -38,7 +37,8 @@ TEST_P(InferRequestTests, SetEmptyConfig) {
     // Load CNNNetwork to target plugins
     InferenceEngine::ExecutableNetwork execNet;
     std::map<std::string, std::string> config {};
-    if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
+    if (targetDevice.find(CommonTestUtils::DEVICE_AUTO) == std::string::npos &&
+        targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
         ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, config));
@@ -324,7 +324,7 @@ TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetBlobForAsync) {
     ASSERT_NO_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob));
     blob->deallocate();
     ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
-    ASSERT_THROW(req.StartAsync(), InferenceEngine::Exception);
+    ASSERT_THROW({ req.StartAsync(); req.Wait(); }, InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestTests, canProcessDeallocatedOutputBlobAfterGetAndSetBlob) {

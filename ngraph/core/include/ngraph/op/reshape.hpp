@@ -46,7 +46,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
-                size_t get_version() const override { return 1; }
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -54,6 +53,7 @@ namespace ngraph
                 void set_special_zero(bool special_zero) { m_special_zero = special_zero; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
                 bool constant_fold(OutputVector& output_values,
@@ -63,6 +63,12 @@ namespace ngraph
                 bool m_special_zero;
                 bool evaluate_reshape(const HostTensorVector& outputs,
                                       const HostTensorVector& inputs) const;
+
+            private:
+                void calculate_output_shape(std::vector<Dimension>& reshape_pattern,
+                                            const int64_t& minus_one_idx,
+                                            const PartialShape& input_pshape,
+                                            std::vector<Dimension>& output_shape) const;
             };
         } // namespace v1
     }     // namespace op

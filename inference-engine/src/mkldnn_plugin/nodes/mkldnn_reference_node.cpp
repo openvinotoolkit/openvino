@@ -15,6 +15,9 @@ using namespace InferenceEngine::details;
 MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
         MKLDNNNode(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+    if (!op->has_evaluate()) {
+        IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
+    }
     setType(Reference);
     setTypeStr("Reference");
 }
@@ -69,14 +72,7 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     }
 
     if (!ngraphOp->evaluate(outputs, inputs)) {
-        std::string errorDetails = "Unsupported operation of type: " + std::string(ngraphOp->get_type_name()) +
-                                   " name: " + std::string(ngraphOp->get_friendly_name());
-        errorDetails += "\nDetails: \n";
-        if (!additionalErrorMessage.empty()) {
-            errorDetails += additionalErrorMessage + "\n";
-        }
-        errorDetails += "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
-        IE_THROW(NotImplemented) << errorDetails;
+        IE_THROW() << "Evaluation failed on node of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
     }
 }
 

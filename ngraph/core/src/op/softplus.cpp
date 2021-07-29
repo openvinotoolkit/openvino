@@ -29,6 +29,13 @@ bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 void op::v4::SoftPlus::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
+    const element::Type& input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_dynamic() || input_et.is_real(),
+                          "Input element type must be float. Got: ",
+                          input_et);
+
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
@@ -73,4 +80,17 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return softplus::evaluate_softplus(inputs[0], outputs[0]);
+}
+
+bool op::v4::SoftPlus::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_SoftPlus_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

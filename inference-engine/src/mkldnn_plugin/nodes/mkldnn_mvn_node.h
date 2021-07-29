@@ -86,11 +86,11 @@ public:
 
     inline bool getAcrossChannels() const {
         return acrossChannels_;
-    };
+    }
 
     inline bool getNormalizeVariance() const {
         return normalizeVariance_;
-    };
+    }
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
@@ -103,7 +103,9 @@ private:
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
-    std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+    void transformTo5DCase(const InferenceEngine::SizeVector& shape);
+
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
 
     bool acrossChannels_ = false;
     bool normalizeVariance_ = true;

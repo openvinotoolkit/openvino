@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::Acosh::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Acosh, "Acosh", 3, util::UnaryElementwiseArithmetic);
 
 op::v3::Acosh::Acosh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -61,4 +61,20 @@ bool op::v3::Acosh::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     NGRAPH_OP_SCOPE(v3_Acosh_evaluate);
     return acoshop::evaluate_acosh(inputs[0], outputs[0]);
+}
+
+bool op::v3::Acosh::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_Acosh_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

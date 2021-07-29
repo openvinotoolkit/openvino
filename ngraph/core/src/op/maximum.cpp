@@ -58,7 +58,7 @@ namespace maximumop
 
 // ------------------------------------ v1 -------------------------------------
 
-constexpr NodeTypeInfo op::v1::Maximum::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Maximum, "Maximum", 1, op::util::BinaryElementwiseArithmetic);
 
 op::v1::Maximum::Maximum(const Output<Node>& arg0,
                          const Output<Node>& arg1,
@@ -80,4 +80,20 @@ bool op::v1::Maximum::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Maximum_evaluate);
     return maximumop::evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::Maximum::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Maximum_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

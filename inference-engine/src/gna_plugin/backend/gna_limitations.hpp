@@ -6,16 +6,23 @@
 
 #include "dnn_types.h"
 #include <cstdint>
+#include <cpp/ie_cnn_network.h>
 
 namespace GNAPluginNS {
 namespace GNALimitations {
 
+constexpr uint32_t bufferMaxSize = 65528;
+
 constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFilterSizeDivider = 8;
+constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;
 constexpr uint32_t noOfInputsDivisor = 8;
 constexpr uint32_t noOfInputsLowPrecDivisor = 16;
+
+constexpr uint32_t affineMaxBatchSize = 8;
 
 namespace Cnn2D {
 struct RangeLimit {
@@ -75,19 +82,24 @@ class Validator {
     VectorOrSquareLimitByChannelsAndPrecision kernelLimit {
         { 240, { 3, 7, 3 }, { 2, 7, 2 } },
         { 120, { 3, 7, 3 }, { 1, 7, 1 } } };
-
+    VectorOrSquareLimitByChannelsAndPrecision& strideLimit = kernelLimit;
     const VectorOrSquareLimit poolingWindowLimit{ 3, 1, 1 };
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
+    Validator() = default;
+
     void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        OvGnaType inPrecision) const;
+        const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const;
 
     void ValidatePooling2D(std::string name,
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW) const;
 };
 } // namespace Cnn2D
+
+bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
+
 } // namespace GNALimitations
 } // namespace GNAPluginNS

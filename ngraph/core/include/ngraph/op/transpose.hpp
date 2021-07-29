@@ -40,6 +40,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
             };
         } // namespace v1
         using v1::Transpose;

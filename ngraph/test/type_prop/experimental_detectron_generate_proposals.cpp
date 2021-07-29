@@ -35,6 +35,21 @@ TEST(type_prop, detectron_proposals)
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
     EXPECT_EQ(proposals->get_output_shape(0), (Shape{post_nms_count, 4}));
     EXPECT_EQ(proposals->get_output_shape(1), (Shape{post_nms_count}));
+
+    im_info = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+    anchors = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    deltas = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+    scores = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+
+    proposals = std::make_shared<ExperimentalProposals>(im_info, anchors, deltas, scores, attrs);
+
+    ASSERT_EQ(proposals->get_output_element_type(0), element::f32);
+    ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
+    EXPECT_EQ(proposals->get_output_shape(0), (Shape{post_nms_count, 4}));
+    EXPECT_EQ(proposals->get_output_shape(1), (Shape{post_nms_count}));
+
+
+
 }
 
 TEST(type_prop, detectron_proposals_dynamic)

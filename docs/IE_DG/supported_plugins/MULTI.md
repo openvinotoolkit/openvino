@@ -85,7 +85,7 @@ Notice that until R2 you had to calculate number of requests in your application
 @snippet snippets/MULTI5.cpp part5
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
-Notice that every OpenVINO sample that supports "-d" (which stays for "device") command-line option transparently accepts the multi-device.
+Notice that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the multi-device.
 The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
 Below is example command-line to evaluate HDDL+GPU performance with that:
 

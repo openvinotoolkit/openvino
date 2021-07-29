@@ -13,24 +13,25 @@
 
 namespace cldnn {
 // helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
-void program_helpers::merge_buffers(engine_impl& engine,
+void program_helpers::merge_buffers(engine& engine,
                                     program_node& node,
                                     const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
-    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0, false);
+    memory::ptr data_to_allocate = engine.allocate_memory(target_layout, false);
+    auto& stream = node.get_program().get_stream();
 
     for (size_t i = begin_offset; i < end_offset; i++) {
         auto& weights = node.get_dependency(i).as<data>();
-        mem_lock<char> src{weights.get_attached_memory()};
-        mem_lock<char> dst{data_to_allocate};
+        mem_lock<char> src{weights.get_attached_memory_ptr(), stream};
+        mem_lock<char> dst{data_to_allocate, stream};
         std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
     }
 
     for (size_t i = 0; i < end_offset - begin_offset - 1; i++) node.remove_dependency(begin_offset + 1);
 
     auto& data_node = node.get_dependency(begin_offset).as<data>();
-    data_node.attach_memory(*data_to_allocate, false);
+    data_node.attach_memory(data_to_allocate, false);
 }
 
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,

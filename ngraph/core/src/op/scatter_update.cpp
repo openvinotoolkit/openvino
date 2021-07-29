@@ -104,3 +104,22 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate);
     return evaluate_scatter_update(outputs, inputs);
 }
+
+bool op::v3::ScatterUpdate::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_has_evaluate);
+
+    switch (get_input_element_type(1))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}

@@ -5,6 +5,7 @@
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -12,11 +13,24 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-void FuseSubtractToFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addSingleNodePattern<opset1::Subtract>(pass, context);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation, "FuseSubtractToFakeQuantizeTransformation", 0);
+
+FuseSubtractToFakeQuantizeTransformation::FuseSubtractToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    auto matcher = pattern::wrap_type<opset1::Subtract>();
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FuseSubtractToFakeQuantizeTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
         return false;
@@ -32,12 +46,12 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
 
     const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
 
-    auto outputLowConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
-    auto outputHighConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
+    auto outputLowConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(3), deqPrecision);
+    auto outputHighConst_f32 = foldConvert(fakeQuantize->get_input_node_shared_ptr(4), deqPrecision);
 
     const auto value = subtractConstant->get_output_element_type(0) == element::f32 ?
         subtractConstant :
-        fold<opset1::Convert>(subtractConstant, deqPrecision);
+        foldConvert(subtractConstant, deqPrecision);
 
     outputLowConst_f32 = fold<opset1::Subtract>(outputLowConst_f32, value);
     outputHighConst_f32 = fold<opset1::Subtract>(outputHighConst_f32, value);
@@ -45,11 +59,18 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(TransformationContext& 
     const auto fakeQuantizeParent = fakeQuantize->get_input_node_shared_ptr(0);
     const size_t parentIndex = NetworkHelper::getParentOutputIndex(fakeQuantizeParent, fakeQuantize);
 
+    const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
+    const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
+    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
+
     auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
         opset1::FakeQuantize(
             fakeQuantizeParent->output(parentIndex),
-            fold<opset1::Convert>(fakeQuantize->input_value(1), deqPrecision),
-            fold<opset1::Convert>(fakeQuantize->input_value(2), deqPrecision),
+            inputLow,
+            inputHigh,
             outputLowConst_f32,
             outputHighConst_f32,
             fakeQuantize->get_levels()),
@@ -76,7 +97,8 @@ bool FuseSubtractToFakeQuantizeTransformation::canBeTransformed(const Transforma
     for (const auto& target : children) {
         const auto convolution = is_type<opset1::Convolution>(target.get_node());
         const auto groupConvolution = is_type<opset1::GroupConvolution>(target.get_node());
-        if (convolution || groupConvolution) {
+        const auto convolutionBackpropData = is_type<opset1::ConvolutionBackpropData>(target.get_node());
+        if (convolution || groupConvolution || convolutionBackpropData) {
             return false;
         }
     }

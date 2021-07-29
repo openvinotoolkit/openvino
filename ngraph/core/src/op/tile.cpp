@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::Tile::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Tile, "Tile", 0);
 
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats)
     : Op({data, repeats})
@@ -119,4 +119,10 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
 {
     NGRAPH_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
+}
+
+bool op::v0::Tile::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Tile_has_evaluate);
+    return true;
 }

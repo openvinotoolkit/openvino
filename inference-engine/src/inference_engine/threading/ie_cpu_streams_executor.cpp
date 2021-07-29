@@ -27,7 +27,7 @@ namespace InferenceEngine {
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-        struct Observer: public tbb::task_scheduler_observer {
+        struct Observer: public custom::task_scheduler_observer {
             CpuSet  _mask;
             int     _ncpus                  = 0;
             int     _threadBindingStep      = 0;
@@ -39,7 +39,7 @@ struct CPUStreamsExecutor::Impl {
                      const int           threadsPerStream,
                      const int           threadBindingStep,
                      const int           threadBindingOffset) :
-                tbb::task_scheduler_observer(static_cast<tbb::task_arena&>(arena)),
+                custom::task_scheduler_observer(arena),
                 _mask{std::move(mask)},
                 _ncpus(ncpus),
                 _threadBindingStep(threadBindingStep),

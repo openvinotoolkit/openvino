@@ -3,19 +3,15 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
 
-#include <api/data.hpp>
-#include <api/reshape.hpp>
-#include <api/input_layout.hpp>
+#include "test_utils.h"
 
-#include "test_utils/test_utils.h"
+#include <cldnn/primitives/data.hpp>
+#include <cldnn/primitives/reshape.hpp>
+#include <cldnn/primitives/input_layout.hpp>
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace testing;
 
 void verify_float(const float& output_value, const float& value) {
@@ -30,7 +26,7 @@ template <class ElemType>
 void generic_reshape_test(format fmt, tensor const& input_size, tensor const& reshape_size,
     bool /* in_place */, padding const& input_padd = padding(),
     padding const& output_padd = padding()) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
     //allocate input memory
     auto data_type = data_types::f32;
@@ -43,10 +39,10 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     else if (std::is_same<ElemType, int64_t>::value)
         data_type = data_types::i64;
 
-    auto input = memory::allocate(engine, {data_type, fmt, input_size});
+    auto input = engine.allocate_memory({data_type, fmt, input_size});
 
     {
-        auto input_ptr = input.cldnn::memory::pointer<ElemType>();
+        cldnn::mem_lock<ElemType> input_ptr(input, get_test_stream());
         auto input_itr = input_ptr.begin();
 
         auto elements = input_size.count();
@@ -59,9 +55,9 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     topology tpl;
     std::string reshape_input = "input";
 
-    tpl.add(input_layout("input", input.get_layout()));
+    tpl.add(input_layout("input", input->get_layout()));
     if (input_padd) {
-        auto padded_input_layout = input.get_layout();
+        auto padded_input_layout = input->get_layout();
         padded_input_layout.data_padding = input_padd;
         tpl.add(reorder("reorder", "input", padded_input_layout));
         reshape_input = "reorder";
@@ -79,15 +75,15 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
     auto net_input = outputs.at(reshape_input).get_memory();
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_TRUE(output.get_layout().data_type == input.get_layout().data_type);        //reshape should not change data_type
-    EXPECT_TRUE(output.get_layout().format.value == input.get_layout().format.value);  //reshape should not change format
+    EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);        //reshape should not change data_type
+    EXPECT_TRUE(output->get_layout().format.value == input->get_layout().format.value);  //reshape should not change format
 
     //output size should be equal to requested plus output padding
-    ASSERT_TRUE(output.get_layout().size == reshape_size);
-    ASSERT_TRUE(output.get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
+    ASSERT_TRUE(output->get_layout().size == reshape_size);
+    ASSERT_TRUE(output->get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
 
     {
-        auto output_ptr = output.pointer<const ElemType>();
+        cldnn::mem_lock<const ElemType> output_ptr(output, get_test_stream());
         auto output_itr = output_ptr.begin();
 
         auto sizes = reshape_size.sizes(fmt);
@@ -439,15 +435,15 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     //  b1f0:  0.0
     //  b1f1:  4.0
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     auto batch_num = 2;
     auto feature_num = 2;
     auto x_size = 1;
     auto y_size = 1;
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("relu", "input", activation_func::relu));
     topology.add(reshape("reshape", "relu", tensor(batch(4))));
     topology.add(reorder("reorder1", "reshape", format::yxfb, data_types::f32));
@@ -464,13 +460,13 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
     auto outputs = network.execute();
 
     auto output = outputs.at("relu1").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         EXPECT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("relu2").get_memory();
-    auto output_ptr_2 = output_2.pointer<float>();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         EXPECT_EQ(output_ptr_2[i], out2[i]);
@@ -487,12 +483,12 @@ TEST(reshape_gpu_f32, calc_output_shape) {
     //
     // output_shape (1, 1, 1, 4)
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {2, 2, 1, 1}});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 1, 1}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reshape("reshape", "input", tensor(1, 1, 0, -1)));
 
     set_values(input, {-1.f, 2.f, -3.f, 4.f});
@@ -506,14 +502,14 @@ TEST(reshape_gpu_f32, calc_output_shape) {
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_TRUE(output.get_layout().data_type == input.get_layout().data_type);
-    EXPECT_TRUE(output.get_layout().format == input.get_layout().format);
+    EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
+    EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
 
-    ASSERT_TRUE(output.get_layout().size == tensor(1, 1, 1, 4));
+    ASSERT_TRUE(output->get_layout().size == tensor(1, 1, 1, 4));
 
     float answers[4] = {-1.f, 2.f, -3.f, 4.f};
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     for (int i = 0; i < 4; i++) {
         EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
@@ -523,12 +519,12 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
     // input:  bfwzyx, (3, 3, 2, 2, 1, 1)
     // reshape: (1, 1, 2, 2, 3, 3), pad (0, 0, 0, 0, 0, 1)
 
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, layout{data_types::f32, format::bfwzyx, tensor{batch(3), feature(3), spatial(1, 1, 2, 2)}});
+    auto input = engine.allocate_memory(layout{data_types::f32, format::bfwzyx, tensor{batch(3), feature(3), spatial(1, 1, 2, 2)}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(reshape("reshape", "input", tensor(batch(1), feature(1), spatial(2, 2, 3, 3)), padding({0, 0, 0, 0, 0, 1}, 0.f)));
 
     // clang-format off
@@ -573,10 +569,10 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
 
     auto output = outputs.at("reshape").get_memory();
 
-    EXPECT_TRUE(output.get_layout().data_type == input.get_layout().data_type);
-    EXPECT_TRUE(output.get_layout().format == input.get_layout().format);
+    EXPECT_TRUE(output->get_layout().data_type == input->get_layout().data_type);
+    EXPECT_TRUE(output->get_layout().format == input->get_layout().format);
 
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected_out.size());
 
     for (size_t i = 0; i < expected_out.size(); i++) {
@@ -585,14 +581,14 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
 }
 
 TEST(reshape_gpu_f32, shrink_chain_partial) {
-    const auto& engine = get_test_engine();
+    auto& engine = get_test_engine();
     auto batch_num = 2;
     auto feature_num = 2;
     auto x_size = 1;
     auto y_size = 1;
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
-    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
@@ -600,7 +596,7 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     set_values(shift_in, scale_shifts);
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(data("scale_in", scale_in));
     topology.add(data("shift_in", shift_in));
     topology.add(activation("relu", "input", activation_func::relu));
@@ -621,17 +617,17 @@ TEST(reshape_gpu_f32, shrink_chain_partial) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
 }
 
 TEST(reshape_gpu_f32, shrink_chain_full) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
@@ -639,7 +635,7 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     set_values(shift_in, scale_shifts);
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(data("scale_in", scale_in));
     topology.add(data("shift_in", shift_in));
     topology.add(activation("relu", "input", activation_func::relu));
@@ -660,17 +656,17 @@ TEST(reshape_gpu_f32, shrink_chain_full) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
 }
 
 TEST(reshape_gpu_f32, shrink_chain_out) {
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
-    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto scale_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = engine.allocate_memory({data_types::f32, format::bfyx, { tensor(feature(4)) }});
 
     std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
     std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
@@ -678,7 +674,7 @@ TEST(reshape_gpu_f32, shrink_chain_out) {
     set_values(shift_in, scale_shifts);
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("relu", "input", activation_func::relu));
     topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
     topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
@@ -695,7 +691,7 @@ TEST(reshape_gpu_f32, shrink_chain_out) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reshape1").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;

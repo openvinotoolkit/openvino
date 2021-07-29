@@ -66,7 +66,7 @@ std::map<std::string, std::string> additional_config = {
     {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseLogicalInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapes)),
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
                                 ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalNotInt,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseLogicalNotInt,
                         LogicalLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),

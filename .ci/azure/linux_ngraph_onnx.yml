@@ -1,5 +1,20 @@
 jobs:
-- job: nGraph_ONNX_Lin
+- job: OpenVINO_ONNX_CI
+  strategy:
+    matrix:
+      Release:
+        BUILD_TYPE: 'Release'
+        PROTOBUF_LITE: 'OFF'
+        TOX_COMMAND: 'tox && tox -e zoo_models'
+      Debug:
+        BUILD_TYPE: 'Debug'
+        PROTOBUF_LITE: 'OFF'
+        TOX_COMMAND: 'tox'
+      Protobuf_lite:
+        BUILD_TYPE: 'Release'
+        PROTOBUF_LITE: 'ON'
+        TOX_COMMAND: 'tox && tox -e zoo_models'
+    maxParallel: 3
 
   # About 300% of total time
   timeoutInMinutes: 90
@@ -12,11 +27,12 @@ jobs:
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
     WORKERS_NUMBER: 8
-    BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
+    ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
+
 
   steps:
   - script: |
@@ -52,31 +68,16 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
-    displayName: 'Docker build'
+  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
+    displayName: 'Docker build $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
 
-  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
+  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Get models'
-
-  - script: |
-      ##wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-      ##unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
-      #unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
-      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
-      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
-    displayName: 'Get MSFT models'
-    enabled: false
-
-  - script: |
-      ls -alR $(MODELS_DIR)
-      ls -alR $(TMP_DIR)
-    displayName: 'List models'
-    enabled: false
+    condition: ne(variables['BUILD_TYPE'], 'Debug')
 
   - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
   - script: |
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
-    displayName: 'Docker run'
-
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
+    displayName: 'Docker run $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'

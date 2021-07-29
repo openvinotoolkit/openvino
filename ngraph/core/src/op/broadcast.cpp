@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::Broadcast::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Broadcast, "Broadcast", 3, op::util::BroadcastBase);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -221,6 +221,13 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
     return broadcast_evaluate(outputs, inputs);
 }
 
+bool op::v3::Broadcast::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_Broadcast_has_evaluate);
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
+           m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::BIDIRECTIONAL;
+}
+
 namespace
 {
     using namespace op;
@@ -238,7 +245,7 @@ namespace
     }
 } // namespace
 
-constexpr NodeTypeInfo op::v1::Broadcast::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Broadcast, "Broadcast", 1, op::util::BroadcastBase);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -312,4 +319,11 @@ bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
+}
+
+bool op::v1::Broadcast::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Broadcast_has_evaluate);
+    return m_mode.m_type == BroadcastType::NONE || m_mode.m_type == BroadcastType::PDPD ||
+           m_mode.m_type == BroadcastType::NUMPY;
 }

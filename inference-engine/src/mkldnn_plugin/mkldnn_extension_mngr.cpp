@@ -11,7 +11,7 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-void MKLDNNExtensionManager::AddExtension(IExtensionPtr extension) {
+void MKLDNNExtensionManager::AddExtension(const IExtensionPtr& extension) {
     _extensions.push_back(extension);
 }
 
@@ -37,7 +37,7 @@ std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::Crea
         ResponseDesc responseDesc;
         StatusCode rc = GENERAL_ERROR;
         ILayerImplFactory* factory_ptr = nullptr;
-        if (auto mkldnnExt = std::dynamic_pointer_cast<Extensions::Cpu::MKLDNNExtensions>(ext))
+        if (auto mkldnnExt = dynamic_cast<Extensions::Cpu::MKLDNNExtensions*>(ext.get()))
             rc = mkldnnExt->getFactoryFor(factory_ptr, op, &responseDesc);
         if (rc != OK) {
             factory = nullptr;

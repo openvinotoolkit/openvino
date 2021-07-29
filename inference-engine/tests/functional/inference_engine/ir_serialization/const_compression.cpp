@@ -117,6 +117,25 @@ TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsFP32) {
     ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(float));
 }
 
+TEST_F(SerializatioConstantCompressionTest, NonIdenticalConstantsI64) {
+    constexpr int unique_const_count = 2;
+    const ngraph::Shape shape{2};
+
+    // hash_combine returns the same hash for this two constants so we also check the content of arrays
+    auto A = ngraph::op::Constant::create(ngraph::element::i64, shape, {2, 2});
+    auto B = ngraph::op::Constant::create(ngraph::element::i64, shape, {0, 128});
+
+    auto ngraph_a = std::make_shared<ngraph::Function>(ngraph::NodeVector{A, B},
+                                                       ngraph::ParameterVector{});
+
+    ngraph::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(ngraph_a);
+
+    std::ifstream xml_1(m_out_xml_path_1, std::ios::binary);
+    std::ifstream bin_1(m_out_bin_path_1, std::ios::binary);
+
+    ASSERT_TRUE(file_size(bin_1) == unique_const_count * ngraph::shape_size(shape) * sizeof(int64_t));
+}
+
 TEST_F(SerializatioConstantCompressionTest, IdenticalConstantsTimesTwo) {
     constexpr int unique_const_count = 2;
     const ngraph::Shape shape{2, 2, 2};

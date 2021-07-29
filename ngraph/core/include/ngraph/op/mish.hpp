@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API Mish : public ngraph::op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Mish", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Mish() = default;
                 /// \brief Constructs an Mish operation.
                 ///
@@ -34,6 +34,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
             };
         } // namespace v4
     }     // namespace op

@@ -5,9 +5,11 @@
 #include "mkldnn_graph_dumper.h"
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
+#include "ie_common.h"
 #include "mkldnn_debug.h"
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
+#include "utils/debug_capabilities.h"
 
 #include <vector>
 #include <string>
@@ -17,6 +19,9 @@
 using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
+
+void serializeToCout(const MKLDNNGraph &graph);
+void serializeToXML(const MKLDNNGraph &graph, const std::string& path);
 
 namespace {
 
@@ -207,4 +212,46 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
     return net;
 }
 
+#ifdef CPU_DEBUG_CAPS
+void serialize(const MKLDNNGraph &graph) {
+    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+
+    if (path.empty())
+        return;
+
+    if (path == "cout")
+        serializeToCout(graph);
+    else if (!path.compare(path.size() - 4, 4, ".xml"))
+        serializeToXML(graph, path);
+    else
+        IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
+}
+
+void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
+    if (path.empty())
+        return;
+
+    graph.dump().serialize(path);
+}
+
+void serializeToCout(const MKLDNNGraph &graph) {
+    for (const auto& node : graph.GetNodes()) {
+        std::cout << "name: " << node->getName() << " [ ";
+        if (!node->getParentEdges().empty()) {
+            const auto& parentEdge = *(node->getParentEdges()[0].lock());
+            const auto& prnt_out_desc = parentEdge.getOutputDescRO();
+            std::cout << "in: " << prnt_out_desc.getPrecision().name()
+                      << "/l=" << prnt_out_desc.getLayout()
+                      << "; ";
+        }
+        if (!node->getChildEdges().empty()) {
+            const auto& childEdge = *(node->getChildEdges()[0].lock());
+            const auto& chld_in_desc = childEdge.getInputDescRO();
+            std::cout << "out: " << chld_in_desc.getPrecision().name()
+                      << "/l=" << chld_in_desc.getLayout();
+        }
+        std::cout << " ]"  << std::endl;
+    }
+}
+#endif
 }  // namespace MKLDNNPlugin

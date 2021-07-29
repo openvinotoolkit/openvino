@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API OneHot : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"OneHot", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a one-hot operation.
                 OneHot() = default;
                 /// \brief Constructs a one-hot operation.
@@ -42,6 +42,7 @@ namespace ngraph
 
                 virtual bool evaluate(const HostTensorVector& output_values,
                                       const HostTensorVector& input_values) const override;
+                bool has_evaluate() const override;
 
                 /// \return The index of the one-hot axis.
                 int64_t get_axis() const { return m_axis; }

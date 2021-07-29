@@ -6,6 +6,7 @@ from ..inference_engine.ie_api cimport IENetwork
 
 from libcpp cimport bool
 from libcpp.string cimport string
+from libc.stdint cimport int64_t
 
 
 def ApplyMOCTransformations(IENetwork network, bool cf):
@@ -16,8 +17,8 @@ def ApplyPOTTransformations(IENetwork network, string device):
     C.ApplyPOTTransformations(network.impl, device)
 
 
-def ApplyLowLatencyTransformation(IENetwork network):
-    C.ApplyLowLatencyTransformation(network.impl)
+def ApplyLowLatencyTransformation(IENetwork network, bool use_const_initializer = True):
+    C.ApplyLowLatencyTransformation(network.impl, use_const_initializer)
 
 
 def ApplyPruningTransformation(IENetwork network):

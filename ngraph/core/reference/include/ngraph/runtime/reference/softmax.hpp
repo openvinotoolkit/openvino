@@ -23,8 +23,9 @@ namespace ngraph
                 auto temp_elements = shape_size(temp_shape);
                 auto temp_ptr = new T[temp_elements];
 
-                max(arg, temp_ptr, shape, axes, true);
+                max(arg, temp_ptr, shape, axes);
 
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform transform(shape);
                 CoordinateTransform temp_transform(temp_shape);
                 for (const Coordinate& coord : transform)
@@ -34,7 +35,7 @@ namespace ngraph
                         arg[transform.index(coord)] - temp_ptr[temp_transform.index(temp_coord)]);
                 }
 
-                sum(out, temp_ptr, shape, axes, true);
+                sum(out, temp_ptr, shape, axes);
 
                 for (const Coordinate& coord : transform)
                 {
@@ -43,6 +44,7 @@ namespace ngraph
                 }
 
                 delete[] temp_ptr;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

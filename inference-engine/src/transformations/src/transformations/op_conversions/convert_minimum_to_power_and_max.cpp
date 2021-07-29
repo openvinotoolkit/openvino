@@ -30,14 +30,14 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
          */
 
         auto neg_0 = std::make_shared<ngraph::opset1::Multiply>(minimum->input(0).get_source_output(),
-                                                                opset1::Constant::create(minimum->get_input_element_type(0), Shape{1}, {-1}));
+                                                                opset1::Constant::create(minimum->get_input_element_type(0), Shape{}, {-1}));
 
         auto neg_1 = std::make_shared<ngraph::opset1::Multiply>(minimum->input(1).get_source_output(),
-                                                                opset1::Constant::create(minimum->get_input_element_type(1), Shape{1}, {-1}));
+                                                                opset1::Constant::create(minimum->get_input_element_type(1), Shape{}, {-1}));
 
         auto max = std::make_shared<ngraph::opset1::Maximum>(neg_0, neg_1);
 
-        auto neg_2 = std::make_shared<ngraph::opset1::Multiply>(max, opset1::Constant::create(max->get_element_type(), Shape{1}, {-1}));
+        auto neg_2 = std::make_shared<ngraph::opset1::Multiply>(max, opset1::Constant::create(max->get_element_type(), Shape{}, {-1}));
 
         neg_2->set_friendly_name(minimum->get_friendly_name());
         ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});

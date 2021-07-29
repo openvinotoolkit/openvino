@@ -17,8 +17,8 @@ namespace ngraph
             class NGRAPH_API Result : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Result", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Allows a value to be used as a function result.
                 Result() = default;
                 /// \brief Allows a value to be used as a function result.
@@ -36,6 +36,7 @@ namespace ngraph
                 bool needs_default_layout() const { return m_needs_default_layout; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 

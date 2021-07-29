@@ -131,6 +131,33 @@ TEST(type_prop, deformable_psroi_pooling_invalid_group_size)
     }
 }
 
+TEST(type_prop, deformable_psroi_pooling_invalid_output_dim)
+{
+    const float spatial_scale = 0.0625;
+    const auto rois_dim = 300;
+    const int64_t group_size = 3;
+
+    try
+    {
+        const int64_t output_dim = -882;
+
+        auto input_data = make_shared<op::Parameter>(element::f32, PartialShape{2, 7938, 63, 38});
+        auto input_coords = make_shared<op::Parameter>(element::f32, PartialShape{rois_dim, 5});
+        auto def_psroi_pool = make_shared<op::v1::DeformablePSROIPooling>(
+            input_data, input_coords, output_dim, spatial_scale, group_size);
+
+        FAIL() << "Invalid output_dim not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Value of `output_dim` attribute has to be greater than 0"));
+    }
+    catch (...)
+    {
+        FAIL() << "Unknown exception was thrown";
+    }
+}
+
 TEST(type_prop, deformable_psroi_pooling_invalid_data_input_rank)
 {
     const float spatial_scale = 0.0625;

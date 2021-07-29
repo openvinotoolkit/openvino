@@ -18,8 +18,8 @@ namespace ngraph
             class NGRAPH_API Pad : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Pad", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a generic padding operation.
                 ///
                 /// \param arg The output producing input tensor to be padded.
@@ -57,7 +57,6 @@ namespace ngraph
                 Pad() = default;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -74,6 +73,7 @@ namespace ngraph
                 void set_pad_mode(PadMode pad_mode) { m_pad_mode = pad_mode; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
             private:
                 PadMode m_pad_mode;

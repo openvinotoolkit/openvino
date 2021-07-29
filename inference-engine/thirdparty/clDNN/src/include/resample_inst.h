@@ -4,10 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/resample.hpp"
+#include "cldnn/primitives/resample.hpp"
 #include "primitive_inst.h"
-#include <memory>
 #include "topology_impl.h"
+
+#include <memory>
 #include <string>
 
 namespace cldnn {

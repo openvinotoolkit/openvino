@@ -68,14 +68,20 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             return false;
         }
         attrsV4.shape_calculation_mode = ngraph::opset4::Interpolate::ShapeCalcMode::sizes;
-        attrsV4.nearest_mode = ngraph::opset4::Interpolate::NearestMode::round_prefer_floor;
+        attrsV4.nearest_mode = ngraph::opset4::Interpolate::NearestMode::simple;
         attrsV4.pads_begin = attrsV0.pads_begin;
         attrsV4.pads_end = attrsV0.pads_end;
         attrsV4.antialias = attrsV0.antialias;
-        attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::half_pixel;
+        attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::asymmetric;
         attrsV4.cube_coeff = -0.75f;
         if (attrsV0.align_corners) {
             attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::align_corners;
+        } else if ((attrsV4.mode == ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx ||
+                    attrsV4.mode == ngraph::op::v4::Interpolate::InterpolateMode::linear) &&
+                    std::all_of(attrsV4.pads_begin.begin(), attrsV4.pads_begin.end(), [](size_t i){return i == 0;}) &&
+                    std::all_of(attrsV4.pads_end.begin(), attrsV4.pads_end.end(), [](size_t i){return i == 0;}) &&
+                    !(input_shape_rank - 2 == 2 && attrsV0.axes == AxisSet{2, 3})) {
+            attrsV4.coordinate_transformation_mode = ngraph::opset4::Interpolate::CoordinateTransformMode::half_pixel;
         }
 
         auto interpolateV4 = std::make_shared<ngraph::opset4::Interpolate>(interpolationV0->input_value(0), interpolationV0->input_value(1),

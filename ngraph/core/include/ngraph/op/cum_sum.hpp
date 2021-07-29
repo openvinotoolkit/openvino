@@ -60,8 +60,8 @@ namespace ngraph
             class NGRAPH_API CumSum : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"CumSum", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a cumulative summation operation.
                 CumSum() = default;
 
@@ -91,7 +91,9 @@ namespace ngraph
                 void validate_and_infer_types() override;
 
                 /// \return The default value for CumSum.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
                 bool is_exclusive() const { return m_exclusive; }
                 bool is_reverse() const { return m_reverse; }
 

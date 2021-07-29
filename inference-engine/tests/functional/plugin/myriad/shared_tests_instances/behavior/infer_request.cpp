@@ -17,14 +17,14 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                 ::testing::Values(std::map<std::string, std::string>({}))),
         InferRequestTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),

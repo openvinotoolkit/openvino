@@ -51,7 +51,7 @@ namespace greaterop
 
 //-------------------------------------- v1 ------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Greater, "Greater", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Greater, "Greater", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Greater::Greater(const Output<Node>& arg0,
                          const Output<Node>& arg1,
@@ -73,4 +73,21 @@ bool op::v1::Greater::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Greater_evaluate);
     return greaterop::evaluate_greater(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::Greater::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Greater_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

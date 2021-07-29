@@ -41,7 +41,7 @@ const auto params2D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax2D,
         SoftMaxLayerTest,
         params2D,
@@ -68,7 +68,7 @@ const auto params4D = testing::Combine(
     testing::Values(std::map<std::string, std::string>())
 );
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_SoftMax4D,
         SoftMaxLayerTest,
         params4D,

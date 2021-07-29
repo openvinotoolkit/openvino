@@ -19,7 +19,7 @@ std::vector<std::vector<size_t>> inputShapes = {
     {1, 32, 1, 1026}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_SplitConvConcat, SplitConvConcat,
+INSTANTIATE_TEST_SUITE_P(smoke_SplitConvConcat, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(inputShapes),

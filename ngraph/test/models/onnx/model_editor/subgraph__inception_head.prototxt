@@ -8,7 +8,7 @@ graph {
     input: "conv1/7x7_s2_w_0"
     input: "conv1/7x7_s2_b_0"
     output: "conv1/7x7_s2_1"
-    name: ""
+    name: "conv1"
     op_type: "Conv"
     attribute {
         name: "strides"
@@ -34,13 +34,13 @@ graph {
   node {
     input: "conv1/7x7_s2_1"
     output: "conv1/7x7_s2_2"
-    name: ""
+    name: "relu1"
     op_type: "Relu"
   }
   node {
     input: "conv1/7x7_s2_2"
     output: "pool1/3x3_s2_1"
-    name: ""
+    name: "maxpool1"
     op_type: "MaxPool"
     attribute {
       name: "strides"

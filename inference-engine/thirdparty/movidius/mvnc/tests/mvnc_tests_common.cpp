@@ -220,20 +220,20 @@ TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
     deviceDesc.platform = NC_ANY_PLATFORM;
 
     char dev_addr_first_open[MAX_DEV_NAME];
-    unsigned int data_lenght_first = MAX_DEV_NAME;
+    unsigned int data_length_first = MAX_DEV_NAME;
 
     char dev_addr_second_open[MAX_DEV_NAME];
-    unsigned int data_lenght_second = MAX_DEV_NAME;
+    unsigned int data_length_second = MAX_DEV_NAME;
 
     // First open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
-                                      dev_addr_first_open, &data_lenght_first));
+                                      dev_addr_first_open, &data_length_first));
 
     // Second open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
-                                      dev_addr_second_open, &data_lenght_second));
+                                      dev_addr_second_open, &data_length_second));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
     // Should be the same device
@@ -300,7 +300,6 @@ TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
     if (availableDevices_ == 0)
         GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
 
-    ncDeviceHandle_t*   deviceHandle = nullptr;
     std::string         deviceName;
     deviceDesc_t deviceDescToBoot = {};
     deviceDesc_t in_deviceDesc = {};
@@ -540,22 +539,22 @@ TEST_P(MvncInference, DISABLED_DoOneIterationOfInference) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncOpenDevice,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncLoggingTests,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncGraphAllocations,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());
 
-INSTANTIATE_TEST_CASE_P(MvncTestsCommon,
+INSTANTIATE_TEST_SUITE_P(MvncTestsCommon,
                         MvncInference,
                         ::testing::ValuesIn(myriadProtocols),
                         PrintToStringParamName());

@@ -16,7 +16,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::element::Type precision,
-    const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+    const std::pair<ngraph::PartialShape, ngraph::Shape>& shapes,
     const ngraph::element::Type precisionOnActivation,
     const std::vector<uint64_t>& axes,
     const bool fuseMultiply,
@@ -36,15 +36,18 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 
     fakeQuantize->set_friendly_name("fakeQuantize");
 
-    const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::u64, ngraph::Shape{ axes.size() }, axes);
+    const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ axes.size() }, axes);
     axesNode->set_friendly_name("axes");
     const auto normalizeL2 = std::make_shared<ngraph::opset1::NormalizeL2>(fakeQuantize->output(0), axesNode, 1e-6, ngraph::op::EpsMode::ADD);
     normalizeL2->set_friendly_name("normalizeL2");
 
     ngraph::ResultVector results;
     if (fuseMultiply) {
-        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(
-            precision, ngraph::Shape{ shapes.first[0], shapes.first[1], 1ul, 1ul }, std::vector<float>{ 2.f });
+        ngraph::Shape constantShape(4ul, 1ul);
+        constantShape[0] = shapes.first[0].get_length();
+        constantShape[1] = shapes.first[1].get_length();
+
+        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(precision, constantShape, std::vector<float>{ 2.f });
         multiplyConst->set_friendly_name("multiplyConst");
         const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normalizeL2->output(0), multiplyConst);
         multiply->set_friendly_name("output");
@@ -62,12 +65,12 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision.is_real() ? precision : inputPrecision, shape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, shape);
 
     auto deqStructure = dequantization;
     deqStructure.multiply.outPrecision = precision;
@@ -87,13 +90,13 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     const ngraph::element::Type precision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::Shape& shape,
+    const ngraph::PartialShape& shape,
     const ngraph::op::EpsMode& epsMode,
     const std::vector<size_t>& axes,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision.is_real() ? precision : inputPrecision, shape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, shape);
 
     auto deqBeforeStructure = dequantizationBefore;
     if (dequantizationAfter.empty()) {
@@ -104,10 +107,10 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
 
     const auto axesNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ axes.size() }, axes);
     const auto normalizeL2 = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::NormalizeL2>>(
-        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{ element::f32, axesNode->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{dequantizationAfter.empty() ? precision : element::f32},
         ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(axesNode, element::f32).get(),
+        axesNode,
         1e-6,
         epsMode);
     auto& rtInfo = normalizeL2->get_rt_info();

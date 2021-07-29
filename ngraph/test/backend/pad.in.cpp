@@ -110,14 +110,14 @@ namespace
                                           MIN_FLOAT_TOLERANCE_BITS));
         }
     };
-}
+} // namespace
 
 NGRAPH_TEST_P(${BACKEND_NAME}, PadBackendTest, PadBackendTestForSpec)
 {
     execute_test(GetParam());
 }
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_constant_const_value_provided,
     PadBackendTest,
@@ -142,7 +142,7 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                       op::PadMode::CONSTANT,
                       2112}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_constant_use_default_const,
     PadBackendTest,
@@ -163,7 +163,7 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                       test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 0, 0, 0}),
                       op::PadMode::CONSTANT}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_2d_constant_const_value_provided,
     PadBackendTest,
@@ -210,50 +210,50 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                                   op::PadMode::CONSTANT,
                                   2112}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
-                               pad_2d_constant_use_default_const,
-                               PadBackendTest,
-                               testing::Values(Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({3, 4}),
-                                                             test::NDArray<float, 2>({
-                                                                 {0, 0, 0, 0, 0, 0, 0, 0},
-                                                                 {0, 0, 1, 2, 0, 0, 0, 0},
-                                                                 {0, 0, 3, 4, 0, 0, 0, 0},
-                                                                 {0, 0, 0, 0, 0, 0, 0, 0},
-                                                                 {0, 0, 0, 0, 0, 0, 0, 0},
-                                                                 {0, 0, 0, 0, 0, 0, 0, 0},
-                                                             }),
-                                                             op::PadMode::CONSTANT},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<float, 2>({
-                                                                 {0, 0, 0, 0},
-                                                                 {0, 0, 1, 2},
-                                                                 {0, 0, 3, 4},
-                                                             }),
-                                                             op::PadMode::CONSTANT},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 2, 0, 0},
-                                                                 {3, 4, 0, 0},
-                                                                 {0, 0, 0, 0},
-                                                             }),
-                                                             op::PadMode::CONSTANT}));
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                pad_2d_constant_use_default_const,
+                                PadBackendTest,
+                                testing::Values(Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({3, 4}),
+                                                              test::NDArray<float, 2>({
+                                                                  {0, 0, 0, 0, 0, 0, 0, 0},
+                                                                  {0, 0, 1, 2, 0, 0, 0, 0},
+                                                                  {0, 0, 3, 4, 0, 0, 0, 0},
+                                                                  {0, 0, 0, 0, 0, 0, 0, 0},
+                                                                  {0, 0, 0, 0, 0, 0, 0, 0},
+                                                                  {0, 0, 0, 0, 0, 0, 0, 0},
+                                                              }),
+                                                              op::PadMode::CONSTANT},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<float, 2>({
+                                                                  {0, 0, 0, 0},
+                                                                  {0, 0, 1, 2},
+                                                                  {0, 0, 3, 4},
+                                                              }),
+                                                              op::PadMode::CONSTANT},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 2, 0, 0},
+                                                                  {3, 4, 0, 0},
+                                                                  {0, 0, 0, 0},
+                                                              }),
+                                                              op::PadMode::CONSTANT}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_edge,
     PadBackendTest,
@@ -273,50 +273,50 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                                   test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 6, 6}),
                                   op::PadMode::EDGE}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
-                               pad_2d_edge,
-                               PadBackendTest,
-                               testing::Values(Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 1, 1, 2, 2},
-                                                                 {1, 1, 1, 2, 2},
-                                                                 {3, 3, 3, 4, 4},
-                                                                 {3, 3, 3, 4, 4},
-                                                                 {3, 3, 3, 4, 4},
-                                                             }),
-                                                             op::PadMode::EDGE},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 1, 1, 2},
-                                                                 {1, 1, 1, 2},
-                                                                 {3, 3, 3, 4},
-                                                             }),
-                                                             op::PadMode::EDGE},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2},
-                                                                 {3, 4},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 2, 2},
-                                                                 {3, 4, 4},
-                                                                 {3, 4, 4},
-                                                                 {3, 4, 4},
-                                                             }),
-                                                             op::PadMode::EDGE}));
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                pad_2d_edge,
+                                PadBackendTest,
+                                testing::Values(Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 1, 1, 2, 2},
+                                                                  {1, 1, 1, 2, 2},
+                                                                  {3, 3, 3, 4, 4},
+                                                                  {3, 3, 3, 4, 4},
+                                                                  {3, 3, 3, 4, 4},
+                                                              }),
+                                                              op::PadMode::EDGE},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 1, 1, 2},
+                                                                  {1, 1, 1, 2},
+                                                                  {3, 3, 3, 4},
+                                                              }),
+                                                              op::PadMode::EDGE},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2},
+                                                                  {3, 4},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 2, 2},
+                                                                  {3, 4, 4},
+                                                                  {3, 4, 4},
+                                                                  {3, 4, 4},
+                                                              }),
+                                                              op::PadMode::EDGE}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_reflect,
     PadBackendTest,
@@ -336,56 +336,56 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                                   test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 5, 4}),
                                   op::PadMode::REFLECT}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
-                               pad_2d_reflect,
-                               PadBackendTest,
-                               testing::Values(Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {6, 5, 4, 5, 6, 5},
-                                                                 {3, 2, 1, 2, 3, 2},
-                                                                 {6, 5, 4, 5, 6, 5},
-                                                                 {9, 8, 7, 8, 9, 8},
-                                                                 {6, 5, 4, 5, 6, 5},
-                                                                 {3, 2, 1, 2, 3, 2},
-                                                             }),
-                                                             op::PadMode::REFLECT},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<float, 2>({
-                                                                 {6, 5, 4, 5, 6},
-                                                                 {3, 2, 1, 2, 3},
-                                                                 {6, 5, 4, 5, 6},
-                                                                 {9, 8, 7, 8, 9},
-                                                             }),
-                                                             op::PadMode::REFLECT},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 2, 3, 2},
-                                                                 {4, 5, 6, 5},
-                                                                 {7, 8, 9, 8},
-                                                                 {4, 5, 6, 5},
-                                                                 {1, 2, 3, 2},
-                                                             }),
-                                                             op::PadMode::REFLECT}));
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                pad_2d_reflect,
+                                PadBackendTest,
+                                testing::Values(Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {6, 5, 4, 5, 6, 5},
+                                                                  {3, 2, 1, 2, 3, 2},
+                                                                  {6, 5, 4, 5, 6, 5},
+                                                                  {9, 8, 7, 8, 9, 8},
+                                                                  {6, 5, 4, 5, 6, 5},
+                                                                  {3, 2, 1, 2, 3, 2},
+                                                              }),
+                                                              op::PadMode::REFLECT},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<float, 2>({
+                                                                  {6, 5, 4, 5, 6},
+                                                                  {3, 2, 1, 2, 3},
+                                                                  {6, 5, 4, 5, 6},
+                                                                  {9, 8, 7, 8, 9},
+                                                              }),
+                                                              op::PadMode::REFLECT},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 2, 3, 2},
+                                                                  {4, 5, 6, 5},
+                                                                  {7, 8, 9, 8},
+                                                                  {4, 5, 6, 5},
+                                                                  {1, 2, 3, 2},
+                                                              }),
+                                                              op::PadMode::REFLECT}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(
+NGRAPH_INSTANTIATE_TEST_SUITE_P(
     ${BACKEND_NAME},
     pad_1d_symmetric,
     PadBackendTest,
@@ -405,55 +405,55 @@ NGRAPH_INSTANTIATE_TEST_CASE_P(
                                   test::NDArray<float, 1>({1, 2, 3, 4, 5, 6, 6, 5}),
                                   op::PadMode::SYMMETRIC}));
 
-NGRAPH_INSTANTIATE_TEST_CASE_P(${BACKEND_NAME},
-                               pad_2d_symmetric,
-                               PadBackendTest,
-                               testing::Values(Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {2, 1, 1, 2, 3, 3},
-                                                                 {2, 1, 1, 2, 3, 3},
-                                                                 {5, 4, 4, 5, 6, 6},
-                                                                 {8, 7, 7, 8, 9, 9},
-                                                                 {8, 7, 7, 8, 9, 9},
-                                                                 {5, 4, 4, 5, 6, 6},
-                                                             }),
-                                                             op::PadMode::SYMMETRIC},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({1, 2}),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<float, 2>({
-                                                                 {2, 1, 1, 2, 3},
-                                                                 {2, 1, 1, 2, 3},
-                                                                 {5, 4, 4, 5, 6},
-                                                                 {8, 7, 7, 8, 9},
+NGRAPH_INSTANTIATE_TEST_SUITE_P(${BACKEND_NAME},
+                                pad_2d_symmetric,
+                                PadBackendTest,
+                                testing::Values(Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {2, 1, 1, 2, 3, 3},
+                                                                  {2, 1, 1, 2, 3, 3},
+                                                                  {5, 4, 4, 5, 6, 6},
+                                                                  {8, 7, 7, 8, 9, 9},
+                                                                  {8, 7, 7, 8, 9, 9},
+                                                                  {5, 4, 4, 5, 6, 6},
+                                                              }),
+                                                              op::PadMode::SYMMETRIC},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({1, 2}),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<float, 2>({
+                                                                  {2, 1, 1, 2, 3},
+                                                                  {2, 1, 1, 2, 3},
+                                                                  {5, 4, 4, 5, 6},
+                                                                  {8, 7, 7, 8, 9},
 
-                                                             }),
-                                                             op::PadMode::SYMMETRIC},
-                                               Params<float>{test::NDArray<float, 2>({
-                                                                 {1, 2, 3},
-                                                                 {4, 5, 6},
-                                                                 {7, 8, 9},
-                                                             }),
-                                                             test::NDArray<int64_t, 1>({0, 0}),
-                                                             test::NDArray<int64_t, 1>({2, 1}),
-                                                             test::NDArray<float, 2>({
-                                                                 {1, 2, 3, 3},
-                                                                 {4, 5, 6, 6},
-                                                                 {7, 8, 9, 9},
-                                                                 {7, 8, 9, 9},
-                                                                 {4, 5, 6, 6},
-                                                             }),
-                                                             op::PadMode::SYMMETRIC}));
+                                                              }),
+                                                              op::PadMode::SYMMETRIC},
+                                                Params<float>{test::NDArray<float, 2>({
+                                                                  {1, 2, 3},
+                                                                  {4, 5, 6},
+                                                                  {7, 8, 9},
+                                                              }),
+                                                              test::NDArray<int64_t, 1>({0, 0}),
+                                                              test::NDArray<int64_t, 1>({2, 1}),
+                                                              test::NDArray<float, 2>({
+                                                                  {1, 2, 3, 3},
+                                                                  {4, 5, 6, 6},
+                                                                  {7, 8, 9, 9},
+                                                                  {7, 8, 9, 9},
+                                                                  {4, 5, 6, 6},
+                                                              }),
+                                                              op::PadMode::SYMMETRIC}));
 
 NGRAPH_TEST(${BACKEND_NAME}, pad_to_large_symmetric_padding)
 {

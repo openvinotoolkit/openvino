@@ -86,7 +86,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Nod
 
 void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     auto isConstantNode = [](const MKLDNNNodePtr &node) {
-        return node->isConstant() && node->getType() == Input;
+        return node->getType() == Input && node->isConstant();
     };
 
     params.parametersAreConstant = isConstantNode(getParentEdgesAtPort(BEGIN_ID)[0]->getParent()) &&
@@ -138,10 +138,14 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
 
     if (params.parametersAreConstant) {
         auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-            auto blob = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent())->getConstBlob();
-            if (blob->getTensorDesc().getPrecision() != Precision::I32)
+            const auto constNode = std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgesAtPort(type)[0]->getParent());
+            if (!constNode) {
+                THROW_ERROR << "can't cast node on " << type << " port to MKLDNNInputNode";
+            }
+            auto blob = constNode->getMemoryPtr();
+            if (blob->GetDataType() != mkldnn::memory::data_type::s32)
                 THROW_ERROR << "supports only parameters input with precision I32";
-            const int *ptr = blob->cbuffer().as<const int *>() + blob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            const int *ptr = static_cast<const int*>(blob->GetPtr());
             parameter.assign(ptr, ptr + size);
 
             if (ellipsisMaskCounter == 0 && size < nDims) {

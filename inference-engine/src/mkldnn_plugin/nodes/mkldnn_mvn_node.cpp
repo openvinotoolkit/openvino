@@ -306,8 +306,8 @@ private:
     inline void worker_tail_planar() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"),
-                            {}, {load_pool_gpr_idxs});
+                                std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, 0, true),
+                                {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             if (!isFloatCompatible(jcp_.src_prc))
@@ -477,8 +477,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         this->postamble();
 
         load_emitter->emit_data();
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
+        store_emitter->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -506,7 +505,7 @@ private:
     Xbyak::Reg64 reg_d_bias = rdx;
 
     Xbyak::Reg64 reg_load_table = r15;
-    Xbyak::Reg64 reg_load_store_mask = rcx;
+    Xbyak::Reg64 reg_load_store_mask = rbp;
 
     Vmm vmm_val = Vmm(1);
     Vmm vmm_mean = Vmm(0);
@@ -604,9 +603,13 @@ private:
 
 bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
-        if (inDataShapeSize < 1 || inDataShapeSize > 5) {
-            errorMessage = "First input accepts ranks from 1 to 5. Actual: " + std::to_string(inDataShapeSize);
+        if (op->get_output_partial_shape(0).rank().is_dynamic()) {
+            errorMessage = "Unsupported dynamic input rank.";
+            return false;
+        }
+        const auto& inDataRank = op->get_output_partial_shape(0).rank().get_length();
+        if (inDataRank < 1 || inDataRank > 5) {
+            errorMessage = "First input accepts ranks from 1 to 5. Actual: " + std::to_string(inDataRank);
             return false;
         }
 
@@ -632,21 +635,20 @@ bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
             // 4D: axes: [1,2,3], [2,3]
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
-            auto& mvnShape = mvnOp->get_output_shape(0);
             for (int& axe : axesVal)
-                axe = axe < 0 ? axe + mvnShape.size() : axe;
+                axe = axe < 0 ? axe + inDataRank : axe;
             std::sort(axesVal.begin(), axesVal.end());
-            if (mvnShape.size() == 1) {
+            if (inDataRank == 1) {
                 if (axesVal.size() != 1 || axesVal[0] != 0) {
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
             } else {
-                if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2)) {
+                if (inDataRank > 5 || (inDataRank != axesVal.size() + 1 && inDataRank != axesVal.size() + 2)) {
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
-                int value = mvnShape.size() - 1;
+                int value = inDataRank - 1;
                 for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
                     if (axesVal[i] != value) {
                         errorMessage = "Unsupported axes.";
@@ -672,6 +674,7 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         IE_THROW(NotImplemented) << errorMessage;
     }
 
+    const ngraph::Shape& inDataShape = op->input_value(0).get_shape();
     if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
         normalizeVariance_ = mvnOp->get_normalize_variance();
         epsValue_ = mvnOp->get_eps();
@@ -681,7 +684,7 @@ MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
         }
 
         acrossChannels_ = false;
-        const auto& inDataShapeSize = op->input_value(0).get_shape().size();
+        const auto& inDataShapeSize = inDataShape.size();
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
             acrossChannels_ = true;
     } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
@@ -702,12 +705,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(0);
-    if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
-            || acrossChannels_ || !normalizeVariance_) {
-        if (!isFloatCompatible(inputPrecision)) {
-            inputPrecision = Precision::FP32;
-        }
-    }
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(0);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
@@ -798,19 +795,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()), impl_type);
 }
 
-std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(const SizeVector& dims) {
-    std::tuple<size_t, size_t, size_t, size_t, size_t> shapes;
-    switch (dims.size()) {
-        case 1 : { shapes = std::make_tuple(1, dims[0], 1, 1, 1); break; }
-        case 2 : { shapes = std::make_tuple(dims[0], dims[1], 1, 1, 1); break; }
-        case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
-        case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
-        case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
-        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << dims.size(); }
-    }
-    return shapes;
-}
-
 void MKLDNNMVNNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
@@ -821,6 +805,8 @@ void MKLDNNMVNNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
+    const SizeVector in_dims = getParentEdgeAt(0)->getDims().ToSizeVector();
+    transformTo5DCase(in_dims);
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
@@ -830,9 +816,8 @@ void MKLDNNMVNNode::createPrimitive() {
     jcp.planar_layout = MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selectedPD->getConfig().inConfs[0].desc.getLayout();
     jcp.normalize_variance = normalizeVariance_;
     jcp.across_channels = acrossChannels_;
-    SizeVector in_dims = getParentEdgeAt(0)->getDims().ToSizeVector();
     int N = 0;
-    std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = get5dShapes(in_dims);
+    std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = shape5D;
 
     if (mayiuse(cpu::x64::avx512_common)) {
         mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
@@ -871,6 +856,35 @@ void MKLDNNMVNNode::createPrimitive() {
 
     if (mvn_variance_kernel)
         mvn_variance_kernel->create_ker();
+}
+
+void MKLDNNMVNNode::transformTo5DCase(const SizeVector& shape) {
+    switch (shape.size()) {
+        // for 1 and 2 rank, if acrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
+        // otherwise there are not enough data in spatial dimension to process in one kernel.
+        case 1 :  // C
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, 1, 1, 1, shape[0]);
+                acrossChannels_ = false;
+                break;
+            } else {
+                shape5D = std::make_tuple(1, shape[0], 1, 1, 1);
+                break;
+            }
+        case 2 :  // NC
+            if (acrossChannels_) {
+                shape5D = std::make_tuple(1, shape[0], 1, shape[1], 1);
+                acrossChannels_ = false;
+                break;
+            } else {
+                shape5D = std::make_tuple(shape[0], shape[1], 1, 1, 1);
+                break;
+            }
+        case 3 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], 1); break; }
+        case 4 : { shape5D = std::make_tuple(shape[0], shape[1], 1, shape[2], shape[3]); break; }
+        case 5 : { shape5D = std::make_tuple(shape[0], shape[1], shape[2], shape[3], shape[4]); break; }
+        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << shape.size(); }
+    }
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
@@ -926,7 +940,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
     }
 
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
-    std::tie(N, C, D, H, W) = get5dShapes(dims);
+    std::tie(N, C, D, H, W) = shape5D;
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;
@@ -1054,7 +1068,7 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
     const float *src_data_ptr = reinterpret_cast<const float *>(src_data);
     float *dst_data_ptr = reinterpret_cast<float *>(dst_data);
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
-    std::tie(N, C, D, H, W) = get5dShapes(dims);
+    std::tie(N, C, D, H, W) = shape5D;
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;
@@ -1157,7 +1171,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
     }
 
     size_t N = 1; size_t C = 1; size_t D = 1; size_t H = 1; size_t W = 1;
-    std::tie(N, C, D, H, W) = get5dShapes(dims);
+    std::tie(N, C, D, H, W) = shape5D;
 
     bool is_nhwc = false;
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
@@ -1389,6 +1403,16 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
 
 bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41)) {
+        return false;
+    }
+    // limit post ops to unary when shape transformed on channel
+    // 1D only fused with unary
+    int inputRank = getParentEdgeAt(0)->getDims().ndims();
+    bool unaryEltwise = one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
+                                            EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,
+                                            EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
+    if ((inputRank == 1 && !unaryEltwise) ||
+        (inputRank == 2 && !unaryEltwise && acrossChannels_)) {
         return false;
     }
 

@@ -20,10 +20,10 @@ namespace subgraph {
 using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FuseSubtractToFakeQuantizeFunction::get(
-    const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData,
+    const ngraph::PartialShape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations& dequantization) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, inputShape);
 
     const auto fakeQuantize = makeFakeQuantize(input, ngraph::element::f32, fqOnData);
     const auto lastDequantization = makeDequantization(fakeQuantize, dequantization);
@@ -34,12 +34,12 @@ std::shared_ptr<ngraph::Function> FuseSubtractToFakeQuantizeFunction::get(
 }
 
 std::shared_ptr<ngraph::Function> FuseSubtractToFakeQuantizeFunction::get(
-    const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData,
+    const ngraph::PartialShape& inputShape,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations& dequantization,
-    const FakeQuantizeOnData& fqOnData2,
+    const FakeQuantizeOnDataWithConstant& fqOnData2,
     const DequantizationOperations& dequantization2) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, inputShape);
 
     const auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{}, 1ul);
     const std::shared_ptr<Node> split = std::make_shared<ngraph::opset1::Split>(input, axis, 2ul);

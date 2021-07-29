@@ -18,4 +18,4 @@ class TestLoader(unittest.TestCase):
         mock = Mock(__bool__=MagicMock(side_effect=Exception()))
         self.assertRaises(Exception, load_tf_graph_def, path, meta_graph_file=mock)
         self.assertRegex(out.getvalue(),
-                         '\[ WARNING ] The value for the --input_model command line parameter ends with "\.ckpt"')
+                         r'\[ WARNING ] The value for the --input_model command line parameter ends with "\.ckpt"')

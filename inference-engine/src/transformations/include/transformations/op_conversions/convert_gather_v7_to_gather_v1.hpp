@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ConvertGather7ToGather1;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertGather7ToGather1 covert v7::Gather into v1::Gather.
+ * @brief ConvertGather7ToGather1 converts v7::Gather into v1::Gather.
  */
 class ngraph::pass::ConvertGather7ToGather1 : public ngraph::pass::MatcherPass {
 public:

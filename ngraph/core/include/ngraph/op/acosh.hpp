@@ -19,8 +19,8 @@ namespace ngraph
             class NGRAPH_API Acosh : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Acosh", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs an Acosh operation.
                 Acosh() = default;
                 /// \brief Constructs an Acosh operation.
@@ -37,6 +37,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
             };
         } // namespace v3
         using v3::Acosh;

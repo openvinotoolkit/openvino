@@ -6,9 +6,9 @@ import ast
 import logging as log
 import os
 import re
-import sys
 from collections import OrderedDict
 from itertools import zip_longest
+from distutils.util import strtobool
 
 import numpy as np
 
@@ -18,7 +18,6 @@ from mo.utils import import_extensions
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
-
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -76,6 +75,17 @@ class CanonicalizePathCheckExistenceAction(CanonicalizePathAction):
                             ' but "{}" does not exist.'.format(self.dest, name))
 
 
+class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is not None:
+            if isinstance(values, str):
+                if values != "":
+                    super().__call__(parser, namespace, values, option_string)
+                else:
+                    setattr(namespace, self.dest, values)
+
+
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
         super().__call__(parser, namespace, values, option_string)
@@ -94,6 +104,20 @@ def readable_file(path: str):
     """
     if not os.path.isfile(path):
         raise Error('The "{}" is not existing file'.format(path))
+    elif not os.access(path, os.R_OK):
+        raise Error('The "{}" is not readable'.format(path))
+    else:
+        return path
+
+
+def readable_file_or_dir(path: str):
+    """
+    Check that specified path is a readable file or directory.
+    :param path: path to check
+    :return: path if the file/directory is readable
+    """
+    if not os.path.isfile(path) and not os.path.isdir(path):
+        raise Error('The "{}" is not existing file or directory'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:
@@ -175,7 +199,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    ' (binary or text .pb file after freezing).\n' +
                                    ' Caffe*: a model proto file with model weights',
                               action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file)
+                              type=readable_file_or_dir)
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -254,6 +278,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'and biases are quantized to FP16.',
                               choices=["FP16", "FP32", "half", "float"],
                               default='float')
+    common_group.add_argument('--transform',
+                              help='Apply additional transformations. ' +
+                                   'Usage: "--transform transformation_name1[args],transformation_name2..." ' +
+                                   'where [args] is key=value pairs separated by semicolon. ' +
+                                   'Examples: "--transform LowLatency2" or ' +
+                                   '          "--transform LowLatency2[use_const_initializer=False]" ' +
+                                   'Available transformations: "LowLatency2"',
+                              default="")
     common_group.add_argument('--disable_fusing',
                               help='Turn off fusing of linear operations to Convolution',
                               action=DeprecatedStoreTrue)
@@ -394,7 +426,7 @@ def get_mxnet_cli_options():
 
 def get_kaldi_cli_options():
     d = {
-        'counts': '- A file name with full path to the counts file',
+        'counts': '- A file name with full path to the counts file or empty string if you want to use counts from model',
         'remove_output_softmax': '- Removes the SoftMax layer that is the output layer',
         'remove_memory': '- Removes the Memory layer and use additional inputs and outputs instead'
     }
@@ -407,6 +439,15 @@ def get_onnx_cli_options():
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
+
+
+def get_params_with_paths_list():
+    return ['input_model', 'output_dir', 'caffe_parser_path', 'extensions', 'k', 'output_dir',
+            'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol', 'mean_file',
+            'mean_file_offsets', 'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
+            'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
+            'transformations_config']
 
 
 def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
@@ -579,7 +620,7 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
     kaldi_group.add_argument("--counts",
                              help="Path to the counts file",
                              default=None,
-                             action=CanonicalizePathCheckExistenceAction)
+                             action=CanonicalizePathCheckExistenceIfNeededAction)
 
     kaldi_group.add_argument("--remove_output_softmax",
                              help="Removes the SoftMax layer that is the output layer",
@@ -605,12 +646,10 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
-
     return parser
 
 
-def get_all_cli_parser():
+def get_all_cli_parser(frontEndManager=None):
     """
     Specifies cli arguments for Model Optimizer
 
@@ -620,10 +659,13 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
+                          (frontEndManager.get_available_front_ends() if frontEndManager else [])))
+
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
                         type=str,
-                        choices=['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+                        choices=frameworks)
 
     get_common_cli_parser(parser=parser)
 
@@ -1127,6 +1169,100 @@ def get_absolute_path(path_to_file: str) -> str:
     return file_path
 
 
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def isbool(value):
+    try:
+        strtobool(value)
+        return True
+    except ValueError:
+        return False
+
+
+def convert_string_to_real_type(value: str):
+    values = value.split(',')
+    for i in range(len(values)):
+        value = values[i]
+        if value.isdigit():
+            values[i] = int(value)
+        elif isfloat(value):
+            values[i] = float(value)
+        elif isbool(value):
+            values[i] = strtobool(value)
+
+    return values[0] if len(values) == 1 else values
+
+
+def parse_transform(transform: str) -> list:
+    transforms = []
+
+    if len(transform) == 0:
+        return transforms
+
+    all_transforms = re.findall(r"([a-zA-Z0-9]+)(\[([^\]]+)\])*(,|$)", transform)
+
+    # Check that all characters were matched otherwise transform key value is invalid
+    key_len = len(transform)
+    for transform in all_transforms:
+        # In regexp we have 4 groups where 1st group - transformation_name,
+        #                                  2nd group - [args],
+        #                                  3rd group - args, <-- nested group
+        #                                  4th group - EOL
+        # And to check that regexp matched all string we decrease total length by the length of matched groups (1,2,4)
+        # In case if no arguments were given to transformation then 2nd and 3rd groups will be empty.
+        if len(transform) != 4:
+            raise Error("Unexpected transform key structure: {}".format(transform))
+        key_len -= len(transform[0]) + len(transform[1]) + len(transform[3])
+
+    if key_len != 0:
+        raise Error("Unexpected transform key structure: {}".format(transform))
+
+    for transform in all_transforms:
+        name = transform[0]
+        args = transform[2]
+
+        args_dict = {}
+
+        if len(args) != 0:
+            for arg in args.split(';'):
+                m = re.match(r"^([_a-zA-Z]+)=(.+)$", arg)
+                if not m:
+                    raise Error("Unrecognized attributes for transform key: {}".format(transform))
+
+                args_dict[m.group(1)] = convert_string_to_real_type(m.group(2))
+
+        transforms.append((name, args_dict))
+
+    return transforms
+
+
+def check_available_transforms(transforms: list):
+    """
+    This function check that transformations specified by user are available.
+    :param transforms: list of user specified transformations
+    :return: raises an Error if transformation is not available
+    """
+    from mo.back.offline_transformations import get_available_transformations
+    available_transforms = get_available_transformations()
+
+    missing_transformations = []
+    for name, _ in transforms:
+        if name not in available_transforms.keys():
+            missing_transformations.append(name)
+
+    if len(missing_transformations) != 0:
+        raise Error('Following transformations ({}) are not available. '
+                    'List with available transformations ({})'.format(','.join(missing_transformations),
+                                                                      ','.join(available_transforms.keys())))
+    return True
+
+
 def check_positive(value):
     try:
         int_value = int(value)
@@ -1138,12 +1274,15 @@ def check_positive(value):
     return int_value
 
 
-def depersonalize(value: str):
+def depersonalize(value: str, key: str):
+    dir_keys = [
+        'output_dir', 'extensions', 'saved_model_dir', 'tensorboard_logdir', 'caffe_parser_path'
+    ]
     if not isinstance(value, str):
         return value
     res = []
     for path in value.split(','):
-        if os.path.isdir(path):
+        if os.path.isdir(path) and key in dir_keys:
             res.append('DIR')
         elif os.path.isfile(path):
             res.append(os.path.join('DIR', os.path.split(path)[1]))
@@ -1156,7 +1295,7 @@ def get_meta_info(argv: argparse.Namespace):
     meta_data = {'unset': []}
     for key, value in argv.__dict__.items():
         if value is not None:
-            value = depersonalize(value)
+            value = depersonalize(value, key)
             meta_data[key] = value
         else:
             meta_data['unset'].append(key)

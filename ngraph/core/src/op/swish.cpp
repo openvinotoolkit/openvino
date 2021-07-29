@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::Swish::type_info;
+NGRAPH_RTTI_DEFINITION(op::v4::Swish, "Swish", 4);
 
 op::v4::Swish::Swish(const Output<Node>& arg)
     : Op({arg})
@@ -42,6 +42,12 @@ void op::v4::Swish::validate_and_infer_types()
                           inputs_count == 1 || inputs_count == 2,
                           "Swish must have 1 or 2 inputs, but it has: ",
                           inputs_count);
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_real(),
+                          "Swish input tensor must be floating point type(",
+                          get_input_element_type(0),
+                          ").");
 
     if (inputs_count == 2)
     {
@@ -126,4 +132,16 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
         validate_host_tensor_vector(outputs, 1) &&
         (validate_host_tensor_vector(inputs, 2) || validate_host_tensor_vector(inputs, 1)));
     return swish::evaluate_swish(inputs, outputs[0]);
+}
+
+bool op::v4::Swish::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_Swish_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

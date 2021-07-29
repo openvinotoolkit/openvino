@@ -300,7 +300,29 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
 }
 
-constexpr NodeTypeInfo op::v0::Range::type_info;
+bool op::v4::Range::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v4_Range_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}
+
+NGRAPH_RTTI_DEFINITION(op::v0::Range, "Range", 0);
 
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step})
@@ -499,4 +521,26 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
     return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
+}
+
+bool op::v0::Range::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Range_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
 }

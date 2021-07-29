@@ -41,12 +41,12 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         LayerTestsDefinitions::GRUSequenceParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::map<std::string, std::string> additionalConfig;
 
-        size_t seq_lenghts;
+        size_t seq_lengths;
         size_t batch;
         size_t hidden_size;
         size_t input_size = 10;
@@ -60,11 +60,11 @@ protected:
 
         std::tie(basicParamsSet, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        std::tie(m_mode, seq_lenghts, batch, hidden_size, activations, clip, linear_before_reset, direction, netPrecision, targetDevice) = basicParamsSet;
+        std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, netPrecision, targetDevice) = basicParamsSet;
 
         size_t num_directions = direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
         std::vector<std::vector<size_t>> inputShapes = {
-            {{batch, seq_lenghts, input_size},
+            {{batch, seq_lengths, input_size},
              {batch, num_directions, hidden_size},
              {batch},
              {num_directions, 3 * hidden_size, input_size},
@@ -89,7 +89,7 @@ protected:
         selectedType += "_";
         selectedType += outPrc.name();
 
-        m_max_seq_len = seq_lenghts;
+        m_max_seq_len = seq_lengths;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(Precision::FP32);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShapes[0], inputShapes[1]});
         if (m_mode == ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM
@@ -142,7 +142,7 @@ protected:
         }
     }
 
-    void GenerateInputs() {
+    void GenerateInputs() override {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -174,7 +174,7 @@ CPUSpecificParams cpuParams{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
 CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};;
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
-// output values increase rapidly without clip, so use only seq_lenghts = 2
+// output values increase rapidly without clip, so use only seq_lengths = 2
 std::vector<size_t> seq_lengths_zero_clip{2};
 std::vector<size_t> batch{10};
 std::vector<size_t> batch_size_one{1};
@@ -186,7 +186,7 @@ std::vector<ngraph::op::RecurrentSequenceDirection> direction = {ngraph::op::Rec
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
 
-INSTANTIATE_TEST_CASE_P(smoke_GRUSequenceCPU,
+INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCPU,
                         GRUSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -202,7 +202,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GRUSequenceCPU,
                                            ::testing::ValuesIn(additionalConfig)),
                         GRUSequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_GRUSequenceCPUBatchSizeOne,
+INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCPUBatchSizeOne,
                         GRUSequenceCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(mode),
                                                               ::testing::ValuesIn(seq_lengths_zero_clip),

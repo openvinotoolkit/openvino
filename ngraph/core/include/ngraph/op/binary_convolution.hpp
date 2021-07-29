@@ -17,8 +17,8 @@ namespace ngraph
             class NGRAPH_API BinaryConvolution : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"BinaryConvolution", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 enum class BinaryConvolutionMode
                 {
                     // Interpret input data and kernel values: 0 as -1, 1 as 1
@@ -59,7 +59,6 @@ namespace ngraph
                                   float pad_value,
                                   const PadType& auto_pad = PadType::EXPLICIT);
 
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;

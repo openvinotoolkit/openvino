@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
 #include "behavior/exec_graph_info.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -16,7 +15,7 @@ namespace {
             {},
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, ExecGraphTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecGraphTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU),

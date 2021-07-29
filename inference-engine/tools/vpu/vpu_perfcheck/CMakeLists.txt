@@ -2,15 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
-
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     file(GLOB SOURCES *.cpp)
 
     add_executable(${TARGET_NAME} ${SOURCES})
 
     # TODO: enable some day and fix all warnings
-#    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+#    if(CMAKE_COMPILER_IS_GNUCXX)
 #        target_compile_options(${TARGET_NAME}
 #            PRIVATE
 #                "-Wall")
@@ -18,13 +16,13 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
-            "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
-            "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
-            "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")
+            $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>)
 
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-            inference_engine format_reader
+            inference_engine
+            inference_engine_plugin_api
+            format_reader
             Threads::Threads
             ie_samples_utils)
 

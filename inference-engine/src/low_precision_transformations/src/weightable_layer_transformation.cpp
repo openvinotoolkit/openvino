@@ -26,7 +26,7 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
         return false;
     }
 
-    if (updatePrecisions && !NetworkHelper::checkZeroPoint(dequantization.subtract)) {
+    if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
         return false;
     }
 
@@ -42,28 +42,11 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
     if (dequantization.empty()) {
         const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
         const auto dataPrecision = getDataPrecisionOnWeights(layer);
-        if ((!supportAsymmetricQuantization) && dataPrecision.hasZeroPoint) {
-            return false;
-        }
         if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
-            const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
-            if (as_type_ptr<opset1::Constant>(resultConstant)) {
-                replace_node(fqOnWeights, resultConstant);
-            }
             return false;
         }
     } else {
         if (!NetworkHelper::checkZeroPoint(dequantization.subtract)) {
-            const auto resultDequantization = NetworkHelper::foldDequantization(dequantization.multiply, 0, true);
-            if (resultDequantization.empty() && reshapeFromWeights) {
-                const auto foldedReshape = fold<opset1::Reshape>(
-                        reshapeFromWeights->get_input_node_shared_ptr(0),
-                        reshapeFromWeights->get_input_node_shared_ptr(1),
-                        reshapeFromWeights->get_special_zero());
-                if (is_type<opset1::Constant>(foldedReshape)) {
-                    replace_node(reshapeFromWeights, foldedReshape);
-                }
-            }
             return false;
         }
     }
@@ -73,6 +56,11 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
 
 bool WeightableLayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
+        return false;
+    }
+
+    const auto inputPShape = layer->get_input_partial_shape(0);
+    if (inputPShape.rank().is_dynamic() || inputPShape[1].is_dynamic()) {
         return false;
     }
 
@@ -90,8 +78,8 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         const Shape multiplyConstShape = multiplyConst->get_output_shape(0);
         if (!multiplyConstShape.empty() && (shape_size(multiplyConstShape) != 1ul)) {
             const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
-            const ngraph::Shape inputShape = layer->get_input_shape(0);
-            const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+            const ngraph::PartialShape inputPShape = layer->get_input_partial_shape(0);
+            const size_t inputChannelsInGroup = inputPShape[1].get_length() / groupsCount;
 
             const std::vector<float> scales = multiplyConst->cast_vector<float>();
             for (size_t group = 0; group < groupsCount; ++group) {
@@ -102,8 +90,9 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
                 }
             }
 
-            const ngraph::Shape outputShape = layer->get_output_shape(0);
-            if ((outputShape.size() != 4ul) && (outputShape.size() != 5ul)) {
+            const ngraph::PartialShape outputPShape = layer->get_output_partial_shape(0);
+            const auto rank = outputPShape.rank().get_length();
+            if ((rank != 4) && (rank != 5)) {
                 return false;
             }
         }
@@ -170,9 +159,16 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        if ( // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-            (shape_size(constOutputShape) != constOutputShape[0]) ||
-            ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (
+            // expected, it's ok: return true
+            (shape_size(constOutputShape) != 1ul) &&
+            // not expected, something wrong: return false
+            ((constOutputShape.size() <= outChannelsShapeIndex) ||
+            // Check if all dimensions of scale except the output channels are all ones
+            (shape_size(constOutputShape) != constOutputShape[outChannelsShapeIndex]) ||
+            ((constOutputShape[outChannelsShapeIndex] != 1ul) &&
+                (fqFromWeights->get_output_shape(0)[outChannelsShapeIndex] != constOutputShape[outChannelsShapeIndex])))) {
             return false;
         }
     } else {
@@ -200,12 +196,26 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
                 return false;
             }
         }
+
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
     }
 
     return true;
 }
 
-bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept {
+bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept {
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
@@ -223,7 +233,9 @@ bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, boo
         const std::shared_ptr<opset1::FakeQuantize> fq = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         return NetworkHelper::isQuantizeSupported(fq);
     } else {
-        dequantizationOnWeights = NetworkHelper::getDequantization(layer, 1);
+        // TODO: update NetworkHelper API later
+        const std::shared_ptr<ngraph::Node> op = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+        dequantizationOnWeights = NetworkHelper::getDequantization(op, 1);
     }
 
     if (dequantizationOnWeights.empty()) {
@@ -244,6 +256,20 @@ bool WeightableLayerTransformation::isQuantized(std::shared_ptr<Node> layer, boo
             }
         }
 
+        const size_t outChannelsShapeIndex = is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+        if (dequantizationOnWeights.subtract) {
+            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
+            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+        if (dequantizationOnWeights.multiply) {
+            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
+            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
+                return false;
+            }
+        }
+
         return true;
     } else if (is_type<opset1::FakeQuantize>(dequantizationOnWeights.data.get_node())) {
         return true;
@@ -256,26 +282,42 @@ bool WeightableLayerTransformation::isPrecisionPreserved(std::shared_ptr<Node> l
     return false;
 }
 
-void WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> node) const {
+bool WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& node, const size_t outChannelsShapeIndex) const {
     const auto fq = getFakeQuantizeOnWeights(node);
     if (fq == nullptr) {
-        return;
+        // FakeQuantize has been decomposed already
+        return true;
     }
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true);
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
+    const auto precisions = precisionsAttribute == nullptr ?
+        PrecisionsAttribute::defaultPrecisions :
+        precisionsAttribute->get()->sharedValue->precisions;
+
+    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
+
     auto tuple = NetworkHelper::decomposeFakeQuantize(
         fq,
         dataPrecision.precision,
         dataPrecision.min,
         dataPrecision.max,
         dataPrecision.hasZeroPoint,
-        updatePrecisions);
+        updatePrecisions,
+        element::f32,
+        outChannelsShapeIndex);
 
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
+    // TODO: LPT: issue #58685
+    if ((!updatePrecisions) && (fqOnWeights == nullptr)) {
+        return false;
+    }
+
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
     }
+
+    return true;
 }
 
 bool WeightableLayerTransformation::isGroup(const std::shared_ptr<Node>& layer) {
@@ -298,7 +340,7 @@ bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& lay
     return (group == inputChannelsCount) && (inputChannelsCount == outputChannelsCount);
 }
 
-std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) const {
+std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuantizeOnWeights(const std::shared_ptr<Node>& node) {
     auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
     // TODO: temporary workaround
     if (fq == nullptr) {
@@ -308,10 +350,38 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
     return fq;
 }
 
-DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) const {
+DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    return getDataPrecision(fq, quantizationDetails, true);
+
+    const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
+    const auto precisions = precisionsAttribute == nullptr ?
+        PrecisionsAttribute::defaultPrecisions :
+        precisionsAttribute->get()->sharedValue->precisions;
+
+    return getDataPrecision(fq, quantizationDetails, precisions);
+}
+
+bool WeightableLayerTransformation::isAsymmetricOnWeights(const std::shared_ptr<const Node>& node) {
+    const auto n = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+
+    const auto reshapeFromWeights = ngraph::as_type_ptr<ngraph::opset1::Reshape>(n->get_input_node_shared_ptr(1));
+    const auto dequantization = reshapeFromWeights == nullptr ?
+        NetworkHelper::getDequantization(n, 1ul) :
+        NetworkHelper::getDequantization(reshapeFromWeights);
+
+    if (dequantization.empty()) {
+        const auto dataPrecision = WeightableLayerTransformation::getDataPrecisionOnWeights(n);
+        if (dataPrecision.hasZeroPoint) {
+            return true;
+        }
+    } else {
+        if (dequantization.subtract != nullptr) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace low_precision

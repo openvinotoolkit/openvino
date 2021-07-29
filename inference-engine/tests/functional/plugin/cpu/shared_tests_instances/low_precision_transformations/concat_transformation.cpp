@@ -44,12 +44,12 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ngraph::PartialShape> shapes = {
     ngraph::Shape({ 1, 3, 16, 16 }),
     ngraph::Shape({ 4, 3, 16, 16 })
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
