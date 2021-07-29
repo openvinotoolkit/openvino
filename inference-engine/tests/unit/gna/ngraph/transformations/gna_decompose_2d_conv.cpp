@@ -297,7 +297,7 @@ void Decompose2DConvTestFixture::SetUp() {
 }
 
 std::shared_ptr<ngraph::Node> ReshapeBiasConst(std::shared_ptr<ngraph::opset7::Add> conv_bias, const ConvParams& conv_params) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::op::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
 
     IE_ASSERT(add_const);
 
@@ -423,7 +423,7 @@ void TransformInput(const GraphData& graph_data, const ConvParams& conv_params, 
     // Interleaving dilated input planes
     auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_input_planes, 0);
 
-    auto transposed_dilated_chunks = std::make_shared<ngraph::op::Transpose>(dilated_chunks_concat,
+    auto transposed_dilated_chunks = std::make_shared<ngraph::opset7::Transpose>(dilated_chunks_concat,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
     // Flattening of interleaved input planes
@@ -437,7 +437,7 @@ void TransformInput(const GraphData& graph_data, const ConvParams& conv_params, 
 std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const ConvParams& conv_params, const ngraph::Output<ngraph::Node>& input,
     std::shared_ptr<ngraph::Node> filters, const size_t conv_index, const size_t h_index) {
         // Transpose NHWC => NCHW
-        std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::op::Transpose>(input,
+        std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::opset7::Transpose>(input,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
 
         // 1D Convolution
@@ -466,7 +466,7 @@ std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const Co
         }
 
         // Transpose NCHW => NHWC
-        auto nhwc_output = std::make_shared<ngraph::op::Transpose>(last_conv_block_op,
+        auto nhwc_output = std::make_shared<ngraph::opset7::Transpose>(last_conv_block_op,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 2, 3, 1})->output(0));
         return nhwc_output;
 }
@@ -512,7 +512,7 @@ std::shared_ptr<ngraph::Node> CreateDeomposedConv(const GraphData& graph_data, C
 
             auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_chunks, 0);
 
-            auto transposed_dilated_chunks = std::make_shared<ngraph::op::Transpose>(dilated_chunks_concat,
+            auto transposed_dilated_chunks = std::make_shared<ngraph::opset7::Transpose>(dilated_chunks_concat,
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
 
             auto flatten_dilated_conv_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,

@@ -122,13 +122,13 @@ protected:
         Strides maxpoolStrides{maxpoolStride};
 
         auto input = builder::makeParams(ngPrc, {inputShape});
-        auto transposeInOrder = op::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
+        auto transposeInOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transposeIn = std::make_shared<Transpose>(input[0], transposeInOrder);
         auto filterSize = std::accumulate(std::begin(kernel), std::end(kernel), 1ull, std::multiplies<size_t>());
         auto filterWeights = CommonTestUtils::generate_float_numbers(numOutChannels * inputShape[3] * filterSize, -0.03f, 0.03f);
         auto conv = builder::makeConvolution(transposeIn, ngPrc, kernel, stride, padBegin,
             padEnd, dilation, padType, numOutChannels, false, filterWeights);
-        auto transposeOutOrder = op::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
+        auto transposeOutOrder = opset7::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
         auto biasWeights = CommonTestUtils::generate_float_numbers(shape_size(biasShape), -1.5f, 1.5f);
         Output<Node> biasConst = std::make_shared<Constant>(ngPrc, biasShape, biasWeights);
         Output<Node> lastOp = std::make_shared<Transpose>(conv, transposeOutOrder);
