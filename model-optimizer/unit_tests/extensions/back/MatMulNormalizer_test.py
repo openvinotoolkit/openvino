@@ -4,15 +4,18 @@
 import unittest
 from argparse import Namespace
 
+import numpy as np
 from generator import generate, generator
 
-from extensions.back.MatMulNormalizer import SmartReshape_HC_Reshape_MatMul
+from extensions.back.MatMulNormalizer import SmartReshape_HC_Reshape_MatMul, PullTransposeThroughFQUp
 from extensions.ops.MatMul import MatMul
+from extensions.ops.fakequantize import FakeQuantize
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
-    result, connect
+    result, connect, connect_data
 from unit_tests.utils.graph import regular_op_with_empty_data as op_with_empty_data
 
 
@@ -95,3 +98,73 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+
+class FQTransposePullerTest(unittest.TestCase):
+    def nodes(self, input_shape, transpose_shape, fq_shape):
+        return {
+            **regular_op_with_shaped_data('input', input_shape, dict(type='Parameter', op='Parameter')),
+            **valued_const_with_data('il', np.array([[[[0]]]])),
+            **valued_const_with_data('ih', np.array([[[[255]]]])),
+            **valued_const_with_data('ol', np.array([[[[0]]]])),
+            **valued_const_with_data('oh', np.array([[[[255]]]])),
+            **regular_op_with_shaped_data('FQ', fq_shape, dict(type='FakeQuantize', op='FakeQuantize', infer=FakeQuantize.infer)),
+            **valued_const_with_data('order', int64_array([0, 2, 3, 1])),
+            **regular_op_with_shaped_data('transpose', transpose_shape, dict(type='Transpose', op='Transpose', infer=Transpose.infer)),
+            **regular_op_with_shaped_data('relu', fq_shape, dict(type='Relu', op='Relu')),
+
+            **result(),
+        }
+
+    def test_positive(self):
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224])
+        edges = [
+            *connect('input', '0:FQ'),
+            *connect('il', '1:FQ'),
+            *connect('ih', '2:FQ'),
+            *connect('ol', '3:FQ'),
+            *connect('oh', '4:FQ'),
+            *connect('FQ:0', '0:transpose'),
+            *connect('order:0', '1:transpose'),
+            *connect('transpose:0', 'output'),
+        ]
+        graph = build_graph(nodes_attrs=nodes, edges=edges, nodes_with_edges_only=True)
+        PullTransposeThroughFQUp().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 224, 224, 3])
+        edges = [
+            *connect('input', '0:transpose'),
+            *connect('order:0', '1:transpose'),
+            *connect('transpose', '0:FQ'),
+            *connect('il', '1:FQ'),
+            *connect('ih', '2:FQ'),
+            *connect('ol', '3:FQ'),
+            *connect('oh', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ]
+        graph_ref = build_graph(nodes_attrs=nodes, edges=edges, nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_negative(self):
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224])
+        edges = [
+            *connect('input', '0:FQ'),
+            *connect('il', '1:FQ'),
+            *connect('ih', '2:FQ'),
+            *connect('ol', '3:FQ'),
+            *connect('oh', '4:FQ'),
+            *connect('FQ:0', '0:transpose'),
+            *connect_data('FQ:0', 'relu'),
+            *connect('order:0', '1:transpose'),
+            *connect('transpose:0', 'output'),
+        ]
+        graph = build_graph(nodes_attrs=nodes, edges=edges, nodes_with_edges_only=True)
+        graph_ref = graph.copy()
+        PullTransposeThroughFQUp().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+

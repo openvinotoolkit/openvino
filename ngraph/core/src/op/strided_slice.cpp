@@ -288,6 +288,12 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                                  output_values[0]);
 }
 
+bool op::v1::StridedSlice::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    return get_input_size() == 4;
+}
+
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const
 {
     if (!input_value(1).get_tensor().has_and_set_bound() ||

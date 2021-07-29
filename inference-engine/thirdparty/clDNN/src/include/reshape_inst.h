@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/reshape.hpp"
+#include "cldnn/primitives/reshape.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
+
 #include <string>
 #include <memory>
 

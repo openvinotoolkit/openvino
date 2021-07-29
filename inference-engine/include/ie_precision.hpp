@@ -91,21 +91,24 @@ public:
         precisionInfo.value = CUSTOM;
     }
 
-    /** @brief Creates custom precision with specific underlined type */
+    /**
+     * @brief Creates custom precision with specific underlined type
+     * @param typeName A string name of precision
+     * @return Precision converted from string name
+     */
     template <class T>
     static Precision fromType(const char* typeName = nullptr) {
         return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
     }
 
-    /** @brief checks whether given storage class T can be used to store objects of current precision */
+    /**
+     * @brief checks whether given storage class T can be used to store objects of current precision
+     * @param typeName A string name of precision
+     * @return `true` if `typeName` has underlaying storage type
+     */
     template <class T>
     bool hasStorageType(const char* typeName = nullptr) const noexcept {
         try {
-            if (precisionInfo.value != BIN) {
-                if (sizeof(T) != size()) {
-                    return false;
-                }
-            }
 #define CASE(x, y) \
     case x:        \
         return std::is_same<T, y>()
@@ -239,14 +242,14 @@ public:
     }
 
     /**
-     * @brief Returns size of single element of that precision in bits
+     * @brief Returns size of single element of that precision in bytes
      * @returns Number of bytes per element
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
             IE_THROW() << " cannot estimate element if precision is " << precisionInfo.name;
         }
-        return precisionInfo.bitsSize >> 3;
+        return (precisionInfo.bitsSize + 7) / 8;
     }
 
     /**
@@ -344,72 +347,89 @@ struct PrecisionTrait {};
 template <>
 struct PrecisionTrait<Precision::FP32> {
     using value_type = float;
+    enum { is_float = true };
 };
 
 template <>
 struct PrecisionTrait<Precision::FP64> {
     using value_type = double;
+    enum { is_float = true };
 };
 
 template <>
 struct PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
+    enum { is_float = true };
 };
 template <>
 struct PrecisionTrait<Precision::BF16> {
     using value_type = int16_t;
+    enum { is_float = true };
 };
 template<>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I16> {
     using value_type = int16_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U16> {
     using value_type = uint16_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U4> {
     using value_type = uint8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U8> {
     using value_type = uint8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I4> {
     using value_type = int8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I8> {
     using value_type = int8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::BOOL> {
     using value_type = uint8_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U32> {
     using value_type = uint32_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::U64> {
     using value_type = uint64_t;
+    enum { is_float = false };
 };
 template <>
 struct PrecisionTrait<Precision::BIN> {
     using value_type = int8_t;
+    enum { is_float = false };
 };
 
 template <class T>
@@ -420,6 +440,7 @@ inline uint8_t type_size_or_zero() {
 template <>
 struct PrecisionTrait<Precision::UNSPECIFIED> {
     using value_type = void;
+    enum { is_float = false };
 };
 
 template <>
@@ -430,30 +451,14 @@ inline uint8_t type_size_or_zero<void>() {
     return 0;
 }
 
-template <Precision::ePrecision T>
-inline typename std::enable_if<std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
-                                            std::integral_constant<Precision::ePrecision, T>>::value,
-                               bool>::type
-is_floating() {
-    return true;
-}
-
-template <Precision::ePrecision T>
-inline typename std::enable_if<!std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
-                                             std::integral_constant<Precision::ePrecision, T>>::value,
-                               bool>::type
-is_floating() {
-    return std::is_floating_point<typename PrecisionTrait<T>::value_type>::value;
-}
-
 template <Precision::ePrecision precision>
 inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     Precision::PrecisionInfo info;
     info.name = name;
 
-    size_t nBits = precision == BIN ? 1 : 8;
+    size_t nBits = precision == BIN ? 1 : (precision == U4 || precision == I4) ? 4 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
-    info.isFloat = is_floating<precision>();
+    info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;
     return info;
 }

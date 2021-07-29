@@ -80,7 +80,7 @@ const auto fqParams_I16 = ::testing::Combine(
         ::testing::ValuesIn(inputParams_I8)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph, FakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_subgraph, FakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -94,7 +94,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph, FakeQuantizeSubgraphTest,
                                 ::testing::ValuesIn(biases)),
                         FakeQuantizeSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph_U8, FakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_subgraph_U8, FakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams_I8,
                                 ::testing::ValuesIn(netPrecisions),
@@ -108,7 +108,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph_U8, FakeQuantizeSubgraphTest
                                 ::testing::ValuesIn(biases)),
                         FakeQuantizeSubgraphTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize_subgraph_I16, FakeQuantizeSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize_subgraph_I16, FakeQuantizeSubgraphTest,
                         ::testing::Combine(
                                 fqParams_I16,
                                 ::testing::ValuesIn(netPrecisions),

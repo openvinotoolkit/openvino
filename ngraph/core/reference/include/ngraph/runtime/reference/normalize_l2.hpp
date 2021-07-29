@@ -22,27 +22,31 @@ namespace ngraph
                               float eps,
                               op::EpsMode eps_mode)
             {
-                AxisSet axes = reduction_axes;
                 if (reduction_axes.empty())
                 {
-                    std::vector<size_t> axes_vec(data_shape.size());
-                    std::iota(axes_vec.begin(), axes_vec.end(), 0);
-                    axes = AxisSet(axes_vec);
+                    // When axes is an empty list, then each `data` element is divided by itself
+                    // resulting value 1 for all non-zero elements
+                    for (size_t i = 0; i < shape_size(data_shape); ++i)
+                    {
+                        out[i] = data[i] == 0 ? 0 : 1;
+                    }
+                    return;
                 }
+
                 std::vector<T> sqr_data(shape_size(data_shape));
-                for (size_t i = 0; i < shape_size(data_shape); i++)
+                for (size_t i = 0; i < shape_size(data_shape); ++i)
                 {
                     sqr_data[i] = data[i] * data[i];
                 }
 
                 Shape reduce_shape = data_shape;
-                for (auto axis : axes)
+                for (auto axis : reduction_axes)
                 {
                     reduce_shape[axis] = 1;
                 }
 
                 std::vector<T> sum_data(shape_size(reduce_shape));
-                sum(sqr_data.data(), sum_data.data(), data_shape, axes, true);
+                sum(sqr_data.data(), sum_data.data(), data_shape, reduction_axes);
                 autobroadcast_binop(data,
                                     sum_data.data(),
                                     out,

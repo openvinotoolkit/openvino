@@ -121,9 +121,6 @@ private:
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
 
     size_t getOpInputsNum() const;
-
-    void fillScalesAndShifts(const MKLDNNNode *parentNode);
 };
 
 }  // namespace MKLDNNPlugin
-

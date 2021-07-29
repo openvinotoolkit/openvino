@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/detection_output.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 #include "primitive_inst.h"
 #include "topology_impl.h"
+
 #include <string>
 
 #define PRIOR_BOX_SIZE 4  // Each prior-box consists of [xmin, ymin, xmax, ymax].
@@ -41,9 +42,9 @@ public:
 public:
     typed_primitive_inst(network_impl& network, detection_output_node const& node);
 
-    memory_impl& location_memory() const { return dep_memory(0); }
-    memory_impl& confidence_memory() const { return dep_memory(1); }
-    memory_impl& prior_box_memory() const { return dep_memory(2); }
+    memory::ptr location_memory() const { return dep_memory_ptr(0); }
+    memory::ptr confidence_memory() const { return dep_memory_ptr(1); }
+    memory::ptr prior_box_memory() const { return dep_memory_ptr(2); }
 };
 
 using detection_output_inst = typed_primitive_inst<detection_output>;

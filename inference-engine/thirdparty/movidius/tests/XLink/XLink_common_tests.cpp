@@ -374,56 +374,56 @@ TEST_P(XLinkOpenStreamTests, DISABLED_CannotOpenStreamsMoreThanMemoryOnDevice) {
 // Initialization of XLinkCommonTests
 //------------------------------------------------------------------------------
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkBootTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkConnectTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkFindFirstSuitableDevicePlatformTests,
     Combine(Values(X_LINK_USB_VSC),
             Values(X_LINK_MYRIAD_2, X_LINK_MYRIAD_X, X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommonPCIE,
     XLinkFindFirstSuitableDevicePlatformTests,
     Combine(Values(X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkFindFirstSuitableDeviceTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkResetAllTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkResetRemoteTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),
             Values(X_LINK_ANY_PLATFORM)),
     XLinkBootTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     XLinkCommon,
     XLinkOpenStreamTests,
     Combine(Values(X_LINK_USB_VSC, X_LINK_PCIE),

@@ -4,11 +4,6 @@
 
 set(TARGET_NAME sharedTestClasses)
 
-list(APPEND EXPORT_DEPENDENCIES
-        funcTestUtils
-        ngraphFunctions
-        )
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -23,12 +18,17 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                ${EXPORT_DEPENDENCIES}
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
+                pugixml::static
+                funcTestUtils
+                ngraphFunctions
 )
+
+# CVS-55373
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/subgraph/softsign.cpp"
+    PROPERTIES INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_faster_build(${TARGET_NAME}
         PCH PRIVATE "src/precomp.hpp"
         )
-

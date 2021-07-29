@@ -39,7 +39,9 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Clamp,                 "Clamp"},
         {ngraph::helpers::ActivationTypes::Negative,              "Negative"},
         {ngraph::helpers::ActivationTypes::Acos,                  "Acos"},
+        {ngraph::helpers::ActivationTypes::Acosh,                 "Acosh"},
         {ngraph::helpers::ActivationTypes::Asin,                  "Asin"},
+        {ngraph::helpers::ActivationTypes::Asinh,                 "Asinh"},
         {ngraph::helpers::ActivationTypes::Atan,                  "Atan"},
         {ngraph::helpers::ActivationTypes::Cos,                   "Cos"},
         {ngraph::helpers::ActivationTypes::Cosh,                  "Cosh"},
@@ -96,13 +98,11 @@ protected:
 };
 
 class ActivationParamLayerTest : public ActivationLayerTest {
-public:
-    void Infer() override;
-
 protected:
     void SetUp() override;
 
 private:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void generateActivationBlob(std::vector<float> constantsValue);
     ngraph::ParameterVector createActivationParams(
         ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});

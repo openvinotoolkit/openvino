@@ -11,7 +11,7 @@ const Version* GetInferenceEngineVersion() noexcept {
     // even if called from global constructor
     static Version inferenceEngineVersion = {{2, 1},  // inference engine API version
                                              CI_BUILD_NUMBER,
-                                             "API"};
+                                             "IE"};
     return &inferenceEngineVersion;
 }
 }  // namespace InferenceEngine

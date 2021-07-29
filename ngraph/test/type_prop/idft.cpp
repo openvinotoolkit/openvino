@@ -46,7 +46,7 @@ TEST_P(ConstantAxesAndConstantSignalSizeTest, idft_constant_axes_and_signal_size
     ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     ConstantAxesAndConstantSignalSizeTest,
     ::testing::Values(
@@ -182,10 +182,8 @@ TEST(type_prop, idft_dynamic_axes)
 {
     const auto input_shape = PartialShape{2, 180, 180, Dimension(1, 18)};
     const auto axes_shape = PartialShape::dynamic();
-    const auto ref_output_shape = PartialShape{Dimension::dynamic(),
-                                               Dimension::dynamic(),
-                                               Dimension::dynamic(),
-                                               Dimension(1, 18)};
+    const auto ref_output_shape = PartialShape{
+        Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)};
 
     auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
     auto axes_input = std::make_shared<op::Parameter>(element::i64, axes_shape);
@@ -218,7 +216,7 @@ TEST_P(NonConstantAxesTest, idft_non_constant_axes)
     ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     NonConstantAxesTest,
     ::testing::Values(
@@ -311,7 +309,7 @@ TEST_P(NonConstantSignalSizeTest, idft_non_constant_signal_size)
     ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(params.ref_output_shape));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     NonConstantSignalSizeTest,
     ::testing::Values(

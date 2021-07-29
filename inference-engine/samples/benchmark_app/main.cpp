@@ -4,8 +4,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cldnn/cldnn_config.hpp>
 #include <gna/gna_config.hpp>
+#include <gpu/gpu_config.hpp>
 #include <inference_engine.hpp>
 #include <map>
 #include <memory>
@@ -52,6 +52,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
+    if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
+        showUsage();
+        throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
+    }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
@@ -100,11 +104,10 @@ static void next_step(const std::string additional_info = "") {
 }
 
 template <typename T>
-T getMedianValue(const std::vector<T>& vec) {
+T getMedianValue(const std::vector<T>& vec, std::size_t percentile) {
     std::vector<T> sortedVec(vec);
     std::sort(sortedVec.begin(), sortedVec.end());
-    return (sortedVec.size() % 2 != 0) ? sortedVec[sortedVec.size() / 2ULL]
-                                       : (sortedVec[sortedVec.size() / 2ULL] + sortedVec[sortedVec.size() / 2ULL - 1ULL]) / static_cast<T>(2.0);
+    return sortedVec[(sortedVec.size() / 100) * percentile];
 }
 
 /**
@@ -277,12 +280,12 @@ int main(int argc, char* argv[]) {
                 setThroughputStreams();
 
                 if ((device_name.find("MULTI") != std::string::npos) && (device_name.find("CPU") != std::string::npos)) {
-                    slog::warn << "Turn on GPU trottling. Multi-device execution with "
-                                  "the CPU + GPU performs best with GPU trottling hint,"
+                    slog::warn << "Turn on GPU throttling. Multi-device execution with "
+                                  "the CPU + GPU performs best with GPU throttling hint, "
                                << "which releases another CPU thread (that is otherwise "
                                   "used by the GPU driver for active polling)"
                                << slog::endl;
-                    device_config[CLDNN_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
+                    device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
@@ -330,7 +333,29 @@ int main(int argc, char* argv[]) {
         std::string topology_name = "";
         benchmark_app::InputsInfo app_inputs_info;
         std::string output_name;
-        if (!isNetworkCompiled) {
+
+        // Takes priority over config from file
+        if (!FLAGS_cache_dir.empty()) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), FLAGS_cache_dir}});
+        }
+
+        if (FLAGS_load_from_file && !isNetworkCompiled) {
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading network from file" << slog::endl;
+            auto startTime = Time::now();
+            exeNetwork = ie.LoadNetwork(FLAGS_m, device_name);
+            auto duration_ms = double_to_string(get_total_ms_time(startTime));
+            slog::info << "Load network took " << duration_ms << " ms" << slog::endl;
+            if (statistics)
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"load network time (ms)", duration_ms}});
+            if (batchSize == 0) {
+                batchSize = 1;
+            }
+        } else if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network
             // ----------------------------------------
             next_step();
@@ -363,7 +388,7 @@ int main(int argc, char* argv[]) {
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
-                auto duration_ms = double_to_string(get_total_ms_time(startTime));
+                duration_ms = double_to_string(get_total_ms_time(startTime));
                 slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
                 if (statistics)
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"reshape network time (ms)", duration_ms}});
@@ -602,7 +627,7 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.waitAll();
 
-        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies());
+        double latency = getMedianValue<double>(inferRequestsQueue.getLatencies(), FLAGS_latency_percentile);
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps = (FLAGS_api == "sync") ? batchSize * 1000.0 / latency : batchSize * 1000.0 * iteration / totalDuration;
 
@@ -612,8 +637,14 @@ int main(int argc, char* argv[]) {
                                                                                          {"total number of iterations", std::to_string(iteration)},
                                                                                      });
             if (device_name.find("MULTI") == std::string::npos) {
+                std::string latency_label;
+                if (FLAGS_latency_percentile == 50) {
+                    latency_label = "latency (ms)";
+                } else {
+                    latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
+                }
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {
-                                                                                             {"latency (ms)", double_to_string(latency)},
+                                                                                             {latency_label, double_to_string(latency)},
                                                                                          });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"throughput", double_to_string(fps)}});
@@ -662,8 +693,15 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Count:      " << iteration << " iterations" << std::endl;
         std::cout << "Duration:   " << double_to_string(totalDuration) << " ms" << std::endl;
-        if (device_name.find("MULTI") == std::string::npos)
-            std::cout << "Latency:    " << double_to_string(latency) << " ms" << std::endl;
+        if (device_name.find("MULTI") == std::string::npos) {
+            std::cout << "Latency";
+            if (FLAGS_latency_percentile == 50) {
+                std::cout << ":    ";
+            } else {
+                std::cout << " (" << FLAGS_latency_percentile << " percentile):    ";
+            }
+            std::cout << double_to_string(latency) << " ms" << std::endl;
+        }
         std::cout << "Throughput: " << double_to_string(fps) << " FPS" << std::endl;
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;

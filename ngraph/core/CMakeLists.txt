@@ -45,17 +45,6 @@ ie_mark_target_as_cc(ngraph)
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
-if(NGRAPH_ADDRESS_SANITIZER)
-    message(STATUS "Enable Address Sanitizer")
-    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
-endif()
-
-if(NGRAPH_LIB_VERSIONING_ENABLE)
-    set_target_properties(ngraph PROPERTIES
-        VERSION ${NGRAPH_VERSION}
-        SOVERSION ${NGRAPH_API_VERSION})
-endif()
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
 endif()
@@ -86,37 +75,46 @@ target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH
 #Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
 
-if (NOT WIN32)
-    target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
-endif()
+target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-# nGraph
+export(TARGETS ngraph NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+
 install(TARGETS ngraph EXPORT ngraphTargets
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}
-    COMPONENT ngraph
-    FILES_MATCHING
-        PATTERN "*.hpp"
-        PATTERN "*.h"
-)
+        DESTINATION ${NGRAPH_INSTALL_INCLUDE}
+        COMPONENT ngraph_dev
+        FILES_MATCHING
+            PATTERN "*.hpp"
+            PATTERN "*.h"
+            PATTERN "*version.in.hpp" EXCLUDE)
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/ngraph/version.hpp
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
-    COMPONENT ngraph)
+        DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph
+        COMPONENT ngraph_dev)
 
-set(CPACK_GENERATOR "DEB")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "nGraph library")
-set(CPACK_PACKAGE_NAME "nGraph")
-set(CPACK_PACKAGE_VENDOR "Intel")
+install(EXPORT ngraphTargets
+        FILE ngraphTargets.cmake
+        NAMESPACE ngraph::
+        DESTINATION "deployment_tools/ngraph/cmake"
+        COMPONENT ngraph_dev)
 
-set(CPACK_PACKAGE_VERSION_MAJOR ${NGRAPH_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${NGRAPH_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${NGRAPH_VERSION_PATCH})
-include(CPack)
+configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
+    ${ngraph_BINARY_DIR}/ngraphConfig.cmake
+    INSTALL_DESTINATION cmake)
+
+write_basic_package_version_file(${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+    VERSION ${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES ${ngraph_BINARY_DIR}/ngraphConfig.cmake
+              ${ngraph_BINARY_DIR}/ngraphConfigVersion.cmake
+        DESTINATION "deployment_tools/ngraph/cmake"
+        COMPONENT ngraph_dev)

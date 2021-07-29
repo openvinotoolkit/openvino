@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #ifndef DIRECTION
 #define DIRECTION 0
@@ -17,10 +18,10 @@
  \
 { \
     val += intel_sub_group_shuffle(val, x+1); \
-    val += intel_sub_group_shuffle(val, x+2); \ 
-    val += intel_sub_group_shuffle(val, x+4); \ 
+    val += intel_sub_group_shuffle(val, x+2); \
+    val += intel_sub_group_shuffle(val, x+4); \
     val += intel_sub_group_shuffle(val, x+8); \
-} 
+}
 
 // input     = [    batch,  sequence,               1,      input_size ]
 // weights   = [        1, direction, 4 * hidden_size,      input_size ]
@@ -47,16 +48,16 @@ KERNEL(lstm_gemm)(
     const uint y = get_global_id(1);
 	const int local_sz = get_local_size(0);
 
-	uint K; 	
+	uint K;
 	int start_offset;
 	int end_offset;
-	int matrix_offset;  
-	int vector_offset; 
+	int matrix_offset;
+	int vector_offset;
 	float4 sum;
 	float result;
-	
+
 	K = INPUT0_SIZE_X;  // Width of  weight matrix
-	start_offset = GET_DATA_INDEX(WEIGHTS, 0, DIRECTION, y, 0);  // set as the starting offset of the weight matrix 
+	start_offset = GET_DATA_INDEX(WEIGHTS, 0, DIRECTION, y, 0);  // set as the starting offset of the weight matrix
 	end_offset = start_offset + K;
 	matrix_offset = start_offset + (x * 4);  // Weight offset for the work item to work on
 	vector_offset = GET_DATA_INDEX(INPUT0, 0, 0, INPUT_DIRECTION, (x*4));  // Input offset for the work item to work on
@@ -67,17 +68,17 @@ KERNEL(lstm_gemm)(
 		half4 mask = (half4) (1 , (matrix_offset + 1) < end_offset , (matrix_offset + 2) < end_offset , (matrix_offset + 3) < end_offset);
 		half4 m = (half4) (weights[matrix_offset], weights[matrix_offset + 1], weights[matrix_offset + 2], weights[matrix_offset + 3]);
 		m = m * mask;
-		
+
 		const half4 v = (half4)(input[vector_offset], input[vector_offset + 1], input[vector_offset + 2], input[vector_offset + 3]);
-		
+
 		sum = mad(convert_float4(m), convert_float4(v), sum);
 	}
-	
+
 	result = sum.x + sum.y + sum.z + sum.w;
 
 #if HIDDEN_TERM
 	K = HIDDEN_SIZE_X;  // width of recurrent matrix
-	start_offset = GET_DATA_INDEX(RECURRENT, 0, DIRECTION, y, 0);  // set as the starting offset of the recurrent matrix 
+	start_offset = GET_DATA_INDEX(RECURRENT, 0, DIRECTION, y, 0);  // set as the starting offset of the recurrent matrix
 	end_offset = start_offset + K;
 	matrix_offset = start_offset + (x * 4);  // recurrent offset for the work item to work on
 	vector_offset = GET_DATA_INDEX(HIDDEN, 0, 0, HIDDEN_DIRECTION, (x*4));  // hidden vector offset for the work item to work on
@@ -89,25 +90,25 @@ KERNEL(lstm_gemm)(
 		m = m * mask;
 
 		const half4 v = (half4) (hidden[vector_offset], hidden[vector_offset + 1], hidden[vector_offset + 2], hidden[vector_offset + 3]);
-		
+
 		sum = mad(convert_float4(m), convert_float4(v), sum);
 	}
-	
+
 	result += sum.x + sum.y + sum.z + sum.w;
 #endif
-	
+
 	// Add together partial sums contained in each work item's "result" variable
 	SUM_ACROSS_SUB_GROUP(result);
 
-	if(x == 0) 
-	{	
+	if(x == 0)
+	{
 	    output[y] = 0;// (half)result;
 
 #if BIAS_TERM
 		const uint bias_idx = GET_DATA_INDEX(BIAS, 0, 0, DIRECTION, y);
 		half bias = biases[bias_idx];
 		result += (float)bias;
-#endif 
+#endif
 
 		output[y] = (half)result;
 		//output[y] = convert_half_rte(result);

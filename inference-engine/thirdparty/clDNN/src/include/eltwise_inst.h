@@ -4,11 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/eltwise.hpp"
+#include "cldnn/primitives/eltwise.hpp"
 #include "primitive_inst.h"
-#include <memory>
 #include "topology_impl.h"
 #include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
+
+#include <memory>
 #include <string>
 
 namespace cldnn {

@@ -15,7 +15,7 @@
 using namespace ngraph;
 using namespace std;
 
-constexpr NodeTypeInfo op::v3::NonZero::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::NonZero, "NonZero", 3);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg)
     : Op({arg})
@@ -47,30 +47,20 @@ bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 void op::v3::NonZero::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types);
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    const auto input_et = get_input_element_type(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral_number() || input_et.is_real(),
-                          "NonZero input data type needs to be a numeric type. Got: ",
-                          input_et);
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
-
     // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    if (input_shape.rank() == 0)
+    const PartialShape& input_shape = get_input_partial_shape(0);
+    if (input_shape.rank().compatible(0))
     {
         set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
     }
     else
     {
-        const Dimension dim = input_shape.is_static()
-                                  ? std::accumulate(begin(input_shape),
-                                                    end(input_shape),
-                                                    Dimension(0, 1),
-                                                    std::multiplies<Dimension>())
-                                  : Dimension();
+        const Dimension dim = std::accumulate(
+            begin(input_shape), end(input_shape), Dimension(0, 1), std::multiplies<Dimension>());
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
@@ -154,6 +144,7 @@ namespace nonzero
 
         switch (input->get_element_type())
         {
+            NGRAPH_TYPE_CASE(evaluate_nonzero, boolean, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i8, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i16, input, output);
             NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output);
@@ -177,4 +168,26 @@ bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v3_NonZero_evaluate);
     return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
+}
+
+bool op::v3::NonZero::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_NonZero_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64: return true;
+    default: break;
+    }
+    return false;
 }

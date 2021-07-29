@@ -78,7 +78,11 @@ InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngi
     auto td = info.getTensorDesc();
     auto blob = make_blob_with_precision(td);
     blob->allocate();
-    CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    if (reductionType == ngraph::helpers::ReductionType::Max) {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, -5, 1000);
+    } else {
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 5, 0, 1000);
+    }
     return blob;
 }
 

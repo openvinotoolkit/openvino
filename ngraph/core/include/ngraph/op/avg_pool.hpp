@@ -49,7 +49,6 @@ namespace ngraph
                         op::RoundingType rounding_type = op::RoundingType::FLOOR,
                         const PadType& auto_pad = op::PadType::EXPLICIT);
 
-                size_t get_version() const override { return 1; }
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -76,7 +75,9 @@ namespace ngraph
                 op::RoundingType get_rounding_type() const;
                 void set_rounding_type(op::RoundingType rounding_type);
                 /// \return The default value for AvgPool.
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Shape m_kernel;

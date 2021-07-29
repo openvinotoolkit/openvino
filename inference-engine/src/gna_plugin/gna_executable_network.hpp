@@ -12,11 +12,11 @@
 #include "gna_plugin.hpp"
 #include <gna/gna_config.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 
 namespace GNAPluginNS {
 
-class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
+class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
 
  public:
@@ -68,8 +68,6 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkInternal {
     void Export(const std::string &modelFileName) override {
         plg->Export(modelFileName);
     }
-
-    using ExecutableNetworkInternal::Export;
 
     void Export(std::ostream& modelStream) override {
         plg->Export(modelStream);

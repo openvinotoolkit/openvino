@@ -7,7 +7,7 @@ from argparse import Namespace
 import numpy as np
 from generator import generator, generate
 
-from extensions.back.compress_quantized_weights import CompressQuantizeWeights
+from extensions.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Sub, Mul
 from extensions.ops.fakequantize import FakeQuantize
@@ -37,7 +37,7 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
 
         **regular_op_with_shaped_data(
             'FQ', shape, {'type': 'FakeQuantize', 'infer': FakeQuantize.infer, 'stop_value_propagation': True,
-                               'levels': levels, 'op': 'FakeQuantize'}),
+                          'levels': levels, 'op': 'FakeQuantize'}),
 
         **valued_const_with_data('zp', np.array([0])),
         **valued_const_with_data('scale', np.array([1])),
@@ -49,7 +49,7 @@ def nodes_dict(original, transformed=None, levels=255, data=None, il=[-127], ih=
             'mul', shape, {'type': 'Multiply', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, Mul.operation)}),
 
         **result()
-}
+    }
 
 
 class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
@@ -245,6 +245,73 @@ class NegativeCompressionTestLevels(unittest.TestCase):
         ], nodes_with_edges_only=True)
         graph_ref = graph.copy()
         CompressQuantizeWeights().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+@generator
+class ZeroPointOptimizerTestClass(unittest.TestCase):
+    @generate(*[
+        ([-10, 7], [-1], [-9, 8], [0]),
+        ([-10, 7], [-0.99999999], [-9, 8], [0]),
+    ])
+    def test_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+        nodes = lambda w, zp: {
+            **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
+            **regular_op_with_shaped_data(
+                'cast', len(w), {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+            **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
+            **regular_op_with_shaped_data(
+                'sub', len(w),
+                {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
+            **result()
+        }
+        edges = [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:sub"),
+            *connect("zp:0", "1:sub"),
+            *connect("sub:0", "0:output"),
+        ]
+        graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
+        ZeroPointOptimizer().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes(adj_weights, adj_zero_point), [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:output"),
+        ], nodes_with_edges_only=True)
+        graph_ref.clean_up()
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    @generate(*[
+        ([-128, 7], [1], [-128, 7], [1]),
+        ([127, 7], [-1], [127, 7], [-1]),
+    ])
+    def test_negative_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+        nodes = lambda w, zp: {
+            **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
+            **regular_op_with_shaped_data(
+                'cast', len(w), {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+            **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
+            **regular_op_with_shaped_data(
+                'sub', len(w),
+                {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
+            **result()
+        }
+        edges = [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:sub"),
+            *connect("zp:0", "1:sub"),
+            *connect("sub:0", "0:output"),
+        ]
+        graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
+        ZeroPointOptimizer().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes(adj_weights, adj_zero_point), edges, nodes_with_edges_only=True)
+        graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)

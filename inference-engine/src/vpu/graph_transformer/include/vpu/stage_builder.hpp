@@ -14,6 +14,8 @@
 
 namespace vpu {
 
+IE_SUPPRESS_DEPRECATED_START
+
 class StageBuilder final {
 public:
     using Ptr = std::shared_ptr<StageBuilder>;
@@ -358,5 +360,7 @@ public:
                                          bool mergeRepeated,
                                          int32_t blankIndex);
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace vpu

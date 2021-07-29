@@ -46,7 +46,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         threshold = 0.1f;
 
         Shape inputShape;
@@ -109,7 +109,7 @@ std::vector<std::vector<std::vector<float>>> quantizes {
     { {0.f}, {2.55f}, {0.f}, {2.55f} },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FuseScaleShiftAndFakeQuantize, FuseScaleShiftAndFakeQuantizeTest,
+INSTANTIATE_TEST_SUITE_P(smoke_FuseScaleShiftAndFakeQuantize, FuseScaleShiftAndFakeQuantizeTest,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(element::f32),

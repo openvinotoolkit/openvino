@@ -12,13 +12,13 @@ using namespace ngraph;
 TEST(type_prop, reverse_sequence_1_dim)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    auto seq_lenghts = make_shared<op::Parameter>(element::f32, Shape{4, 4});
+    auto seq_lengths = make_shared<op::Parameter>(element::f32, Shape{4, 4});
     try
     {
         size_t batch_axis = 0;
         size_t seq_axis = 1;
-        auto bc = make_shared<op::ReverseSequence>(data, seq_lenghts, batch_axis, seq_axis);
-        FAIL() << "ReverseSequence c-tor should throw for seq_lenghts whose rank isn't equal to 1";
+        auto bc = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);
+        FAIL() << "ReverseSequence c-tor should throw for seq_lengths whose rank isn't equal to 1";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -34,12 +34,12 @@ TEST(type_prop, reverse_sequence_1_dim)
 TEST(type_prop, reverse_sequence_batch_index_oob)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    auto seq_lenghts = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto seq_lengths = make_shared<op::Parameter>(element::f32, Shape{3});
     try
     {
         size_t batch_axis = 3;
         size_t seq_axis = 1;
-        auto bc = make_shared<op::ReverseSequence>(data, seq_lenghts, batch_axis, seq_axis);
+        auto bc = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);
         FAIL() << "ReverseSequence c-tor should throw for out-of-bounds batch axis index";
     }
     catch (const ngraph_error& error)
@@ -76,12 +76,12 @@ TEST(type_prop, reverse_sequence_sequence_index_oob)
 TEST(type_prop, reverse_sequence_seq_len_size_equal_to_batch_dim)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    auto seq_lenghts = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto seq_lengths = make_shared<op::Parameter>(element::f32, Shape{3});
     try
     {
         size_t batch_axis = 0;
         size_t seq_axis = 1;
-        auto bc = make_shared<op::ReverseSequence>(data, seq_lenghts, batch_axis, seq_axis);
+        auto bc = make_shared<op::ReverseSequence>(data, seq_lengths, batch_axis, seq_axis);
         FAIL() << "ReverseSequence c-tor should throw when sequence length size isn't equal to "
                   "batch dimension";
     }

@@ -17,6 +17,7 @@
 
 #include "ie_version.hpp"
 #include "ie_extension.h"
+#include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
 
@@ -173,8 +174,17 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @deprecated Use Core::ImportNetwork with explicit device name
+     * @brief Creates an executable network from a previously exported network
+     * @param networkModel network model stream
+     * @return An executable network reference
+     */
+    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
+    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified

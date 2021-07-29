@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
+TEST_P(FakeQuantizeLayerTestRevise, CompareWithRefs) {
     Run();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 

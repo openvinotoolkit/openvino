@@ -51,7 +51,6 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     NGRAPH_OP_SCOPE(v3_ShapeOf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_shape_of = make_shared<op::v3::ShapeOf>(new_args.at(0), m_output_type);
-    new_shape_of->set_is_foldable(m_is_foldable);
     return new_shape_of;
 }
 
@@ -82,8 +81,7 @@ namespace shape_of
 
     bool constant_fold_shape_of(Node* shape_of_node,
                                 Output<Node>& replacement,
-                                const Output<Node>& shape_of_input,
-                                bool is_foldable)
+                                const Output<Node>& shape_of_input)
     {
         auto partial_shape = shape_of_input.get_partial_shape();
         auto output_type = shape_of_node->get_output_element_type(0);
@@ -99,46 +97,6 @@ namespace shape_of
                 return true;
             }
             return false;
-        }
-        else if (partial_shape.rank().is_static() && is_foldable)
-        {
-            auto shape_of = shape_of_node->copy_with_new_inputs({shape_of_input});
-            // Ugly
-            if (auto ps = as_type_ptr<op::v0::ShapeOf>(shape_of))
-            {
-                ps->set_is_foldable(false);
-            }
-            else if (auto ps = as_type_ptr<op::v3::ShapeOf>(shape_of))
-            {
-                ps->set_is_foldable(false);
-            }
-            auto dimensions = OutputVector{};
-            auto output_dimensions = vector<Dimension>(partial_shape);
-            for (size_t i = 0; i < output_dimensions.size(); ++i)
-            {
-                if (output_dimensions[i].is_static())
-                {
-                    auto temp = std::make_shared<op::v0::Constant>(
-                        output_type,
-                        Shape{1},
-                        std::vector<int64_t>{output_dimensions[i].get_length()});
-                    temp->set_friendly_name("ConstDim/" + temp->get_name());
-                    dimensions.emplace_back(temp);
-                }
-                else
-                {
-                    auto index = std::make_shared<op::v0::Constant>(
-                        output_type, Shape{1}, std::vector<int64_t>{static_cast<int64_t>(i)});
-                    auto axis = std::make_shared<op::v0::Constant>(
-                        element::i64, Shape{}, std::vector<int64_t>{0});
-                    auto temp = make_shared<op::v1::Gather>(shape_of, index, axis);
-                    temp->set_friendly_name("DynDim/" + temp->get_name());
-                    dimensions.emplace_back(temp);
-                }
-            }
-
-            replacement = std::make_shared<op::Concat>(dimensions, 0);
-            return true;
         }
         return false;
     }
@@ -221,6 +179,20 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
+bool op::v3::ShapeOf::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_ShapeOf_has_evaluate);
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const
 {
     return shape_of::evaluate_bound_shape(this, output_values, false);
@@ -236,7 +208,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
     if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
         return false;
-    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 // op::v0::ShapeOf
@@ -272,7 +244,6 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
                  description(),
                  " operation with name ",
                  get_friendly_name());
-    new_shape_of->set_is_foldable(m_is_foldable);
     return new_shape_of;
 }
 
@@ -285,12 +256,26 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
+bool op::v0::ShapeOf::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_ShapeOf_has_evaluate);
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
     if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
         return false;
-    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const

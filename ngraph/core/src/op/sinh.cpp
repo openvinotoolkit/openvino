@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
-
-#include "ngraph/op/cosh.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/sinh.hpp"
-
-#include "ngraph/runtime/host_tensor.hpp"
+#include <ngraph/validation_util.hpp>
 #include "ngraph/runtime/reference/sinh.hpp"
+
+#include "itt.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Sinh::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Sinh, "Sinh", 0, util::UnaryElementwiseArithmetic);
 
 op::Sinh::Sinh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
@@ -68,5 +65,23 @@ namespace sinhop
 bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Sinh_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return sinhop::evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+}
+
+bool op::Sinh::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Sinh_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
 }

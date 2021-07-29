@@ -98,18 +98,18 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y + lh, x / " + std::to_string(params.output.Y().v)
-                                 + ", x % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y + lh, x / " + toCodeString(params.output.Y().v)
+                                 + ", x % " + toCodeString(params.output.Y().v)
                                  + ", f");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y + lh, x / (" + std::to_string(params.output.Y().v)
-                                 + " * " + std::to_string(params.output.Z().v) + ")"
-                                 + ", x / " + std::to_string(params.output.Y().v)
-                                 + ", x % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y + lh, x / (" + toCodeString(params.output.Y().v)
+                                 + " * " + toCodeString(params.output.Z().v) + ")"
+                                 + ", x / " + toCodeString(params.output.Y().v)
+                                 + ", x % " + toCodeString(params.output.Y().v)
                                  + ", f");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z + lh, y /" + std::to_string(params.output.Z().v)
-                                 + ", y % " + std::to_string(params.output.Z().v)
+            order_str = ("b, z + lh, y /" + toCodeString(params.output.Z().v)
+                                 + ", y % " + toCodeString(params.output.Z().v)
                                  + ", x, f");
         } else {
             throw std::runtime_error("Unsupported combination\n");

@@ -11,20 +11,17 @@ file(GLOB SRCS
 add_executable(${TARGET_NAME} ${SRCS})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${IE_MAIN_SOURCE_DIR}/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
     ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
-    ${IE_MAIN_SOURCE_DIR}/src/plugin_api
 )
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${TARGET_NAME} PRIVATE
-        "-Wall"
-    )
+if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
+    inference_engine_plugin_api
     gflags
     ie_samples_utils
 )

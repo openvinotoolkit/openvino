@@ -248,12 +248,23 @@ void regclass_pyngraph_Node(py::module m)
                 get_rt_info : PyRTMap
                     A dictionary of user defined data.
              )");
+    node.def("get_version",
+             &ngraph::Node::get_version,
+             R"(
+                Returns operation's version of the node.
+
+                Returns
+                ----------
+                get_version : int
+                    Operation version.
+             )");
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
     node.def_property_readonly("rt_info",
                                (PyRTMap & (ngraph::Node::*)()) & ngraph::Node::get_rt_info,
                                py::return_value_policy::reference_internal);
+    node.def_property_readonly("version", &ngraph::Node::get_version);
     node.def_property(
         "friendly_name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
 

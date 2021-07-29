@@ -22,15 +22,13 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
   * **Description**: *output_dim* is the number of the output channels, size of output `C` dimension.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *spatial_scale*
 
-  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image size. 
+  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image size.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *group_size*
@@ -68,13 +66,13 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
 
 * *trans_std*
   * **Description**: *trans_std* is the value that all third input values (offests) are multiplied with to modulate the magnitude of the offsets.
-  * **Range of values**: floating point number
+  * **Range of values**: floating-point number
   * **Type**: `float`
   * **Default value**: 1
   * **Required**: *no*
 
 * *part_size*
-  * **Description**: *part_size* is the size of `H` and `W` dimensions of the third input (offsets). Basically it is the height and width of the third input 
+  * **Description**: *part_size* is the size of `H` and `W` dimensions of the third input (offsets). Basically it is the height and width of the third input
   with transformation values.
   * **Range of values**: positive integer number
   * **Type**: `int`
@@ -83,20 +81,20 @@ This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.a
 
 **Inputs**:
 
-*   **1**: 4D input tensor of type *T* and shape `[N_in, C_in, H_in, W_in]` with position sensitive score maps. Required.
+*   **1**: 4D input tensor of type *T* and shape `[N_in, C_in, H_in, W_in]` with position sensitive score maps. **Required.**
 
-*   **2**: 2D input tensor of type *T* and shape `[NUM_ROIS, 5]`. It contains a list of five element tuples describing a single ROI (region of interest): `[batch_id, x_1, y_1, x_2, y_2]`. Required.
+*   **2**: 2D input tensor of type *T* and shape `[NUM_ROIS, 5]`. It contains a list of five element tuples describing a single ROI (region of interest): `[batch_id, x_1, y_1, x_2, y_2]`. **Required.**
 Batch indices must be in the range of `[0, N_in-1]`.
 
-*   **3**: 4D input tensor of type *T* and shape `[NUM_ROIS, 2*NUM_CLASSES, group_size, group_size]` with transformation values. It contains normalized `[0, 1]` offsets for each ROI bin left top corner coordinates. Channel dimension is multiplied by `2` because of encoding two `(x, y)` coordinates. Optional.
+*   **3**: 4D input tensor of type *T* and shape `[NUM_ROIS, 2*NUM_CLASSES, group_size, group_size]` with transformation values. It contains normalized `[0, 1]` offsets for each ROI bin left top corner coordinates. Channel dimension is multiplied by `2` because of encoding two `(x, y)` coordinates. **Optional.**
 
 **Outputs**:
 *   **1**: 4D output tensor of type *T* shape `[NUM_ROIS, output_dim, group_size, group_size]` with ROIs score maps.
 
 **Types**:
 
-* *T*: Any floating point type.
- 
+* *T*: Any floating-point type.
+
 
 **Example**
 

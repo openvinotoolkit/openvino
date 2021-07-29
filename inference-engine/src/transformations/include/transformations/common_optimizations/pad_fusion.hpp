@@ -12,6 +12,7 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API PadFusion;
+class TRANSFORMATIONS_API PadElimination;
 class TRANSFORMATIONS_API PadFusionAvgPool;
 class TRANSFORMATIONS_API PadFusionMaxPool;
 class TRANSFORMATIONS_API PadFusionConvolution;
@@ -21,6 +22,16 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
 
 }  // namespace pass
 }  // namespace ngraph
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief PadElimination eliminates pad that does nothing
+ */
+class ngraph::pass::PadElimination: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    PadElimination();
+};
 
 /**
  * @ingroup ie_transformation_common_api
@@ -113,5 +124,6 @@ public:
         add_matcher<ngraph::pass::PadFusionConvolutionBackpropData>();
         add_matcher<ngraph::pass::PadFusionGroupConvolution>();
         add_matcher<ngraph::pass::PadFusionGroupConvolutionBackpropData>();
+        add_matcher<ngraph::pass::PadElimination>();
     }
 };

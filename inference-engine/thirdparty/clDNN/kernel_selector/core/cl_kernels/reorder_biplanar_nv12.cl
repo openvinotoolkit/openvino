@@ -3,7 +3,7 @@
 //
 
 #include "include/reshape_dims.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 #include "include/data_types.cl"
 ///////////////////////// Output Index /////////////////////////

@@ -183,7 +183,6 @@ TEST(eval, evaluate_dynamic_range_sum)
     ASSERT_EQ(cval, seq);
 }
 
-#ifdef NGRAPH_INTERPRETER_ENABLE
 TEST(eval, interpret_dynamic_range_sum)
 {
     auto p_start = make_shared<op::Parameter>(element::f32, PartialShape{});
@@ -212,7 +211,6 @@ TEST(eval, interpret_dynamic_range_sum)
     vector<float> seq{8.0f, 11.0f, 14.0f};
     ASSERT_EQ(result_val, seq);
 }
-#endif
 
 TEST(eval, evaluate_broadcast_v3_bidirectional)
 {
@@ -1808,28 +1806,6 @@ TEST(eval, topk_v1_param_dyn_k0)
 
     vector<int32_t> expec1{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
     ASSERT_EQ(result1_val, expec1);
-}
-
-TEST(eval, reduce_logical_and__neg_axis)
-{
-    const auto data = make_shared<op::Parameter>(element::boolean, Shape{2, 2, 2});
-    const auto axes = make_shared<op::Parameter>(element::i64, Shape{});
-
-    const auto op = make_shared<op::v1::ReduceLogicalAnd>(data, axes);
-
-    auto fun = make_shared<Function>(op, ParameterVector{data, axes});
-
-    auto result = make_shared<HostTensor>();
-
-    // when ReduceLogicalAnd node evaluator returns false -> the Function object throws
-    EXPECT_THROW(
-        fun->evaluate({result},
-                      {
-                          make_host_tensor<element::Type_t::boolean>(
-                              Shape{2, 2, 2}, {true, false, true, false, true, false, true, false}),
-                          make_host_tensor<element::Type_t::i64>(Shape{}, {-1}),
-                      }),
-        ngraph::ngraph_error);
 }
 
 TEST(eval, evaluate_static_scatter_update_basic_axes_indices_i32)

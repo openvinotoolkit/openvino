@@ -14,7 +14,7 @@ using namespace InferenceEngine;
 
 MKLDNNSoftMaxNode::MKLDNNSoftMaxNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
-    auto softmaxOp = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op);
+    const auto softmaxOp = ngraph::as_type_ptr<ngraph::op::v1::Softmax>(op);
     if (softmaxOp) {
         axis = softmaxOp->get_axis();
     } else {

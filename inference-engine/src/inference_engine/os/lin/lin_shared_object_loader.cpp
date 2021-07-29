@@ -7,6 +7,7 @@
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
+#include <iostream>
 
 namespace InferenceEngine {
 namespace details {
@@ -17,7 +18,7 @@ private:
 
 public:
     explicit Impl(const char* pluginName) {
-        shared_object = dlopen(pluginName, RTLD_LAZY);
+        shared_object = dlopen(pluginName, RTLD_NOW);
 
         if (shared_object == nullptr)
             IE_THROW() << "Cannot load library '" << pluginName << "': " << dlerror();
@@ -64,6 +65,9 @@ SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
 SharedObjectLoader::~SharedObjectLoader() {}
 
 void* SharedObjectLoader::get_symbol(const char* symbolName) const {
+    if (_impl == nullptr) {
+        IE_THROW(NotAllocated) << "SharedObjectLoader is not initialized";
+    }
     return _impl->get_symbol(symbolName);
 }
 

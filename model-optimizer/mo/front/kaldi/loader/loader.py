@@ -14,6 +14,7 @@ from mo.front.extractor import add_outputs_identity
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
+from mo.front.kaldi.utils import read_binary_vector
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
 from mo.utils.error import Error
@@ -151,6 +152,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
                        kind='op',
                        layer_i=layer_i,
                        layer_o=layer_o)
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
@@ -220,6 +223,20 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
                 o_n['parameters']['element_size'] = int64_array([1, node.shape[1]])
 
     load_components(file_descr, graph, component_layer_map)
+    load_priors(file_descr, graph)
+
+
+def load_priors(file_descr, graph):
+    try:
+        collect_until_token(file_descr, b'<Priors>')
+    except Error:
+        # just ignore if priors were not found
+        return
+    if graph.graph['cmd_params'].counts is not None:
+        graph.graph['priors'] = read_binary_vector(file_descr)
+    else:
+        log.error("Model contains Prior values, if you want to embed them into the generated IR add option --counts=\"\" to command line",
+                  extra={'is_warning': True})
 
 
 def load_components(file_descr, graph, component_layer_map=None):
@@ -280,6 +297,8 @@ def load_components(file_descr, graph, component_layer_map=None):
                            parameters=get_parameters(file_descr, start_index, end_index),
                            op=component_type,
                            kind='op')
+        if hasattr(graph, 'op_names_statistic'):
+            graph.op_names_statistic[component_type] += 1
 
         all_components.append(layer_id)
         log.debug('{} (type is {}) was loaded'.format(layer_id, component_type))

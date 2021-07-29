@@ -74,7 +74,7 @@ void FqConvFqAffineTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     auto inputFQNode = ngraph::builder::makeFakeQuantize(params[0], ngraph::element::f32, levels[0], std::vector<size_t>{},
         { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });

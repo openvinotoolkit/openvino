@@ -6,7 +6,7 @@
 #include "topology_impl.h"
 #include "network_impl.h"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 #include "data_inst.h"
 #include "reorder_inst.h"
@@ -106,16 +106,15 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()))
-        return _format_forcing.at(node.id()) == fmt;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()))
+        return _forcing_map.at(node.id()).first == fmt;
 
-    auto& engine = node.get_program().get_engine();
     auto prev_layout = node.get_output_layout();
     auto new_layout = prev_layout;
     new_layout.format = fmt;
     node.set_output_layout(new_layout, false);
 
-    auto supported = node.type()->does_possible_implementation_exist(engine, node);
+    auto supported = node.type()->does_possible_implementation_exist(node);
 
     node.set_output_layout(prev_layout, false);
 
@@ -237,8 +236,28 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<permute>()) {
+        auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+            // Target transform: Rotate feature dim to back to be taken as inner-most axis
+            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+            // ex) 0(b), 3(f), 1(y), 2(x)
+            if ((int32_t) order[1] != order.size() - 1) return false;
+            if ((int32_t) order[0] != 0) return false;
+            for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+                if ((int32_t)order[i] !=  (i - 1)) return false;
+            }
+            return true;
+        };
+
+        auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
+        if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+         && permute_order[1] == 2
+         && (!is_rotating_except_batch(permute_order))) {
+            return false;
+        }
         return true;
     }
+
     return false;
 }
 
@@ -804,12 +823,21 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
+impl_types layout_optimizer::get_preferred_impl_type(program_node& node) {
+    impl_types preferred_impl = impl_types::any;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        preferred_impl = _forcing_map.at(node.id()).second;
+    }
+
+    return preferred_impl;
+}
+
 format layout_optimizer::get_preferred_format(program_node& node) {
     format expected = format::any;
     auto output_layout = node.get_output_layout();
 
-    if (!_format_forcing.empty() && _format_forcing.count(node.id()) != 0) {
-        expected = _format_forcing.at(node.id());
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto weights_layout = conv_node.weights(0).get_output_layout();
@@ -957,7 +985,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
 
 void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
     for (const auto& kv : map) {
-        _format_forcing.emplace(kv.first, kv.second.output_format);
+        _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }
 }
 

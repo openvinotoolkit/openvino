@@ -64,3 +64,26 @@ TEST(type_prop, assign_read_value_new_shape)
     ASSERT_EQ(variable->get_info().data_type, element::f16);
     ASSERT_EQ(variable->get_info().data_shape, (PartialShape{3, {4, 5}, 8}));
 }
+
+TEST(type_prop, variable_comparison)
+{
+    auto variable1 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
+
+    auto variable2 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID"});
+
+    auto variable3 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "ID1"});
+
+    auto variable4 =
+        std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::f32, "ID"});
+
+    auto variable5 =
+        std::make_shared<Variable>(VariableInfo{Shape{1}, element::dynamic, "ID"});
+
+    ASSERT_TRUE(variable1->get_info() == variable2->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable3->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable4->get_info());
+    ASSERT_FALSE(variable1->get_info() == variable5->get_info());
+}

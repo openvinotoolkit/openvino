@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <api/layout.hpp>
-#include <api/tensor.hpp>
+#include "cldnn/runtime/layout.hpp"
+#include "cldnn/runtime/tensor.hpp"
+
+#include "meta_utils.h"
 
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
-
-#include "meta_utils.h"
 
 namespace cldnn {
 

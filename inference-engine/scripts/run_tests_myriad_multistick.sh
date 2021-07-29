@@ -55,7 +55,7 @@ fi
 
 if [[ "${APPS_TO_RUN}" -ge 4 ]] ; then
     # For more then 4 multidevice testing
-    for (( VAR = 4; VAR <= ${APPS_TO_RUN}; ++VAR )); do
+    for (( VAR = 4; VAR <= APPS_TO_RUN; ++VAR )); do
         ./${APP_NAME} --gtest_filter=*VPURegTest*YOLO*myriad* &
         pids+=" $!"
     done

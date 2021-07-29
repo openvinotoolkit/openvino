@@ -31,20 +31,20 @@ TEST_F(MvncNoBootOpenDevice, OpenTwiceSameHandler) {
     deviceDesc.platform = NC_ANY_PLATFORM;
 
     char dev_addr_first_open[MAX_DEV_NAME];
-    unsigned int data_lenght_first = MAX_DEV_NAME;
+    unsigned int data_length_first = MAX_DEV_NAME;
 
     char dev_addr_second_open[MAX_DEV_NAME];
-    unsigned int data_lenght_second = MAX_DEV_NAME;
+    unsigned int data_length_second = MAX_DEV_NAME;
 
     // First open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
-                        dev_addr_first_open, &data_lenght_first));
+                        dev_addr_first_open, &data_length_first));
 
     // Second open, get device name
     ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
-                        dev_addr_second_open, &data_lenght_second));
+                        dev_addr_second_open, &data_length_second));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
     // Should be the same device

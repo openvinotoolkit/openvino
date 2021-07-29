@@ -139,7 +139,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     bool success;
     std::string message;
     std::tie(success, message) =
-            compare_functions(result.getFunction(), expected.getFunction(), true);
+            compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
 }

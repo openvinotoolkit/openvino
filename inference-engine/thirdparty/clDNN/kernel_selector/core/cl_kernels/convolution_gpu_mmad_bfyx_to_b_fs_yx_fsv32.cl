@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-
 #include "include/data_types.cl"
-
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 #include "include/imad.cl"
-#include "include/mmad.cl"
 
 #define CEIL_DIV(x, y) (1 + ((x) - 1) / (y))
 #define AS_TYPE(type, val) CAT(as_, type)(val)
@@ -503,7 +499,6 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 #undef TO_ACCUMULATOR_TYPE_VEC
 #undef ACTIVATION_TYPE_VEC
 #undef TO_ACTIVATION_TYPE_VEC
-#undef MMAD
 
 #undef AS_TYPE_N_
 #undef AS_TYPE_N

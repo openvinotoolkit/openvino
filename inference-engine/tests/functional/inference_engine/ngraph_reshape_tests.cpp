@@ -23,15 +23,12 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/graph_util.hpp>
 
-#include <legacy/ie_util_internal.hpp>
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-
-IE_SUPPRESS_DEPRECATED_START
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -143,6 +140,35 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
+
+TEST_F(NGraphReshapeTests, ReshapeSpatialReLUWithoutReplaceParameter) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    {
+        ngraph->get_parameters()[0]->set_partial_shape({1, 3, 25, 25});
+
+        ngraph->validate_nodes_and_infer_types();
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+}
+
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     std::shared_ptr<const ngraph::Function> ngraph;
@@ -337,10 +363,6 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     auto output = network.getOutputsInfo();
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
-    // Convert to CNNNetwork
-    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
-    ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
 TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
@@ -408,12 +430,6 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     auto output = network.getOutputsInfo();
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
-    // Convert to CNNNetwork
-    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
-    ASSERT_EQ("CustomTestLayer", layer->type);
-    ASSERT_EQ("false", layer->params["test1"]);
-    ASSERT_EQ("3", layer->params["test2"]);
 }
 
 class BadExtension : public InferenceEngine::IExtension {

@@ -40,3 +40,23 @@ TEST(type_prop, softplus_partial_static_rank)
         (PartialShape{1, Dimension::dynamic(), 6})));
     ASSERT_TRUE(softplus_func->get_output_partial_shape(0).rank().is_static());
 }
+
+TEST(type_prop, softplus_invalid_element_type)
+{
+    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 2});
+
+    try
+    {
+        auto softplus = make_shared<op::v4::SoftPlus>(data);
+        // Input element type is boolean
+        FAIL() << "Invalid int element type for input not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Input element type must be float");
+    }
+    catch (...)
+    {
+        FAIL() << "Numeric element type node validation check failed for unexpected reason";
+    }
+}

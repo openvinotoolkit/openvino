@@ -48,6 +48,7 @@ enum class KernelType {
     ONE_HOT,
     GATHER,
     GATHER_ND,
+    GATHER_ELEMENTS,
     SCATTER_UPDATE,
     SCATTER_ND_UPDATE,
     SCATTER_ELEMENTS_UPDATE,
@@ -68,7 +69,8 @@ enum class KernelType {
     CTC_GREEDY_DECODER,
     CUM_SUM,
     EMBEDDING_BAG,
-    EXTRACT_IMAGE_PATCHES
+    EXTRACT_IMAGE_PATCHES,
+    LOOP
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

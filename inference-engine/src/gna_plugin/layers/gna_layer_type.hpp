@@ -48,6 +48,7 @@ enum LayerType {
     TensorIterator,
     SoftSign,
     FakeQuantize,
+    Gemm,
     NO_TYPE
 };
 
@@ -86,8 +87,8 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "Abs", Abs },
         { "SoftSign", SoftSign },
         { "FakeQuantize", FakeQuantize },
+        {"Gemm", Gemm},
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);
-bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
 }  // namespace GNAPluginNS

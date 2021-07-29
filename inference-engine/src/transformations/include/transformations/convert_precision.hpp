@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <unordered_map>
 
 #include <transformations_visibility.hpp>
 
@@ -48,6 +49,7 @@ class NGRAPH_API ConvertPrecision;
  *     opset4::Parameter
  *     opset4::Convert
  *     opset4::ShapeOf
+ *     opset4::Range
  *     opset3::NonMaxSuppression
  *     opset4::NonMaxSuppression
  *     opset4::TopK
@@ -69,18 +71,24 @@ class NGRAPH_API ConvertPrecision;
  *     LessEqual
  */
 
-using type_to_fuse_map = std::map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
+using type_to_fuse_map = std::unordered_map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node>&, ngraph::element::Type, size_t idx)>>;
+using precisions_array = std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>>;
+
 class ngraph::pass::ConvertPrecision : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertPrecision(ngraph::element::Type_t from, ngraph::element::Type_t to, type_to_fuse_map additional_type_to_fuse_map = {})
         : FunctionPass(),
-        m_from(from),
-        m_to(to),
+        m_precisions(precisions_array {{ from, to }}),
+        m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
+
+    ConvertPrecision(const precisions_array& precisions, const type_to_fuse_map & additional_type_to_fuse_map = {})
+        : FunctionPass(),
+        m_precisions(precisions),
         m_additional_type_to_fuse_map(additional_type_to_fuse_map) {}
 
     bool run_on_function(std::shared_ptr<Function> f) override;
 private:
-    element::Type m_from, m_to;
+    precisions_array m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
 };

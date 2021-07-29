@@ -17,7 +17,7 @@ template <typename T>
 class BroadcastTests : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(BroadcastTests);
+TYPED_TEST_SUITE_P(BroadcastTests);
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy)
 {
@@ -617,41 +617,41 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
-                           broadcast_numpy,
-                           broadcast_axes_mapping,
-                           broadcast_target_shape_as_concat_with_constants,
-                           broadcast_target_shape_as_concat_with_node,
-                           broadcast_fail_rank,
-                           broadcast_fail_transpose,
-                           broadcast_fail_axes_map,
-                           broadcast_fail_axes_map_shape,
-                           broadcast_axes_wrong_rank,
-                           broadcast_fully_dynamic_target_shape,
-                           broadcast_dynamic_values_of_target_shape,
-                           broadcast_broadcast_shape_et_wrong,
-                           broadcast_axes_et_wrong,
-                           broadcast_explicit_all_inputs_dynamic,
-                           broadcast_explicit_target_shape_static_rank,
-                           broadcast_explicit_const_target_shape,
-                           broadcast_explicit_input_rank_static,
-                           broadcast_explicit_target_shape_and_input_data_rank_static,
-                           broadcast_explicit_const_target_shape_static_rank_input,
-                           broadcast_explicit_static_input_shape,
-                           broadcast_explicit_static_input_shape_const_target_shape,
-                           broadcast_explicit_static_target_shape,
-                           broadcast_numpy_input_shape_dynamic,
-                           broadcast_numpy_target_shape_constant,
-                           broadcast_numpy_target_shape_dynamic,
-                           broadcast_numpy_input_target_shape_static_rank,
-                           broadcast_numpy_input_static_shape,
-                           broadcast_numpy_input_partially_dynamic,
-                           broadcast_numpy_static_dims_incorrect);
+REGISTER_TYPED_TEST_SUITE_P(BroadcastTests,
+                            broadcast_numpy,
+                            broadcast_axes_mapping,
+                            broadcast_target_shape_as_concat_with_constants,
+                            broadcast_target_shape_as_concat_with_node,
+                            broadcast_fail_rank,
+                            broadcast_fail_transpose,
+                            broadcast_fail_axes_map,
+                            broadcast_fail_axes_map_shape,
+                            broadcast_axes_wrong_rank,
+                            broadcast_fully_dynamic_target_shape,
+                            broadcast_dynamic_values_of_target_shape,
+                            broadcast_broadcast_shape_et_wrong,
+                            broadcast_axes_et_wrong,
+                            broadcast_explicit_all_inputs_dynamic,
+                            broadcast_explicit_target_shape_static_rank,
+                            broadcast_explicit_const_target_shape,
+                            broadcast_explicit_input_rank_static,
+                            broadcast_explicit_target_shape_and_input_data_rank_static,
+                            broadcast_explicit_const_target_shape_static_rank_input,
+                            broadcast_explicit_static_input_shape,
+                            broadcast_explicit_static_input_shape_const_target_shape,
+                            broadcast_explicit_static_target_shape,
+                            broadcast_numpy_input_shape_dynamic,
+                            broadcast_numpy_target_shape_constant,
+                            broadcast_numpy_target_shape_dynamic,
+                            broadcast_numpy_input_target_shape_static_rank,
+                            broadcast_numpy_input_static_shape,
+                            broadcast_numpy_input_partially_dynamic,
+                            broadcast_numpy_static_dims_incorrect);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:
 // `must specify at least one argument for '...'` (variadic macro)
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, BroadcastTests, BroadcastTypes, );
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, BroadcastTests, BroadcastTypes, );
 
 // changing AutoBroadcastSpec to BroadcastModeSpec forces runing pdpd tests separately
 TEST(type_prop, broadcast_v1_pdpd)

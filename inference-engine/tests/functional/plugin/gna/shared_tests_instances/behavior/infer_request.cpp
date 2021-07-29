@@ -10,14 +10,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                 ::testing::Values(std::map<std::string, std::string>({}))),
                 InferRequestTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTestsResultNotReady,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTestsResultNotReady,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

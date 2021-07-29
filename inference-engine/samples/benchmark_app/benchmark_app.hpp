@@ -56,6 +56,10 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "Also, using nstreams>1 is inherently throughput-oriented option, "
                                                 "while for the best-latency estimations the number of streams should be set to 1.";
 
+/// @brief message for latency percentile settings
+static const char infer_latency_percentile_message[] =
+    "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).";
+
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] = "Optional. By default floating point operations execution in bfloat16 precision are enforced "
                                            "if supported by platform.\n"
@@ -122,6 +126,14 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 static const char layout_message[] = "Optional. Prompts how network layouts should be treated by application. "
                                      "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
+// @brief message for enabling caching
+static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "
+                                        "List of devices which support caching is shown at the end of this message.";
+
+// @brief message for single load network
+static const char load_from_file_message[] = "Optional. Loads model from file directly without ReadNetwork."
+                                             "All CNNNetwork options (like re-shape) will be ignored";
+
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
@@ -181,6 +193,9 @@ DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
+/// @brief The percentile which will be reported in latency metric
+DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
+
 /// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
 DEFINE_bool(enforcebf16, false, enforce_bf16_message);
 
@@ -238,6 +253,12 @@ DEFINE_string(op, "", outputs_precision_message);
 ///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);
 
+/// @brief Define parameter for cache model dir <br>
+DEFINE_string(cache_dir, "", cache_dir_message);
+
+/// @brief Define flag for load network from model file by name without ReadNetwork <br>
+DEFINE_bool(load_from_file, false, load_from_file_message);
+
 /**
  * @brief This function show a help message
  */
@@ -262,6 +283,9 @@ static void showUsage() {
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << "    -layout                   " << layout_message << std::endl;
+    std::cout << "    -cache_dir \"<path>\"        " << cache_dir_message << std::endl;
+    std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
+    std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;

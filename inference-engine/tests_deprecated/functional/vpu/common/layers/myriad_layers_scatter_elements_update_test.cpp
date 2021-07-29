@@ -53,12 +53,12 @@ static const std::vector<DataShape> dataShapeList_useCases = {
     { 16, 512, 56, 56 },
 };
 
-INSTANTIATE_TEST_CASE_P(nd_tensors, myriadLayersScatterElementsUpdateTest_smoke,
+INSTANTIATE_TEST_SUITE_P(nd_tensors, myriadLayersScatterElementsUpdateTest_smoke,
                         Combine(
                             ValuesIn(dataShapeList_ndTensors),
                             ValuesIn(dataTypeList)));
 
-INSTANTIATE_TEST_CASE_P(use_cases, myriadLayersScatterElementsUpdateTest_smoke,
+INSTANTIATE_TEST_SUITE_P(use_cases, myriadLayersScatterElementsUpdateTest_smoke,
                         Combine(
                             ValuesIn(dataShapeList_useCases),
                             ValuesIn(dataTypeList)));

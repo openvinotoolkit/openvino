@@ -19,7 +19,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, round)
+NGRAPH_TEST(${BACKEND_NAME}, round_half_to_even)
 {
     Shape shape{5};
     auto A = make_shared<op::Parameter>(element::f32, shape);

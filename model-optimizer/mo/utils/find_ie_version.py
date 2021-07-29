@@ -26,8 +26,10 @@ def setup_env(module="", libs=[]):
     :param module: path to python module
     :param libs: list with paths to libraries
     """
-    os.environ[python_path_key] = os.pathsep.join([os.environ[python_path_key], module])
-    os.environ[lib_env_key] = os.pathsep.join([os.environ[lib_env_key], *libs])
+    os.environ[python_path_key] = os.pathsep.join([module, os.environ[python_path_key]])
+    os.environ[lib_env_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
+    if not os.getenv("OV_FRONTEND_PATH"):
+        os.environ["OV_FRONTEND_PATH"] = os.pathsep.join([*libs, os.environ[lib_env_key]])
 
 
 def reset_env():
@@ -81,24 +83,47 @@ def find_ie_version(silent=False):
     python_version = 'python{}.{}'.format(sys.version_info[0], sys.version_info[1])
 
     script_path = os.path.realpath(os.path.dirname(__file__))
-    bindings_paths = [
-        # Windows
+
+    # Windows
+    bindings_paths_windows = [
+        # Package
         {
             "module": os.path.join(script_path, '../../../../python/', python_version),
             "libs": [
                 os.path.join(script_path, '../../../inference_engine/bin/intel64/Release'),
                 os.path.join(script_path, '../../../inference_engine/external/tbb/bin'),
                 os.path.join(script_path, '../../../ngraph/lib'),
+            ],
+        },
+        # Local builds
+        {
+            "module": os.path.join(script_path, '../../../bin/intel64/Release/python_api/', python_version),
+            "libs": [
+                os.path.join(script_path, '../../../bin/intel64'),
+                os.path.join(script_path, '../../../bin/intel64/Release'),
+                os.path.join(script_path, '../../../inference-engine/temp/tbb/bin'),
             ]
         },
-        # Linux / Darwin
+        {
+            "module": os.path.join(script_path, '../../../bin/intel64/Debug/python_api/', python_version),
+            "libs": [
+                os.path.join(script_path, '../../../bin/intel64'),
+                os.path.join(script_path, '../../../bin/intel64/Debug'),
+                os.path.join(script_path, '../../../inference-engine/temp/tbb/bin'),
+            ]
+        },
+    ]
+
+    # Linux / Darwin
+    bindings_paths_linux = [
+        # Package
         {
             "module": os.path.join(script_path, '../../../../python/', python_version),
             "libs": [
                 os.path.join(script_path, '../../../inference_engine/lib/intel64'),
                 os.path.join(script_path, '../../../inference_engine/external/tbb/lib'),
                 os.path.join(script_path, '../../../ngraph/lib'),
-            ]
+            ],
         },
         # Local builds
         {
@@ -107,6 +132,7 @@ def find_ie_version(silent=False):
                 os.path.join(script_path, '../../../bin/intel64/Release/lib'),
             ]
         },
+
         {
             "module": os.path.join(script_path, '../../../bin/intel64/RelWithDebInfo/lib/python_api/', python_version),
             "libs": [
@@ -121,6 +147,7 @@ def find_ie_version(silent=False):
         }
     ]
 
+    bindings_paths = bindings_paths_windows if platform.system() == "Windows" else bindings_paths_linux
     for item in bindings_paths:
         module = item['module']
         if not os.path.exists(module):

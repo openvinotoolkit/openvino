@@ -34,6 +34,7 @@ packages = [
     "ngraph.opset5",
     "ngraph.opset6",
     "ngraph.opset7",
+    "ngraph.opset8",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
@@ -41,6 +42,7 @@ packages = [
     "ngraph.impl.passes",
     "openvino",
     "openvino.inference_engine"
+    "ngraph.frontend",
 ]
 
 data_files = []
@@ -161,7 +163,6 @@ class BuildCMakeExt(build_ext):
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)

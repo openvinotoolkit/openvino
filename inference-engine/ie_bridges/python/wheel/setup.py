@@ -7,12 +7,15 @@ import sys
 import errno
 import subprocess  # nosec
 import typing
+from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from distutils.command.install import install
 from distutils.command.build import build
+from distutils.command.clean import clean
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
+from distutils import log
 from setuptools import setup, find_namespace_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -62,6 +65,12 @@ LIB_INSTALL_CFG = {
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
+    'auto_plugin': {
+        'name': 'auto',
+        'prefix': 'libs.plugins',
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
     'myriad_plugin': {
         'name': 'myriad',
         'prefix': 'libs.plugins',
@@ -74,12 +83,25 @@ LIB_INSTALL_CFG = {
         'install_dir': NGRAPH_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
-    'tbb_libs': {'name': 'tbb', 'prefix': 'libs.tbb', 'install_dir': TBB_LIBS_DIR},
+    'tbb_libs': {
+        'name': 'tbb',
+        'prefix': 'libs.tbb',
+        'install_dir': TBB_LIBS_DIR,
+        'rpath': LIBS_RPATH,
+    },
 }
 
 PY_INSTALL_CFG = {
-    'ie_py': {'name': PYTHON_VERSION, 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
-    'ngraph_py': {'name': f'pyngraph_{PYTHON_VERSION}', 'prefix': 'site-packages', 'install_dir': PY_PACKAGES_DIR},
+    'ie_py': {
+        'name': PYTHON_VERSION,
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
+    'ngraph_py': {
+        'name': f'pyngraph_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
 }
 
 
@@ -99,6 +121,16 @@ class CustomBuild(build):
     def run(self):
         self.run_command('build_clib')
         build.run(self)
+        # Copy extra package_data content filtered by find_packages
+        dst = Path(self.build_lib)
+        src = Path(get_package_dir(PY_INSTALL_CFG))
+        exclude = ignore_patterns('*ez_setup*', '*__pycache__*', '*.egg-info*')
+        for path in src.glob('**/*'):
+            if path.is_dir() or exclude(str(path)):
+                continue
+            path_rel = path.relative_to(src)
+            (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
+            copyfile(path, dst / path_rel)
 
 
 class CustomInstall(install):
@@ -128,10 +160,9 @@ class PrepareLibs(build_clib):
                 self.spawn(['cmake', '--install', CMAKE_BUILD_DIR, '--prefix', install_prefix, '--component', comp_data.get('name')])
             # set rpath if applicable
             if sys.platform != 'win32' and comp_data.get('rpath'):
-                file_types = ['*.so'] if sys.platform == 'linux' else ['*.dylib', '*.so']
-                for file_type in file_types:
-                    for path in Path(install_dir).glob(file_type):
-                        set_rpath(comp_data['rpath'], path)
+                file_types = ['.so'] if sys.platform == 'linux' else ['.dylib', '.so']
+                for path in filter(lambda p: any(item in file_types for item in p.suffixes), Path(install_dir).glob('*')):
+                    set_rpath(comp_data['rpath'], os.path.realpath(path))
 
     def generate_package(self, src_dirs):
         """
@@ -141,6 +172,7 @@ class PrepareLibs(build_clib):
         # additional blacklist filter, just to fix cmake install issues
         blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob('*'):
@@ -173,9 +205,32 @@ class CopyExt(build_ext):
                     rpath = os.path.join('$ORIGIN', rpath, WHEEL_LIBS_INSTALL_DIR)
                 elif sys.platform == 'darwin':
                     rpath = os.path.join('@loader_path', rpath, WHEEL_LIBS_INSTALL_DIR)
-                set_rpath(rpath, src)
+                set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+
+class CustomClean(clean):
+    """Clean up staging directories"""
+
+    def clean(self, install_cfg):
+        for comp, comp_data in install_cfg.items():
+            install_prefix = comp_data.get('prefix')
+            self.announce(f'Cleaning {comp}: {install_prefix}', level=3)
+            if os.path.exists(install_prefix):
+                rmtree(install_prefix)
+
+    def run(self):
+        self.clean(LIB_INSTALL_CFG)
+        self.clean(PY_INSTALL_CFG)
+        clean.run(self)
+
+
+def ignore_patterns(*patterns):
+    """
+    Filter names by given patterns
+    """
+    return lambda name: any(fnmatchcase(name, pat=pat) for pat in patterns)
 
 
 def is_tool(name):
@@ -214,7 +269,12 @@ def set_rpath(rpath, executable):
     print(f'Setting rpath {rpath} for {executable}')  # noqa: T001
     cmd = []
     rpath_tool = ''
+
     if sys.platform == 'linux':
+        with open(os.path.realpath(executable), 'rb') as file:
+            if file.read(1) != b'\x7f':
+                log.warn(f'WARNING: {executable}: missed ELF header')
+                return
         rpath_tool = 'patchelf'
         cmd = [rpath_tool, '--set-rpath', rpath, executable]
     elif sys.platform == 'darwin':
@@ -306,7 +366,7 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, 'LICENSE')
 
-packages = find_namespace_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
 package_data: typing.Dict[str, list] = {}
 
 setup(
@@ -326,6 +386,7 @@ setup(
         'install': CustomInstall,
         'build_clib': PrepareLibs,
         'build_ext': CopyExt,
+        'clean': CustomClean,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
     packages=packages,

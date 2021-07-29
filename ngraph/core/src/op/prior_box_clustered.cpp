@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::PriorBoxClustered::type_info;
+NGRAPH_RTTI_DEFINITION(op::PriorBoxClustered, "PriorBoxClustered", 0);
 
 op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                          const Output<Node>& image_shape,
@@ -52,9 +52,9 @@ void op::PriorBoxClustered::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           m_attrs.widths.size() == m_attrs.heights.size(),
-                          "Size of heights vector",
-                          m_attrs.widths.size(),
-                          " doesn't match size of widths vector ",
+                          "Size of heights vector: ",
+                          m_attrs.heights.size(),
+                          " doesn't match size of widths vector: ",
                           m_attrs.widths.size());
 
     set_input_is_relevant_to_shape(0);
@@ -159,4 +159,22 @@ bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_evaluate);
     return prior_box_clustered::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+}
+
+bool op::v0::PriorBoxClustered::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_PriorBoxClustered_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64: return true;
+    default: break;
+    }
+    return false;
 }

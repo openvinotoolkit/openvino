@@ -2,18 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <fstream>
+#include "test_utils.h"
 
-#include <gtest/gtest.h>
-#include "api/memory.hpp"
-#include <api/input_layout.hpp>
-#include <api/proposal.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-#include <api/engine.hpp>
-#include "test_utils/test_utils.h"
-#include "test_utils/float16.h"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/proposal.hpp>
+
+#include <fstream>
 
 namespace cldnn
 {
@@ -21,7 +15,7 @@ template<> struct type_to_data_type<FLOAT16> { static const data_types value = d
 }
 
 using namespace cldnn;
-using namespace tests;
+using namespace ::tests;
 using namespace std;
 
 extern float cls_scores_data[];
@@ -65,11 +59,10 @@ class TestRunnerProposal
     public:
         explicit TestRunnerProposal(cldnn::tensor image_info_size);
 
-        memory Run(std::vector<Dtype>& data,
-                   std::vector<Dtype>& rois);
+        memory::ptr Run(std::vector<Dtype>& data,
+                        std::vector<Dtype>& rois);
 
     private:
-        engine _engine;
         layout _cls_scores_layout;
         layout _bbox_pred_layout;
         layout _image_info_layout;
@@ -103,20 +96,21 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
 
     _topology.add(_test_layer);
 
-    _network.reset(new network(_engine, _topology));
+    _network.reset(new network(get_test_engine(), _topology));
 }
 
 template <typename Dtype, typename ImInfoType>
-memory TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_scores_vals,
-                                                  std::vector<Dtype>& bbox_pred_vals)
+memory::ptr TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_scores_vals,
+                                                       std::vector<Dtype>& bbox_pred_vals)
 {
-    memory cls_scores = memory::attach(_cls_scores_layout, cls_scores_vals.data(), cls_scores_vals.size());
-    memory bbox_pred  = memory::attach(_bbox_pred_layout, bbox_pred_vals.data(), bbox_pred_vals.size());
+    auto& engine = get_test_engine();
+    memory::ptr cls_scores = engine.attach_memory(_cls_scores_layout, cls_scores_vals.data());
+    memory::ptr bbox_pred  = engine.attach_memory(_bbox_pred_layout, bbox_pred_vals.data());
 
     std::vector<ImInfoType> image_info_vals = { (ImInfoType)((float)image_h - 0.0000001f), // check fp robustness of the layer
                                                 (ImInfoType)((float)image_w + 0.0000001f), // check fp robustness of the layer
                                                 (ImInfoType)((float)image_z) };
-    memory image_info = memory::allocate(_engine, _image_info_layout);
+    memory::ptr image_info = engine.allocate_memory(_image_info_layout);
     tests::set_values(image_info, image_info_vals);
 
     _network->set_input_data(cls_scores_name, cls_scores);
@@ -134,10 +128,10 @@ TEST(proposal, basic) {
 
     TestRunnerProposal<float> t({ 1, 3, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto f = output.pointer<float>();
+    cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
@@ -150,10 +144,10 @@ TEST(proposal, fp16) {
 
     TestRunnerProposal<FLOAT16> t({ 1, 3, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto d = output.pointer<FLOAT16>();
+    cldnn::mem_lock<FLOAT16> d(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
@@ -167,10 +161,10 @@ TEST(proposal, scores_fp16_im_info_fp32) {
 
     TestRunnerProposal<FLOAT16, float> t({ 1, 3, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto d = output.pointer<FLOAT16>();
+    cldnn::mem_lock<FLOAT16> d(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
@@ -184,10 +178,10 @@ TEST(proposal, scores_fp32_im_info_fp16) {
 
     TestRunnerProposal<float, FLOAT16> t({ 1, 3, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto d = output.pointer<float>();
+    cldnn::mem_lock<float> d(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         float ref(proposal_ref[i]);
@@ -201,10 +195,10 @@ TEST(proposal, img_info_batched) {
 
     TestRunnerProposal<float> t({ 2, 3, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto f = output.pointer<float>();
+    cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
@@ -217,10 +211,10 @@ TEST(proposal, img_info_batch_only) {
 
     TestRunnerProposal<float> t({ 3, 1, 1, 1 });
 
-    const memory& output = t.Run(cls_scores, bbox_pred);
-    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+    memory::ptr output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output->get_layout().count(), proposal_ref_size);
 
-    auto f = output.pointer<float>();
+    cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         EXPECT_NEAR(f[i], proposal_ref[i], epsilon);

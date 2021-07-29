@@ -993,9 +993,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
                 continue;
             }
 
-            d->protocol_booted = d->protocol;
-            d->dev_addr_booted = mvnc_strdup(foundBootedDevice.name);
-
             handler->protocol = foundBootedDevice.protocol;
             handler->devicePath = (char *) foundBootedDevice.name;
 
@@ -1005,6 +1002,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             }
 
             if(found_new_booted_device && isDeviceConnected) {
+                d->protocol_booted = d->protocol;
+                d->dev_addr_booted = mvnc_strdup(foundBootedDevice.name);
                 break;
             }
 

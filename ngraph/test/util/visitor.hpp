@@ -393,20 +393,14 @@ namespace ngraph
             AttributeVisitor& get_node_loader() { return *this; }
             static FactoryRegistry<Node>& get_ops()
             {
-                static std::shared_ptr<FactoryRegistry<Node>> registry;
-                static std::mutex init_guard;
-                if (!registry)
-                {
-                    std::lock_guard<std::mutex> guard(init_guard);
-                    if (!registry)
-                    {
-                        registry = std::make_shared<FactoryRegistry<Node>>();
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry->register_factory<NAMESPACE::NAME>();
+                static FactoryRegistry<Node> registry = [] {
+                    FactoryRegistry<Node> registry;
+#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
 #include "op_version_tbl.hpp"
 #undef NGRAPH_OP
-                    }
-                }
-                return *registry;
+                    return registry;
+                }();
+                return registry;
             }
 
         protected:

@@ -61,6 +61,7 @@ namespace ngraph
                       bool compute_max,
                       op::v1::TopK::SortType sort = op::v1::TopK::SortType::NONE)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 using namespace std;
                 // reorder source axis visit order and make "axis" inner most
                 size_t ndim = static_cast<size_t>(in_shape.size());
@@ -133,6 +134,7 @@ namespace ngraph
                         out_index += out_axis_stride;
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

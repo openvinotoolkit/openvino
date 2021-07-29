@@ -106,8 +106,8 @@ public:
     }
 
     /**
-     * @brief Returns plane ID of underlying video decoder surface,
-     * or 0 if no video surface was shared.
+     * @brief Returns plane ID of underlying video decoder surface, or 0 if no video surface was shared.
+     * @return Plane ID
      */
     uint32_t plane() {
         return _ObjFromParams<uint32_t, uint32_t>(getParams(),
@@ -126,11 +126,6 @@ public:
  * @return NV12 remote blob
  */
 static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, ID3D11Texture2D* nv12_surf) {
-    auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
-    }
-
     // despite of layout, blob dimensions always follow in N,C,H,W order
     TensorDesc desc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
 
@@ -139,12 +134,12 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, Remot
         { GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf) },
         { GPU_PARAM_KEY(VA_PLANE), uint32_t(0) }
     };
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, blobParams));
+    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(desc, blobParams));
 
     TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
     blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_surf);
     blobParams[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
+    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(uvdesc, blobParams));
 
     return InferenceEngine::make_shared_blob<NV12Blob>(y_blob, uv_blob);
 }

@@ -9,28 +9,12 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*TensorNamesTest\\.CheckAddOutput.*",
         // TODO: FIX BUG 31661
         // TODO: support InferRequest in GNAPlugin
         ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
-        // TODO: FIX BUG 23740
-        ".*InferRequestTests\\.CanCreateTwoExeNetworks.*",
-        // TODO: FIX BUG 26702
-        ".*InferRequestTests\\.FailedAsyncInferWithNegativeTimeForWait.*",
         // TODO: FIX BUG 23741
         ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
-        // TODO: FIX BUG 23742
-        ".*InferRequestTests\\.canWaitWithotStartAsync.*",
-        // TODO: FIX BUG 23743
-        ".*InferRequestTests\\.returnDeviceBusyOnSetBlobAfterAsyncInfer.*",
-        ".*InferRequestTests\\.returnDeviceBusyOnGetBlobAfterAsyncInfer.*",
-        ".*InferRequestTests\\.returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer.*",
-        ".*InferRequestTests\\.returnDeviceBusyOnStartInferAfterAsyncInfer.*",
-        ".*InferRequestTests\\.returnDeviceBusyOnGetUserDataAfterAsyncInfer.*",
-        ".*InferRequestTests\\.returnDeviceBusyOnSetUserDataAfterAsyncInfer.*",
-        // TODO: FIX BUG 31661
-        ".*InferRequestTests\\.canStartSeveralAsyncInsideCompletionCallbackNoSafeDtorWithoutWait.*",
-        // TODO: FIX BUG 31661
+        // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
@@ -60,9 +44,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         // TODO: Issue 51528
         R"(.*CachingSupport.*_(u8|i16)_.*)",
-        // TODO: Issue 51527
-        R"(.*CachingSupport.*_batch2_.*)",
-        // TODO: Issue 51525
-        R"(.*CachingSupport.*KSOFunction.*)",
+        // TODO: Issue 57363 (Param -> Result subgraphs)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",
+        // TODO: Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
+        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
     };
 }

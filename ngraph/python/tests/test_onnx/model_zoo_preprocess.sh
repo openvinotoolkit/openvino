@@ -63,7 +63,7 @@ function pull_and_postprocess_onnx_model_zoo() {
     git fetch
     git reset HEAD --hard
 
-    git checkout $ONNX_SHA
+    git checkout -f $ONNX_SHA
 
     echo "Pulling models data via Git LFS for onnx model zoo repository"
     git lfs pull --include="*" --exclude="*.onnx"

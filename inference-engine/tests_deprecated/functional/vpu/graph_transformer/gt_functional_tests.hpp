@@ -25,12 +25,12 @@ protected:
                             bool lockLayout = false);
 
 protected:
-   vpu::ModelPtr          _gtModel;
-   vpu::CompilationConfig _compilationConfig;
-   vpu::StageBuilder::Ptr _stageBuilder;
-   vpu::Data              _dataIntermediate;
+   vpu::ModelPtr            _gtModel;
+   vpu::PluginConfiguration _configuration;
+   vpu::StageBuilder::Ptr   _stageBuilder;
+   vpu::Data                _dataIntermediate;
 
 private:
-   vpu::Platform                      _platform = vpu::Platform::MYRIAD_X;
+   ncDevicePlatform_t _platform = ncDevicePlatform_t::NC_MYRIAD_X;
    InferenceEngine::ExecutableNetwork _executableNetwork;
 };

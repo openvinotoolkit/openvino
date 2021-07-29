@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 

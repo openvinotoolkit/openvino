@@ -15,6 +15,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <gna/gna_config.hpp>
 #endif
 
 namespace GNAPluginNS {
@@ -89,20 +90,15 @@ public:
 
     template<class A, class B, class C, class D>
     static void InitConvolutional1DComponent(intel_dnn_component_t &comp,
-                                             uint32_t num_rows_in,
                                              uint32_t num_columns_in,
-                                             uint32_t num_rows_out,
                                              uint32_t num_columns_out,
                                              uint32_t num_bytes_per_input,
                                              uint32_t num_bytes_per_output,
                                              uint32_t num_bytes_per_weight,
                                              uint32_t num_bytes_per_bias,
                                              uint32_t num_filters,
-                                             uint32_t num_filter_rows,
                                              uint32_t num_filter_coefficients,
-                                             uint32_t num_feature_maps,
-                                             uint32_t num_feature_map_rows,
-                                             uint32_t num_feature_map_columns,
+                                             uint32_t convStride,
                                              float weight_scale_factor,
                                              float output_scale_factor,
                                              A *&ptr_inputs,
@@ -110,20 +106,15 @@ public:
                                              C *&ptr_filters,
                                              D *&ptr_biases) {
         InitConvolutional1DComponentPrivate(comp,
-                                            num_rows_in,
                                             num_columns_in,
-                                            num_rows_out,
                                             num_columns_out,
                                             num_bytes_per_input,
                                             num_bytes_per_output,
                                             num_bytes_per_weight,
                                             num_bytes_per_bias,
                                             num_filters,
-                                            num_filter_rows,
                                             num_filter_coefficients,
-                                            num_feature_maps,
-                                            num_feature_map_rows,
-                                            num_feature_map_columns,
+                                            convStride,
                                             weight_scale_factor,
                                             output_scale_factor,
                                             (void *&) ptr_inputs,
@@ -303,7 +294,7 @@ public:
 
 
 #if GNA_LIB_VER == 2
-    void InitGNAStruct(Gna2Model *gnaModel);
+    void InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget = InferenceEngine::GNAConfigParams::GNA_TARGET_2_0);
     void DestroyGNAStruct(Gna2Model *gnaModel);
 #else
 
@@ -428,20 +419,15 @@ private:
                                                     bool postInitMem);
 
     static void InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                    uint32_t num_rows_in,
                                                     uint32_t num_columns_in,
-                                                    uint32_t num_rows_out,
                                                     uint32_t num_columns_out,
                                                     uint32_t num_bytes_per_input,
                                                     uint32_t num_bytes_per_output,
                                                     uint32_t num_bytes_per_weight,
                                                     uint32_t num_bytes_per_bias,
                                                     uint32_t num_filters,
-                                                    uint32_t num_filter_rows,
                                                     uint32_t num_filter_coefficients,
-                                                    uint32_t num_feature_maps,
-                                                    uint32_t num_feature_map_rows,
-                                                    uint32_t num_feature_map_columns,
+                                                    uint32_t convStride,
                                                     float weight_scale_factor,
                                                     float output_scale_factor,
                                                     void *&ptr_inputs,

@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API DeformablePSROIPooling : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"DeformablePSROIPooling", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 DeformablePSROIPooling() = default;
                 /// \brief Constructs a DeformablePSROIPooling operation
                 ///

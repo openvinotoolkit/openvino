@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/proposal.hpp"
+#include "cldnn/primitives/proposal.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <vector>
 

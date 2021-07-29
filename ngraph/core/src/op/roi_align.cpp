@@ -295,3 +295,16 @@ bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
     return roi_alinop::evaluate_roi_align(
         inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
 }
+
+bool op::v3::ROIAlign::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v3_ROIAlign_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}

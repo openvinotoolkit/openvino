@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 
 KERNEL(border_gpu_ref)(
@@ -55,7 +56,7 @@ KERNEL(border_gpu_ref)(
     const uint in_lz = in_sz + blt_sz;
     const uint in_lw = in_sw + blt_sw;
     const uint in_lf = in_sf + blt_sf;
-    const uint in_lb = in_sb + blt_sb;  
+    const uint in_lb = in_sb + blt_sb;
 
     const uint out_xz  = (uint) get_global_id(0);
     const uint out_yw  = (uint) get_global_id(1);

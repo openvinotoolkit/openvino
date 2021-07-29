@@ -36,19 +36,19 @@ using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::va
 /**
  * @brief This class instantiate object using shared library
  * @tparam T An type of object SOPointer can hold
- * @tparam Loader A loader used to load a library
  */
-template <class T, class Loader = SharedObjectLoader>
+template <class T>
 class SOPointer {
-    template <class U, class W>
+    template <class U>
     friend class SOPointer;
-IE_SUPPRESS_DEPRECATED_START
+
+    IE_SUPPRESS_DEPRECATED_START
     struct HasRelease {
         template <typename C> static char test(decltype(&C::Release));
         template <typename C> static long test(...);
         constexpr static const bool value = sizeof(test<T>(nullptr)) == sizeof(char);
     };
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 
 public:
     /**
@@ -62,48 +62,36 @@ public:
      */
     template <typename C,
               typename = enableIfSupportedChar<C>>
-    explicit SOPointer(const std::basic_string<C> & name)
-        : _so_loader(new Loader(name.c_str())) {
-            Load(std::integral_constant<bool, HasRelease::value>{});
-        }
-
-    /**
-     * @brief The main constructor
-     * @param name Name of a shared library file
-     */
-    explicit SOPointer(const char * name)
-        : _so_loader(new Loader(name)) {
-            Load(std::integral_constant<bool, HasRelease::value>{});
-        }
-
-    /**
-     * @brief Constructs an object with existing reference
-     * @param pointedObj Existing reference to  wrap
-     */
-    explicit SOPointer(T* pointedObj): _so_loader(), _pointedObj(pointedObj) {
-        if (_pointedObj == nullptr) {
-            IE_THROW() << "Cannot create SOPointer<T, Loader> from nullptr";
-        }
+    SOPointer(const std::basic_string<C> & name)
+        : _so(name.c_str()) {
+        Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
     /**
+     * @brief Constructs an object with existing reference
      * @brief Constructs an object with existing loader
-     * @param so_loader Existing pointer to a library loader
+     * @param soLoader Existing pointer to a library loader
      */
-    explicit SOPointer(const std::shared_ptr<Loader>& so_loader)
-        : _so_loader(so_loader) {
-            Load(std::integral_constant<bool, HasRelease::value>{});
-        }
+    SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
+
+    /**
+     * @brief Constructs an object with existing loader
+     * @param so Existing pointer to a library loader
+     */
+    explicit SOPointer(const SharedObjectLoader& so)
+        : _so(so) {
+        Load(std::integral_constant<bool, HasRelease::value>{});
+    }
 
     /**
      * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
      * @param that copied SOPointer object
      */
-    template <class U, class W>
-    SOPointer(const SOPointer<U, W>& that)
-        : _so_loader(std::dynamic_pointer_cast<Loader>(that._so_loader)),
-          _pointedObj(std::dynamic_pointer_cast<T>(that._pointedObj)) {
-        IE_ASSERT(_pointedObj != nullptr);
+    template <typename U>
+    SOPointer(const SOPointer<U>& that)
+        : _so(that._so),
+          _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
+        IE_ASSERT(_ptr != nullptr);
     }
 
     /**
@@ -111,19 +99,11 @@ public:
      * @return underlined interface with disabled Release method
      */
     T* operator->() const noexcept {
-        return _pointedObj.get();
-    }
-
-    /**
-     * @brief Standard dereference operator
-     * @return underlined interface with disabled Release method
-     */
-    const T* operator*() const noexcept {
-        return this->operator->();
+        return _ptr.get();
     }
 
     explicit operator bool() const noexcept {
-        return (nullptr != _pointedObj);
+        return _ptr != nullptr;
     }
 
     friend bool operator==(std::nullptr_t, const SOPointer& ptr) noexcept {
@@ -139,33 +119,15 @@ public:
         return static_cast<bool>(ptr);
     }
 
-    SOPointer& operator=(const SOPointer& pointer) noexcept {
-        _pointedObj = pointer._pointedObj;
-        _so_loader = pointer._so_loader;
-        return *this;
+    operator const SharedObjectLoader&() const noexcept {
+        return _so;
     }
 
-    operator const std::shared_ptr<Loader>&() const noexcept {
-        return _so_loader;
+    operator std::shared_ptr<T>& () noexcept {
+        return _ptr;
     }
 
 protected:
-#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
-#define CATCH_IE_EXCEPTIONS                     \
-        CATCH_IE_EXCEPTION(GeneralError)        \
-        CATCH_IE_EXCEPTION(NotImplemented)      \
-        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
-        CATCH_IE_EXCEPTION(ParameterMismatch)   \
-        CATCH_IE_EXCEPTION(NotFound)            \
-        CATCH_IE_EXCEPTION(OutOfBounds)         \
-        CATCH_IE_EXCEPTION(Unexpected)          \
-        CATCH_IE_EXCEPTION(RequestBusy)         \
-        CATCH_IE_EXCEPTION(ResultNotReady)      \
-        CATCH_IE_EXCEPTION(NotAllocated)        \
-        CATCH_IE_EXCEPTION(InferNotStarted)     \
-        CATCH_IE_EXCEPTION(NetworkNotRead)      \
-        CATCH_IE_EXCEPTION(InferCancelled)
-
     /**
      * @brief Implements load of object from library if Release method is presented
      */
@@ -173,10 +135,10 @@ protected:
         try {
             void* create = nullptr;
             try {
-                create = _so_loader->get_symbol((SOCreatorTrait<T>::name + std::string("Shared")).c_str());
+                create = _so.get_symbol((SOCreatorTrait<T>::name + std::string("Shared")).c_str());
             } catch (const NotFound&) {}
             if (create == nullptr) {
-                create = _so_loader->get_symbol(SOCreatorTrait<T>::name);
+                create = _so.get_symbol(SOCreatorTrait<T>::name);
                 using CreateF = StatusCode(T*&, ResponseDesc*);
                 T* object = nullptr;
                 ResponseDesc desc;
@@ -186,17 +148,13 @@ protected:
                         InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
-                _pointedObj = std::shared_ptr<T>(object, [] (T* ptr){ptr->Release();});
+                _ptr = std::shared_ptr<T>(object, [] (T* ptr){ptr->Release();});
                 IE_SUPPRESS_DEPRECATED_END
             } else {
                 using CreateF = void(std::shared_ptr<T>&);
-                reinterpret_cast<CreateF*>(create)(_pointedObj);
+                reinterpret_cast<CreateF*>(create)(_ptr);
             }
-        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            IE_THROW() << ex.what();
-        } catch(...) {
-            IE_THROW(Unexpected);
-        }
+        } catch(...) {details::Rethrow();}
     }
 
     /**
@@ -205,25 +163,19 @@ protected:
     void Load(std::false_type) {
         try {
             using CreateF = void(std::shared_ptr<T>&);
-            reinterpret_cast<CreateF*>(_so_loader->get_symbol(SOCreatorTrait<T>::name))(_pointedObj);
-        } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {
-            IE_THROW() << ex.what();
-        } catch(...) {
-            IE_THROW(Unexpected);
-        }
+            reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
+        } catch(...) {details::Rethrow();}
     }
-    #undef CATCH_IE_EXCEPTION
-    #undef CATCH_IE_EXCEPTIONS
 
     /**
-     * @brief Gets a smart pointer to the DLL
+     * @brief The DLL
      */
-    std::shared_ptr<Loader> _so_loader;
+    SharedObjectLoader _so;
 
     /**
      * @brief Gets a smart pointer to the custom object
      */
-    std::shared_ptr<T> _pointedObj;
+    std::shared_ptr<T> _ptr;
 };
 }  // namespace details
 }  // namespace InferenceEngine

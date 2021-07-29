@@ -8,7 +8,6 @@
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/evaluator.hpp"
 #include <ngraph/validation_util.hpp>
 
 namespace ngraph { namespace vpu { namespace op {

@@ -21,7 +21,7 @@ To build an Inference Engine plugin with the Plugin API, see the [Inference Engi
 Plugin Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::InferencePluginInternal class recommended to use as a base class for a plugin.
+Inference Engine Plugin API provides the helper InferenceEngine::IInferencePlugin class recommended to use as a base class for a plugin.
 Based on that, declaration of a plugin class can look as follows:
 
 @snippet src/template_plugin.hpp plugin:header
@@ -56,8 +56,8 @@ A plugin must define a device name enabled via the `_pluginName` field of a base
 
 ### `LoadExeNetworkImpl()`
 
-**Implementation details:** The base InferenceEngine::InferencePluginInternal class provides a common implementation 
-of the public InferenceEngine::InferencePluginInternal::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
+**Implementation details:** The base InferenceEngine::IInferencePlugin class provides a common implementation 
+of the public InferenceEngine::IInferencePlugin::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
 
 This is the most important function of the `Plugin` class and creates an instance of compiled `ExecutableNetwork`,
 which holds a backend-dependent compiled graph in an internal representation:
@@ -159,20 +159,12 @@ The snippet below provides an example of the implementation for `GetMetric`:
 
 > **NOTE**: If an unsupported metric key is passed to the function, it must throw an exception.
 
-### `ImportNetworkImpl()`
+### `ImportNetwork()`
 
 The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
 using an [ExecutableNetwork](@ref executable_network) object. This functionality is useful if 
 backend specific graph compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
-
-**Implementation details:** The base plugin class InferenceEngine::InferencePluginInternal implements InferenceEngine::InferencePluginInternal::ImportNetwork 
-as follows: exports a device type (InferenceEngine::InferencePluginInternal::_pluginName) and then calls `ImportNetworkImpl`, 
-which is implemented in a derived class. 
-If a plugin cannot use the base implementation InferenceEngine::InferencePluginInternal::ImportNetwork, it can override base 
-implementation and define an output blob structure up to its needs. This 
-can be useful if a plugin exports a blob in a special format for integration with other frameworks 
-where a common Inference Engine header from a base class implementation is not appropriate. 
 
 During export of backend specific graph using `ExecutableNetwork::Export`, a plugin may export any 
 type of information it needs to import a compiled graph properly and check its correctness. 

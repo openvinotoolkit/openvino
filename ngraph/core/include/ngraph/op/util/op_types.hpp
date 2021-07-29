@@ -34,6 +34,8 @@ namespace ngraph
         NGRAPH_API
         bool is_output(const ngraph::Node* node);
         NGRAPH_API
+        bool is_sink(const ngraph::Node* node);
+        NGRAPH_API
         bool is_constant(const ngraph::Node* node);
         NGRAPH_API
         bool is_commutative(const ngraph::Node* node);
@@ -59,6 +61,8 @@ namespace ngraph
         bool is_parameter(const std::shared_ptr<ngraph::Node>& node);
         NGRAPH_API
         bool is_output(const std::shared_ptr<ngraph::Node>& node);
+        NGRAPH_API
+        bool is_sink(const std::shared_ptr<ngraph::Node>& node);
         NGRAPH_API
         bool is_constant(const std::shared_ptr<ngraph::Node>& node);
         NGRAPH_API

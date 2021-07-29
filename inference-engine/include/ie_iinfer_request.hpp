@@ -17,17 +17,16 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
-#include "ie_imemory_state.hpp"
 
 namespace InferenceEngine {
 
 _IE_SUPPRESS_DEPRECATED_START_GCC
 
 /**
+ * @deprecated Use InferenceEngine::InferRequest C++ wrapper
  * @brief This is an interface of asynchronous infer request
- *
  */
-class INFERENCE_ENGINE_DEPRECATED("Do not use IInferRequest API") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::InferRequest C++ wrapper") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
@@ -194,21 +193,6 @@ public:
      * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success
      */
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
-
-    IE_SUPPRESS_DEPRECATED_START
-    /**
-     * @brief Gets state control interface for given infer request.
-     *
-     * State control essential for recurrent networks
-     *
-     * @param pState reference to a pointer that receives internal states
-     * @param idx requested index for receiving memory state
-     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-     * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
-     * given index
-     */
-    virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
 
 protected:
     ~IInferRequest() = default;

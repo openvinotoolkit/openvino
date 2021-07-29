@@ -4,9 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/strided_slice.hpp"
+
+#include "cldnn/primitives/strided_slice.hpp"
 #include "primitive_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
+
 #include <string>
 #include <vector>
 

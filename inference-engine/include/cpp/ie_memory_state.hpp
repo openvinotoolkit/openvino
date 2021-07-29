@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header file that provides wrapper classes for IVariableState
+ * @brief A header file that provides VariableState
  *
  * @file ie_memory_state.hpp
  */
@@ -11,74 +11,60 @@
 #pragma once
 
 #include <string>
+#include <memory>
 
+#include "ie_api.h"
 #include "ie_blob.h"
 #include "details/ie_so_loader.h"
 
 namespace InferenceEngine {
 
-namespace details {
-class SharedObjectLoader;
-}
-
 class IVariableStateInternal;
 
 /**
- * @brief C++ exception based error reporting wrapper of API class IVariableState
+ * @brief VariableState class
  */
 class INFERENCE_ENGINE_API_CLASS(VariableState) {
-    std::shared_ptr<IVariableStateInternal> _impl = nullptr;
-    details::SharedObjectLoader::Ptr _so = nullptr;
+    details::SharedObjectLoader              _so;
+    std::shared_ptr<IVariableStateInternal>  _impl;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
      * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin object is destroyed.
      */
-    explicit VariableState(const std::shared_ptr<IVariableStateInternal>& impl,
-                           const details::SharedObjectLoader::Ptr& so = {});
-
+    VariableState(const details::SharedObjectLoader&             so,
+                  const std::shared_ptr<IVariableStateInternal>& impl);
     friend class InferRequest;
     friend class ExecutableNetwork;
 
 public:
     /**
-     * @copybrief IVariableState::Reset
-     *
-     * Wraps IVariableState::Reset
+     * @brief Default constructor
+     */
+    VariableState() = default;
+
+    /**
+     * @brief Reset internal variable state for relevant infer request,
+     * to a value specified as default for according ReadValue node
      */
     void Reset();
 
     /**
-     * @copybrief IVariableState::GetName
-     *
-     * Wraps IVariableState::GetName
+     * @brief Gets name of current variable state, if length of array is not enough name is truncated by len, null
+     * terminator is inserted as well. As variable state name `variable_id` from according `ReadValue` used. 
      * @return A string representing a state name
      */
     std::string GetName() const;
 
     /**
-     * @copybrief IVariableState::GetState
-     *
-     * Wraps IVariableState::GetState
-     * @return A blob representing a state 
+     * @brief Returns the value of the variable state.
+     * @return A blob representing a state
      */
     Blob::CPtr GetState() const;
 
     /**
-     * @copybrief IVariableState::GetLastState
-     * @deprecated Use IVariableState::SetState instead
-     *
-     * Wraps IVariableState::GetLastState
-     * @return A blob representing a last state 
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use VariableState::GetState function instead")
-    Blob::CPtr GetLastState() const;
-
-    /**
-     * @copybrief IVariableState::SetState
-     *
-     * Wraps IVariableState::SetState
+     * @brief Sets the new state for the next inference.
      * @param state The current state to set
      */
     void SetState(Blob::Ptr state);

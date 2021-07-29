@@ -74,3 +74,20 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_Multiply_evaluate);
     return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
+
+bool op::v1::Multiply::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Multiply_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::bf16: return true;
+    default: break;
+    }
+    return false;
+}

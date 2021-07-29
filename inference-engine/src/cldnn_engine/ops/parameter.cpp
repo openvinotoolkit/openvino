@@ -7,10 +7,10 @@
 
 #include "ngraph/op/parameter.hpp"
 
-#include "api/input_layout.hpp"
-#include "api/reorder.hpp"
-#include "api/data.hpp"
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/input_layout.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/data.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 
 using namespace InferenceEngine;
 
@@ -154,19 +154,19 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
 
         auto data = static_cast<const char *>(meanBlobPtr->buffer());
 
-        auto bufIter = p.blobMemCache.find(data);
+        auto bufIter = p.blobMemCache.find(std::make_pair(data, meanDims));
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
-            auto mem = cldnn::memory::allocate(p.GetEngine(), meanBlobLayout, 0, false);
-            auto tmpPointer = mem.pointer<char>();  // implicitly maps buffer - unmap in destructor
+            auto mem = p.GetEngine().allocate_memory(meanBlobLayout, false);
+            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.GetEngine().get_program_stream() };
             auto buf = tmpPointer.data();
             auto bufSize = meanBlobLayout.bytes_count();
 
             std::memcpy(&buf[0], &data[0], bufSize);
 
             p.AddPrimitive(cldnn::data(meanBlobID, mem));
-            p.blobMemCache[data] = meanBlobID;
+            p.blobMemCache[std::make_pair(data, meanDims)] = meanBlobID;
         }
         break;
     }

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
 
 #ifdef FORCE_SIMD_16
 __attribute__((intel_reqd_sub_group_size(16)))

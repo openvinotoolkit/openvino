@@ -15,6 +15,7 @@
 
 using namespace std;
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 TEST(coordinate, shape0d)
 {

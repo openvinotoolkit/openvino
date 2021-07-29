@@ -1261,7 +1261,7 @@ template <typename T>
 class topk_backend : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(topk_backend);
+TYPED_TEST_SUITE_P(topk_backend);
 
 template <typename Mode, typename SortType>
 struct TopkSortTestOutputs
@@ -1323,7 +1323,7 @@ TYPED_TEST_P(topk_backend, topk_mode_sort_order)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(topk_backend, topk_mode_sort_order);
+REGISTER_TYPED_TEST_SUITE_P(topk_backend, topk_mode_sort_order);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
-INSTANTIATE_TYPED_TEST_CASE_P(${BACKEND_NAME}, topk_backend, TopKTypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(${BACKEND_NAME}, topk_backend, TopKTypes);

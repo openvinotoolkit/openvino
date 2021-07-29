@@ -15,7 +15,7 @@ Before matrix multiplication, there is an implicit shape alignment for input arg
 1. Applying transpositions specified by optional `transpose_a` and `transpose_b` attributes. Only the two right-most dimensions are transposed, other dimensions remain the same. Transpose attributes are ignored for 1D tensors.
 
 2. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step are not included in the output shape.
-    * If rank of the **first** input is equal to 1, it is always unsqueezed to 2D tensor **row vector** (regardless of `transpose_a`) by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`. 
+    * If rank of the **first** input is equal to 1, it is always unsqueezed to 2D tensor **row vector** (regardless of `transpose_a`) by adding axes with size 1 at ROW_INDEX_DIM, to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
     * If rank of the **second** input is equal to 1, it is always unsqueezed to 2D tensor **column vector** (regardless of `transpose_b`) by adding axes with size 1 at COL_INDEX_DIM, to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
 3. If ranks of input arguments are different after steps 1 and 2, the tensor with a smaller rank is unsqueezed from the left side of the shape by necessary number of axes to make both shapes of the same rank.
@@ -57,9 +57,9 @@ Two attributes, `transpose_a` and `transpose_b` specify embedded transposition f
 
 **Inputs**:
 
-*   **1**: Tensor of type *T* with matrices A. Rank >= 1. Required.
+*   **1**: Tensor of type *T* with matrices A. Rank >= 1. **Required.**
 
-*   **2**: Tensor of type *T* with matrices B. Rank >= 1. Required.
+*   **2**: Tensor of type *T* with matrices B. Rank >= 1. **Required.**
 
 **Outputs**
 
@@ -67,7 +67,7 @@ Two attributes, `transpose_a` and `transpose_b` specify embedded transposition f
 
 **Types**:
 
-* *T*: any supported floating point or integer type.
+* *T*: any supported floating-point or integer type.
 
 **Example**
 

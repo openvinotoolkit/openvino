@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include <ie_iextension.h>
 #include <ie_api.h>
-#include <ngraph/ngraph.hpp>
-#include <memory>
-#include <vector>
-#include <string>
+#include <ie_iextension.h>
+
 #include <map>
+#include <memory>
+#include <ngraph/ngraph.hpp>
+#include <string>
+#include <vector>
 
 //! [extension:header]
 namespace TemplateExtension {

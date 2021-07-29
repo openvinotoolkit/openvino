@@ -32,11 +32,13 @@ namespace ngraph
             ///
             /// \param[in]  value           The input tensor.
             /// \param[in]  reduction_axes  The axes along which we calculate norm.
+            /// \param[in]  keep_dims       The flag indicates if axes will be removed or kept.
             ///
             /// \return     L-0 norm of value. The output sub-graph is composed of v1 ops.
             ///
             std::shared_ptr<Node> l0_norm(const Output<Node>& value,
-                                          const Output<Node>& reduction_axes);
+                                          const Output<Node>& reduction_axes,
+                                          bool keep_dims = false);
 
             /// \brief      Calculates L-1 norm of a value.
             ///
@@ -45,12 +47,14 @@ namespace ngraph
             /// \param[in]  value           The input tensor.
             /// \param[in]  reduction_axes  The axes along which we calculate norm.
             /// \param[in]  bias            The bias added to the calculated sum.
+            /// \param[in]  keep_dims       The flag indicates if axes will be removed or kept.
             ///
             /// \return     L-1 norm of value. The output sub-graph is composed of v1 ops.
             ///
             std::shared_ptr<Node> l1_norm(const Output<Node>& value,
                                           const Output<Node>& reduction_axes,
-                                          float bias = 0.f);
+                                          float bias = 0.f,
+                                          bool keep_dims = false);
 
             /// \brief      Calculates L-2 norm of input tensor.
             ///
@@ -77,13 +81,15 @@ namespace ngraph
             /// \param[in]  reduction_axes  The axes along which we calculate norm.
             /// \param[in]  p_norm          The p norm to calculate.
             /// \param[in]  bias            The bias added to the calculated sum.
+            /// \param[in]  keep_dims       The flag indicates if axes will be removed or kept.
             ///
             /// \return     L-p norm of value. The output sub-graph is composed of v1 ops.
             ///
             std::shared_ptr<Node> lp_norm(const Output<Node>& value,
                                           const Output<Node>& reduction_axes,
                                           std::size_t p_norm = 2,
-                                          float bias = 0.f);
+                                          float bias = 0.f,
+                                          bool keep_dims = false);
         } // namespace opset1
     }     // namespace builder
 } // namespace ngraph

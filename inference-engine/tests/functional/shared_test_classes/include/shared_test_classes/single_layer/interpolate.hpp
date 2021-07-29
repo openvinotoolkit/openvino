@@ -31,20 +31,44 @@ typedef std::tuple<
 
 typedef std::tuple<
         InterpolateSpecificParams,
-        InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        InferenceEngine::Layout,        // Output layout
-        InferenceEngine::SizeVector,    // Input shapes
-        InferenceEngine::SizeVector,    // Target shapes
-        LayerTestsUtils::TargetDevice   // Device name
+        InferenceEngine::Precision,        // Net precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
+        InferenceEngine::SizeVector,       // Input shapes
+        InferenceEngine::SizeVector,       // Target shapes
+        LayerTestsUtils::TargetDevice,     // Device name
+        std::map<std::string, std::string> // Additional network configuration
 > InterpolateLayerTestParams;
 
 class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj);
+
+protected:
+    void SetUp() override;
+};
+
+//Interpolate-1 test
+typedef std::tuple<
+        InferenceEngine::Precision,        // Net precision
+        InferenceEngine::Precision,        // Input precision, output is the same
+        InferenceEngine::Layout,           // Input layout, output is the same
+        InferenceEngine::SizeVector,       // Input shapes
+        InferenceEngine::SizeVector,       // Target shapes
+        std::string,                       // InterpolateMode
+        ngraph::AxisSet,                   // Axes
+        bool,                              // AntiAlias
+        std::vector<size_t>,               // Pads
+        LayerTestsUtils::TargetDevice      // Device name
+> Interpolate1LayerTestParams;
+
+class Interpolate1LayerTest : public testing::WithParamInterface<Interpolate1LayerTestParams>,
+                             virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<Interpolate1LayerTestParams> obj);
 
 protected:
     void SetUp() override;

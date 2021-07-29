@@ -119,6 +119,6 @@ batchToSpaceParamsTuple bts_only_test_cases[] = {
                                 CommonTestUtils::DEVICE_GPU)
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_CLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),
+INSTANTIATE_TEST_SUITE_P(smoke_CLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),
                         BatchToSpaceLayerTest::getTestCaseName);
 }  // namespace

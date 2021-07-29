@@ -70,7 +70,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                               im_info_shape);
 
         NODE_VALIDATION_CHECK(this,
-                              im_info_shape[0] == 3,
+                              im_info_shape[0].is_dynamic() || im_info_shape[0] == 3,
                               "The 'input_im_info' shape is expected to be a [3]. Got: ",
                               im_info_shape);
     }
@@ -83,7 +83,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
                               anchors_shape);
 
         NODE_VALIDATION_CHECK(this,
-                              anchors_shape[1] == 4,
+                              anchors_shape[1].is_dynamic() || anchors_shape[1] == 4,
                               "The second dimension of 'input_anchors' should be 4. Got: ",
                               anchors_shape[1]);
     }
@@ -105,14 +105,16 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     if (deltas_shape.rank().is_static() && scores_shape.rank().is_static())
     {
         NODE_VALIDATION_CHECK(this,
-                              deltas_shape[1] == scores_shape[1],
+                              deltas_shape[1].is_dynamic() || scores_shape[1].is_dynamic() ||
+                                  deltas_shape[1] == scores_shape[1],
                               "Heights for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[1],
                               scores_shape[1]);
 
         NODE_VALIDATION_CHECK(this,
-                              deltas_shape[2] == scores_shape[2],
+                              deltas_shape[2].is_dynamic() || scores_shape[2].is_dynamic() ||
+                                  deltas_shape[2] == scores_shape[2],
                               "Width for inputs 'input_deltas' and 'input_scores' should be "
                               "equal. Got: ",
                               deltas_shape[2],

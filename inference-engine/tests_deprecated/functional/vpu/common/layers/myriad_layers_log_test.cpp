@@ -4,6 +4,6 @@
 
 #include "myriad_layers_log_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         accuracy, myriadLayersTestsLog_smoke,
         ::testing::ValuesIn(s_logParams));

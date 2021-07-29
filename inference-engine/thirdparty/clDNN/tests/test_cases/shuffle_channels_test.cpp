@@ -3,24 +3,21 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
 
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/shuffle_channels.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
+#include "test_utils.h"
+
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/shuffle_channels.hpp>
 
 #include <cstddef>
-#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
 
 TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 15, 2, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 15, 2, 2 } });
     int32_t axis = 1;
     int32_t group = 5;
 
@@ -34,7 +31,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -46,7 +43,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 12.f, 13.f, 14.f, 15.f, 24.f, 25.f, 26.f, 27.f, 36.f, 37.f, 38.f, 39.f, 48.f, 49.f, 50.f, 51.f,
@@ -60,9 +57,9 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 15, 2, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 15, 2, 2 } });
     int32_t axis = -3;
     int32_t group = 5;
 
@@ -76,7 +73,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -88,7 +85,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 12.f, 13.f, 14.f, 15.f, 24.f, 25.f, 26.f, 27.f, 36.f, 37.f, 38.f, 39.f, 48.f, 49.f, 50.f, 51.f,
@@ -102,9 +99,9 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 15, 2, 1, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 15, 2, 1, 2 } });
     int32_t axis = 0;
     int32_t group = 5;
 
@@ -118,7 +115,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -130,7 +127,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 12.f, 13.f, 14.f, 15.f, 24.f, 25.f, 26.f, 27.f, 36.f, 37.f, 38.f, 39.f, 48.f, 49.f, 50.f, 51.f,
@@ -144,9 +141,9 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 15, 2, 1, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 15, 2, 1, 2 } });
     int32_t axis = -4;
     int32_t group = 5;
 
@@ -160,7 +157,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -172,7 +169,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 2.f, 3.f, 12.f, 13.f, 14.f, 15.f, 24.f, 25.f, 26.f, 27.f, 36.f, 37.f, 38.f, 39.f, 48.f, 49.f, 50.f, 51.f,
@@ -186,9 +183,9 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 6 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 6 } });
     int32_t axis = -2;
     int32_t group = 3;
 
@@ -199,7 +196,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -211,7 +208,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 2.f, 4.f, 1.f, 3.f, 5.f, 6.f, 8.f, 10.f, 7.f, 9.f, 11.f,
@@ -224,9 +221,9 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 6, 1, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 6, 1, 2 } });
     int32_t axis = -3;
     int32_t group = 3;
 
@@ -237,7 +234,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -249,7 +246,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 4.f, 5.f, 8.f, 9.f, 2.f, 3.f, 6.f, 7.f, 10.f, 11.f,
@@ -262,9 +259,9 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 6 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 6 } });
     int32_t axis = -2;
     int32_t group = 2;
 
@@ -275,7 +272,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -287,7 +284,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 3.f, 1.f, 4.f, 2.f, 5.f, 6.f, 9.f, 7.f, 10.f, 8.f, 11.f,
@@ -300,9 +297,9 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 6, 1, 2 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 6, 1, 2 } });
     int32_t axis = -3;
     int32_t group = 2;
 
@@ -313,7 +310,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -325,7 +322,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 1.f, 6.f, 7.f, 2.f, 3.f, 8.f, 9.f, 4.f, 5.f, 10.f, 11.f,
@@ -338,9 +335,9 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
 }
 
 TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
-    engine engine;
+    auto& engine = get_test_engine();
 
-    auto input0 = memory::allocate(engine, { data_types::f32, format::bfyx, { 6, 1, 1, 1 } });
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 6, 1, 1, 1 } });
     int32_t axis = 0;
     int32_t group = 2;
 
@@ -349,7 +346,7 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     });
 
     topology topology;
-    topology.add(input_layout("Input0", input0.get_layout()));
+    topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
             shuffle_channels("shuffle_channels", "Input0", group, axis)
     );
@@ -361,7 +358,7 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("shuffle_channels").get_memory();
-    auto output_ptr = output.pointer<float>();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.f, 3.f, 1.f, 4.f, 2.f, 5.f

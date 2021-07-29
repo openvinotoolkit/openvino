@@ -16,6 +16,20 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
 
 
+def create_function_with_memory(input_shape, data_type):
+    import ngraph as ng
+    from ngraph.impl import Function, Type
+
+    input_data = ng.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ng.read_value(input_data, "var_id_667")
+    add = ng.add(rv, input_data, name="MemoryAdd")
+    node = ng.assign(add, "var_id_667")
+    res = ng.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    caps = Function.to_capsule(func)
+    return caps
+
+
 def read_image():
     import cv2
     n, c, h, w = (1, 3, 32, 32)
@@ -523,3 +537,58 @@ def test_resize_algorithm_work(device):
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
 
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("data_type", ["FP32", "FP16", "I32"])
+@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                    "Memory layers fully supported only on CPU")
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
+    ie_core = ie.IECore()
+    if device == "CPU":
+        if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
+    layout = ["C", "HW", "CHW", "NCHW"]
+    np_data_type = {"FP32": np.float32, "FP16": np.float16, "I32": np.int32}
+
+    from openvino.inference_engine import TensorDesc, Blob
+
+    net = ie.IENetwork(create_function_with_memory(input_shape, np_data_type[data_type]))
+    ie_core = ie.IECore()
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == 'var_id_667'
+    # todo: Uncomment after fix 45611,
+    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
+    #assert mem_state.state.tensor_desc.precision == data_type
+
+    for i in range(1, 10):
+        if mode == "set_init_memory_state":
+            # create initial value
+            const_init = 5
+            init_array = np.full(input_shape, const_init, dtype=np_data_type[mem_state.state.tensor_desc.precision])
+            tensor_desc = TensorDesc(mem_state.state.tensor_desc.precision, input_shape, layout[len(input_shape) - 1])
+            blob = Blob(tensor_desc, init_array)
+            mem_state.state = blob
+
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=np_data_type[data_type])
+        elif mode == "reset_memory_state":
+            # reset initial state of ReadValue to zero
+            mem_state.reset()
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=np_data_type[data_type])
+        else:
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+            expected_res = np.full(input_shape, i, dtype=np_data_type[data_type])
+
+        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)

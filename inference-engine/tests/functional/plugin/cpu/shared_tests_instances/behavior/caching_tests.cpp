@@ -22,7 +22,7 @@ namespace {
             1, 2
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),

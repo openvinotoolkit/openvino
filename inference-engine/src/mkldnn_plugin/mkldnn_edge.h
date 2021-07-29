@@ -46,6 +46,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
+    void reuse(MKLDNNMemoryPtr ptr);
     void validate();
     void drop();
 
@@ -60,20 +61,24 @@ public:
     MKLDNNMemoryPtr& getMemoryPtr();
 
     bool needReorder();
-    bool isDropped();
+    bool isDropped() const;
     bool isUseExternalMemory() const;
 
-    int getInputNum();
-    int getOutputNum();
+    int getInputNum() const;
+    int getOutputNum() const;
+
+    void setChildPort(const size_t port) { child_port = port; }
 
     void sharedMemFrom(const MKLDNNEdgePtr& edge);
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
+    const InferenceEngine::TensorDesc& getInputDescRO() const;
+    const InferenceEngine::TensorDesc& getOutputDescRO() const;
+
 private:
     std::string name();
 
-private:
     std::weak_ptr<MKLDNNNode> parent;
     std::weak_ptr<MKLDNNNode> child;
     int parent_port;

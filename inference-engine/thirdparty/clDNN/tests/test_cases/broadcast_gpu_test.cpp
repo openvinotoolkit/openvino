@@ -2,18 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <gtest/gtest.h>
+#include "test_utils.h"
 
-#include <api/engine.hpp>
-#include <api/input_layout.hpp>
-#include <api/memory.hpp>
-#include <api/broadcast.hpp>
-#include <api/topology.hpp>
-#include <api/network.hpp>
-
-#include "test_utils/test_utils.h"
-#include "test_utils/uniform_quantized_real_distribution.hpp"
+#include <cldnn/primitives/input_layout.hpp>
+#include <cldnn/primitives/broadcast.hpp>
 
 #include <cstddef>
 
@@ -23,8 +15,7 @@ using namespace ::tests;
 template<typename T>
 void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output_shape,
                           std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes,
-                          std::vector<T> golden_data)
-{
+                          std::vector<T> golden_data) {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
     EXPECT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
@@ -51,11 +42,11 @@ void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output
         fixed_b_axes.push_back((uint16_t) (broadcast_axes.at(i) + shift));
     }
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {cldnn_data_type, format::bfyx, {input_4d.at(0), input_4d.at(1), input_4d.at(3), input_4d.at(2)}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({cldnn_data_type, format::bfyx, {input_4d.at(0), input_4d.at(1), input_4d.at(3), input_4d.at(2)}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
 
     set_values(input, input_data);
@@ -65,7 +56,7 @@ void start_broadcast_test(data_types cldnn_data_type, std::vector<size_t> output
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<T>();
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (tensor::value_type b = 0; b < output_4d.at(0); ++b) {
         for (tensor::value_type f = 0; f < output_4d.at(1); ++f) {
@@ -110,11 +101,11 @@ void start_broadcast_test_5d(data_types cldnn_data_type, std::vector<size_t> out
         fixed_b_axes.push_back((uint16_t)(broadcast_axes.at(i) + shift));
     }
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, { cldnn_data_type, format::bfzyx,{ input_5d.at(0), input_5d.at(1), input_5d.at(4), input_5d.at(3), input_5d.at(2) } });
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ cldnn_data_type, format::bfzyx,{ input_5d.at(0), input_5d.at(1), input_5d.at(4), input_5d.at(3), input_5d.at(2) } });
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
 
     set_values(input, input_data);
@@ -124,7 +115,7 @@ void start_broadcast_test_5d(data_types cldnn_data_type, std::vector<size_t> out
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    auto output_ptr = output.pointer<T>();
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (tensor::value_type b = 0; b < output_5d.at(0); ++b) {
         for (tensor::value_type f = 0; f < output_5d.at(1); ++f) {
@@ -1438,11 +1429,11 @@ TEST(broadcast_gpu_int64_t, bfyx_2_to_2x3x4x5_w_b_axes_1_2_3) {
 
 TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 2, 3, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes size should be less or equal 4.";
@@ -1451,11 +1442,11 @@ TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 
 TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes index should be within broadcast_sizes range.";
@@ -1464,11 +1455,11 @@ TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 
 TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 1}));
 
     std::string msg_to_find = "Incorrect parameters configuration: Duplicate axes numbers was found in broadcast_axes.";
@@ -1477,11 +1468,11 @@ TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 
 TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {2, 3, 4, 5}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 3, 4, 5}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Input size on dimension number 0(=2) is not equal to: (=1)";
@@ -1490,11 +1481,11 @@ TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 
 TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {2, 3, 4, 5}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 3, 4, 5}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {3, 3, 4, 5}, {}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
@@ -1503,11 +1494,11 @@ TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 
 TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, 3, 1}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 3, 1}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {0, 1, 3}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
@@ -1516,11 +1507,11 @@ TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 
 TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
 
-    const auto& engine = get_test_engine();
-    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 3, 5, 4}});
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 3, 5, 4}});
 
     topology topology;
-    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("input", input->get_layout()));
     topology.add(broadcast("output", "input", {2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";

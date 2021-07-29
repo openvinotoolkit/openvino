@@ -159,6 +159,25 @@ void regclass_pyngraph_PartialShape(py::module m)
                 to_shapess : Shape
                     Get the unique shape.
               )");
+    shape.def(
+        "get_dimension",
+        [](const ngraph::PartialShape& self, size_t index) -> ngraph::Dimension {
+            return self[index];
+        },
+        py::arg("index"),
+        R"(
+                Get the dimension at specified index of a partial shape.
+
+                Parameters
+                ----------
+                index : int
+                    The index of dimension
+
+                Returns
+                ----------
+                get_dimension : Dimension
+                    Get the particular dimension of a partial shape.
+              )");
 
     shape.def(
         "__eq__",

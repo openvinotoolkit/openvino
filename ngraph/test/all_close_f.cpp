@@ -158,23 +158,23 @@ TEST_P(all_close_f_param_test, test_boundaries)
         << ss.str();
 }
 
-INSTANTIATE_TEST_CASE_P(test_simple_floats_with_range_of_precisions,
-                        all_close_f_param_test,
-                        testing::Combine(testing::Values(0.f,
-                                                         -0.f,
-                                                         1.f,
-                                                         -1.f,
-                                                         10.f,
-                                                         -10.f,
-                                                         0.75f,
-                                                         -0.75f,
-                                                         0.5f,
-                                                         -0.5f,
-                                                         0.25f,
-                                                         -0.25f,
-                                                         0.125f,
-                                                         -0.125f),
-                                         testing::Range(0, 5)), );
+INSTANTIATE_TEST_SUITE_P(test_simple_floats_with_range_of_precisions,
+                         all_close_f_param_test,
+                         testing::Combine(testing::Values(0.f,
+                                                          -0.f,
+                                                          1.f,
+                                                          -1.f,
+                                                          10.f,
+                                                          -10.f,
+                                                          0.75f,
+                                                          -0.75f,
+                                                          0.5f,
+                                                          -0.5f,
+                                                          0.25f,
+                                                          -0.25f,
+                                                          0.125f,
+                                                          -0.125f),
+                                          testing::Range(0, 5)));
 
 class all_close_f_double_param_test : public testing::TestWithParam<::std::tuple<double, int>>
 {
@@ -315,13 +315,13 @@ TEST_P(all_close_f_double_param_test, test_boundaries)
         << ss.str();
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     test_simple_doubles_with_range_of_precisions,
     all_close_f_double_param_test,
     testing::Combine(
         testing::Values(
             0., -0., 1., -1., 10., -10., 0.75, -0.75, 0.5, -0.5, 0.25, -0.25, 0.125, -0.125),
-        testing::Range(0, 17)), );
+        testing::Range(0, 17)));
 
 // Test the exact bounds near +0.f
 //

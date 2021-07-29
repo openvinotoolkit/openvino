@@ -16,43 +16,43 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 const std::vector<ReshapeTransformationParam> params = {
     // 3D -> 4D
     {
-        ngraph::Shape{ 1, 3, 32 },
+        { 1, 3, 32 },
         { 1, 3, 4, 8 },
         { 256ul, ngraph::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         true
     },
     // 4D -> 3D
     {
-        ngraph::Shape{ 1, 3, 16, 16 },
+        { 1, 3, 16, 16 },
         { 1, 3, 256 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         true
     },
     // 4D -> 3D
     {
-        ngraph::Shape{ 1, 3, 16, 16 },
+        { 1, 3, 16, 16 },
         { 0, 3, -1 },
         { 256ul, ngraph::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         true
     },
     // 4D -> 2D
     {
-        ngraph::Shape{ 1, 3, 4, 8 },
+        { 1, 3, 4, 8 },
         { 1, -1 },
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         true
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ReshapeTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

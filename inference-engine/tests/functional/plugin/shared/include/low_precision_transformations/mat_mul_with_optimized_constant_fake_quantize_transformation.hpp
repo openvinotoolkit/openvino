@@ -20,7 +20,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    std::pair<ngraph::Shape, ngraph::Shape>,
+    std::pair<ngraph::PartialShape, ngraph::Shape>,
     std::string,
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues
 > MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams;
@@ -33,9 +33,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

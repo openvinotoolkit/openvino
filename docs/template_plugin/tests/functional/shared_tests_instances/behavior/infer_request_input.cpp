@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
-
 #include "behavior/infer_request_input.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -19,7 +17,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestInputTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestInputTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),

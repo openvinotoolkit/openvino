@@ -73,16 +73,19 @@ public:
 
     /**
      * @brief Always returns an empty LockedMemory object
+     * @return Empty locked memory
      */
     LockedMemory<void> buffer() noexcept override;
 
     /**
      * @brief Always returns an empty LockedMemory object
+     * @return Empty locked memory
      */
     LockedMemory<const void> cbuffer() const noexcept override;
 
     /**
      * @brief Returns the number of underlying blobs in the compound blob
+     * @return A number of underlying blobs
      */
     size_t size() const noexcept override;
 
@@ -109,15 +112,7 @@ protected:
      */
     std::vector<Blob::Ptr> _blobs;
 
-    /**
-     * @brief Returns nullptr as CompoundBlob is not allocator-based
-     */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override;
-
-    /**
-     * @brief Returns nullptr as CompoundBlob is not allocator-based
-     */
-    void* getHandle() const noexcept override;
 };
 
 /**
@@ -153,21 +148,25 @@ public:
 
     /**
      * @brief Returns a shared pointer to Y plane
+     * @return Y plane
      */
     virtual Blob::Ptr& y() noexcept;
 
     /**
      * @brief Returns a shared pointer to Y plane
+     * @return Y plane
      */
     virtual const Blob::Ptr& y() const noexcept;
 
     /**
      * @brief Returns a shared pointer to UV plane
+     * @return UV plane
      */
     virtual Blob::Ptr& uv() noexcept;
 
     /**
      * @brief Returns a shared pointer to UV plane
+     * @return UV plane
      */
     virtual const Blob::Ptr& uv() const noexcept;
 

@@ -47,7 +47,7 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     const auto H_dst_stride = dst_l == NHWC ? dst_strides[1] : dst_strides[2];
     const auto W_dst_stride = dst_l == NHWC ? dst_strides[2] : dst_strides[3];
 
-    src_ptr += dst_blk_desc.getOffsetPadding();
+    dst_ptr += dst_blk_desc.getOffsetPadding();
 
 #ifdef HAVE_SSE
     if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3 &&

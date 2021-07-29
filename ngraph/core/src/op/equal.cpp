@@ -51,7 +51,7 @@ namespace equal
 
 //------------------------------- v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Equal::Equal(const Output<Node>& arg0,
                      const Output<Node>& arg1,
@@ -74,8 +74,26 @@ bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVe
     return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
+bool op::v1::Equal::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Equal_has_evaluate);
+    switch (get_input_element_type(0))
+    {
+    case ngraph::element::boolean:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32: return true;
+    default: break;
+    }
+    return false;
+}
+
 bool op::v1::Equal::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Equal_visit_attributes);
+    BinaryElementwiseComparison::visit_attributes(visitor);
     return true;
 }

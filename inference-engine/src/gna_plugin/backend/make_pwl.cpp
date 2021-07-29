@@ -26,7 +26,7 @@ static void insert_extra_pwl_segments(std::vector<gna_pwl_segment_t>& gna_pwl,
         return;
 
     // We're adding a segment at the beginning if the first one doesn't cover min value
-    if ((gna_pwl[0].xBase & XBASEMASK) != INT32_MIN) {
+    if ((gna_pwl[0].xBase & XBASEMASK) != (INT32_MIN & XBASEMASK)) {
         extra_segment.xBase = INT32_MIN & XBASEMASK;
         extra_segment.yBase = gna_pwl[0].yBase;
         extra_segment.slope = 0;
@@ -282,10 +282,10 @@ void make_gna_pwl(const DnnActivation  fun,
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
-                x_lower = FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * in_scale);
-                x_upper = FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * in_scale);
-                y_lower = FLOAT_TO_INT16(*fun.fqParams.input_low * 1.25 * out_scale);
-                y_upper = FLOAT_TO_INT16(*fun.fqParams.input_high * 1.25 * out_scale);
+                x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower));
+                x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper));
+                y_lower = std::max(FLOAT_TO_INT32(*fun.fqParams.input_low * 1.25 * out_scale), static_cast<int32_t>(y_lower));
+                y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper));
             } else {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
@@ -365,10 +365,10 @@ void make_gna_pwl(const DnnActivation  fun,
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun == kActFakeQuantize && fun.fqParams.set) {
-                x_lower = *fun.fqParams.input_low * in_scale;
-                x_upper = *fun.fqParams.input_high * in_scale;
-                y_lower = *fun.fqParams.input_low * out_scale;
-                y_upper = *fun.fqParams.input_high * out_scale;
+                x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
+                x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
+                y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
+                y_upper = std::min(static_cast<int32_t>(*fun.fqParams.input_high * out_scale), static_cast<int32_t>(y_upper));
             }
             auto n_segments = 2;
             if (fun == kActKaldiLstmClipping) {

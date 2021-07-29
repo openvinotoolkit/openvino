@@ -8,9 +8,9 @@
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 #include "ngraph/op/ctc_greedy_decoder_seq_len.hpp"
 
-#include "api/ctc_greedy_decoder.hpp"
-#include "api/reorder.hpp"
-#include "api/mutable_data.hpp"
+#include "cldnn/primitives/ctc_greedy_decoder.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/mutable_data.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -58,7 +58,7 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
 
     std::size_t num_output = op->get_output_size();
 
-    std::vector<cldnn::memory> shared_memory;
+    std::vector<cldnn::memory::ptr> shared_memory;
     if (num_output == 2) {
         auto mutable_precision = op->get_output_element_type(1);
          if (mutable_precision == ngraph::element::i64) {
@@ -70,7 +70,7 @@ void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngraph::No
             DefaultFormatForDims(op->get_output_shape(1).size()),
             CldnnTensorFromIEDims(op->get_output_shape(1)));
 
-        shared_memory.emplace_back(cldnn::memory::allocate(p.GetEngine(), mutableLayout));
+        shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w, shared_memory[0]);

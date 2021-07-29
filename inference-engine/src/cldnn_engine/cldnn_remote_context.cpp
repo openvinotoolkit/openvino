@@ -6,21 +6,23 @@
 #include "cldnn_remote_context.h"
 #include "cldnn_itt.h"
 
+#include "cldnn/runtime/device_query.hpp"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
-static const char unsupported_str[] = "Unsupported shared object type ";
 CLDNNRemoteAllocator CLDNNRemoteBlobImpl::m_allocator;
 
 CLDNNRemoteBlobImpl::CLDNNRemoteBlobImpl(ClContext::Ptr context,
+    cldnn::stream& stream,
     const cldnn::layout& layout,
     cldnn::shared_handle mem,
     cldnn::shared_surface surf,
     uint32_t plane,
     BlobType mem_type) :
-    m_context(context), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
+    m_context(context), m_stream(stream), m_layout(layout), m_mem_type(mem_type), m_mem(mem), m_surf(surf), m_plane(plane),
     _handle(nullptr), _allocator(nullptr), m_memObject(nullptr), lockedHolder(nullptr) {
 }
 
@@ -67,8 +69,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
 }
 
 bool CLDNNRemoteBlobImpl::deallocate() noexcept {
-    if (m_memObject != nullptr)
-        m_memObject.reset();
+    m_memObject.reset();
     return m_memObject == nullptr;
 }
 
@@ -86,32 +87,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
     _impl->acquire_lock();
 
     if (m_memObject == nullptr) {
-        auto eng = _impl->GetEngine();
-        switch (m_mem_type) {
-        case BlobType::BT_BUF_INTERNAL:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::allocate(*eng, m_layout)));
-            break;
-        case BlobType::BT_BUF_SHARED:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
-            break;
-#ifdef _WIN32
-        case BlobType::BT_SURF_SHARED:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
-            break;
-        case BlobType::BT_DX_BUF_SHARED:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_dx_buffer(*eng, m_layout, m_mem)));
-            break;
-#else
-        case BlobType::BT_SURF_SHARED:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_surf, m_plane)));
-            break;
-#endif
-        case BlobType::BT_IMG_SHARED:
-            m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_image(*eng, m_layout, m_mem)));
-            break;
-        default:
-            IE_THROW() << unsupported_str << m_mem_type;
-        }
+        allocate();
     }
 
     _impl->release_lock();
@@ -120,32 +96,38 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
 void CLDNNRemoteBlobImpl::allocate() noexcept {
     assert(m_memObject == nullptr);
 
-    std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
+    std::shared_ptr<cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
 
     switch (m_mem_type) {
-    case BlobType::BT_BUF_INTERNAL:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::allocate(*eng, m_layout)));
+    case BlobType::BT_BUF_INTERNAL: {
+        m_memObject = eng->allocate_memory(m_layout);
         break;
-    case BlobType::BT_BUF_SHARED:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
+    }
+    case BlobType::BT_BUF_SHARED: {
+        m_memObject = eng->share_buffer(m_layout, m_mem);
         break;
+    }
 #ifdef _WIN32
-    case BlobType::BT_SURF_SHARED:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
+    case BlobType::BT_SURF_SHARED: {
+        m_memObject = eng->share_surface(m_layout, m_mem, m_plane);
         break;
-    case BlobType::BT_DX_BUF_SHARED:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_dx_buffer(*eng, m_layout, m_mem)));
+    }
+    case BlobType::BT_DX_BUF_SHARED: {
+        m_memObject = eng->share_dx_buffer(m_layout, m_mem);
         break;
+    }
 #else
-    case BlobType::BT_SURF_SHARED:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_surf, m_plane)));
+    case BlobType::BT_SURF_SHARED: {
+        m_memObject = eng->share_surface(m_layout, m_surf, m_plane);
         break;
+    }
 #endif
-    case BlobType::BT_IMG_SHARED:
-        m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_image(*eng, m_layout, m_mem)));
+    case BlobType::BT_IMG_SHARED: {
+        m_memObject = eng->share_image(m_layout, m_mem);
         break;
+    }
     default:
-        m_memObject = nullptr;
+        m_memObject.reset();
     }
 }
 
@@ -165,7 +147,7 @@ std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept 
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
-    lockedHolder = std::unique_ptr<cldnn::pointer<uint8_t>>(new cldnn::pointer<uint8_t>(m_memObject->pointer<uint8_t>()));
+    lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
     auto ptr = lockedHolder->data();
     _handle = reinterpret_cast<void*>(ptr);
     m_allocator.regLockedBlob(_handle, this);
@@ -244,7 +226,11 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         }
     }
 
-    cldnn::device_query device_query(_context_id, _va_device);
+    // TODO: Parameterize this based on plugin config and compilation options
+    auto engine_type = cldnn::engine_types::ocl;
+    auto runtime_type = cldnn::runtime_types::ocl;
+    // Use actual runtime and engine types
+    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device);
     auto device_map = device_query.get_available_devices();
 
     auto iter = device_map.find(m_config.device_id);
@@ -252,28 +238,25 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl::Create");
-        m_engine = std::make_shared<cldnn::engine>(dev,
-            cldnn::engine_configuration((m_config.useProfiling ||
+        bool enable_profiling = (m_config.useProfiling ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
-                false,
-                m_config.dumpCustomKernels,
-                std::string(),
-                std::string(),
-                true,
-                std::string(),
-                m_config.sources_dumps_dir,
-                m_config.queuePriority,
-                m_config.queueThrottle,
-                m_config.memory_pool_on,
-                m_config.throughput_streams,
-                m_config.kernels_cache_dir,
-                m_config.n_threads));
+                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
+        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+        bool use_unified_shared_memory = true;
+        m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
+                                                                                                     queue_type,
+                                                                                                     m_config.sources_dumps_dir,
+                                                                                                     m_config.queuePriority,
+                                                                                                     m_config.queueThrottle,
+                                                                                                     m_config.memory_pool_on,
+                                                                                                     use_unified_shared_memory,
+                                                                                                     m_config.kernels_cache_dir,
+                                                                                                     m_config.n_threads));
     }
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {
-    ParamMap ret = { { GPU_PARAM_KEY(OCL_CONTEXT), m_engine->get_context() } };
+    ParamMap ret = { { GPU_PARAM_KEY(OCL_CONTEXT), m_engine->get_user_context() } };
 
     switch (m_type) {
     case OCL:

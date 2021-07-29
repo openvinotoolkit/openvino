@@ -93,6 +93,9 @@ Options:
     -progress                   Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                      Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
     -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
+    -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
+    -load_from_file             Optional. Loads model from file directly without ReadNetwork.
+    -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
   CPU-specific performance options:
     -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices

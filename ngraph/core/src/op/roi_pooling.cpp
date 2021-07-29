@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ROIPooling::type_info;
+NGRAPH_RTTI_DEFINITION(op::ROIPooling, "ROIPooling", 0);
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,

@@ -17,8 +17,8 @@
 #include "ie_blob.h"
 #include "cpp/ie_cnn_network.h"
 
-#include <api/network.hpp>
-#include <api/topology.hpp>
+#include <cldnn/graph/network.hpp>
+#include <cldnn/graph/topology.hpp>
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_custom_layer.h"
@@ -43,7 +43,7 @@ public:
 
     const Config& getConfig() const { return m_config; }
     InferenceEngine::gpu::ClContext::Ptr GetContext() { return m_context; }
-    std::shared_ptr<const cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
+    std::shared_ptr<cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
     int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->GetInputLayouts(); }
     size_t GetNetworksCount() const { return m_networks.size(); }

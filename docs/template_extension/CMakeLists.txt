@@ -33,3 +33,7 @@ if (ngraph_onnx_importer_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_ONNX_IMPORT_ENABLED)
 endif()
 # [cmake:extension]
+
+# Enable code style check
+file(GLOB_RECURSE template_extension_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${template_extension_src})

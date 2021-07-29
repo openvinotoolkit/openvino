@@ -91,7 +91,7 @@ const std::vector<size_t> numOut = { 1, 2, 5 };
 const auto conv3dReshapeParams = ::testing::Combine(::testing::ValuesIn(convType),
                                                     ::testing::ValuesIn(numOut));
 
-INSTANTIATE_TEST_CASE_P(smoke_Conv3dReshapeTest, Conv3dReshapeTest, conv3dReshapeParams, Conv3dReshapeTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Conv3dReshapeTest, Conv3dReshapeTest, conv3dReshapeParams, Conv3dReshapeTest::getTestCaseName);
 
 } // namespace
 

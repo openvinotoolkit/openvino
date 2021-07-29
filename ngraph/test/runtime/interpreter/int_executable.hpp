@@ -21,7 +21,6 @@
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "op/avg_pool.hpp"
 
 namespace ngraph
 {

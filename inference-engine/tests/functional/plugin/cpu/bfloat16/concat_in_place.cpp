@@ -140,7 +140,7 @@ TEST_P(Concat_in_place, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Concat_in_place,
+INSTANTIATE_TEST_SUITE_P(smoke_FP32_bfloat16_NoReshape, Concat_in_place,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Concat_in_place,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Concat_in_place::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Concat_in_place,
+INSTANTIATE_TEST_SUITE_P(smoke_BF16_bfloat16_NoReshape, Concat_in_place,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

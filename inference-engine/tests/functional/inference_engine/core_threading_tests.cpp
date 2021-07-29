@@ -20,8 +20,16 @@
 #include <fstream>
 
 class CoreThreadingTests : public ::testing::Test {
+protected:
+    std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
+
 public:
     void SetUp() override {
+        FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
+    }
+
+    void TearDown() override {
+        CommonTestUtils::removeIRFiles(modelName, weightsName);
     }
 
     void runParallel(std::function<void(void)> func,
@@ -138,11 +146,10 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
 // tested function: ReadNetwork, AddExtension
 TEST_F(CoreThreadingTests, ReadNetwork) {
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    auto network = ie.ReadNetwork(modelName, weightsName);
 
     runParallel([&] () {
         safeAddExtension(ie);
-        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+        (void)ie.ReadNetwork(modelName, weightsName);
     }, 100, 12);
 }

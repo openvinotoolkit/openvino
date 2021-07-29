@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::GatherTree::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::GatherTree, "GatherTree", 1);
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,

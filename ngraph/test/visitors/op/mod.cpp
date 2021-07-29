@@ -2,33 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "binary_ops.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
 
-#include "util/visitor.hpp"
+using Type = ::testing::Types<BinaryOperatorType<ngraph::opset1::Mod, ngraph::element::f32>>;
 
-using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
-
-TEST(attributes, mod_op)
-{
-    NodeBuilder::get_ops().register_factory<opset1::Mod>();
-    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{2, 1});
-
-    auto auto_broadcast = op::AutoBroadcastType::NUMPY;
-
-    auto mod = make_shared<opset1::Mod>(A, B, auto_broadcast);
-    NodeBuilder builder(mod);
-    auto g_mod = as_type_ptr<opset1::Mod>(builder.create());
-
-    EXPECT_EQ(g_mod->get_autob(), mod->get_autob());
-}
+INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast,
+                               BinaryOperatorVisitor,
+                               Type,
+                               BinaryOperatorTypeName);

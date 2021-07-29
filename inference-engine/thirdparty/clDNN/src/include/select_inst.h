@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <api/select.hpp>
-
+#include "cldnn/primitives/select.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

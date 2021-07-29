@@ -18,7 +18,7 @@ using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
 
-constexpr NodeTypeInfo op::v1::NonMaxSuppression::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::NonMaxSuppression, "NonMaxSuppression", 1);
 
 op::v1::NonMaxSuppression::NonMaxSuppression(
     const Output<Node>& boxes,

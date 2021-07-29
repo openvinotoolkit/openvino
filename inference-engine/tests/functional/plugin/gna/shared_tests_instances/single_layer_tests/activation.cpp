@@ -44,7 +44,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{4, 4, 4, 4}, {{}}},
         {{1, 16, 1, 128}, {{}}},
         {{1, 8, 15, 128}, {{}}},
-        {{1, 4, 4, 128}, {{}}}
+        {{1, 4, 4, 128}, {{}}},
+        {{8}, {{}}},
+        {{5}, {{}}},
 };
 
 const auto basicCases = ::testing::Combine(
@@ -59,6 +61,6 @@ const auto basicCases = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

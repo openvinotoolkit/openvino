@@ -16,7 +16,7 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 5. Override the `visit_attributes` method, which enables serialization and deserialization of operation attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing nGraph defined types.
 
-6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch.
+6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch. If your operation contains `evaluate` method you also need to override the `has_evaluate` method, this method allow to get information about availability of `evaluate` method for the operation.
 
 Based on that, declaration of an operation class can look as follows:
 
@@ -55,7 +55,7 @@ nGraph operation contains two constructors:
 
 @snippet template_extension/op.cpp op:visit_attributes
 
-### `evaluate()`
+### `evaluate()` and `has_evaluate()`
 
 `ngraph::Node::evaluate` method enables you to apply constant folding to an operation.
 

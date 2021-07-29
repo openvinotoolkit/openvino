@@ -108,3 +108,63 @@ TEST(replace_node, replace_nodes)
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(0), x_replacement);
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(1), mul);
 }
+
+TEST(replace_node, simple_node_replacement)
+{
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->output(0).get_tensor().set_names({"c", "d"});
+
+    auto new_relu = std::make_shared<op::Relu>(param);
+    new_relu->output(0).get_tensor().set_names({"f"});
+    replace_node(relu, new_relu);
+
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+}
+
+TEST(replace_node, node_elimination)
+{
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu1 = std::make_shared<op::Relu>(param);
+    relu1->output(0).get_tensor().set_names({"c", "d"});
+    auto relu2 = std::make_shared<op::Relu>(relu1);
+    relu2->output(0).get_tensor().set_names({"e", "f"});
+
+    ASSERT_TRUE(replace_output_update_name(relu2->output(0), relu2->input_value(0)));
+    ASSERT_EQ(relu1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d", "e", "f"}));
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
+}
+
+TEST(replace_node, output_replacement)
+{
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->output(0).get_tensor().set_names({"c", "d"});
+
+    auto new_relu = std::make_shared<op::Relu>(param);
+    new_relu->output(0).get_tensor().set_names({"f"});
+
+    relu->output(0).replace(new_relu->output(0));
+
+    ASSERT_EQ(new_relu->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+}
+
+TEST(replace_node, source_replacement)
+{
+    auto param = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param->output(0).get_tensor().set_names({"a", "b"});
+
+    auto param1 = std::make_shared<op::Parameter>(element::i64, Shape{1, 64});
+    param1->output(0).get_tensor().set_names({"c", "d"});
+
+    auto relu = std::make_shared<op::Relu>(param);
+    relu->input(0).replace_source_output(param1->output(0));
+
+    ASSERT_EQ(param->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"a", "b"}));
+    ASSERT_EQ(param1->output(0).get_tensor().get_names(), std::unordered_set<std::string>({"c", "d"}));
+}
+
+

@@ -19,6 +19,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::RNNCellBase, "RNNCellBase", 0);
+
 std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
                                                                  LSTMWeightsFormat to_format,

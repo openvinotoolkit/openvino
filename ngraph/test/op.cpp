@@ -107,16 +107,16 @@ namespace ngraph
 
 TEST(op, variant)
 {
-    shared_ptr<Variant> var_std_string = make_shared<VariantWrapper<std::string>>("My string");
+    shared_ptr<Variant> var_std_string = make_variant<std::string>("My string");
     ASSERT_TRUE((is_type<VariantWrapper<std::string>>(var_std_string)));
     EXPECT_EQ((as_type_ptr<VariantWrapper<std::string>>(var_std_string)->get()), "My string");
 
-    shared_ptr<Variant> var_int64_t = make_shared<VariantWrapper<int64_t>>(27);
+    shared_ptr<Variant> var_int64_t = make_variant<int64_t>(27);
     ASSERT_TRUE((is_type<VariantWrapper<int64_t>>(var_int64_t)));
     EXPECT_FALSE((is_type<VariantWrapper<std::string>>(var_int64_t)));
     EXPECT_EQ((as_type_ptr<VariantWrapper<int64_t>>(var_int64_t)->get()), 27);
 
-    shared_ptr<Variant> var_ship = make_shared<VariantWrapper<Ship>>(Ship{"Lollipop", 3, 4});
+    shared_ptr<Variant> var_ship = make_variant<Ship>(Ship{"Lollipop", 3, 4});
     ASSERT_TRUE((is_type<VariantWrapper<Ship>>(var_ship)));
     Ship& ship = as_type_ptr<VariantWrapper<Ship>>(var_ship)->get();
     EXPECT_EQ(ship.name, "Lollipop");

@@ -6,7 +6,7 @@ The following questions and answers are related to [performance benchmarks](./pe
 New performance benchmarks are typically published on every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
 
 #### 2. Where can I find the models used in the performance benchmarks?
-All of the models used are included in the toolkit's [Open Model Zoo](https://github.com/opencv/open_model_zoo) GitHub repository. 
+All of the models used are included in the toolkit's [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) GitHub repository. 
 
 #### 3. Will there be new models added to the list used for benchmarking?
 The models used in the performance benchmarks were chosen based on general adoption and usage in deployment scenarios. We're continuing to add new models that support a diverse set of workloads and usage.
@@ -21,23 +21,23 @@ All of the performance benchmarks were generated using the open-sourced tool wit
 The image size used in the inference depends on the network being benchmarked. The following table shows the list of input sizes for each network model.
 |   **Model**																														 |   **Public Network**                    |     **Task**                | **Input Size** (Height x Width)   |
 |------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------|-----------------------------|-----------------------------------|
-|    [bert-large-uncased-whole-word-masking-squad](https://github.com/opencv/open_model_zoo/tree/develop/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001)   | 	BERT-large	|question / answer	|384|
-|    [deeplabv3-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/deeplabv3)                                    |	  DeepLab v3 Tf	                       |semantic segmentation	     |    513x513                          |
+|    [bert-large-uncased-whole-word-masking-squad](https://github.com/openvinotoolkit/open_model_zoo/tree/develop/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001)   | 	BERT-large	|question / answer	|384|
+|    [deeplabv3-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3)                                    |	  DeepLab v3 Tf	                       |semantic segmentation	     |    513x513                          |
 |    [densenet-121-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/densenet-121-tf)                  | 	  Densenet-121 Tf	                   |classification	    |    224x224                 |
-|    [facenet-20180408-102900-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/facenet-20180408-102900)        |    FaceNet TF                           |    face recognition         |    160x160                        |
-|    [faster_rcnn_resnet50_coco-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco)    |    Faster RCNN Tf                       |    object detection           |    600x1024					     |
+|    [facenet-20180408-102900-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/facenet-20180408-102900)        |    FaceNet TF                           |    face recognition         |    160x160                        |
+|    [faster_rcnn_resnet50_coco-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco)    |    Faster RCNN Tf                       |    object detection           |    600x1024					     |
 |    [googlenet-v1-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v1-tf)				     |    GoogLeNet_ILSVRC-2012                |    classification           |    224x224				  |
-|    [inception-v3-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/googlenet-v3)								 |    Inception v3 Tf                      |    classification           |    299x299				  |
-|    [mobilenet-ssd-CF](https://github.com/opencv/open_model_zoo/tree/master/models/public/mobilenet-ssd)						     |    SSD (MobileNet)_COCO-2017_Caffe      |    object detection         |    300x300						 |
+|    [inception-v3-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v3)								 |    Inception v3 Tf                      |    classification           |    299x299				  |
+|    [mobilenet-ssd-CF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd)						     |    SSD (MobileNet)_COCO-2017_Caffe      |    object detection         |    300x300						 |
 |    [mobilenet-v1-1.0-224-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v1-1.0-224-tf)  |    MobileNet v1 Tf                      |    classification    |    224x224                        |
-|    [mobilenet-v2-1.0-224-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/mobilenet-v2-1.0-224)			     |    MobileNet v2 Tf                      |    classification           |    224x224						 |
+|    [mobilenet-v2-1.0-224-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-1.0-224)			     |    MobileNet v2 Tf                      |    classification           |    224x224						 |
 |    [mobilenet-v2-pytorch](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch )		 |    Mobilenet V2 PyTorch                 |    classification           |    224x224					     |
-|    [resnet-18-pytorch](https://github.com/opencv/open_model_zoo/tree/master/models/public/resnet-18-pytorch)		  			     |    ResNet-18 PyTorch                    |    classification           |    224x224						 |
+|    [resnet-18-pytorch](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-18-pytorch)		  			     |    ResNet-18 PyTorch                    |    classification           |    224x224						 |
 |    [resnet-50-pytorch](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-pytorch)              |    ResNet-50 v1 PyTorch                 |    classification           |    224x224                        |
-|    [resnet-50-TF](https://github.com/opencv/open_model_zoo/tree/master/models/public/resnet-50-tf)								 |    ResNet-50_v1_ILSVRC-2012             |    classification           |    224x224						 |
-|    [se-resnext-50-CF](https://github.com/opencv/open_model_zoo/tree/master/models/public/se-resnext-50)						     |    Se-ResNext-50_ILSVRC-2012_Caffe      |    classification           |    224x224						 |
-|    [squeezenet1.1-CF](https://github.com/opencv/open_model_zoo/tree/master/models/public/squeezenet1.1)						     |    SqueezeNet_v1.1_ILSVRC-2012_Caffe    |    classification           |    227x227						 |
-|    [ssd300-CF](https://github.com/opencv/open_model_zoo/tree/master/models/public/ssd300)										     |    SSD (VGG-16)_VOC-2007_Caffe          |    object detection         |    300x300						 |
+|    [resnet-50-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf)								 |    ResNet-50_v1_ILSVRC-2012             |    classification           |    224x224						 |
+|    [se-resnext-50-CF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/se-resnext-50)						     |    Se-ResNext-50_ILSVRC-2012_Caffe      |    classification           |    224x224						 |
+|    [squeezenet1.1-CF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/squeezenet1.1)						     |    SqueezeNet_v1.1_ILSVRC-2012_Caffe    |    classification           |    227x227						 |
+|    [ssd300-CF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd300)										     |    SSD (VGG-16)_VOC-2007_Caffe          |    object detection         |    300x300						 |
 |    [yolo_v3-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tf)                            | 	  TF Keras YOLO v3 Modelset            |	 object detection	      |    300x300                        |
 |    [yolo_v4-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v4-tf)                            | 	  Yolo-V4 TF                           |	 object detection	     |    608x608                        |
 |    [ssd_mobilenet_v1_coco-TF](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco)   |    ssd_mobilenet_v1_coco                |    object detection         |    300x300                        |

@@ -12,7 +12,7 @@
 namespace ngraph
 {
     //
-    // In various places, like ConstantFolding and DynElimination, it is
+    // In various places, like ConstantFolding, it is
     // useful to transform DynSlice by converting it to a sequence of ops:
     //
     //      Slice    (to do the basic slicing)

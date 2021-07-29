@@ -122,7 +122,7 @@ const std::vector<size_t> levels = {
     65535,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_fq_activation, FQActivation,
+INSTANTIATE_TEST_SUITE_P(smoke_fq_activation, FQActivation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),

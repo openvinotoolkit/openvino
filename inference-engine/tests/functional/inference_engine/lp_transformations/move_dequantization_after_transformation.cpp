@@ -38,7 +38,7 @@ public:
     };
 
     ngraph::element::Type originalPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool updatePrecision;
     bool moveSubtract;
     Actual actual;
@@ -256,7 +256,7 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     MoveDequantizationAfterTransformation,
     ::testing::Combine(

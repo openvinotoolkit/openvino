@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ngraph/node.hpp"
-#include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
@@ -27,8 +27,7 @@ namespace ngraph
             class NGRAPH_API BatchToSpace : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"BatchToSpace", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 BatchToSpace() = default;
                 /// \brief Constructs a BatchToSpace operation.
                 ///
@@ -44,6 +43,7 @@ namespace ngraph
                              const Output<Node>& crops_end);
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
 
                 void validate_and_infer_types() override;
                 std::shared_ptr<Node>

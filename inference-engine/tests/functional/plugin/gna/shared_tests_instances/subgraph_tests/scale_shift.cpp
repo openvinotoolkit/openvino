@@ -42,7 +42,7 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_scale_shift, ScaleShiftLayerTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_scale_shift, ScaleShiftLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inShapes),
                                     ::testing::ValuesIn(netPrecisions),

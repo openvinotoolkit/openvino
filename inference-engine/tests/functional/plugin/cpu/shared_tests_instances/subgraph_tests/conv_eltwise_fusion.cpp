@@ -16,7 +16,7 @@ namespace {
 #define ADD(X) std::tuple<ngraph::NodeTypeInfo, int64_t>(ngraph::opset4::Add::type_info, X)
 #define IN std::vector<std::tuple<ngraph::NodeTypeInfo, int64_t>>
 
-    INSTANTIATE_TEST_CASE_P(smoke_Convolution_1D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_Convolution_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -27,7 +27,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution_1D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -38,7 +38,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData_1D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -49,7 +49,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData_1D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData_1D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -68,7 +68,7 @@ namespace {
         {1, 1, 1, 1}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Convolution_2D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_Convolution_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -79,7 +79,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution_2D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -90,7 +90,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData_2D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -101,7 +101,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData_2D, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData_2D, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(4), ADD(5)})),
@@ -117,7 +117,7 @@ namespace {
         {3}, {3, 1}, {3, 1, 1, 1}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_Convolution_2D_Negative, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_Convolution_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::Convolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
@@ -128,7 +128,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution_2D_Negative, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolution::type_info),
                                     ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
@@ -139,7 +139,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::ConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(6), ADD(6)})),
@@ -150,7 +150,7 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ConvEltwiseFusion::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
+    INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData_2D_Negative, ConvEltwiseFusion,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::opset4::GroupConvolutionBackpropData::type_info),
                                     ::testing::ValuesIn(IN({MUL(6), ADD(6)})),

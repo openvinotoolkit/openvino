@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/shuffle_channels.hpp"
+#include "cldnn/primitives/shuffle_channels.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

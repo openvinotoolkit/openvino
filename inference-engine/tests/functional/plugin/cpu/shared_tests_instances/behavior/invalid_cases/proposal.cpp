@@ -44,7 +44,7 @@ const auto proposalParams = ::testing::Combine(
         ::testing::ValuesIn(framework_)
 );
 
-INSTANTIATE_TEST_CASE_P(invalid, ProposalBehTest,
+INSTANTIATE_TEST_SUITE_P(invalid, ProposalBehTest,
                         ::testing::Combine(
                                 proposalParams,
                                 ::testing::ValuesIn(img_info_invalid),

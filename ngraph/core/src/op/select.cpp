@@ -45,28 +45,43 @@ void op::v1::Select::validate_and_infer_types()
         element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
         "Argument 1 and 2 element types must match.");
 
-    PartialShape result_shape = get_input_partial_shape(2);
-    for (int i = 1; i >= 0; i--)
+    PartialShape result_shape;
+    if (get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD)
     {
-        if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE)
+        result_shape = get_input_partial_shape(1); // 'then' tensor
+        NODE_VALIDATION_CHECK(this,
+                              PartialShape::broadcast_merge_into(
+                                  result_shape, get_input_partial_shape(2), get_auto_broadcast()),
+                              "'Else' tensor shape is not broadcastable.");
+        NODE_VALIDATION_CHECK(this,
+                              PartialShape::broadcast_merge_into(
+                                  result_shape, get_input_partial_shape(0), get_auto_broadcast()),
+                              "'Cond' tensor shape is not broadcastable.");
+    }
+    else
+    {
+        result_shape = get_input_partial_shape(2);
+        for (int i = 1; i >= 0; i--)
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
-                "Argument shapes are inconsistent.");
-        }
-        else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY ||
-                 get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD)
-        {
-            NODE_VALIDATION_CHECK(this,
-                                  PartialShape::broadcast_merge_into(result_shape,
-                                                                     get_input_partial_shape(i),
-                                                                     get_auto_broadcast()),
-                                  "Argument shapes are inconsistent.");
-        }
-        else
-        {
-            NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
+            if (get_auto_broadcast().m_type == op::AutoBroadcastType::NONE)
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    PartialShape::merge_into(result_shape, get_input_partial_shape(i)),
+                    "Argument shapes are inconsistent.");
+            }
+            else if (get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                      PartialShape::broadcast_merge_into(result_shape,
+                                                                         get_input_partial_shape(i),
+                                                                         get_auto_broadcast()),
+                                      "Argument shapes are inconsistent.");
+            }
+            else
+            {
+                NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
+            }
         }
     }
     set_output_type(0, result_et, result_shape);
@@ -151,4 +166,27 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values,
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(
         output_values, input_values, autob, output_values[0]->get_element_type());
+}
+
+bool op::v1::Select::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Select_has_evaluate);
+    switch (get_output_element_type(0))
+    {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+    case ngraph::element::boolean: return true;
+    default: break;
+    }
+    return false;
 }

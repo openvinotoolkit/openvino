@@ -69,7 +69,7 @@ namespace ngraph
                 void set_reduction_axes(AxisSet axes) { m_reduction_axes = axes; }
 
             private:
-                double m_eps = 1e-9;
+                double m_eps;
                 bool m_across_channels;
                 bool m_normalize_variance;
                 AxisSet m_reduction_axes;
@@ -128,9 +128,9 @@ namespace ngraph
                 MVNEpsMode get_eps_mode() const { return m_eps_mode; }
 
             private:
-                bool m_normalize_variance = true;
-                float m_eps = (float)1e-6;
-                MVNEpsMode m_eps_mode = MVNEpsMode::INSIDE_SQRT;
+                bool m_normalize_variance;
+                float m_eps;
+                MVNEpsMode m_eps_mode;
             };
         } // namespace v6
     }     // namespace op

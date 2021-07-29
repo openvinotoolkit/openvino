@@ -20,11 +20,6 @@ namespace InferenceEngine {
 class RemoteContext;
 
 /**
- * @brief An std::map object containing low-level object parameters
- * of classes that are derived from RemoteBlob or RemoteContext
- */
-using ParamMap = std::map<std::string, Parameter>;
-/**
  * @brief This class represents an Inference Engine abstraction to the memory allocated
  * on the remote (non-CPU) accelerator device
  */
@@ -50,13 +45,6 @@ public:
      * @param tensorDesc Defines the layout and dims of the blob
      */
     explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
-
-    /**
-    * @brief Returns the number of bytes per element.
-    */
-    size_t element_size() const noexcept override {
-        return tensorDesc.getPrecision().size();
-    }
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -202,3 +190,4 @@ inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::P
 }
 
 }  // namespace InferenceEngine
+

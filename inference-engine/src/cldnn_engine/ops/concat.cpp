@@ -7,7 +7,7 @@
 
 #include "ngraph/op/concat.hpp"
 
-#include "api/concatenation.hpp"
+#include "cldnn/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
 

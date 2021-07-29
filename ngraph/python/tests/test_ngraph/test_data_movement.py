@@ -63,17 +63,17 @@ def test_reverse_sequence():
         ],
         dtype=np.int32,
     ).reshape([2, 3, 4, 2])
-    seq_lenghts = np.array([1, 2, 1, 2], dtype=np.int32)
+    seq_lengths = np.array([1, 2, 1, 2], dtype=np.int32)
     batch_axis = 2
     sequence_axis = 1
 
     input_param = ng.parameter(input_data.shape, name="input", dtype=np.int32)
-    seq_lengths_param = ng.parameter(seq_lenghts.shape, name="sequence lengths", dtype=np.int32)
+    seq_lengths_param = ng.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
     model = ng.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param, seq_lengths_param)
-    result = computation(input_data, seq_lenghts)
+    result = computation(input_data, seq_lengths)
 
     expected = np.array(
         [

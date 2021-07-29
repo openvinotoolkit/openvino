@@ -6,23 +6,6 @@
 
 set(CLDNN_BUILD__PROJ             "cldnn_kernel_selector")
 set(CLDNN_BUILD__PROJ_LABEL       "${CLDNN_BUILD__PROJ}")
-set(CLDNN_BUILD__PROJ_OUTPUT_NAME "${CLDNN_BUILD__PROJ}${CLDNN__OUT_CPU_SUFFIX}")
-
-# ========================================== Compiler options ==========================================
-
-intel_config_flag_apply_settings(
-    CompilerOptions
-    CMAKE_CXX_FLAGS
-    ALL_PATTERN ""
-    SET
-      RttiEnabled
-  )
-
-# ================================== Compiler preprocessor definitions =================================
-
-if (CLDNN__ENABLE_PERSISTENT_CACHE)
-  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS CLDNN_ENABLE_PERSISTENT_CACHE)
-endif ()
 
 # ========================================= Source/Header files ========================================
 
@@ -124,6 +107,7 @@ source_group("${__CLDNN_Label__cg_cache}"         FILES ${__CLDNN_Sources__cg_ca
 # ===================================== Include/Link directories =======================================
 
 include_directories(
+    "${CLDNN__MAIN_DIR}"
     "${__CLDNN_Directory__main}"
     "${__CLDNN_Directory__core}"
     "${__CLDNN_Directory__core}/common"
@@ -140,11 +124,13 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
   )
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
-set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD__PROJ_OUTPUT_NAME}")
 
+if(COMMAND add_cpplint_target)
+  add_cpplint_target("${CLDNN_BUILD__PROJ}_cpplint" FOR_TARGETS "${CLDNN_BUILD__PROJ}")
+endif()
 
 target_link_libraries("${CLDNN_BUILD__PROJ}"
-    clDNN_OpenCL
+    OpenCL
   )
 
 if(WIN32)
@@ -152,7 +138,6 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" pthread)
 endif()
-target_link_libraries("${CLDNN_BUILD__PROJ}" ${CLDNN__SYSTEM_LINK_LIBRARIES})
 
 # =================================== Custom pre- and post-steps =======================================
 add_custom_command(OUTPUT "${__CLDNN_CGDirectory__cg_cache}/${__CLDNN_File__cg_cache__prim_db}"
@@ -167,9 +152,9 @@ add_custom_command(OUTPUT "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cac
     COMMENT "Updating file if the file changed (${__CLDNN_File__cg_cache__prim_db}) ..."
   )
 if(WIN32)
-  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_BIN_DIR}/$<CONFIGURATION>")
+  set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
 else((NOT ANDROID) AND (UNIX))
-  set(CLDNN_CACHE_PATH "${CLDNN__OUTPUT_LIB_DIR}/")
+  set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/")
 endif()
 
 add_custom_command(

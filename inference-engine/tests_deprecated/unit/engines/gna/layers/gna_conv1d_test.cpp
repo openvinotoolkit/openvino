@@ -100,7 +100,7 @@ TEST_P(GNAConv1DTest, SplitToConcatWith2Inputs) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         GNALayerTests,
         GNAConv1DTest,
         testing::Combine(

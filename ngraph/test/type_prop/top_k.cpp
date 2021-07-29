@@ -14,7 +14,7 @@ template <typename T>
 class topk_type_prop : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(topk_type_prop);
+TYPED_TEST_SUITE_P(topk_type_prop);
 
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 {
@@ -71,7 +71,7 @@ TYPED_TEST_P(topk_type_prop, topk_v1_partial_ouptut)
     {
         auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         auto topk = make_shared<TypeParam>(data, k, 1, "max", "value");
-        EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, -1}));
+        EXPECT_EQ(topk->get_output_partial_shape(0), PartialShape({2, Dimension(0, 10)}));
     }
     {
         auto k = make_shared<op::Constant>(element::i32, Shape{}, 3);
@@ -91,7 +91,7 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
         const auto k = make_shared<op::Parameter>(element::i32, PartialShape({}));
         const auto topk = make_shared<TypeParam>(data, k, axis, "max", "value");
 
-        const PartialShape fully_dynamic_axis_shape{1, Dimension::dynamic(), 100};
+        const PartialShape fully_dynamic_axis_shape{1, Dimension(0, 10), 100};
         EXPECT_EQ(topk->get_output_partial_shape(0), fully_dynamic_axis_shape);
     }
     {
@@ -104,12 +104,12 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(topk_type_prop,
-                           topk_negative_axis_support,
-                           topk_negative_axis_dynamic_rank,
-                           topk_v1_partial_ouptut,
-                           topk_rank_static_k_unknown,
-                           topk_default_index_element_type);
+REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
+                            topk_negative_axis_support,
+                            topk_negative_axis_dynamic_rank,
+                            topk_v1_partial_ouptut,
+                            topk_rank_static_k_unknown,
+                            topk_default_index_element_type);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, topk_type_prop, TopKTypes, );
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop, TopKTypes, );

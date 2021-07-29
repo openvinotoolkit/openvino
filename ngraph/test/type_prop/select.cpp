@@ -274,7 +274,7 @@ TEST_P(DeduceV1SelectTest, output_shape)
     ASSERT_EQ(select->get_element_type(), tp.ets[3]);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     type_prop,
     DeduceV1SelectTest,
     ::testing::Values(SelectParams({{2, 4}, {2, 4}, {2, 4}, {2, 4}},
@@ -298,13 +298,13 @@ INSTANTIATE_TEST_CASE_P(
                       SelectParams({{4}, {4}, {2, 4}, {2, 4}},
                                    {element::dynamic, element::dynamic, element::i8, element::i8},
                                    op::AutoBroadcastType::NUMPY),
-                      SelectParams({{2}, {2}, {2, 4}, {2, 4}},
+                      SelectParams({{2}, {2, 4}, {2}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 0}),
                       // TODO: Whats the right behavior here?
                       // SelectParams({{2}, {2, 4}, {2}, {2, 4}}, {element::boolean, element::f32,
                       // element::dynamic, element::f32}, {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{4}, {4}, {2, 4}, {2, 4}},
+                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 1})),
     PrintToDummyParamName());

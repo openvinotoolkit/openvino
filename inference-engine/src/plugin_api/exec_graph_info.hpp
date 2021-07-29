@@ -18,7 +18,7 @@
 
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
- *  
+ *
  * Executable Graph Info is represented in CNNNetwork format with general ExecutionNode nodes inside
  * including connections between the nodes. Each node describes an executable hardware-specific
  * primitive and stores its parameters within ExecutionNode::get_rt_info map.
@@ -78,7 +78,7 @@ static const char RUNTIME_PRECISION[] = "runtimePrecision";
 /**
  * @ingroup ie_dev_exec_graph
  * @brief The Execution node which is used to represent node in execution graph.
- * 
+ *
  * It contains the following type of information in node runtime information:
  * - ExecGraphInfoSerialization::ORIGINAL_NAMES
  * - ExecGraphInfoSerialization::IMPL_TYPE

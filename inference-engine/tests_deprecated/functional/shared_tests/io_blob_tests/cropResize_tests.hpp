@@ -11,7 +11,6 @@
 #include <ie_plugin_config.hpp>
 
 #include "tests_common.hpp"
-#include "tests_common_func.hpp"
 #include "format_reader_ptr.h"
 #include "single_layer_common.hpp"
 
@@ -125,9 +124,6 @@ protected:
         TestsCommon::SetUp();
 
         ie = PluginCache::get().ie();
-    }
-
-    void TearDown() override {
     }
 
 public:
@@ -1187,9 +1183,9 @@ TEST_P(NV12ColorConvertTest, NV12Test) {
     ColorFormat::BGRX, ColorFormat::RGBX
 
 // #define PLUGING_CASE(_plugin, _test, _params) \
-//     INSTANTIATE_TEST_CASE_P(_plugin##_run, _test, Combine(Values(#_plugin "Plugin"), _params) )
+//     INSTANTIATE_TEST_SUITE_P(_plugin##_run, _test, Combine(Values(#_plugin "Plugin"), _params) )
 
 #define PLUGING_CASE_WITH_SUFFIX(_device, _suffix, _test, _params) \
-    INSTANTIATE_TEST_CASE_P(_device##_run##_suffix, _test, Combine(Values(#_device), _params) )
+    INSTANTIATE_TEST_SUITE_P(_device##_run##_suffix, _test, Combine(Values(#_device), _params) )
 
 #endif  // USE_OPENCV

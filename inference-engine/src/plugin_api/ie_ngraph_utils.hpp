@@ -134,6 +134,8 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
+    case ::ngraph::element::Type_t::dynamic:
+        return Precision(Precision::UNSPECIFIED);
     default:
         IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!"; return{};
     }

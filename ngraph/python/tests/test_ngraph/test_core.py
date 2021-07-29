@@ -83,6 +83,10 @@ def test_partial_shape():
     assert not ps.is_dynamic
     assert ps.rank == 4
     assert repr(ps) == "<PartialShape: {1,2,3,4}>"
+    assert ps.get_dimension(0) == Dimension(1)
+    assert ps.get_dimension(1) == Dimension(2)
+    assert ps.get_dimension(2) == Dimension(3)
+    assert ps.get_dimension(3) == Dimension(4)
 
     shape = Shape([1, 2, 3])
     ps = PartialShape(shape)
@@ -105,6 +109,10 @@ def test_partial_shape():
     assert list(ps.get_min_shape()) == [1, 2, 3, 0]
     assert list(ps.get_max_shape())[3] > 1000000000
     assert repr(ps) == "<PartialShape: {1,2,3,?}>"
+    assert ps.get_dimension(0) == Dimension(1)
+    assert ps.get_dimension(1) == Dimension(2)
+    assert ps.get_dimension(2) == Dimension(3)
+    assert ps.get_dimension(3) == Dimension.dynamic()
 
     ps = PartialShape([1, 2, 3, -1])
     assert not ps.is_static

@@ -20,8 +20,7 @@ namespace ngraph
             class NGRAPH_API Swish : public ngraph::op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Swish", 4};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Swish() = default;
 
                 /// \brief Constructs an Swish operation.
@@ -39,6 +38,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool has_evaluate() const override;
             };
         } // namespace v4
     }     // namespace op

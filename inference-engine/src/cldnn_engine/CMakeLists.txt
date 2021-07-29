@@ -12,6 +12,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
+if(ENABLE_GPU_DEBUG_CAPS)
+  add_definitions(-DGPU_DEBUG_CONFIG=1)
+endif()
+
 file(GLOB_RECURSE MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -22,26 +26,19 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
+target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
                                              inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
-                                             ${NGRAPH_LIBRARIES})
+                                             ngraph)
 
-add_cpplint_target(clDNN_lib_cpplint FOR_TARGETS clDNN_lib)
-add_cpplint_target(cldnn_kernel_selector_cpplint FOR_TARGETS cldnn_kernel_selector)
-
-set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CLDNN__OCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER})
+        ${clDNN_SOURCE_DIR}/api)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-
-set_ie_threading_interface_for(clDNN_lib)
 # Failed because of OpenCL
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

@@ -9,7 +9,6 @@
 #include <threading/ie_istreams_executor.hpp>
 
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <ie_system_conf.h>
 
 #include <exception>
 #include <future>
@@ -211,7 +210,7 @@ public:
     void Infer() override {
         DisableCallbackGuard disableCallbackGuard{this};
         InferImpl([&] {Infer_ThreadUnsafe();});
-        Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+        Wait(InferRequest::WaitMode::RESULT_READY);
     }
 
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {

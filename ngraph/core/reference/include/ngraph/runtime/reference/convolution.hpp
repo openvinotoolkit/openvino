@@ -18,8 +18,6 @@
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
-// can't be removed currently due to arm-plugin dependency
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 namespace ngraph
 {
     namespace runtime
@@ -42,15 +40,18 @@ namespace ngraph
                     std::vector<int> dilation;
                     std::vector<int> pads_begin;
                     std::vector<int> pads_end;
+                    std::vector<int> output_padding;
 
                     ConvolutionParams(const Strides& strides_,
                                       const Strides& dilation_,
                                       const CoordinateDiff& pads_begin_,
-                                      const CoordinateDiff& pads_end_)
+                                      const CoordinateDiff& pads_end_,
+                                      const CoordinateDiff& output_padding_ = {0, 0, 0})
                         : strides{strides_.begin(), strides_.end()}
                         , dilation{dilation_.begin(), dilation_.end()}
                         , pads_begin{pads_begin_.begin(), pads_begin_.end()}
-                        , pads_end{pads_end_.begin(), pads_end_.end()} {};
+                        , pads_end{pads_end_.begin(), pads_end_.end()}
+                        , output_padding{output_padding_.begin(), output_padding_.end()} {};
                 };
 
                 template <typename Int>
@@ -86,15 +87,18 @@ namespace ngraph
                     const size_t filter_channel_size = shape_size(filter_channel_shape);
 
                     for (int i_z = -p.pads_begin[0];
-                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
+                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z +
+                                 p.output_padding[0]);
                          i_z += p.strides[0])
                     {
                         for (int i_y = -p.pads_begin[1];
-                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y);
+                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y +
+                                     p.output_padding[1]);
                              i_y += p.strides[1])
                         {
                             for (int i_x = -p.pads_begin[2];
-                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
+                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x +
+                                         p.output_padding[2]);
                                  i_x += p.strides[2])
                             {
                                 auto input_channel = batch;
@@ -141,7 +145,7 @@ namespace ngraph
                     }
                 }
 
-                void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
+                inline void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
                 {
                     int spatial_rank = in_shape.size() - 2;
                     if (spatial_rank < 3)
@@ -154,6 +158,8 @@ namespace ngraph
                             std::prev(p.pads_begin.end(), spatial_rank), missing_dims, 0);
                         p.pads_end.insert(
                             std::prev(p.pads_end.end(), spatial_rank), missing_dims, 0);
+                        p.output_padding.insert(
+                            std::prev(p.output_padding.end(), spatial_rank), missing_dims, 0);
                         in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
                         filter_shape.insert(
                             std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
@@ -285,42 +291,9 @@ namespace ngraph
                     batch += batch_size;
                 }
             }
-
-            // DEPRECATED, can't be removed currently due to kmb-plugin dependency (#47799)
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCU = typename widen<OUTPUT>::type>
-            void convolution(const INPUT* in,
-                             const FILTER* f,
-                             OUTPUT* out,
-                             const Shape& in_shape,
-                             const Shape& f_shape,
-                             const Shape& out_shape,
-                             const Strides& strides,
-                             const Strides& dilation,
-                             const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end,
-                             const Strides&)
-
-            {
-                static_assert(std::is_same<INPUT, FILTER>::value,
-                              "input and filter types must be the same");
-                static_assert(std::is_same<INPUT, OUTPUT>::value,
-                              "input and output types must be the same");
-
-                convolution(in,
-                            f,
-                            out,
-                            in_shape,
-                            f_shape,
-                            out_shape,
-                            strides,
-                            dilation,
-                            pads_begin,
-                            pads_end);
-            }
-
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
+
+// can't be removed currently due to arm-plugin dependency
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"

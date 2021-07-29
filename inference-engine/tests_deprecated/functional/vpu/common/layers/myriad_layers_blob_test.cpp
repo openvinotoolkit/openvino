@@ -62,7 +62,7 @@ TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobTests_smoke,
     ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
@@ -169,10 +169,15 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
 
     std::string content = redirectCoutStream.str();
     for (auto &&elem : config) {
+        // TODO: remove once all options are migrated
+        std::stringstream deprecatedExpectedMsgStream;
+        deprecatedExpectedMsgStream << "[Warning][VPU][Config] " << elem.first;
+        const auto& deprecatedMsg = deprecatedExpectedMsgStream.str();
+
         std::stringstream expectedMsgStream;
-        expectedMsgStream << "[Warning][VPU][Config] " << elem.first;
-        std::string msg = expectedMsgStream.str();
-        ASSERT_TRUE(content.find(msg) != std::string::npos) << msg;
+        expectedMsgStream << "[Warning][VPU][Configuration] Configuration option \"" << elem.first;
+        const auto& msg = expectedMsgStream.str();
+        ASSERT_TRUE(content.find(msg) != std::string::npos || content.find(deprecatedMsg) != std::string::npos) << msg;
     }
 }
 
@@ -351,7 +356,7 @@ using myriadExtraTests_smoke = myriadLayersTests_nightly;
 
 TEST_F(myriadExtraTests_smoke, ThereIsNoSegfaultOnZeroConvolutionWeights) {
     if (!CheckMyriadX()) {
-        SKIP() << "Non-MyriadX device";
+        GTEST_SKIP() << "Non-MyriadX device";
     }
 
     tensor_test_params input_dims = { 1, 3, 25, 25 };
@@ -408,5 +413,5 @@ static const std::vector<InferenceEngine::Precision> inputPrecisions = {Inferenc
 static const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
 
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions)));

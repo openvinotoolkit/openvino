@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/custom_gpu_primitive.hpp"
+#include "cldnn/primitives/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {

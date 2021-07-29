@@ -4,14 +4,14 @@
 
 #include <string>
 #include <vector>
+#include "ie_core.hpp"
 #include "base/multi/multi_helpers.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 
 TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
-    InferenceEngine::CNNNetwork net;
-    net = CNNNetwork(fn_ptr);
-    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+    InferenceEngine::CNNNetwork net(fn_ptr);
+    net.getInputsInfo().begin()->second->setLayout(InferenceEngine::Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(InferenceEngine::Precision::U8);
 
     auto ie = PluginCache::get().ie();
 
@@ -19,7 +19,7 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
     if (expected_status) {
         InferenceEngine::RemoteContext::Ptr ctx;
         ASSERT_NE(ctx = exec_net.GetContext(), nullptr);
-        InferRequest req = exec_net.CreateInferRequest();
+        InferenceEngine::InferRequest req = exec_net.CreateInferRequest();
         ASSERT_TRUE(req);
         const InferenceEngine::ConstInputsDataMap inputInfo = exec_net.GetInputsInfo();
         for (auto i : inputInfo) {
@@ -28,7 +28,7 @@ TEST_P(MultiDevice_SupportTest, canCreateContextThenRequestThenBlobsAndInfer) {
             req.SetBlob(i.first, rblob);
         }
         ASSERT_NO_THROW(req.StartAsync());
-        ASSERT_EQ(req.Wait(InferRequest::RESULT_READY), StatusCode::OK);
+        ASSERT_EQ(req.Wait(InferenceEngine::InferRequest::RESULT_READY), InferenceEngine::StatusCode::OK);
 
     } else {
         ASSERT_THROW(exec_net.GetContext(), InferenceEngine::NotImplemented);

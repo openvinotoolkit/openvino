@@ -20,8 +20,8 @@ namespace ngraph
             class NGRAPH_API Elu : public ngraph::op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Elu", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Elu() = default;
                 /// \brief Constructs an Elu operation.
                 ///

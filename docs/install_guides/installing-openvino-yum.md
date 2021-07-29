@@ -2,11 +2,19 @@
 
 This guide provides installation steps for the Intel® Distribution of OpenVINO™ toolkit for Linux* distributed through the YUM repository.
 
-> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
+> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
 
 > **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ YUM distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
 
 > **NOTE**: Only runtime packages are available via the YUM repository.
+
+## System Requirements
+
+The complete list of supported hardware is available in the [Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html#inpage-nav-8).
+
+**Operating Systems**
+
+- CentOS 7.6, 64-bit
 
 ## Included with Runtime Package
 
@@ -16,7 +24,9 @@ The following components are installed with the OpenVINO runtime package:
 |-----------|------------|
 | [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)| The engine that runs a deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
 | [OpenCV*](https://docs.opencv.org/master/) | OpenCV* community version compiled for Intel® hardware. |
-| Deep Learning Stream (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
+| Deep Learning Stream (DL Streamer) | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements), [Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial). |
+
+## Install Packages
 
 ## Set up the Repository
 
@@ -39,25 +49,23 @@ Configure YUM with the OpenVINO repository to install OpenVINO. You have two opt
    ```
 
 * **OPTION 2:** Create the repository file manually:
-   1. Navigate to the repository directory:
+
+   1. Create the YUM repo file in the /tmp directory as a normal user:
    ```sh
-   cd /etc/yum.repos.d
-   ```
-   2. Edit the repo file:
-   ```sh
-   vi intel-openvino-2021.repo
-   ```
-   3. Append the following code:
-   ```sh
+   tee > /tmp/openvino-2021.repo << EOF
    [intel-openvino-2021]
    name=Intel(R) Distribution of OpenVINO 2021
    baseurl=https://yum.repos.intel.com/openvino/2021
    enabled=1
    gpgcheck=1
    gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-INTEL-OPENVINO-2021
+   EOF
    ```
-   4. Save and close the `intel-openvino-2021.repo` file.
-   5. Import the gpg public key for the repository:
+   2. Move the newly created openvino-2021.repo file to the YUM configuration directory /etc/yum.repos.d:
+   ```sh 
+   sudo mv /tmp/openvino-2021.repo /etc/yum.repos.d
+   ```
+   3. Import the gpg public key for the repository:
    ```sh
    sudo rpm --import https://yum.repos.intel.com/openvino/2021/setup/RPM-GPG-KEY-INTEL-OPENVINO-2021
    ```
@@ -101,6 +109,21 @@ sudo yum install intel-openvino-runtime-centos7
 To install the full runtime version of the OpenVINO package:
 ```sh
 sudo yum install intel-openvino-runtime-centos7-<VERSION>.<UPDATE>.<BUILD_NUM>
+```
+
+#### Examples
+
+```sh
+sudo yum install intel-openvino-runtime-centos7-2021.3.394
+ ```
+
+---
+
+### To check for installed packages and version
+
+To check a specific version of an OpenVINO package: 
+```sh
+yum list installed intel-openvino*
 ```
 
 ---

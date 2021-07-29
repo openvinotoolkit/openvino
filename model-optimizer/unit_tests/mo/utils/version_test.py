@@ -52,11 +52,14 @@ class TestingVersion(unittest.TestCase):
         mock_open.return_value.__enter__ = mock_open
         self.assertEqual(get_simplified_mo_version(), "custom")
 
-    def test_simplify_ie_version_release(self):
+    def test_simplify_ie_version_release_legacy(self):
         self.assertEqual(get_simplified_ie_version(version="2.1.custom_releases/2021/3_4c8eae"), "2021.3")
 
-    def test_simplify_ie_version_release_neg(self):
-        self.assertEqual(get_simplified_ie_version(version="custom_releases/2021/3_4c8eae"), "custom")
+    def test_simplify_ie_version_release(self):
+        self.assertEqual(get_simplified_ie_version(version="custom_releases/2021/3_4c8eae"), "2021.3")
+
+    def test_simplify_ie_version_custom_legacy(self):
+        self.assertEqual(get_simplified_ie_version(version="2.1.custom_my/branch/3_4c8eae"), "custom")
 
     def test_simplify_ie_version_custom(self):
-        self.assertEqual(get_simplified_ie_version(version="2.1.custom_my/branch/3_4c8eae"), "custom")
+        self.assertEqual(get_simplified_ie_version(version="custom_my/branch/3_4c8eae"), "custom")

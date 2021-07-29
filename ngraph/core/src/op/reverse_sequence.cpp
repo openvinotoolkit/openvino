@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReverseSequence::type_info;
+NGRAPH_RTTI_DEFINITION(op::ReverseSequence, "ReverseSequence", 0);
 
 op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                      const Output<Node>& seq_indices,

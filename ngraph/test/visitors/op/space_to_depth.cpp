@@ -22,12 +22,19 @@ TEST(attributes, space_to_depth_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::SpaceToDepth>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 50, 50});
+
     auto block_size = 2;
     auto mode = opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+
     auto space_to_depth = make_shared<opset1::SpaceToDepth>(data, mode, block_size);
     NodeBuilder builder(space_to_depth);
     auto g_space_to_depth = as_type_ptr<opset1::SpaceToDepth>(builder.create());
 
+    // attribute count
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+    // space_to_depth attributes
     EXPECT_EQ(g_space_to_depth->get_block_size(), space_to_depth->get_block_size());
     EXPECT_EQ(g_space_to_depth->get_mode(), space_to_depth->get_mode());
 }

@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/quantize.hpp"
+#include "cldnn/primitives/quantize.hpp"
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "kernel_selector/core/actual_kernels/quantize/quantize_kernel_params.h"

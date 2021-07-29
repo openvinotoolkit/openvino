@@ -34,7 +34,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_CASE_P(I_aligned_C_aligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_aligned_C_aligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(I_aligned_C_aligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_aligned_C_unaligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_aligned_C_unaligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -52,7 +52,7 @@ INSTANTIATE_TEST_CASE_P(I_aligned_C_unaligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_unaligned_C_aligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_unaligned_C_aligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(I_unaligned_C_aligned, MultipleConcatTest,
         ::testing::Values(additional_config)),
     MultipleConcatTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(I_unaligned_C_unaligned, MultipleConcatTest,
+INSTANTIATE_TEST_SUITE_P(I_unaligned_C_unaligned, MultipleConcatTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),

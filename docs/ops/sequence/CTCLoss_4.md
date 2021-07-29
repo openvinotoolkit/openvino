@@ -31,7 +31,7 @@ The decoding extracts substring of length `label_length[i]` from a target `G`, m
 finds unique elements in the order of character occurrence in case *unique* equal to true.
 The decoding merges repeated characters in `S` in case *ctc_merge_repeated* equal to true and removes blank characters represented by `blank_index`.
 By default, `blank_index` is equal to `C-1`, where `C` is a number of classes including the blank.
-For example, in case default *ctc_merge_repeated*, *preprocess_collapse_repeated*, *unique* and `blank_index` a target sequence `G=(0,3,2,2,2,2,2,4,3)` of a length `label_length[i]=4` is processed 
+For example, in case default *ctc_merge_repeated*, *preprocess_collapse_repeated*, *unique* and `blank_index` a target sequence `G=(0,3,2,2,2,2,2,4,3)` of a length `label_length[i]=4` is processed
 to `(0,3,2,2)` and a path `S=(0,0,4,3,2,2,4,2,4)` of a length `logit_length[i]=9` is also processed to `(0,3,2,2)`, where `C=5`.
 There exist other paths that are also aligned with `G`, for instance, `0,4,3,3,2,4,2,2,2`. Paths checked for alignment with a target `label[:,i]` must be of length `logit_length[i] = L_i`.
 Compute probabilities of these aligned paths (alignments) as follows:
@@ -80,15 +80,15 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Inputs**
 
-* **1**: `logits` - Input tensor with a batch of sequences of logits. Type of elements is *T_F*. Shape of the tensor is `[N, T, C]`, where `N` is the batch size, `T` is the maximum sequence length and `C` is the number of classes including the blank. Required.
+* **1**: `logits` - Input tensor with a batch of sequences of logits. Type of elements is *T_F*. Shape of the tensor is `[N, T, C]`, where `N` is the batch size, `T` is the maximum sequence length and `C` is the number of classes including the blank. **Required.**
 
-* **2**: `logit_length` - 1D input tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[i,:,:]`. Required.
+* **2**: `logit_length` - 1D input tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[i,:,:]`. **Required.**
 
-* **3**: `labels` - 2D tensor with shape `[N, T]` of type *T2*. A length of a target sequence `labels[i,:]` is equal to `label_length[i]` and must contain of integers from a range `[0; C-1]` except `blank_index`. Required.
+* **3**: `labels` - 2D tensor with shape `[N, T]` of type *T2*. A length of a target sequence `labels[i,:]` is equal to `label_length[i]` and must contain of integers from a range `[0; C-1]` except `blank_index`. **Required.**
 
-* **4**: `label_length` - 1D tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T` and `label_length[i] <= logit_length[i]` for all possible `i`.  Required.
+* **4**: `label_length` - 1D tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T` and `label_length[i] <= logit_length[i]` for all possible `i`. **Required.**
 
-* **5**: `blank_index` - Scalar of type *T2*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
+* **5**: `blank_index` - Scalar of type *T2*. Set the class index to use for the blank label. Default value is `C-1`. **Optional.**
 
 **Output**
 
@@ -96,7 +96,7 @@ Having log-probabilities for aligned paths, log of summed up probabilities for t
 
 **Types**
 
-* *T_F*: any supported floating point type.
+* *T_F*: any supported floating-point type.
 
 * *T1*, *T2*: `int32` or `int64`.
 

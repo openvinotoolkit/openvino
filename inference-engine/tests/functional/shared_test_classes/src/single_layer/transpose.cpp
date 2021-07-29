@@ -26,7 +26,6 @@ std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transpose
 }
 
 void TransposeLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     std::vector<size_t> inputShape, inputOrder;
     InferenceEngine::Precision netPrecision;
     std::tie(inputOrder, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();

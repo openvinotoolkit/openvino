@@ -4,7 +4,6 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
-#include <legacy/ie_util_internal.hpp>
 #include <common_test_utils/xml_net_builder/xml_filler.hpp>
 #include "ngraph_reader_tests.hpp"
 
@@ -19,7 +18,7 @@ public:
         m_element_type(element_type),
         m_shape(shape),
         m_data(data) {
-            constructor_validate_and_infer_types();
+        constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override {
         set_output_type(0, m_element_type, m_shape);
@@ -40,30 +39,27 @@ public:
     ngraph::Shape getShapeAttr() const { return m_shape; }
     void* getDataPtr() { return (m_data ? m_data->get_ptr() : nullptr); }
 
-    private:
-        ngraph::element::Type m_element_type;
-        ngraph::Shape m_shape{};
-        std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
+private:
+    ngraph::element::Type m_element_type;
+    ngraph::Shape m_shape{};
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
 };
 
 constexpr ngraph::NodeTypeInfo CustomAddConst::type_info;
 
 class CustomAddConstExtension : public InferenceEngine::IExtension {
-    public:
-        CustomAddConstExtension() {
-        }
+public:
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-        void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
+    void Unload() noexcept override {}
 
-        void Unload() noexcept override {}
-
-        std::map<std::string, ngraph::OpSet> getOpSets() override {
-            std::map<std::string, ngraph::OpSet> opsets;
-            ngraph::OpSet opset;
-            opset.insert<CustomAddConst>();
-            opsets["custom_opset"] = opset;
-            return opsets;
-        }
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<CustomAddConst>();
+        opsets["custom_opset"] = opset;
+        return opsets;
+    }
 };
 
 TEST_F(NGraphReaderTests, ReadCustomAddConstNetwork) {
@@ -106,26 +102,22 @@ TEST_F(NGraphReaderTests, ReadCustomAddConstNetwork) {
 </net>
 )V0G0N";
 
-    std::string expectedValue = std::string("0?|%.g6/,-{5~P1>");
+    const std::string expectedValue = std::string("0?|%.g6/,-{5~P1>");
     REPLACE_WITH_STR(model, "_VALUE_", expectedValue);
     InferenceEngine::Blob::CPtr weights;
+
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAddConstExtension>());
-
     auto network = ie.ReadNetwork(model, weights);
 
-    IE_SUPPRESS_DEPRECATED_START
-    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-
-    for (auto it = details::CNNNetworkIterator(convertedNetwork.get()); it != details::CNNNetworkIterator(); it++) {
-        InferenceEngine::CNNLayerPtr layer = *it;
-        ASSERT_NE(nullptr, layer->getNode());
+    bool found = false;
+    for (const auto & op : network.getFunction()->get_ops()) {
+        if (auto casted = std::dynamic_pointer_cast<CustomAddConst>(op)) {
+            std::string actualValue(reinterpret_cast<char *>(casted->getDataPtr()),
+                expectedValue.length());
+            ASSERT_EQ(expectedValue, actualValue);
+            found = true;
+        }
     }
-
-    InferenceEngine::CNNLayerPtr customAdd;
-    convertedNetwork->getLayerByName("activation", customAdd, nullptr);
-
-    ASSERT_EQ(expectedValue, customAdd->GetParamAsString("value"));
-
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_TRUE(found);
 }

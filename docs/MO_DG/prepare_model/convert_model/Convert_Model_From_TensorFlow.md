@@ -161,7 +161,7 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 * [GNMT](https://github.com/tensorflow/nmt) topology can be converted using [these instructions](tf_specific/Convert_GNMT_From_Tensorflow.md).
 * [BERT](https://github.com/google-research/bert) topology can be converted using [these instructions](tf_specific/Convert_BERT_From_Tensorflow.md).
 * [XLNet](https://github.com/zihangdai/xlnet) topology can be converted using [these instructions](tf_specific/Convert_XLNet_From_Tensorflow.md).
-
+* [Attention OCR](https://github.com/emedvedev/attention-ocr) topology can be converted using [these instructions](tf_specific/Convert_AttentionOCR_From_Tensorflow.md).
   
 
 ## Loading Non-Frozen Models to the Model Optimizer <a name="loading-nonfrozen-models"></a>

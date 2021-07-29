@@ -108,10 +108,10 @@ def test_incompatible_input_precision():
            "doesn't match to TensorDesc precision FP32" in str(e.value)
 
 
-#issue 49903
+# issue 49903
 @pytest.mark.skip(reason="Test will enable when CPU fix will be merge")
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
-def test_buffer_values_after_add_outputs(device):  
+def test_buffer_values_after_add_outputs(device):
     path_to_repo = os.environ["MODELS_PATH"]
     test_net_xml_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
     test_net_bin_fp16 = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
@@ -129,4 +129,3 @@ def test_buffer_values_after_add_outputs(device):
     result = exec_net.infer(feed_dict)
     assert np.all(abs(result[output_layer])<30)
     assert result[output_layer].dtype == np.float16
-    

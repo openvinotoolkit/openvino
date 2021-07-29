@@ -55,35 +55,68 @@ void NmsLayerTest::GenerateInputs() {
     }
 }
 
-void NmsLayerTest::Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<Blob::Ptr> &actualOutputs) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >=0 ; outputIndex--) {
+void NmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                           const std::vector<Blob::Ptr> &actualOutputs) {
+    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
 
-        const auto &expectedBuffer = expected.data();
-        auto memory = as<MemoryBlob>(actual);
+        const auto &expectedBuffer = expected.second.data();
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
         IE_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
         const auto actualBuffer = lockedMemory.as<const uint8_t *>();
 
+        auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
+        // W/A for int4, uint4
+        if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
+            k /= 2;
+        }
         if (outputIndex == 2) {
-            if (expected.size() != actual->byteSize())
+            if (expected.second.size() != k * actual->byteSize())
                 throw std::runtime_error("Expected and actual size 3rd output have different size");
         }
 
         const auto &precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.size() / actual->getTensorDesc().getPrecision().size();
+        size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
         switch (precision) {
-            case Precision::FP32: {
-                LayerTestsCommon::Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer), size, threshold);
+            case InferenceEngine::Precision::FP32: {
+                switch (expected.first) {
+                    case ngraph::element::Type_t::f32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const float *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::f64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const double *>(expectedBuffer),
+                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
+
                 const auto fBuffer = lockedMemory.as<const float *>();
                 for (int i = size; i < actual->size(); i++) {
                     ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
                 }
                 break;
             }
-            case Precision::I32: {
-                LayerTestsCommon::Compare(reinterpret_cast<const int32_t *>(expectedBuffer), reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+            case InferenceEngine::Precision::I32: {
+                switch (expected.first) {
+                    case ngraph::element::Type_t::i32:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int32_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    case ngraph::element::Type_t::i64:
+                        LayerTestsUtils::LayerTestsCommon::Compare(
+                                reinterpret_cast<const int64_t *>(expectedBuffer),
+                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
+                        break;
+                    default:
+                        break;
+                }
                 const auto iBuffer = lockedMemory.as<const int *>();
                 for (int i = size; i < actual->size(); i++) {
                     ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;

@@ -16,40 +16,37 @@
 #include <string>
 #include <vector>
 
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
+#include "details/ie_so_loader.h"
+#include "ie_iexecutable_network.hpp"
 
 namespace InferenceEngine {
-
-namespace details {
-class SharedObjectLoader;
-}
-
 class IExecutableNetworkInternal;
-class IExecutableNetwork;
 
 /**
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    std::shared_ptr<IExecutableNetworkInternal> _impl;
-    std::shared_ptr<details::SharedObjectLoader> _so;
+    details::SharedObjectLoader                  _so;
+    std::shared_ptr<IExecutableNetworkInternal>  _impl;
 
-    explicit ExecutableNetwork(const std::shared_ptr<IExecutableNetworkInternal>&   impl,
-                               const std::shared_ptr<details::SharedObjectLoader>&  so);
-
-    friend class InferencePlugin;
+    /**
+     * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
+     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin object is destroyed.
+     * @param impl Initialized shared pointer
+     */
+    ExecutableNetwork(const details::SharedObjectLoader&                   so,
+                      const std::shared_ptr<IExecutableNetworkInternal>&   impl);
+    friend class Core;
 
 public:
     /**
-     * @brief Default constructor
+     * @brief A default constructor.
      */
     ExecutableNetwork() = default;
-
-    /**
-     * @brief Default destructor
-     */
-    ~ExecutableNetwork();
 
     /**
      * @brief Gets the Executable network output Data node information.
@@ -69,7 +66,6 @@ public:
      * This method need to be called to find out input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * @param inputs Reference to InferenceEngine::ConstInputsDataMap object.
      * @return A collection that contains string as key, and const InputInfo smart pointer as value
      */
     ConstInputsDataMap GetInputsInfo() const;

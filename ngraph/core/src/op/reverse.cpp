@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Reverse::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Reverse, "Reverse", 1);
 
 op::v1::Reverse::Reverse(const Output<Node>& data,
                          const Output<Node>& reversed_axes,
@@ -201,6 +201,31 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Reverse_evaluate);
     return evaluate_reverse(outputs, inputs);
+}
+
+bool op::v1::Reverse::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_Reverse_has_evaluate);
+
+    if (get_mode() == op::v1::Reverse::Mode::INDEX)
+    {
+        switch (get_input_element_type(1))
+        {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64: return true;
+        default: return false; ;
+        }
+    }
+    else
+    {
+        return true;
+    }
 }
 
 namespace ngraph

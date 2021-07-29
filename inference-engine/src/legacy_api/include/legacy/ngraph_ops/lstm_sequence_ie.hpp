@@ -24,7 +24,7 @@ public:
     LSTMSequenceIE(const Output <Node> &X,
                    const Output <Node> &H_t,
                    const Output <Node> &C_t,
-                   const Output <Node> &seq_lenghts,
+                   const Output <Node> &seq_lengths,
                    const Output <Node> &WR,
                    const Output <Node> &B,
                    size_t hidden_size,

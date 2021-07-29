@@ -6,6 +6,7 @@ from copy import deepcopy
 
 import networkx as nx
 
+from extensions.ops.parameter import Parameter
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
@@ -275,21 +276,31 @@ shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
                                           'shape': int64_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
 
-result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result',
-                                                                     'infer': lambda x: 0}}
+shaped_parameter = lambda name, shape, kwargs={}: {**regular_op(name, {'op': 'Parameter', 'type': 'Parameter',
+                                                                       'shape': shape, 'infer': Parameter.infer,
+                                                                       **kwargs}),
+                                                   **shaped_data(name + '_d', shape)}
+
+result = lambda name='output': {name: {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: 0}}
 
 regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
                                                            **shaped_data(name + '_d', shape)}
 regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
 
 # constants
-const = lambda name, value: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
-                                    'type': 'Const', 'infer': Const.infer, 'op': 'Const'}}
-fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': Const.infer,
-                                         'shape': int64_array(shape) if shape is not None else None}}
-shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
+const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                                               'value': value, 'shape': int64_array(value.shape),
+                                               'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
 
-valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
+                                                    'value': None, 'infer': Const.infer, **kwargs,
+                                                    'shape': int64_array(shape) if shape is not None else None}}
+
+shaped_const_with_data = lambda name, shape, kwargs={}: {**fake_const(name, shape, kwargs),
+                                                         **shaped_data(name + '_d', shape)}
+
+valued_const_with_data = lambda name, value, kwargs={}: {**const(name, value, kwargs),
+                                                         **valued_data(name + '_d', value)}
 
 
 def extract_port_from_string(node_name: str):

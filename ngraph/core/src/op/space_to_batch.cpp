@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::SpaceToBatch::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::SpaceToBatch, "SpaceToBatch", 1);
 
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -49,13 +49,13 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
 
     NODE_VALIDATION_CHECK(this,
                           pads_begin_type.is_integral_number(),
-                          "crops_begin must be an integral number but got (",
+                          "pads_begin must be an integral number but got (",
                           pads_begin_type,
                           ").");
 
     NODE_VALIDATION_CHECK(this,
                           pads_end_type.is_integral_number(),
-                          "crops_end must be an integral number but got (",
+                          "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
 
@@ -263,6 +263,13 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs,
                                             const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch);
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
     return evaluate_space_to_batch(outputs, inputs);
+}
+
+bool ngraph::op::v1::SpaceToBatch::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    return !get_input_partial_shape(0).is_dynamic() &&
+           (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

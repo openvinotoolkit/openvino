@@ -6,27 +6,27 @@
 
 **Short description**: Computes 1D, 2D or 3D convolution (cross-correlation to be precise) of input and kernel tensors.
 
-**Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in [Convolutional Neural Networks](http://cs231n.github.io/convolutional-networks/#conv) and [Convolution operation](https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c).  
+**Detailed description**: Basic building block of convolution is a dot product of input patch and kernel. Whole operation consist of multiple such computations over multiple input patches and kernels. More thorough explanation can be found in [Convolutional Neural Networks](http://cs231n.github.io/convolutional-networks/#conv) and [Convolution operation](https://medium.com/apache-mxnet/convolutions-explained-with-ms-excel-465d6649831c).
 
-For the convolutional layer, the number of output features in each dimension is calculated using the formula:  
+For the convolutional layer, the number of output features in each dimension is calculated using the formula:
 \f[
 n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
-\f] 
+\f]
 
-The receptive field in each layer is calculated using the formulas:  
-*   Jump in the output feature map:  
+The receptive field in each layer is calculated using the formulas:
+*   Jump in the output feature map:
   \f[
   j_{out} = j_{in} * s
   \f]
-*   Size of the receptive field of output feature:  
+*   Size of the receptive field of output feature:
   \f[
   r_{out} = r_{in} + ( k - 1 ) * j_{in}
   \f]
-*   Center position of the receptive field of the first output feature:  
+*   Center position of the receptive field of the first output feature:
   \f[
   start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
   \f]
-*   Output is calculated using the following formula: 
+*   Output is calculated using the following formula:
   \f[
   out = \sum_{i = 0}^{n}w_{i}x_{i} + b
   \f]
@@ -38,7 +38,6 @@ The receptive field in each layer is calculated using the formulas:
   * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(z, y, x)` axes for 3D convolutions and `(y, x)` axes for 2D convolutions. For example, *strides* equal `4,2,1` means sliding the filter 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from 0
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -46,7 +45,6 @@ The receptive field in each layer is calculated using the formulas:
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -55,7 +53,6 @@ The receptive field in each layer is calculated using the formulas:
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -64,7 +61,6 @@ The receptive field in each layer is calculated using the formulas:
   * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: integer value starting from 0
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -81,8 +77,8 @@ The receptive field in each layer is calculated using the formulas:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). Required.
-*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `[N, C_IN, Z, Y, X]` (number of batches, number of channels, spatial axes Z, Y, X). **Required.**
+*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `[C_OUT, C_IN, Z, Y, X]` (number of output channels, number of input channels, spatial axes Z, Y, X). **Required.**
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X

@@ -147,6 +147,13 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
+
+bool op::Concat::has_evaluate() const
+{
+    NGRAPH_OP_SCOPE(v0_Concat_has_evaluate);
+    return true;
+}
+
 bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const
 {
     return default_lower_bound_evaluator(this, output_values);

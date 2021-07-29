@@ -58,8 +58,8 @@ class Broadcast(Op):
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'explicit':
                 axes_mapping = node.in_port(2).data.get_value()
-                assert axes_mapping  is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
-                                                  'is not supported. Node: `{}`'.format(node_name)
+                assert axes_mapping is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                 'is not supported. Node: `{}`'.format(node_name)
                 PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
                 axes_mapping = node.in_port(2).data.get_value()
                 node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
