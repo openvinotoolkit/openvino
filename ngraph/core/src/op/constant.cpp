@@ -41,10 +41,24 @@ static inline string to_cpp_string(T value)
 NGRAPH_RTTI_DEFINITION(op::Constant, "Constant", 0);
 
 op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor)
-    : Constant(tensor->get_element_type(), tensor->get_shape())
 {
-    tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
-    m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
+    m_element_type = tensor->get_element_type();
+    m_shape = tensor->get_shape();
+    // Share data from HostTensor if we work with it
+    // And copy data in other cas
+    if (auto hostTensor = std::dynamic_pointer_cast<runtime::HostTensor>(tensor))
+    {
+        m_data = make_shared<runtime::SharedBuffer<std::shared_ptr<runtime::Tensor>>>(
+            static_cast<char*>(hostTensor->get_data_ptr()), tensor->get_size_in_bytes(), tensor);
+    }
+    else
+    {
+        constructor_validate_and_infer_types();
+        allocate_buffer();
+        tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
+        m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
+    }
+    constructor_validate_and_infer_types();
 }
 
 op::Constant::Constant(const element::Type& type,
