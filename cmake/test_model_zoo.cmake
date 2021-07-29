@@ -9,8 +9,9 @@ function(ov_model_convert SRC DST OUT)
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
     file(GLOB_RECURSE bin_models RELATIVE "${SRC}" "${SRC}/*.bin")
     file(GLOB_RECURSE onnx_models RELATIVE "${SRC}" "${SRC}/*.onnx")
+    file(GLOB_RECURSE data_models RELATIVE "${SRC}" "${SRC}/*.data")
 
-    set(model_files ${prototxt_models} ${xml_models} ${bin_models} ${onnx_models})
+    set(model_files ${prototxt_models} ${xml_models} ${bin_models} ${onnx_models} ${data_models})
 
     # TODO: these models failed to be converted
     list(REMOVE_ITEM model_files
@@ -51,20 +52,20 @@ function(ov_model_convert SRC DST OUT)
         set(full_out_name "${DST}/${rel_out_name}")
         file(MAKE_DIRECTORY "${DST}/${rel_dir}")
 
-        if(ext MATCHES "^\\.(onnx|bin|xml)$")
-            add_custom_command(OUTPUT ${full_out_name}
-                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                    "${SRC}/${in_file}" ${full_out_name}
-                DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
-                COMMENT "Copy ${rel_out_name}"
-                WORKING_DIRECTORY "${model_source_dir}")
-        else()
+        if(ext STREQUAL ".prototxt")
             # convert .prototxt models to .onnx binary
             add_custom_command(OUTPUT ${full_out_name}
                 COMMAND ${PYTHON_EXECUTABLE} ${onnx_gen_script}
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"
+                WORKING_DIRECTORY "${model_source_dir}")
+        else()
+            add_custom_command(OUTPUT ${full_out_name}
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${SRC}/${in_file}" ${full_out_name}
+                DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
+                COMMENT "Copy ${rel_out_name}"
                 WORKING_DIRECTORY "${model_source_dir}")
         endif()
         list(APPEND files "${full_out_name}")
