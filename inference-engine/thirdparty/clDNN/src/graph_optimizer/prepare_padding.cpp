@@ -24,11 +24,21 @@ void prepare_padding::run(program_impl& p) {
                 if (!prim->with_output_size)
                     continue;
 
-                auto format = node->get_output_layout().format;
+                auto input_layout = prim_node.input().get_output_layout();
+                auto output_layout = prim_node.get_output_layout();
+                auto format = output_layout.format;
+
+                auto input_dt = input_layout.data_type;
+                auto input_size = input_layout.size;
                 if (format == format::b_fs_zyx_fsv16 ||
                     format == format::bs_fs_zyx_bsv16_fsv16 ||
                     format == format::bs_fs_yx_bsv16_fsv16 ||
                     format == format::b_fs_zyx_fsv32)
+                    continue;
+
+                // Generic fsv16 fp16/32 kernel doesn't require physical paddings.
+                // So for fsv16 we'll add padding for int8 case and depthwise cases only
+                if (format == format::b_fs_yx_fsv16 && data_type_traits::is_floating_point(input_dt) && prim->groups != input_size.feature[0])
                     continue;
 
                 if (prim_node.input().is_type<data>()) {
@@ -141,6 +151,12 @@ void prepare_padding::run(program_impl& p) {
         // FP16/32 kernels can work w/o physical padding
         if (prev_prim_output_layout.format == cldnn::format::b_fs_zyx_fsv16 &&
             prev_prim_output_layout.data_type != data_types::i8 && prev_prim_output_layout.data_type != data_types::u8)
+            continue;
+
+        // Generic fsv16 fp16/32 kernel doesn't require physical paddings.
+        // So for fsv16 we'll add padding for int8 case and depthwise cases only
+        if (prev_prim_output_layout.format == format::b_fs_yx_fsv16 && data_type_traits::is_floating_point(prev_prim_output_layout.data_type) &&
+            conv->groups != prev_prim_output_layout.size.feature[0])
             continue;
 
         // We shoudn't apply any padding to nodes which are marked as outputs or have type as data

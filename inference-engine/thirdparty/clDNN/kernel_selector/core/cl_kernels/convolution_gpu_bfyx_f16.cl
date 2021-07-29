@@ -221,37 +221,51 @@ KERNEL(convolution_bfyx_f16)(
 #endif  // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-                    for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
-                        INPUT_TYPE8 vv = INPUT_BLOCK_READ8(input, grouped_input_offset +
-                                                                  icb * input_fs_pitch +
-                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                  xb * input_x_pitch);
+                    if (input_x >= 0 && input_x + INPUT_LINE_SIZE < INPUT0_SIZE_X) {
+                        for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
+                            INPUT_TYPE8 vv = INPUT_BLOCK_READ8(input, grouped_input_offset +
+                                                                      icb * input_fs_pitch +
+                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                      xb * input_x_pitch);
 
-                        line_cache[xb + 0] = vv[0];
-                        line_cache[xb + 1] = vv[1];
-                        line_cache[xb + 2] = vv[2];
-                        line_cache[xb + 3] = vv[3];
-                        line_cache[xb + 4] = vv[4];
-                        line_cache[xb + 5] = vv[5];
-                        line_cache[xb + 6] = vv[6];
-                        line_cache[xb + 7] = vv[7];
-                    }
-                    for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
-                        INPUT_TYPE4 vv = INPUT_BLOCK_READ4(input, grouped_input_offset +
-                                                                  icb * input_fs_pitch +
-                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                  xb * input_x_pitch);
+                            line_cache[xb + 0] = vv[0];
+                            line_cache[xb + 1] = vv[1];
+                            line_cache[xb + 2] = vv[2];
+                            line_cache[xb + 3] = vv[3];
+                            line_cache[xb + 4] = vv[4];
+                            line_cache[xb + 5] = vv[5];
+                            line_cache[xb + 6] = vv[6];
+                            line_cache[xb + 7] = vv[7];
+                        }
+                        for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
+                            INPUT_TYPE4 vv = INPUT_BLOCK_READ4(input, grouped_input_offset +
+                                                                      icb * input_fs_pitch +
+                                                                      kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                      xb * input_x_pitch);
 
-                        line_cache[xb + 0] = vv[0];
-                        line_cache[xb + 1] = vv[1];
-                        line_cache[xb + 2] = vv[2];
-                        line_cache[xb + 3] = vv[3];
-                    }
-                    for (; xb < INPUT_LINE_SIZE; xb++) {
-                        line_cache[xb] = INPUT_BLOCK_READ(input, grouped_input_offset +
-                                                                 icb * input_fs_pitch +
-                                                                 kh * DILATION_SIZE_Y * input_y_pitch +
-                                                                 xb * input_x_pitch);
+                            line_cache[xb + 0] = vv[0];
+                            line_cache[xb + 1] = vv[1];
+                            line_cache[xb + 2] = vv[2];
+                            line_cache[xb + 3] = vv[3];
+                        }
+                        for (; xb < INPUT_LINE_SIZE; xb++) {
+                            line_cache[xb] = INPUT_BLOCK_READ(input, grouped_input_offset +
+                                                                     icb * input_fs_pitch +
+                                                                     kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                     xb * input_x_pitch);
+                        }
+
+                    } else {
+                        for (; xb < INPUT_LINE_SIZE; xb++) {
+                            if (input_x + xb >= 0 && input_x + xb < INPUT0_SIZE_X) {
+                                line_cache[xb] = INPUT_BLOCK_READ(input, grouped_input_offset +
+                                                                         icb * input_fs_pitch +
+                                                                         kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                         xb * input_x_pitch);
+                            } else {
+                                line_cache[xb] = 0;
+                            }
+                        }
                     }
                 }
 

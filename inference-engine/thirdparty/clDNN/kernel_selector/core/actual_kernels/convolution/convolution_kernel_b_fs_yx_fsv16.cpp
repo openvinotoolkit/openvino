@@ -145,7 +145,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
+    if (!ConvolutionKernelBase::Validate(p, o)) {
         return false;
     }
 
@@ -215,7 +215,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     }
 
     size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1,
-                                      input.X().v + input.X().pad.Total());
+                                      input.X().v + params.padding.x * 2);
 
     auto outFeaturesPerGroup = output.Feature().v / params.groups;
     auto inFeaturesPerGroup = input.Feature().v / params.groups;
