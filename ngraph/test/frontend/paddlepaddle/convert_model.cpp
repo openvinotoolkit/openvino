@@ -3,11 +3,10 @@
 //
 
 #include "convert_model.hpp"
+#include "paddle_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-
-static const std::string PDPD = "pdpd";
 
 using PDPDConvertModelTest = FrontEndConvertModelTest;
 
@@ -23,7 +22,7 @@ static const std::vector<std::string> models{
 INSTANTIATE_TEST_SUITE_P(
     PDPDConvertModelTest,
     FrontEndConvertModelTest,
-    ::testing::Combine(::testing::Values(PDPD),
+    ::testing::Combine(::testing::Values(PADDLE_FE),
                        ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
                        ::testing::ValuesIn(models)),
     FrontEndConvertModelTest::getTestCaseName);

@@ -7,6 +7,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "utils.hpp"
+#include "paddle_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -16,7 +17,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_op)
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework("pdpd"));
+    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(
         std::string(TEST_PADDLE_MODELS_DIRNAME) +
