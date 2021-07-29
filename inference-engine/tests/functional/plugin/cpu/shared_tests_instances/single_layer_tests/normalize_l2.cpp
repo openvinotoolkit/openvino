@@ -75,9 +75,7 @@ const std::vector<std::vector<int64_t>> axes_3D = {
         {},
         {1},
         {1, 2},
-
-        // [CPU] Unsorted axes, Issue: 59794
-        // {2, 1},
+        {2, 1},
 
         // [CPU] Unsupported axes, Issue: 59791
         // {0},
@@ -107,9 +105,7 @@ const std::vector<std::vector<int64_t>> axes_4D = {
         {},
         {1},
         {1, 2, 3},
-
-        // [CPU] Unsorted axes, Issue: 59794
-        // {3, 1, 2},
+        {3, 1, 2},
 
         // [CPU] Unsupported axes, Issue: 59791
         // {0},

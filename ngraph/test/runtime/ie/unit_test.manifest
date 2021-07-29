@@ -903,12 +903,6 @@ non_zero_all_0s
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add
 
-# NomalizeL2 - unsorted axes are not supported,
-# message: "Doesn't support reduction axes: (3.1.2)"
-# Issue: 59794
-IE_CPU.normalize_l2_4D_axes_unsorted_312_max
-IE_CPU.normalize_l2_4D_axes_unsorted_312_add
-
 # NormalizeL2 - Plugins support normalize over "channel" dimension
 # or "channel + all spatial" dimensions for 2D, 3D or 4D cases
 # Issue: 35627, 59791

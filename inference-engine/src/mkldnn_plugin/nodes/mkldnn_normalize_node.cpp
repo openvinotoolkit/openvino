@@ -682,8 +682,10 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
             } else if (axes.size() == dataDims.size() - 1) {
-                for (size_t i = 0; i < axes.size(); i++) {
-                    if (axes[i] != i + 1)
+                auto sortAxes = axes;
+                std::sort(sortAxes.begin(), sortAxes.end());
+                for (size_t i = 0; i < sortAxes.size(); i++) {
+                    if (sortAxes[i] != i + 1)
                         return false;
                 }
                 return true;
