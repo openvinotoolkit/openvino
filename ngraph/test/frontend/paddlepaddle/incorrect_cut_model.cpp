@@ -30,6 +30,6 @@ TEST(FrontEndIncorrectCutModelTest, test_incorrect_cut)
     inputModel->override_all_inputs({inputModel->get_inputs()[0]});
 
     std::shared_ptr<ngraph::Function> function;
-    ASSERT_THROW(function = frontEnd->convert(inputModel), OpConversionFailure);
+    ASSERT_THROW(function = frontEnd->convert(inputModel), GeneralFailure);
     ASSERT_EQ(function, nullptr);
 }
