@@ -218,9 +218,6 @@ def backprop_to_deconv(op: Node):
     if op.has_valid('output_padding'):
         # In this case we need to create Deconvolution as Convolution
         op['type_to_create'] = 'Convolution'
-    op['old_input_shapes'] = list()
-    for n in op.in_nodes():
-        op.old_input_shapes.append(int64_array(op.in_node(n).shape))
 
 
 def ti_add_edge_attrs(op: Node):
@@ -343,6 +340,11 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():
+
+        # save restored restored from IR input shapes
+        op['old_input_shapes'] = list()
+        for n in op.in_nodes():
+            op.old_input_shapes.append(int64_array(op.in_node(n).shape))
 
         # Apply extenders to nodes in source graph
         if op.type in Extender.registered_ops:

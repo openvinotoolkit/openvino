@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils import class_registration
@@ -36,6 +37,19 @@ class Extender(object):
 
     @staticmethod
     def const_shape_infer(node: Node):
+
+        # check equality of old and new input shapes
+        node['new_input_shapes'] = list()
+        for n in node.in_nodes():
+            node.new_input_shapes.append(node.in_node(n).shape)
+        assert len(node.new_input_shapes) == len(node.old_input_shapes), \
+            'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+
+        for i in range(len(node.new_input_shapes)):
+            assert np.array_equal(node.new_input_shapes[i], node.old_input_shapes[i]), \
+                'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+
+        # set all output shapes the same as restored IR
         i = len(node.in_nodes())
         for num in node.out_nodes():
             node.out_node(num).shape = int64_array(node.ports[i][0])
