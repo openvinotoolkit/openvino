@@ -71,9 +71,10 @@ if __name__ == "__main__":  # pragma: no cover
         print("[ ERROR ] Both keys were provided --input_model and --input_dir. Please, provide only one of them")
         sys.exit(1)
     tags = argv.saved_model_tags.split(",")
-    graph_def, _, _ = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
-                                        checkpoint=argv.input_checkpoint,
-                                        model_dir=argv.saved_model_dir, saved_model_tags=tags)
+    graph_def = load_tf_graph_def(graph_file_name=argv.input_model, is_binary=not argv.text,
+                                  checkpoint=argv.input_checkpoint,
+                                  model_dir=argv.saved_model_dir, saved_model_tags=tags)
+    graph_def = graph_def[0]
     summary = summarize_graph(graph_def)
     print("{} input(s) detected:".format(len(summary['inputs'])))
     for input in summary['inputs']:
