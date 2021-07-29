@@ -43,16 +43,16 @@ namespace
 
     struct ElementTypes
     {
-        struct element_type_hash
+        struct TypeHash
         {
             size_t operator()(element::Type_t t) const { return static_cast<size_t>(t); }
         };
 
-        using map_t = std::unordered_map<element::Type_t, TypeInfo, element_type_hash>;
-        static const map_t map;
+        using ElementsMap = std::unordered_map<element::Type_t, TypeInfo, TypeHash>;
+        static const ElementsMap elements_map;
     };
 
-    const ElementTypes::map_t ElementTypes::map{
+    const ElementTypes::ElementsMap ElementTypes::elements_map{
         {element::Type_t::undefined,
          TypeInfo(
              std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
@@ -75,7 +75,7 @@ namespace
         {element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
     };
 
-    const ElementTypes::map_t& get_type_info_map() { return ElementTypes::map; };
+    const ElementTypes::ElementsMap& get_type_info_map() { return ElementTypes::elements_map; };
 
     const TypeInfo& get_type_info(element::Type_t type)
     {
