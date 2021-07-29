@@ -4,26 +4,32 @@
 
 #include "layer_transformation.hpp"
 
-#include <string>
 #include <sstream>
 #include <memory>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-#include <low_precision/concat.hpp>
-
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <low_precision/transformer.hpp>
-#include <low_precision/relu.hpp>
+
+#include <low_precision/low_precision.hpp>
+
 #include "low_precision/move_fake_quantize.hpp"
+#include <low_precision/fake_quantize_decomposition.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+#include <low_precision/align_quantization_parameters.hpp>
+#include <low_precision/fuse_subtract_to_fake_quantize.hpp>
+#include <low_precision/fuse_multiply_to_fake_quantize.hpp>
+#include <low_precision/markup_can_be_quantized.hpp>
+#include <low_precision/markup_per_tensor_quantization.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
-#include "lpt_ngraph_functions/relu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
-//nd/lpt/move_fake_quantize
+
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -81,11 +87,32 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeResultV
 
 class MoveFakeQuantizeTestValues {
 public:
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    MoveFakeQuantizeTestValues() = default;
+    MoveFakeQuantizeTestValues(
+        const TestTransformationParams & params,
+        const bool multiChannels,
+        const  std::int64_t axis,
+        const MoveFakeQuantizeActualValues & actual,
+        const MoveFakeQuantizeResultValues & result,
+        const bool addNotPrecisionPreservedOperation = false,
+        const bool checkIntervalsAlignmentAttributes = true) :
+        params(params),
+        multiChannels(multiChannels),
+        axis(axis),
+        actual(actual),
+        result(result),
+        addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
+        checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
+
+    TestTransformationParams params;
     bool multiChannels;
     std::int64_t axis;
     MoveFakeQuantizeActualValues actual;
     MoveFakeQuantizeResultValues result;
+    // add not precision preserved operation to set output precision for FakeQuantize
+    // don't set to 'true' by default to keep test cases with tested operation as output
+    bool addNotPrecisionPreservedOperation;
+    bool checkIntervalsAlignmentAttributes;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTestValues& values) {
@@ -130,9 +157,21 @@ public:
             testValues.axis);
         ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.actual").run_on_function(actualFunction);
 
-        SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MoveFakeQuantize, ngraph::opset1::FakeQuantize>(testValues.params);      
-        transform.transform(actualFunction);
+        auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
+                ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
+            });
+
+        auto quantizationRestrictions = testValues.multiChannels ?
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
+            std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::AvgPool>()
+                });
+
+        const auto params = TestTransformationParams::toParams(testValues.params);
+        SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
+        //SimpleLowPrecisionTransformer transformer({}, {});
+        transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>(params);
+        transformer.transform(actualFunction);
         ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.transform").run_on_function(actualFunction);
 
         // dequantization output precision depends on input precision
@@ -146,6 +185,9 @@ public:
             !testValues.result.dequantizationAfter.convert.empty()) {
             testValues.result.dequantizationAfter.convert = {};
         }
+
+        //IntervalsAlignmentSharedValue::Interval interval{ -1.28f, 2.55f };
+
         referenceFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
             shape,
@@ -182,8 +224,20 @@ public:
 
 TEST_P(MoveFakeQuantize, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<std::shared_ptr<PrecisionsAttribute>>(actualFakeQuantizes)) <<
+        "PrecisionsAttribute are not the same";
+
+    MoveFakeQuantizeTestValues testValues = std::get<2>(GetParam());
+    if (testValues.checkIntervalsAlignmentAttributes) {
+        auto operations = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+        operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
+        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<std::shared_ptr<IntervalsAlignmentAttribute>>(operations)) <<
+            "IntervalsAlignmentAttribute are not the same";
+    }
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -211,7 +265,7 @@ const std::vector<MoveFakeQuantizeTestValues> testValues = {
                     {},
                     {},
                     {},
-                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
                     {},
                     {}
                 },
@@ -225,7 +279,9 @@ const std::vector<MoveFakeQuantizeTestValues> testValues = {
                     {},
                     {},
                     {},
-                }
+                },
+                false,
+                false
             },
 };
 INSTANTIATE_TEST_SUITE_P(
