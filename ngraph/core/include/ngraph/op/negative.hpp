@@ -16,8 +16,7 @@ namespace ngraph
             class NGRAPH_API Negative : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Negative", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs a negative operation.
                 Negative() = default;
                 /// \brief Constructs a negative operation.

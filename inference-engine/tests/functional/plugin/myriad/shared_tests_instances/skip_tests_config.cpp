@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 40473
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
-        // TODO: Issue: 40961
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 42828
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
         // TODO: Issue: 42721
@@ -42,8 +40,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
         R"(.*IS=\(16\.16\.96\)\(96\)_eltwiseOpType=FloorMod_secondaryInputType=PARAMETER_opType=VECTOR_netPRC=FP32.*)",
-        // TODO: Issue CVS-57108
+        // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
-        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)"
+        R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
+        // TODO: Issue 58162
+        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
+        // TODO: Issue 58621
+        R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
+        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)"
     };
 }

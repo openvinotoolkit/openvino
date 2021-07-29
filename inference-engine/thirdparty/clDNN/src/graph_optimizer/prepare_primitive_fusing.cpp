@@ -4,13 +4,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/pooling.hpp"
-#include "api/proposal.hpp"
-#include "api/roi_pooling.hpp"
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
+#include "pooling_inst.h"
+#include "proposal_inst.h"
+#include "roi_pooling_inst.h"
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "activation_inst.h"
@@ -33,6 +32,7 @@
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
+#include "gather_elements_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
@@ -51,7 +51,7 @@
 #include <string>
 #include <utility>
 #include <deque>
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 
 void prepare_primitive_fusing::run(program_impl& p) {
     fuse_reorders(p);
@@ -201,6 +201,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
                  !input.is_type<scatter_nd_update>() &&
                  !input.is_type<gather_nd>() &&
+                 !input.is_type<gather_elements>() &&
                  !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
@@ -610,6 +611,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather_nd>();
 
+            should_fuse |= input_data.is_type<gather_elements>();
+
             should_fuse |= input_data.is_type<scatter_update>();
 
             should_fuse |= input_data.is_type<scatter_nd_update>();
@@ -677,6 +680,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<gather>();
 
             should_fuse |= input_data.is_type<gather_nd>();
+
+            should_fuse |= input_data.is_type<gather_elements>();
 
             should_fuse |= input_data.is_type<scatter_update>();
 
@@ -768,6 +773,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
+
             should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
@@ -830,6 +837,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
                                       (parents[i]->is_type<gather_nd>()) ||
+                                      (parents[i]->is_type<gather_elements>()) ||
                                       (parents[i]->is_type<scatter_nd_update>()) ||
                                       (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
@@ -1334,23 +1342,15 @@ void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl&
     // buffer shared between primitives, if second input is mutable data, then we can reuse this memory
     auto shared_buffer_mem = second_input_node->is_type<mutable_data>()
                                  ? second_input_node->as<mutable_data>().get_attached_memory_ptr()
-                                 : p.get_engine().allocate_memory(node->get_output_layout(), 0);
-
-    float zero = 0.0f;
-    layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
+                                 : p.get_engine().allocate_memory(node->get_output_layout());
 
     // this one is the first one to write data to
-    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim0 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_use", shared_buffer_mem);
     // this one already expects data to be inside
-    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse",
-                                                          memory::attach(dummy_layout, &zero, 1));
+    auto rw_output_prim1 = std::make_shared<mutable_data>(fused_conv_eltw_node->id() + "_RW_OPT_reuse", shared_buffer_mem);
 
     auto& rw_output_node0 = p.get_or_create(rw_output_prim0);
     auto& rw_output_node1 = p.get_or_create(rw_output_prim1);
-
-    rw_output_node0.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
-    rw_output_node1.as<mutable_data>().attach_memory(*shared_buffer_mem, false);
 
     // add connection between second input node -> rw_output_node0 -> node
     p.add_intermediate(rw_output_node0, *node, 1, true);

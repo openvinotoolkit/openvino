@@ -8,7 +8,6 @@
 
 namespace kernel_selector {
 const primitive_db KernelBase::db;
-thread_local size_t KernelBase::counter = 0;
 
 std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     auto gws = dispatchData.gws;
@@ -130,13 +129,13 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                 if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
                     c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
                     can_preload_eltwise = false;
-                fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-                fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
                 if (can_use_preload && can_preload_eltwise)
-                    fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+                    fused_ops_preload += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
-                    fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-                fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+                    fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
             }
 
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
@@ -173,7 +172,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
-            input_decls += optional_comma + "\\\n\tFUSED_OP" + std::to_string(i) + "_DECLS";
+            input_decls += optional_comma + "\\\n\tFUSED_OP" + toCodeString(i) + "_DECLS";
         }
     }
 

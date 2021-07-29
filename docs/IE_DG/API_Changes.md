@@ -10,10 +10,14 @@ The sections below contain detailed list of changes made to the Inference Engine
 
 ### Deprecated API
 
+ **InferenceEngine::Parameter**
+
  * InferenceEngine::Parameter(const std::shared_ptr<ngraph::Variant>&)
  * InferenceEngine::Parameter(std::shared_ptr<ngraph::Variant>& var)
  * std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const
  * InferenceEngine::Parameter::operator std::shared_ptr<ngraph::Variant>() const
+
+ **GPU plugin configuration keys**
  * KEY_CLDNN_NV12_TWO_INPUTS GPU plugin option. Use KEY_GPU_NV12_TWO_INPUTS instead
  * KEY_CLDNN_PLUGIN_PRIORITY GPU plugin option. Use KEY_GPU_PLUGIN_PRIORITY instead
  * KEY_CLDNN_PLUGIN_THROTTLE GPU plugin option. Use KEY_GPU_PLUGIN_THROTTLE instead
@@ -23,6 +27,38 @@ The sections below contain detailed list of changes made to the Inference Engine
  * KEY_DUMP_KERNELS GPU plugin option
  * KEY_TUNING_MODE GPU plugin option
  * KEY_TUNING_FILE GPU plugin option
+
+ **InferenceEngine::IInferRequest**
+ * IInferRequest interface is deprecated, use InferRequest wrapper:
+  * Constructor for InferRequest from IInferRequest:: Ptr is deprecated
+  * Cast operator for InferRequest to IInferRequest shared pointer is deprecated
+
+ **InferenceEngine::ICNNNetwork**
+ * ICNNNetwork interface is deprecated by means of deprecation of all its methods, use CNNNetwork wrapper
+  * CNNNetwork methods working with ICNNNetwork are deprecated:
+  * Cast to ICNNNetwork shared pointer
+  * Cast to reference to ICNNNetwork interface
+  * Constructor from ICNNNetwork shared pointer
+
+ **InferenceEngine::IExecutableNetwork**
+ * IExecutableNetwork is deprecated, use ExecutableNetwork wrappers:
+  * Constructor of ExecutableNetwork from IExecutableNetwork shared pointer is deprecated
+ * The following ExecutableNetwork methods are deprecated:
+  * ExecutableNetwork::reset
+  * Cast operator to IExecutableNetwork shared pointer
+  * ExecutableNetwork::CreateInferRequestPtr - use ExecutableNetwork::CreateInferRequest instead
+
+ **Extensions API**
+ * InferenceEngine::make_so_pointer which is used to create Extensions library is replaced by std::make_shared<Extension>(..)
+ * InferenceEngine::IExtension::Release is deprecated with no replacement
+ * Use IE_DEFINE_EXTENSION_CREATE_FUNCTION helper macro instead of explicit declaration of CreateExtension function, which create extension.
+
+ **Other changes**
+ * Version::ApiVersion structure is deprecated, Inference Engine does not have API version anymore
+ * LowLatency - use lowLatency2 instead
+ * CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT) - use InferenceEngine::ExecutableNetwork::GetExecGraphInfo::serialize() instead
+ * Core::ImportNetwork with no device - pass device name explicitly.
+ * details::InferenceEngineException - use InferenceEngine::Exception and its derivatives instead.
 
 ## 2021.3
 

@@ -3,6 +3,7 @@
 //
 
 #include "behavior_test_plugin.h"
+#include "vpu/myriad_config.hpp"
 
 // correct params
 #define BEH_MYRIAD BehTestParams("MYRIAD", \

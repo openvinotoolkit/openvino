@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/crop.hpp"
+#include "cldnn/primitives/crop.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 #include <memory>
 

@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "border_inst.h"
 #include "convolution_inst.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include <memory>
 
 using namespace cldnn;

@@ -15,14 +15,14 @@ namespace ngraph
             class NGRAPH_API Reverse : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 enum class Mode
                 {
                     INDEX,
                     MASK
                 };
 
-                static constexpr NodeTypeInfo type_info{"Reverse", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Reverse() = default;
                 /// \brief Constructs a reverse operation.
                 ///
@@ -47,7 +47,6 @@ namespace ngraph
                 /// \return The second input data interpretation mode.
                 Mode get_mode() const { return m_mode; }
                 void set_mode(const Mode mode) { m_mode = mode; }
-                virtual size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
                 bool has_evaluate() const override;

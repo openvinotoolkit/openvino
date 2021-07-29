@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Ceiling::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Ceiling, "Ceiling", 0, util::UnaryElementwiseArithmetic);
 
 op::Ceiling::Ceiling(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)

@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/eltwise.hpp"
-#include "api/pooling.hpp"
+#include "pooling_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
@@ -284,7 +283,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
-                if (node.get_dependency(0).is_type<lstm_elt>()) {
+                if (p.is_loop_body() && node.get_dependency(0).is_type<lstm_elt>()) {
                     return;
                 }
                 // optimization is available for cropping across depth(features) only

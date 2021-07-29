@@ -4,10 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "internal_primitive.h"
-#include "internal_primitive_type_base.h"
+#include "device_cache_reader.h"
+#include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -53,12 +53,15 @@
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
-#include "to_string_utils.h"
-#include "gpu/memory_gpu.h"
-#include "cldnn_itt.h"
 #include "loop_inst.h"
+#include "to_string_utils.h"
+#include "runtime/cldnn_itt.hpp"
+#include "impls/ocl/register.hpp"
+#include "impls/cpu/register.hpp"
+#include "impls/common/register.hpp"
 
-#include "gpu/ocl_toolkit.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/engine.hpp"
 
 #include "kernel_base.h"
 
@@ -76,26 +79,23 @@
 #include <vector>
 #include <stdexcept>
 
-program::program(engine const& engine, topology const& topology, build_options const& options)
-    : _impl(engine.get()->build_program(*topology.get(), options).detach()) {}
+program::program(engine& engine, const topology& topology, const build_options& options)
+    : _impl(program_impl::build_program(engine, *topology.get(), options)) {}
 
-void program::retain() {
-    _impl->add_ref();
-}
-
-void program::release() {
-    _impl->release();
-}
-
-program_impl::program_impl(engine_impl& engine_ref,
+program_impl::program_impl(engine& engine_ref,
                            topology_impl const& topology,
                            build_options const& options,
                            bool is_internal,
-                           bool no_optimizations)
-    : engine(&engine_ref),
+                           bool no_optimizations,
+                           bool is_body_program)
+    : _engine(engine_ref),
+      _stream(_engine.create_stream()),
+      program_state(_engine),
       options(options),
-      processing_order() {
-    kernel_selector::KernelBase::ResetCounter();
+      processing_order(),
+      tuning_cache(nullptr),
+      is_body_program(is_body_program) {
+    init_primitives();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
@@ -106,13 +106,16 @@ program_impl::program_impl(engine_impl& engine_ref,
     }
 }
 
-program_impl::program_impl(engine_impl& engine_ref,
+program_impl::program_impl(engine& engine_ref,
                            std::set<std::shared_ptr<program_node>> const& nodes,
                            build_options const& options,
                            bool is_internal)
-    : engine(&engine_ref),
+    : _engine(engine_ref),
+      program_state(_engine),
       options(options),
-      processing_order() {
+      processing_order(),
+      tuning_cache(nullptr) {
+    init_primitives();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
@@ -120,7 +123,61 @@ program_impl::program_impl(engine_impl& engine_ref,
 }
 
 program_impl::~program_impl() {
-    engine->get_context()->remove_program(prog_id);
+}
+
+void program_impl::init_primitives() {
+    static bool is_initialized = false;
+    if (!is_initialized) {
+        common::register_implementations();
+        cpu::register_implementations();
+        ocl::register_implementations();
+        is_initialized = true;
+    }
+}
+
+void program_impl::compile() {
+    auto& cache = program_state._kernels_cache;
+    cache.build_all();
+}
+
+void program_impl::init_kernels() {
+    for (auto& n : get_processing_order()) {
+        if (n->get_selected_impl())
+            n->get_selected_impl()->init_kernels();
+    }
+}
+
+void program_impl::load_tuning_cache() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    try {
+        tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
+    } catch (...) {
+        tuning_cache = std::make_shared<kernel_selector::TuningCache>();
+    }
+}
+
+kernel_id program_impl::add_kernel(const std::shared_ptr<kernel_string> kernelSring) {
+    return program_state._kernels_cache.set_kernel_source(kernelSring, false);
+}
+
+kernel::ptr program_impl::get_kernel(kernel_id id) {
+    return program_state._kernels_cache.get_kernel(id);
+}
+
+program_impl::ptr program_impl::build_program(engine& engine,
+                                              const topology_impl& topology,
+                                              const build_options& options,
+                                              bool is_internal,
+                                              bool no_optimizations,
+                                              bool is_body_program) {
+    return std::make_shared<program_impl>(engine, topology, options, is_internal, no_optimizations, is_body_program);
+}
+
+program_impl::ptr program_impl::build_program(engine& engine,
+                                              const std::set<std::shared_ptr<program_node>>& nodes,
+                                              const build_options& options,
+                                              bool is_internal) {
+    return std::make_shared<program_impl>(engine, nodes, options, is_internal);
 }
 
 program_node& program_impl::get_node(primitive_id const& id) {
@@ -248,7 +305,7 @@ void program_impl::prepare_nodes(std::set<std::shared_ptr<program_node>> const& 
     for (const auto& itr : nodes) {
         if (itr.get()->is_type<data>()) {
             get_or_create(std::make_shared<input_layout>(itr.get()->id(),
-                                                         itr.get()->as<data>().get_primitive()->mem.get_layout()));
+                                                         itr.get()->as<data>().get_primitive()->mem->get_layout()));
         } else {
             get_or_create(itr->desc);
         }
@@ -341,11 +398,9 @@ void program_impl::set_options() {
     prog_id = ++id_gen;
     assert(prog_id != 0);
 
-    get_engine().get_context()->add_program(prog_id);
-
     if ((options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_tune_and_cache ||
          options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_retune_and_cache) &&
-        !engine->configuration().enable_profiling) {
+        !_engine.configuration().enable_profiling) {
         throw std::invalid_argument("Engine must be created with profiling enabled in tune_and_cache mode!");
     }
 
@@ -360,13 +415,13 @@ void program_impl::build_program(bool is_internal) {
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
     prepare_memory_dependencies();
-    engine->compile_program(*this);
+    compile();
+    init_kernels();
 
-    if (!is_internal)
+    if (!is_internal) {
         prim_info = get_current_stage_info();
-
-    if (!is_internal)
         transfer_memory_to_device();
+    }
 
     cleanup();
 }
@@ -376,7 +431,7 @@ void program_impl::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     for (auto& node : processing_order) {
-        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+        if (!node->is_type<data>())
             node->get_output_layout();
     }
 
@@ -389,6 +444,10 @@ void program_impl::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program_impl::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
+
+    if (!is_internal)
+        load_tuning_cache();
+
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
 
@@ -401,7 +460,7 @@ void program_impl::pre_optimize_graph(bool is_internal) {
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
-        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+        if (!node->is_type<data>())
             node->get_output_layout();
     }
 
@@ -522,6 +581,9 @@ void program_impl::mark_if_data_flow(program_node& node) {
 
 void program_impl::transfer_memory_to_device() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
+    if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
     for (auto& node : processing_order) {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
@@ -535,15 +597,15 @@ void program_impl::transfer_memory_to_device() {
                 throw std::invalid_argument(err_str);
             }
 
+
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout,
-                                                                    allocation_type::usm_device,
-                                                                    mem.get_net_id(),
-                                                                    false);
-                dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(mem));
-                data_node.attach_memory(*device_mem);
-                const_cast<memory&>(data_node.get_primitive()->mem).reset();
+                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
+                device_mem->copy_from(get_stream(), mem);
+                data_node.attach_memory(device_mem);
+                const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
+                // TODO: Do we need finish call here? Maybe call it in network::execute() ?
+                get_stream().finish();
             }
         }
     }
@@ -551,8 +613,7 @@ void program_impl::transfer_memory_to_device() {
 
 void program_impl::cleanup() {
     for (auto& node : processing_order)
-        if (!node->is_type<internal_primitive>())
-            node->get_output_layout();
+        node->get_output_layout();
 
     // in debug build, at the end, mark all nodes as outputs so user can query for buffers of all not-optimized nodes,
     // including internal ones etc.
@@ -595,7 +656,7 @@ program_impl::nodes_ordering& program_impl::get_processing_order() { return proc
 const program_impl::nodes_ordering& program_impl::get_processing_order() const { return processing_order; }
 
 void program_impl::prepare_memory_dependencies() {
-    if (!get_engine().configuration().enable_memory_pool)
+    if (!get_engine().configuration().use_memory_pool)
         return;
 
     apply_opt_pass<basic_memory_dependencies>();
@@ -760,18 +821,12 @@ void program_impl::rename(program_node& node, primitive_id const& new_id) {
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
-    if (!node.is_type<internal_primitive>())
-        const_cast<primitive_id&>(node.desc->id) = new_id;
-    else
-        reinterpret_cast<details::internal_program_node_base&>(node).internal_id = new_id;
+    const_cast<primitive_id&>(node.desc->id) = new_id;
 }
 
 void program_impl::swap_names(program_node& node1, program_node& node2) {
     const auto _extract_id = [](program_node& node) -> primitive_id& {
-        if (!node.is_type<internal_primitive>())
-            return const_cast<primitive_id&>(node.desc->id);
-        else
-            return reinterpret_cast<details::internal_program_node_base&>(node).internal_id;
+        return const_cast<primitive_id&>(node.desc->id);
     };
 
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
@@ -779,13 +834,10 @@ void program_impl::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program_impl::replace_all_usages(program_node& old_node, program_node& new_node) {
-    const std::list<program_node*> users(old_node.users);
-    auto itr = users.begin();
-    bool end = (itr == users.end());
-    while (!end) {
-        auto& usage = (*itr++);
-        end = (itr == users.end());
-        usage->replace_dependency(old_node, new_node);
+    auto itr = old_node.users.begin();
+    while (itr != old_node.users.end()) {
+        auto user = *(itr++);
+        user->replace_dependency(old_node, new_node);
     }
 }
 
@@ -890,14 +942,17 @@ bool program_impl::extract_and_remove(program_node& node) {
 
     // update primitive_map of loop primitive,
     // if extracted node is input of loop
-    for (const auto user : node.users) {
+    for (const auto& user : node.users) {
         if (user->is_type<loop>()) {
             loop_node& loop = *user;
             loop.update_primitive_map(node.id(), input.id());
         }
-        if (node.dependencies.front()->is_type<loop>()) {
-            loop_node& loop = *node.dependencies.front();
-            loop.update_primitive_map(node.id(), user->id());
+
+        for (auto& dep : node.dependencies) {
+            if (dep->is_type<loop>()) {
+                loop_node& loop = *dep;
+                loop.update_primitive_map(node.id(), user->id());
+            }
         }
     }
     input.users.remove(&node);
@@ -1009,24 +1064,6 @@ void program_impl::remove_nodes(std::vector<program_node*>& to_remove) {
         optimized_out.push_back(node->id());
         nodes_map.erase(node->id());
     }
-}
-
-void program_impl::dump_memory_pool() const {
-    if (!get_engine().configuration().enable_memory_pool)
-        return;
-    auto path = get_dir_path(options);
-    if (path.empty()) {
-        return;
-    }
-    path += "cldnn_memory_pool.log";
-    auto dep = get_memory_dependencies_string();
-    get_engine().dump_memory_pool(*this, path, dep);
-    std::string dump_file_name;
-    if (pm->get_pass_count() < 10)
-        dump_file_name += "0";
-    dump_file_name += std::to_string(pm->get_pass_count()) + "_memory_pool";
-    pm->inc_pass_count();
-    dump_program(dump_file_name.c_str(), true);
 }
 
 // TODO: break this function into number of smaller ones + add per-primitive fields (possibly use

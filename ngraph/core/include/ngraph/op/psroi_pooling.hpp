@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API PSROIPooling : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"PSROIPooling", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 PSROIPooling() = default;
                 /// \brief Constructs a PSROIPooling operation
                 ///

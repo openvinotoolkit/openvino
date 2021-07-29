@@ -15,11 +15,24 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false)
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
 const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationParam> params = {
+    // FQ on weights
+    {
+        {256ul, ngraph::Shape{1, 1, 1, 1}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
+        {255ul, ngraph::Shape{1, 1, 1, 1}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+        "convolutionBackpropData_original",
+        "U8"
+    },
+    // FQ on weights
+    {
+        {256ul, ngraph::Shape{}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f }},
+        {255ul, ngraph::Shape{}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+        "convolutionBackpropData_original",
+        "U8"
+    },
     // FQ on weights
     // with zero point
     {
@@ -87,15 +100,15 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
     }
 };
 
-const std::vector<ngraph::Shape> inputShapes = {
-    { 1, 8, 16, 16 }
+const std::vector<std::pair<ngraph::PartialShape, bool>> inputShapes = {
+    {{ 1, 8, 16, 16 }, true}
 };
 
 const std::vector<ngraph::Shape> outputShapes = {
     { 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionBackpropDataTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

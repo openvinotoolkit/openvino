@@ -34,11 +34,13 @@ packages = [
     "ngraph.opset5",
     "ngraph.opset6",
     "ngraph.opset7",
+    "ngraph.opset8",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
+    "ngraph.frontend",
 ]
 
 data_files = []
@@ -154,7 +156,7 @@ class BuildCMakeExt(build_ext):
         ext_args = self.cmake_args.split() if self.cmake_args else []
         self.spawn(["cmake", "-H" + root_dir, "-B" + self.build_temp,
                     "-DCMAKE_BUILD_TYPE={}".format(self.config),
-                    "-DNGRAPH_PYTHON_BUILD_ENABLE=ON",
+                    "-DENABLE_PYTHON=ON",
                     "-DNGRAPH_ONNX_IMPORT_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)

@@ -11,7 +11,7 @@
 #include <ie_precision.hpp>
 #include "../gna_matcher.hpp"
 
-using GNAAlignFilterTestParams  = std::tuple<InferenceEngine::Precision, GNAPluginNS::Policy::ConcatAlignment, std::size_t, std::size_t>;
+using GNAAlignFilterTestParams  = std::tuple<InferenceEngine::Precision, std::size_t, std::size_t>;
 using namespace GNAPluginNS;
 
 class GNAAlignFilterTest : public GNATest<>,
@@ -20,11 +20,9 @@ class GNAAlignFilterTest : public GNATest<>,
 
     static std::string getTestName(const testing::TestParamInfo<GNAAlignFilterTestParams>& params) {
         std::string test_name;
-        if (std::get<1>(params.param) == GNAPluginNS::Policy::ConcatAlignment::FAST) {
-            test_name += "fast_";
-        }
-        test_name += "concat_of(" + std::to_string(std::get<2>(params.param));
-        test_name += "_" + std::to_string(std::get<3>(params.param));
+        test_name += "fast_";
+        test_name += "concat_of(" + std::to_string(std::get<1>(params.param));
+        test_name += "_" + std::to_string(std::get<2>(params.param));
         test_name += ")_on_";
         test_name += std::get<0>(params.param).name();
         return test_name;
@@ -34,10 +32,9 @@ class GNAAlignFilterTest : public GNATest<>,
 
     InferenceEngine::Precision precision = InferenceEngine::Precision::FP32;
     std::size_t concat_inputs[2];
-    GNAPluginNS::Policy::ConcatAlignment alignmentPolicy;
 
     void SetUp() override {
-        std::tie(precision, alignmentPolicy, concat_inputs[0], concat_inputs[1]) = GetParam();
+        std::tie(precision, concat_inputs[0], concat_inputs[1]) = GetParam();
     }
 
     std::shared_ptr<ngraph::Function> getNgraphModel() {
@@ -83,40 +80,18 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
         return getFastAffineFilterParams(sz).second;
     };
 
-    switch(alignmentPolicy) {
-        case  Policy::ConcatAlignment::ENABLED : {
-            //align first input by 8
-            auto firstFilter = ALIGN(concat_inputs[0], 8) * concat_inputs[0];
-            //align first input by 8
-            auto extraLeftElementsForSecond = concat_inputs[0] + 32 - ALIGN(concat_inputs[0], 32);
+    expected_copy_layers = getNumCopyElements(concat_inputs[0]);
+    expected_affine_size = getsNumFilterWeights(concat_inputs[0]);
 
-            auto secondFilter = ALIGN(concat_inputs[1], 8) * (extraLeftElementsForSecond + concat_inputs[1]);
+    // calculation size for second filter
+    auto offset = ALIGN(concat_inputs[0], 32) - 32;
+    auto zerolen = concat_inputs[0] - offset;
+    auto second_output_len = zerolen + concat_inputs[1];
 
-            expected_affine_size = firstFilter + secondFilter;
-            break;
-        }
-        case   Policy::ConcatAlignment::FAST  : {
-
-            expected_copy_layers = getNumCopyElements(concat_inputs[0]);
-            expected_affine_size = getsNumFilterWeights(concat_inputs[0]);
-
-            // calculation size for second filter
-            auto offset = ALIGN(concat_inputs[0], 32) - 32;
-            auto zerolen = concat_inputs[0] - offset;
-            auto second_output_len = zerolen + concat_inputs[1];
-
-            expected_affine_size += second_output_len  * ALIGN(concat_inputs[1], 8);
-            break;
-        }
-
-        default : {
-            FAIL() << "unsupported align policy: " << alignmentPolicy;
-        }
-    }
+    expected_affine_size += second_output_len  * ALIGN(concat_inputs[1], 8);
 
     assert_that().onInferNgraphModel(ngraf)
         .inNotCompactMode()
-        .withPolicy(alignmentPolicy)
         .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_0", 1.0f)
         .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_1", 1.0f)
         .withGNAConfig(GNA_CONFIG_KEY(PRECISION), precision.name())
@@ -152,7 +127,6 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_accurate) {
             .gna()
             .propagate_forward()
             .onCPU()
-            .withPolicy(alignmentPolicy)
             .called_with()
             .input(ngraf->get_parameters().at(0)->get_name(), input_data[0])
             .input(ngraf->get_parameters().at(1)->get_name(), input_data[1])
@@ -161,7 +135,6 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_accurate) {
         assert_that().onInferNgraphModel(ngraf)
             .inNotCompactMode()
             .gna()
-            .withPolicy(alignmentPolicy)
             .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_0", 1.0f)
             .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_1", 1.0f)
             .withGNAConfig(GNA_CONFIG_KEY(PRECISION), "I16")
@@ -170,13 +143,11 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_accurate) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GNALayerTests,
     GNAAlignFilterTest,
     testing::Combine(
     testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
-    //fast or not fast alignment policy
-    testing::Values(GNAPluginNS::Policy::ConcatAlignment::FAST, GNAPluginNS::Policy::ConcatAlignment::ENABLED),
     // Size of first Split layer output
     testing::Values(31, 49),
     // Size of second Split layer output

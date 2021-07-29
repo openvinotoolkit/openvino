@@ -61,6 +61,7 @@
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
@@ -69,9 +70,12 @@
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
 #include <low_precision/pull_transpose_through_dequantization.hpp>
-#include <low_precision/transformer.hpp>
+#include <low_precision/convolution.hpp>
 #include <low_precision/convolution_backprop_data.hpp>
+#include <low_precision/group_convolution.hpp>
+#include <low_precision/low_precision.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/strided_slice.hpp>
 #include <low_precision/network_helper.hpp>
 
@@ -80,6 +84,9 @@
 #include "cldnn_custom_layer.h"
 #include "cldnn_itt.h"
 #include "gpu/gpu_config.hpp"
+
+#include "cldnn/runtime/device_query.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -117,13 +124,13 @@ struct clDNNEngine::impl {
 };
 
 cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
-    auto device_info = device_map.begin()->second.get_info();
+    auto device_info = device_map.begin()->second->get_info();
     if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
         auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
         if (device_map.find(val) == device_map.end()) {
             IE_THROW() << "Invalid device ID: " << val;
         }
-        device_info = device_map.at(val).get_info();
+        device_info = device_map.at(val)->get_info();
     }
 
     return device_info;
@@ -132,11 +139,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 template<typename T>
 static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        auto reduction_axes = op->get_reduction_axes().to_vector();
-        bool reduce_along_f = op->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
         bool fp16_batch_not_1 = op->get_element_type() == ngraph::element::f16 && op->input(0).get_shape()[0] != 1;
-        bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
-        return can_use_reduce;
+        return !fp16_batch_not_1;
     }
     return false;
 }
@@ -150,10 +154,12 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
 
+        using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
+
         bool enableInt8;
         {
             ngraph::pass::Manager manager;
-            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
                     std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
@@ -206,8 +212,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
             auto pass_config = manager.get_pass_config();
-
-            using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
             // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -390,28 +394,78 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             if (!config.enable_fp16_for_quantized_models) {
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::f16, ngraph::element::f32 }});
             }
-            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
-            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
-            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
-            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-            manager.run_passes(nGraphFunc);
 
-            auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
-                                                      true);                                                       // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setSupport3DTensorOnActivations(false))
-                .add<ConvolutionBackpropDataTransformation, ngraph::opset1::ConvolutionBackpropData>(LayerTransformation::Params(params)
-                    .setSupportAsymmetricQuantization(false)
-                    .setDeconvolutionSpecificChannelsRatio(true))
-                // INT8 StridedSlice not supported
-                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
+            auto supportedPrecisions = std::vector<OperationPrecisionRestriction>({
+                OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}},
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::ConvolutionBackpropData>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::GroupConvolution>({
+                    {0, {ngraph::element::u8, ngraph::element::i8}},
+                    {1, {ngraph::element::i8}}
+                }),
+                OperationPrecisionRestriction::create<ngraph::opset1::StridedSlice>({})
+            });
 
-            transformer.transform(nGraphFunc);
+            auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
+                OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0}),
+            });
+
+            ngraph::pass::Manager lptManager;
+
+            auto lptPassConfig = lptManager.get_pass_config();
+            lptPassConfig->disable<ngraph::pass::low_precision::StridedSliceTransformation>();
+            lptPassConfig->set_callback<ngraph::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
+                if (const auto mulitply = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+                    return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
+                }
+                return false;
+            });
+            lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
+                auto fillStaticChannel = [](const ngraph::PartialShape& shape, size_t& channel) -> bool {
+                    const auto rank = shape.rank();
+                    if (rank.is_dynamic()) {
+                        return false;
+                    }
+                    if (rank.get_length() < 2ul) {
+                        return false;
+                    }
+                    const auto dimension = shape[1];
+                    if (dimension.is_dynamic()) {
+                        return false;
+                    }
+                    channel = dimension.get_length();
+                    return true;
+                };
+
+                size_t inputChannels;
+                if (!fillStaticChannel(node->get_input_partial_shape(0), inputChannels)) {
+                    return true;
+                }
+
+                size_t outputChannels;
+                if (!fillStaticChannel(node->get_output_partial_shape(0), outputChannels)) {
+                    return true;
+                }
+
+
+                if ((inputChannels % 4 != 0) || (outputChannels % 16 != 0)) {
+                    return true;
+                }
+
+                return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
+            });
+            lptPassConfig->set_callback<MatMulTransformation>([](const_node_ptr& node) -> bool {
+                return MatMulTransformation::is3DTensorOnActivations(node);
+            });
+
+            lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization);
+            lptManager.run_passes(nGraphFunc);
         }
 
         {
@@ -436,6 +490,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.run_passes(nGraphFunc);
         }
     }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        clonedNetwork.serialize(debug_config->dump_graphs + "/transformed_func.xml");
+    }
     return clonedNetwork;
 }
 
@@ -445,7 +504,8 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     RegisterPrimitives();
     // try loading clDNN engine and get info from it
     {
-        cldnn::device_query device_query;
+        // Set OCL runtime which should be always available
+        cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
         device_map = device_query.get_available_devices();
     }
     // locate global custom kernel config
@@ -851,8 +911,8 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 };
 
 static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
-    auto freqGHz = info.core_frequency / 1000.f;
-    auto numEUs = info.cores_count;
+    auto freqGHz = info.gpu_frequency / 1000.f;
+    auto numEUs = info.execution_units_count;
     auto opsPerComputeBlock = 0;
     auto computeBlockIPC = 1.0f;
     switch (dt) {
@@ -894,8 +954,8 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
     auto iter = device_map.find(device_id);
     auto device_info = iter != device_map.end() ?
-        iter->second.get_info() :
-        device_map.begin()->second.get_info();
+        iter->second->get_info() :
+        device_map.begin()->second->get_info();
 
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -931,7 +991,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         gops[InferenceEngine::Precision::FP32] = GetGOPS(device_info, cldnn::data_types::f32);
         IE_SET_METRIC_RETURN(DEVICE_GOPS, gops);
     } else if (name == GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)) {
-        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.cores_count);
+        IE_SET_METRIC_RETURN(GPU_EXECUTION_UNITS_COUNT, device_info.execution_units_count);
     } else if (name == GPU_METRIC_KEY(UARCH_VERSION)) {
         std::stringstream s;
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0 && device_info.gfx_ver.revision == 0) {

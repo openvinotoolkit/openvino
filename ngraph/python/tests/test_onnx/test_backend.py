@@ -9,7 +9,6 @@ from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
 from tests import (BACKEND_NAME,
                    xfail_issue_33488,
-                   xfail_issue_33512,
                    xfail_issue_33535,
                    xfail_issue_33538,
                    xfail_issue_33581,
@@ -59,7 +58,9 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49753,
                    xfail_issue_49754,
                    xfail_issue_52463,
-                   xfail_issue_55760)
+                   xfail_issue_55760,
+                   xfail_issue_58033,
+                   )
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -285,12 +286,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_qlinearconv_cpu"),
     (xfail_issue_38724,
      "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
-    (xfail_issue_33512,
-     "OnnxBackendNodeModelTest.test_einsum_transpose_cpu",
-     "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu",
-     "OnnxBackendNodeModelTest.test_einsum_batch_matmul_cpu",
-     "OnnxBackendNodeModelTest.test_einsum_sum_cpu",
-     "OnnxBackendNodeModelTest.test_einsum_inner_prod_cpu"),
     (xfail_issue_33606,
      "OnnxBackendNodeModelTest.test_det_2d_cpu",
      "OnnxBackendNodeModelTest.test_det_nd_cpu"),
@@ -368,7 +363,9 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_quantizelinear_cpu"),
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
-     "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",)
+     "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
+    (xfail_issue_58033,
+     "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),
 ]
 
 for test_group in tests_expected_to_fail:

@@ -23,7 +23,4 @@ Blob::CPtr IVariableStateInternal::GetState() const {
     return state;
 }
 
-Blob::CPtr IVariableStateInternal::GetLastState() const {
-    return GetState();
-}
 }  // namespace InferenceEngine

@@ -45,7 +45,7 @@ std::vector<size_t> outputChannels = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseAfterConvTest, EltwiseAfterConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseAfterConvTest, EltwiseAfterConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -55,7 +55,7 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseAfterConvTest, EltwiseAfterConvTest,
                             ::testing::ValuesIn(outputChannels)),
                         EltwiseAfterConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseBeforeConvTest, EltwiseBeforeConvTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseBeforeConvTest, EltwiseBeforeConvTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseBeforeConvTest, EltwiseBeforeConvTest,
                             ::testing::ValuesIn(outputChannels)),
                         EltwiseBeforeConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_EltwiseWithTwoConvsAsInputsTest, EltwiseWithTwoConvsAsInputsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_EltwiseWithTwoConvsAsInputsTest, EltwiseWithTwoConvsAsInputsTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

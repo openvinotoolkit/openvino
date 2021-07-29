@@ -8,6 +8,10 @@
 #include <ie_common.h>
 #include <math.h>
 
+#include <ie_memcpy.h>
+#include <blob_factory.hpp>
+
+
 #include <cassert>
 #include <map>
 #include <memory>
@@ -84,12 +88,12 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
-    std::unordered_set<std::string> unique_names;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
         }
-        unique_names.insert(param->get_friendly_name());
+        unique_names.insert({param->get_friendly_name(), param});
     }
     for (const auto& result : _ngraph_function->get_results()) {
         const auto& parent = result->get_input_node_shared_ptr(0);
@@ -97,10 +101,10 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent)) {
+        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
             IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
         }
-        unique_names.insert(name);
+        unique_names.insert({name, parent});
     }
 }
 
@@ -360,13 +364,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
 
     bool parameter_replaced = false;
     for (size_t i = 0; i < params.size(); i++) {
-        const auto& param = params[i];
+        auto& param = params[i];
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
-        ::ngraph::PartialShape shape(inputShapes.at(param->get_friendly_name()));
-        auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
-        newParam->set_friendly_name(param->get_friendly_name());
-        _ngraph_function->replace_parameter(i, newParam);
+        param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
         parameter_replaced = true;
     }
     if (parameter_replaced)
@@ -466,6 +467,64 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10,
             custom_opsets);
         manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           std::ostream& binBuf,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+    } catch (const Exception& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
+}
+
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf,
+                                           Blob::Ptr& binBlob,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        std::map<std::string, ngraph::OpSet> custom_opsets;
+        for (const auto& extension : _ie_extensions) {
+            auto opset = extension->getOpSets();
+            custom_opsets.insert(begin(opset), end(opset));
+        }
+
+        std::stringstream binBuf;
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(
+            xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10,
+            custom_opsets);
+        manager.run_passes(_ngraph_function);
+
+        std::streambuf* pbuf = binBuf.rdbuf();
+        unsigned long bufSize = binBuf.tellp();
+
+        TensorDesc tensorDesc(Precision::U8, { bufSize }, Layout::C);
+        binBlob = make_shared_blob<uint8_t>(tensorDesc);
+        binBlob->allocate();
+        pbuf->sgetn(binBlob->buffer(), bufSize);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {

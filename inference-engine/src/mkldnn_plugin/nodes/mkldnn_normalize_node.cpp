@@ -660,7 +660,7 @@ MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>
     }
 }
 
-bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
@@ -682,8 +682,10 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<ngraph::N
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
             } else if (axes.size() == dataDims.size() - 1) {
-                for (size_t i = 0; i < axes.size(); i++) {
-                    if (axes[i] != i + 1)
+                auto sortAxes = axes;
+                std::sort(sortAxes.begin(), sortAxes.end());
+                for (size_t i = 0; i < sortAxes.size(); i++) {
+                    if (sortAxes[i] != i + 1)
                         return false;
                 }
                 return true;

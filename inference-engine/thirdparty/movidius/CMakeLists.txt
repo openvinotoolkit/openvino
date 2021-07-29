@@ -13,12 +13,14 @@ if (ENABLE_MYRIAD)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
     endif()
 
-    set(XLINK_DIR "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/XLink" CACHE PATH "path to Xlink")
-    add_subdirectory("${XLINK_DIR}" "${CMAKE_BINARY_DIR}/thirdparty/movidius/XLink")
+    set(XLINK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/XLink" CACHE PATH "path to Xlink")
+    add_subdirectory(
+        "${XLINK_DIR}"
+        "${CMAKE_CURRENT_BINARY_DIR}/XLink")
 
     add_subdirectory(
-        "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc"
-        "${CMAKE_BINARY_DIR}/thirdparty/movidius/mvnc")
+        "${CMAKE_CURRENT_SOURCE_DIR}/mvnc"
+        "${CMAKE_CURRENT_BINARY_DIR}/mvnc")
 
     if(ENABLE_TESTS)
         add_subdirectory(tests)

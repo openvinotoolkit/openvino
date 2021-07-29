@@ -17,7 +17,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestOutputTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestOutputTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),

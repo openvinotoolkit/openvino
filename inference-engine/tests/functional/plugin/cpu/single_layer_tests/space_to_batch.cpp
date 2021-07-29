@@ -125,10 +125,10 @@ const auto spaceToBatchParamsSet4D2 = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase1_4D, SpaceToBatchCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatchCPULayerTestCase1_4D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet4D1, SpaceToBatchCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase2_4D, SpaceToBatchCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatchCPULayerTestCase2_4D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet4D2, SpaceToBatchCPULayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 2, 2, 1}, {1, 2, 4, 1, 3}};
@@ -157,7 +157,7 @@ const auto spaceToBatchParamsSet5D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_SpaceToBatchCPULayerTestCase_5D, SpaceToBatchCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_SpaceToBatchCPULayerTestCase_5D, SpaceToBatchCPULayerTest,
                         spaceToBatchParamsSet5D, SpaceToBatchCPULayerTest::getTestCaseName);
 
 } // namespace

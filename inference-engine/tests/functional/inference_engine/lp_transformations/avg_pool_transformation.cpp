@@ -13,7 +13,6 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/avg_pool.hpp>
 #include <low_precision/max_pool.hpp>
-#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -22,9 +21,9 @@
 
 using namespace testing;
 using namespace ngraph::pass;
+using namespace ngraph;
 
 class AvgPoolTransformationTestValues {
-public:
 public:
     class Actual {
     public:
@@ -40,14 +39,14 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     bool, // additional FakeQuantize After
     std::string, // additional layer before FQ
     AvgPoolTransformationTestValues> AvgPoolTransformationParams;
@@ -56,7 +55,7 @@ class AvgPoolTransformation : public LayerTransformation, public testing::WithPa
 public:
     void SetUp() override {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ngraph::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -66,7 +65,7 @@ public:
             testValues.actual.inputPrecision,
             shape,
             addFakeQuantize,
-            additionalLayer,
+            { additionalLayer },
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
@@ -79,15 +78,16 @@ public:
             testValues.expected.inputPrecision,
             shape,
             addFakeQuantize,
-            additionalLayer,
+            { additionalLayer },
             testValues.expected.dequantizationBefore,
             testValues.expected.preicsionAfterOperation,
+            {},
             testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
+        ngraph::PartialShape shape;
         bool addFakeQuantize;
         std::string additionalLayer;
         AvgPoolTransformationTestValues testValues;
@@ -114,6 +114,7 @@ TEST_P(AvgPoolTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
+namespace testValues1 {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     ngraph::element::f16
@@ -129,8 +130,9 @@ const std::vector<bool> addFQ = {
     false
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 72, 48 }
+const std::vector<ngraph::PartialShape> shapes = {
+    { 1, 3, 72, 48 },
+    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
 };
 
 const std::vector<AvgPoolTransformationTestValues> testValues = {
@@ -306,37 +308,9 @@ const std::vector<AvgPoolTransformationTestValues> testValues = {
             },
         }
     },
-    // I8 without dequantization
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            ngraph::element::i8,
-            {}
-        },
-        {
-            ngraph::element::i8,
-            {},
-            ngraph::element::i8,
-            {}
-        }
-    },
-    // I8 not update precisions
-    {
-        LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
-        {
-            ngraph::element::f32,
-            {{}, {128.f}, {0.02f}}
-        },
-        {
-            ngraph::element::f32,
-            {},
-            ngraph::element::f32,
-            {{}, {128.f}, {0.02f}}
-        }
-    },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     AvgPoolTransformation,
     ::testing::Combine(
@@ -346,3 +320,53 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(additionalLayer),
         ::testing::ValuesIn(testValues)),
     AvgPoolTransformation::getTestCaseName);
+} // namespace testValues1
+
+namespace testValues2 {
+const std::vector<ngraph::PartialShape> shapesWithDynamicChannel = {
+    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
+    PartialShape::dynamic()
+};
+
+const std::vector<AvgPoolTransformationTestValues> testValues = {
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.02f}}
+        },
+        {
+            ngraph::element::u8,
+            {},
+            ngraph::element::f32,
+            {{}, {128.f}, {0.02f}}
+        }
+    },
+    // U8 per tensor quantization
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    AvgPoolTransformation,
+    ::testing::Combine(
+        ::testing::Values(element::f32),
+        ::testing::ValuesIn(shapesWithDynamicChannel),
+        ::testing::Values(false),
+        ::testing::Values(""),
+        ::testing::ValuesIn(testValues)),
+    AvgPoolTransformation::getTestCaseName);
+} // namespace testValues2

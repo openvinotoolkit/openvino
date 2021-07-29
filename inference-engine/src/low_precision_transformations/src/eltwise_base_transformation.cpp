@@ -15,10 +15,16 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool EltwiseBaseTransformation::isBroadcasted(const Shape& shape) noexcept {
-    const size_t spatialIndex = shape.size() == 1 ? 0ul : (shape.size() == 2ul ? 1ul : 2ul);
-    for (size_t i = spatialIndex; i < shape.size(); ++i) {
-        if (shape[i] != 1ul) {
+bool EltwiseBaseTransformation::isBroadcasted(const PartialShape& shape) noexcept {
+    const auto rank = shape.rank();
+    if (rank.is_dynamic()) {
+        return false;
+    }
+
+    const size_t rankValue = rank.get_length();
+    const size_t spatialIndex = rankValue == 1 ? 0ul : (rankValue == 2ul ? 1ul : 2ul);
+    for (size_t i = spatialIndex; i < rankValue; ++i) {
+        if (shape[i].is_dynamic() || shape[i].get_length() != 1ul) {
             return false;
         }
     }
@@ -141,7 +147,7 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     const bool allBranchesAreEqual = isTargetType(parentNodes[0]) == isTargetType(parentNodes[1]);
     if (allBranchesAreEqual) {
         for (size_t i = 0; i < parentNodes.size(); ++i) {
-             if (isBroadcasted(parentNodes[i]->get_output_shape(0))) {
+             if (isBroadcasted(parentNodes[i]->get_output_partial_shape(0))) {
                 return static_cast<int>(i);
             }
         }

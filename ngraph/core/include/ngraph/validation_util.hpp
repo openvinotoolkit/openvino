@@ -234,6 +234,9 @@ namespace ngraph
     /// \brief Try to compute the maximum value of value
     /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
     /// if not.
+    /// \deprecated Use evaluate_upper_bound instead
+    NGRAPH_DEPRECATED(
+        "Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
     NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
     /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is

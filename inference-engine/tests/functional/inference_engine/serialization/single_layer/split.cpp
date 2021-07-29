@@ -20,7 +20,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::U16,
         InferenceEngine::Precision::BOOL};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Split_Serialization, SplitLayerTest,
     ::testing::Combine(
         ::testing::Values(1, 2, 5, 10),

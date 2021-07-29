@@ -1,6 +1,7 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 
@@ -9,7 +10,7 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include "backend/gna_limitations.hpp"
 
 using namespace GNAPluginNS;
@@ -53,30 +54,36 @@ static bool Convert(std::shared_ptr<ngraph::Node> conv,
     auto split_node = std::make_shared<ngraph::opset7::VariadicSplit>(conv->input_value(0),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({1}), std::vector<int64_t>{width_axis}),
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape({split_sizes.size()}), split_sizes));
+    ngraph::copy_runtime_info(conv, split_node);
     split_node->set_friendly_name(conv->get_friendly_name() + "/split");
     ngraph::OutputVector convOutputs;
     std::shared_ptr<ngraph::Node> root_node = fq ? fq : (add ? add : conv);
     for (int i = 0; i < split_sizes.size(); ++i) {
         std::shared_ptr<ngraph::Node> output = conv->clone_with_new_inputs({split_node->output(i), conv->input_value(1)});
+        ngraph::copy_runtime_info(split_node, output);
         output->set_friendly_name(conv->get_friendly_name() + "_" + std::to_string(i));
         if (bias) {
             output = std::make_shared<ngraph::opset7::Add>(output, bias);
+            ngraph::copy_runtime_info(conv, output);
         }
 
         if (fq) {
             output = fq->clone_with_new_inputs({output, fq->input_value(1), fq->input_value(2),
                 fq->input_value(3), fq->input_value(4)});
+            ngraph::copy_runtime_info(fq, output);
         }
         convOutputs.push_back(output);
     }
 
     auto concat = std::make_shared<ngraph::opset7::Concat>(convOutputs, width_axis);
+    ngraph::copy_runtime_info(conv, concat);
     concat->set_friendly_name(conv->get_friendly_name());
     ngraph::replace_node(root_node, concat);
     return true;
 }
 
 SplitConvolution::SplitConvolution() {
+    MATCHER_SCOPE(SplitConvolution);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
 
@@ -85,11 +92,12 @@ SplitConvolution::SplitConvolution() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(), nullptr, nullptr, nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "SplitConvolution");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
     this->register_matcher(m, callback);
 }
 
 SplitConvolutionWithBias::SplitConvolutionWithBias() {
+    MATCHER_SCOPE(SplitConvolutionWithBias);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -101,11 +109,12 @@ SplitConvolutionWithBias::SplitConvolutionWithBias() {
             pattern_map.at(bias).get_node_shared_ptr(), nullptr);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "SplitConvolutionWithBias");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
     this->register_matcher(m, callback);
 }
 
 SplitConvolutionWithFq::SplitConvolutionWithFq() {
+    MATCHER_SCOPE(SplitConvolutionWithFq);
     auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({ngraph::pattern::any_input(),
         ngraph::pattern::any_input()});
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -126,6 +135,6 @@ SplitConvolutionWithFq::SplitConvolutionWithFq() {
         return Convert(pattern_map.at(conv).get_node_shared_ptr(), add_node, bias_node, pattern_map.at(out_fq).get_node_shared_ptr());
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, "SplitConvolutionWithFq");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(out_fq, matcher_name);
     this->register_matcher(m, callback);
 }

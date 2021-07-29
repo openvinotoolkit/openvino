@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+endif()
+
 set(TARGET_NAME unitTestUtils)
 
 add_subdirectory(mocks/mock_engine)
-
-list(APPEND EXPORT_DEPENDENCIES
-        commonTestUtils_s
-        inference_engine_s
-        gmock)
 
 addIeTarget(
         NAME ${TARGET_NAME}
@@ -18,13 +17,12 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             inference_engine_tests
+        LINK_LIBRARIES
+            PUBLIC
+                commonTestUtils_s
+                inference_engine_s
+                gmock
         INCLUDES
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
 )
-
-target_link_libraries(${TARGET_NAME}
-        PUBLIC
-        ${EXPORT_DEPENDENCIES})

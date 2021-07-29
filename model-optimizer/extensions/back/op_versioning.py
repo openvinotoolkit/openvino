@@ -33,7 +33,6 @@ class OpVersioning(BackReplacementPattern):
         "ConvolutionBackpropData",
         "Cos",
         "Cosh",
-        "DeformableConvolution",
         "DeformablePSROIPooling",
         "DepthToSpace",
         "DetectionOutput",

@@ -84,13 +84,13 @@ const auto testCaseUnordNegAxesAndShifts10D = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_2d_zero_shifts, RollLayerTest, testCase2DZeroShifts, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_1d, RollLayerTest, testCase1D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_2d, RollLayerTest, testCase2D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_3d, RollLayerTest, testCase3D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_negative_unordered_axes_4d, RollLayerTest, testCaseNegativeUnorderedAxes4D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_negative_unordered_axes_5d, RollLayerTest, testCaseRepeatingAxes5D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_negative_shifts_6d, RollLayerTest, testCaseNegativeShifts6D, RollLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsRoll_unord_neg_shifts_and_axes_10d, RollLayerTest, testCaseUnordNegAxesAndShifts10D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_2d_zero_shifts, RollLayerTest, testCase2DZeroShifts, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_1d, RollLayerTest, testCase1D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_2d, RollLayerTest, testCase2D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_3d, RollLayerTest, testCase3D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_negative_unordered_axes_4d, RollLayerTest, testCaseNegativeUnorderedAxes4D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_negative_unordered_axes_5d, RollLayerTest, testCaseRepeatingAxes5D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_negative_shifts_6d, RollLayerTest, testCaseNegativeShifts6D, RollLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MKLDNN_TestsRoll_unord_neg_shifts_and_axes_10d, RollLayerTest, testCaseUnordNegAxesAndShifts10D, RollLayerTest::getTestCaseName);
 
 }  // namespace

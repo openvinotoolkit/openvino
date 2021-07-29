@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/activation.hpp"
+#include "cldnn/primitives/activation.hpp"
 #include "primitive_inst.h"
 #include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
+
 #include <memory>
 #include <string>
 
@@ -49,7 +50,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, activation_node const& node);
 
-    memory_impl& slope_memory() const { return dep_memory(1); }
+    memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 
     bool is_parameterized() const { return !argument.additional_params_input.empty(); }
 };

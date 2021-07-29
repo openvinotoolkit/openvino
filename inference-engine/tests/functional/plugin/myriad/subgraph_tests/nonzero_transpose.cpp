@@ -43,7 +43,7 @@ TEST_P(NonZero_Transpose, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicTranspose, NonZero_Transpose,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicTranspose, NonZero_Transpose,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::Values(ngraph::Shape{1, 800}),

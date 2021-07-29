@@ -83,6 +83,8 @@ bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
 void op::v5::Round::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v5_Round_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(
+        this, get_input_size() == 1, "Only accepts one argument. Got: ", get_input_size());
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }

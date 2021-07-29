@@ -18,7 +18,6 @@
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include "cpp/exception2status.hpp"
-#include "ie_variable_state_base.hpp"
 #include "ie_infer_async_request_base.hpp"
 
 namespace InferenceEngine {
@@ -64,28 +63,9 @@ public:
         TO_STATUS(_impl->Export(networkModel));
     }
 
-    IE_SUPPRESS_DEPRECATED_START
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        // should be refactored together with ExecutableNetwork interface
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
-
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
-        try {
-            auto v = _impl->QueryState();
-            if (idx >= v.size()) {
-                return OUT_OF_BOUNDS;
-            }
-            pState = std::make_shared<VariableStateBase>(v[idx]);
-            return OK;
-        } catch (const std::exception& ex) {
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-        } catch (...) {
-            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetConfig(config));

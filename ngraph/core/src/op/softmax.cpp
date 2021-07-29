@@ -51,7 +51,7 @@ namespace
 } // namespace
 
 // *** SOFTMAX OP SET V1 ***
-constexpr NodeTypeInfo op::v1::Softmax::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Softmax, "Softmax", 1);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
     : Op({arg})

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <numeric>
 
 #include <utility>
 #include "ngraph/coordinate_transform.hpp"
@@ -315,6 +316,7 @@ namespace ngraph
                             }
                         }
 
+                        NGRAPH_SUPPRESS_DEPRECATED_START
                         CoordinateTransform arg0_transform(arg0_shape);
                         CoordinateTransform arg1_transform(arg1_squeezed_shape);
                         CoordinateTransform output_transform(arg0_shape);
@@ -326,6 +328,7 @@ namespace ngraph
                                 elementwise_functor(arg0[arg0_transform.index(output_coord)],
                                                     arg1[arg1_transform.index(arg1_coord)]);
                         }
+                        NGRAPH_SUPPRESS_DEPRECATED_END
                     }
                 }
             }
@@ -437,20 +440,37 @@ namespace ngraph
                                                              arg1_padded_shape[i]}));
                         }
 
-                        CoordinateTransform arg0_transform(arg0_squeezed_shape);
-                        CoordinateTransform arg1_transform(arg1_squeezed_shape);
-                        CoordinateTransform arg2_transform(arg2_squeezed_shape);
-                        CoordinateTransform output_transform(output_shape);
+                        CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
+                        CoordinateTransformBasic arg1_transform(arg1_squeezed_shape);
+                        CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
+                        CoordinateTransformBasic output_transform(output_shape);
+
+                        const auto arg0_strides = row_major_strides(arg0_squeezed_shape);
+                        const auto arg1_strides = row_major_strides(arg1_squeezed_shape);
+                        const auto arg2_strides = row_major_strides(arg2_squeezed_shape);
+                        const auto output_strides = row_major_strides(output_shape);
 
                         for (const Coordinate& output_coord : output_transform)
                         {
-                            Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
-                            Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
-                            out[output_transform.index(output_coord)] =
-                                elementwise_functor(arg0[arg0_transform.index(arg0_coord)],
-                                                    arg1[arg1_transform.index(arg1_coord)],
-                                                    arg2[arg2_transform.index(arg2_coord)]);
+                            const Coordinate arg0_coord =
+                                reduce(output_coord, arg0_squeezed_axes, false);
+                            const Coordinate arg1_coord =
+                                reduce(output_coord, arg1_squeezed_axes, false);
+                            const Coordinate arg2_coord =
+                                reduce(output_coord, arg2_squeezed_axes, false);
+
+                            const size_t arg0_idx = std::inner_product(
+                                arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+                            const size_t arg1_idx = std::inner_product(
+                                arg1_coord.begin(), arg1_coord.end(), arg1_strides.begin(), 0);
+                            const size_t arg2_idx = std::inner_product(
+                                arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                            const size_t output_idx = std::inner_product(output_coord.begin(),
+                                                                         output_coord.end(),
+                                                                         output_strides.begin(),
+                                                                         0);
+                            out[output_idx] =
+                                elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
                         }
                     }
                     break;
@@ -471,7 +491,9 @@ namespace ngraph
                         arg0_padded_shape.pop_back();
                     }
 
-                    for (int64_t i = 0; i < axis; ++i)
+                    for (int64_t i = 0;
+                         (i < axis) && (arg0_padded_shape.size() < arg1_shape.size());
+                         ++i)
                     {
                         arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
                     }
@@ -485,8 +507,9 @@ namespace ngraph
                     {
                         arg2_padded_shape.pop_back();
                     }
-
-                    for (int64_t i = 0; i < axis; ++i)
+                    for (int64_t i = 0;
+                         (i < axis) && (arg2_padded_shape.size() < arg1_shape.size());
+                         ++i)
                     {
                         arg2_padded_shape.insert(arg2_padded_shape.begin(), 1);
                     }
@@ -521,19 +544,33 @@ namespace ngraph
                         }
                     }
 
-                    CoordinateTransform arg0_transform(arg0_squeezed_shape);
-                    CoordinateTransform arg1_transform(arg1_shape);
-                    CoordinateTransform arg2_transform(arg2_squeezed_shape);
-                    CoordinateTransform output_transform(arg1_shape);
+                    CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
+                    CoordinateTransformBasic arg1_transform(arg1_shape);
+                    CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
+                    CoordinateTransformBasic output_transform(arg1_shape);
+
+                    const auto arg0_strides = row_major_strides(arg0_squeezed_shape);
+                    const auto arg2_strides = row_major_strides(arg2_squeezed_shape);
+                    const auto output_strides = row_major_strides(arg1_shape);
 
                     for (const Coordinate& output_coord : output_transform)
                     {
-                        Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-                        Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
-                        out[output_transform.index(output_coord)] =
-                            elementwise_functor(arg0[arg0_transform.index(arg0_coord)],
-                                                arg1[arg1_transform.index(output_coord)],
-                                                arg2[arg2_transform.index(arg2_coord)]);
+                        const Coordinate arg0_coord =
+                            reduce(output_coord, arg0_squeezed_axes, false);
+                        const Coordinate arg2_coord =
+                            reduce(output_coord, arg2_squeezed_axes, false);
+
+                        const size_t arg0_idx = std::inner_product(
+                            arg0_coord.begin(), arg0_coord.end(), arg0_strides.begin(), 0);
+                        const size_t arg1_idx = std::inner_product(
+                            output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+                        const size_t arg2_idx = std::inner_product(
+                            arg2_coord.begin(), arg2_coord.end(), arg2_strides.begin(), 0);
+                        const size_t output_idx = std::inner_product(
+                            output_coord.begin(), output_coord.end(), output_strides.begin(), 0);
+
+                        out[output_idx] =
+                            elementwise_functor(arg0[arg0_idx], arg1[arg1_idx], arg2[arg2_idx]);
                     }
                 }
                 }

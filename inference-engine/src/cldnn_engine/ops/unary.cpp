@@ -41,7 +41,7 @@
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/round.hpp"
 
-#include "api/activation.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 namespace CLDNNPlugin {
 

@@ -17,10 +17,10 @@ using ms = std::chrono::milliseconds;
 class MockWatchdogDevice : public Watchdog::IDevice {
  public:
     using time_point  = Watchdog::IDevice::time_point;
-    MOCK_QUALIFIED_METHOD1(keepAlive, noexcept, void(const time_point &));
-    MOCK_QUALIFIED_METHOD1(dueIn, const noexcept, std::chrono::milliseconds (const time_point &current_time));
-    MOCK_QUALIFIED_METHOD0(isTimeout, const noexcept, bool ());
-    MOCK_QUALIFIED_METHOD0(getHandle, const noexcept, void* ());
+    MOCK_METHOD(void, keepAlive, (const time_point &), (noexcept));
+    MOCK_METHOD(std::chrono::milliseconds, dueIn, (const time_point &current_time), (const, noexcept));
+    MOCK_METHOD(bool, isTimeout, (), (const, noexcept));
+    MOCK_METHOD(void *, getHandle, (), (const, noexcept));
 };
 
 class MVNCWatchdogTests: public TestsCommon {

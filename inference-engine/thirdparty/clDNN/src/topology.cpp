@@ -3,7 +3,8 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "api/topology.hpp"
+
+#include "cldnn/graph/topology.hpp"
 #include "topology_impl.h"
 #include <vector>
 #include <memory>
@@ -31,14 +32,6 @@ void topology::change_input_layout(primitive_id id, const layout& new_layout) {
 
 void topology::add_primitive(std::shared_ptr<primitive> desc) {
     _impl->add(desc);
-}
-
-void topology::retain() {
-    _impl->add_ref();
-}
-
-void topology::release() {
-    _impl->release();
 }
 
 const std::shared_ptr<primitive>& topology::at(const primitive_id& id) const {

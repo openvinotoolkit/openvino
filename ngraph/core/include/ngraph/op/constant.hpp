@@ -26,8 +26,8 @@ namespace ngraph
             class NGRAPH_API Constant : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Constant", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Constant() = default;
 
                 /// \brief Initialize a constant from tensor
@@ -155,6 +155,7 @@ namespace ngraph
                 }
 
                 Constant(const Constant& other);
+                Constant(const Constant& other, const Shape& new_shape);
                 Constant& operator=(const Constant&) = delete;
 
                 virtual ~Constant() override;
@@ -213,6 +214,7 @@ namespace ngraph
                 /// count
                 ///
                 /// \param shape The shape of the tensor constant.
+                NGRAPH_DEPRECATED("Use Constant c-tor with shape argument instead")
                 void set_data_shape(const Shape& shape);
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant

@@ -53,7 +53,7 @@ TEST_P(SerializationTest, CompareFunctions) {
     ASSERT_TRUE(success) << message;
 }
 
-INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
+INSTANTIATE_TEST_SUITE_P(IRSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.xml", "add_abc.bin"),
                         std::make_tuple("add_abc_f64.xml", ""),
                         std::make_tuple("add_abc_bin.xml", ""),
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
 
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
-INSTANTIATE_TEST_CASE_P(ONNXSerialization, SerializationTest,
+INSTANTIATE_TEST_SUITE_P(ONNXSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.prototxt", ""),
                         std::make_tuple("split_equal_parts_2d.prototxt", ""),
                         std::make_tuple("addmul_abc.prototxt", ""),

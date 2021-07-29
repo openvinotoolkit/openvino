@@ -46,7 +46,7 @@ public:
     void EnableStreams() { m_useStreams = true; }
 
 protected:
-    std::map<std::string, cldnn::memory> inputsMemory;
+    std::map<std::string, cldnn::memory::ptr> inputsMemory;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
     bool m_useProfiling;
@@ -60,12 +60,12 @@ protected:
 
     InferenceEngine::Blob::Ptr createInputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr createOutputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
-    void copyOutputData(const cldnn::memory& outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
+    void copyOutputData(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
     void copyInputData(std::shared_ptr<cldnn::network> network, const cldnn::primitive_id &inputName,
                        const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
                        buf_info* bi = nullptr);
 
-    void input_attach(cldnn::primitive_id name, cldnn::memory& inputMem);
+    void input_attach(cldnn::primitive_id name, cldnn::memory::ptr inputMem);
     void input_alloc(cldnn::primitive_id name, const cldnn::layout& layout);
     void AllocateInputs();
     void AllocateOutputs();
@@ -76,9 +76,6 @@ protected:
 
     void PrepareInput(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
     void PrepareInputDyn(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
-
-private:
-    static const char fp32_suffix[];
 };
 
 };  // namespace CLDNNPlugin

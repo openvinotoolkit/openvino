@@ -16,7 +16,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
@@ -45,10 +45,10 @@ const std::vector<ConcatWithDifferentChildrenTransformationParam> testValues = {
 
 const std::vector<bool> multiChannel = { true/*, false*/ };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 3, 10, 10 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues),

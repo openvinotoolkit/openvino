@@ -29,6 +29,22 @@ class Einsum(Op):
         return ['equation']
 
     @staticmethod
+    def is_label_elsewhere(input_subscripts: list, label_to_check: str, excluded_subscript_inds: list) -> bool:
+        """
+        Check if the given label is met in input subscripts excluding ones specified by a list of indices
+        excluded_subscript_inds
+
+        :param input_subscripts: input subscripts among which to check if the label is met
+        :param label_to_check: a label to check
+        :param excluded_subscript_inds: indices of input subscripts to be excluded for this check
+        :return: True - met, False - otherwise
+        """
+        for ind, input_subscript in enumerate(input_subscripts):
+            if ind not in excluded_subscript_inds and label_to_check in input_subscript:
+                return True
+        return False
+
+    @staticmethod
     def parse_equation(node_name: str, equation: str) -> (list, str):
         """
         Parse Einsum equation and check that its format is correct to make sure that
@@ -70,7 +86,12 @@ class Einsum(Op):
                     "The output subscript of Einsum node {} must contain ellipsis".format(node_name)
         elif len(splitted_equation) == 1:
             # recover output subscript in case implicit mode
-            output_subscript = ''.join(input_subscripts_list)
+            output_subscript = ""
+            for ind, input_subscript in enumerate(input_subscripts_list):
+                labels = Einsum.extract_subscript_labels(node_name, input_subscript)
+                for label in labels:
+                    if Einsum.is_label_elsewhere(input_subscripts_list, label, [ind]) is False:
+                        output_subscript += label
             output_subscript = ''.join(sorted(list(set(output_subscript) - {'.'})))
             if is_ellipsis_met:
                 output_subscript = "..." + output_subscript
@@ -116,7 +137,8 @@ class Einsum(Op):
         return labels
 
     @staticmethod
-    def adjust_equation_with_NCHW_layout(node_name: str, equation: str, input_ranks: list, output_rank: int) -> (
+    def adjust_equation_with_NCHW_layout(node_name: str, equation: str, input_ranks: list, output_rank: int,
+                                         input_correct_layout_mask: list, output_correct_layout_mask: bool) -> (
             str, list, bool):
         """
         In order to satisfy NCHW layout, subscripts for tensors with rank greater than three must be adjusted by moving labels
@@ -130,11 +152,13 @@ class Einsum(Op):
         :param output_rank: output rank
         :return: adjusted equation, boolean mask for inputs, and boolean flag if output subscript is adjusted
         """
-        is_inputs_permuted = []
+        is_inputs_adjusted = []
         input_subscripts, output_subscript = Einsum.parse_equation(node_name, equation)
         num_inputs = len(input_ranks)
         assert len(input_subscripts) == num_inputs, "The number of inputs must match a number " \
                                                     "of input subscripts"
+        assert len(input_correct_layout_mask) == num_inputs, "The number of inputs must match a number " \
+                                                             "elements in input_correct_layout_mask list"
 
         # permute labels in input subscripts and mark inputs for which inference in NCHW layout is acceptable
         # in case ellipsis covering multiple dimensions in the end, the permutation is impossible
@@ -145,31 +169,35 @@ class Einsum(Op):
             input_rank = input_ranks[input_ind]
             labels = Einsum.extract_subscript_labels(node_name, input_subscript)
             num_broadcasted_dims = input_rank - len(labels) + 1
-            if input_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
-                is_inputs_permuted.append(True)
+            if input_correct_layout_mask[input_ind]:
+                is_inputs_adjusted.append(True)
+            elif input_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
+                is_inputs_adjusted.append(True)
                 labels.insert(1, labels[-1])
                 del labels[-1]
             else:
-                is_inputs_permuted.append(False)
+                is_inputs_adjusted.append(False)
             permuted_input_subscript = ''.join(labels)
             permuted_input_subscripts.append(permuted_input_subscript)
 
         # perform the same procedure for the output subscript as for the inputs subscripts
         labels = Einsum.extract_subscript_labels(node_name, output_subscript)
         num_broadcasted_dims = output_rank - len(labels) + 1
-        if output_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
-            is_output_permuted = True
+        if output_correct_layout_mask:
+            is_output_adjusted = True
+        elif output_rank > 3 and (labels[-1] != "..." or labels[-1] == "..." and num_broadcasted_dims == 1):
+            is_output_adjusted = True
             labels.insert(1, labels[-1])
             del labels[-1]
         else:
-            is_output_permuted = False
+            is_output_adjusted = False
         permuted_output_subscript = ''.join(labels)
 
         # concatenate the left and right hands of the resulted equation
         left_hand = ','.join(permuted_input_subscripts)
         right_hand = permuted_output_subscript
         permuted_equation = left_hand + "->" + right_hand
-        return permuted_equation, is_inputs_permuted, is_output_permuted
+        return permuted_equation, is_inputs_adjusted, is_output_adjusted
 
     @staticmethod
     def infer(node: Node):

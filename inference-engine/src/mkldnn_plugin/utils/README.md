@@ -6,7 +6,7 @@ Use the following cmake option to enable debug capabilities:
 ## Blob dumping
 Blob dumping is controlled by environment variables (filters).
 
-The variables define conditions of the node which input, output and internal blobs
+The variables define conditions of the node which input and output blobs
 should be dumped for.
 
 > **NOTE**: Nothing is dumped by default
@@ -15,11 +15,13 @@ should be dumped for.
 
 Environment variables can be set per execution, for example:
 ```sh
-    OV_CPU_BLOB_DUMP_DIR=dump_dir binary ...
+    OV_CPU_BLOB_DUMP_DIR=dump_dir OV_CPU_BLOB_DUMP_FORMAT=TEXT OV_CPU_BLOB_DUMP_NODE_PORTS=OUT binary ...
 ```
 or for shell session (bash example):
 ```sh
     export OV_CPU_BLOB_DUMP_DIR=dump_dir
+    export OV_CPU_BLOB_DUMP_FORMAT=TEXT
+    export OV_CPU_BLOB_DUMP_NODE_PORTS=OUT
     binary ...
 ```
 ### Specify dump directory
@@ -35,8 +37,22 @@ Options are:
 * BIN (default)
 * TEXT
 
+### Filter input / output blobs
+To dump only input / output blobs:
+```sh
+    OV_CPU_BLOB_DUMP_NODE_PORTS='<ports_kind>' binary ...
+```
+Example:
+```sh
+    OV_CPU_BLOB_DUMP_NODE_PORTS=OUT binary ...
+```
+Options are:
+* IN
+* OUT
+* ALL
+
 ### Filter by execution ID
-To dump blobs only for node with specified execution IDs:
+To dump blobs only for nodes with specified execution IDs:
 ```sh
     OV_CPU_BLOB_DUMP_NODE_EXEC_ID='<space_separated_list_of_ids>' binary ...
 ```
@@ -46,19 +62,19 @@ Example:
 ```
 
 ### Filter by type
-To dump blobs only for node with specified type:
+To dump blobs only for nodes with specified types:
 ```sh
-    OV_CPU_BLOB_DUMP_NODE_TYPE=<type> binary ...
+    OV_CPU_BLOB_DUMP_NODE_TYPE=<space_separated_list_of_types> binary ...
 ```
 Example:
 ```sh
-    OV_CPU_BLOB_DUMP_NODE_TYPE=Convolution binary ...
+    OV_CPU_BLOB_DUMP_NODE_TYPE='Convolution Reorder' binary ...
 ```
 
 > **NOTE**: see **enum Type** in [mkldnn_node.h](../mkldnn_node.h) for list of the types
 
 ### Filter by name
-To dump blobs only for node with name matching specified regex:
+To dump blobs only for nodes with name matching specified regex:
 ```sh
     OV_CPU_BLOB_DUMP_NODE_NAME=<regex> binary ...
 ```
@@ -69,7 +85,15 @@ Example:
 
 ### Dump all the blobs
 ```sh
+    OV_CPU_BLOB_DUMP_NODE_NAME="*" binary ...
+```
+    or
+```sh
     OV_CPU_BLOB_DUMP_NODE_NAME=".+" binary ...
+```
+    or
+```sh
+    OV_CPU_BLOB_DUMP_NODE_PORTS=ALL binary ...
 ```
 
 ## Graph serialization

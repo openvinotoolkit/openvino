@@ -39,7 +39,7 @@ std::vector<uint32_t> constChunksNumber = {
     1, 3
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConstStridedSliceConcatTest, ConstStridedSliceConcatTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConstStridedSliceConcatTest, ConstStridedSliceConcatTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

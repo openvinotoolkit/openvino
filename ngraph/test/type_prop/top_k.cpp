@@ -14,7 +14,7 @@ template <typename T>
 class topk_type_prop : public ::testing::Test
 {
 };
-TYPED_TEST_CASE_P(topk_type_prop);
+TYPED_TEST_SUITE_P(topk_type_prop);
 
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
 {
@@ -104,12 +104,12 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
     }
 }
 
-REGISTER_TYPED_TEST_CASE_P(topk_type_prop,
-                           topk_negative_axis_support,
-                           topk_negative_axis_dynamic_rank,
-                           topk_v1_partial_ouptut,
-                           topk_rank_static_k_unknown,
-                           topk_default_index_element_type);
+REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
+                            topk_negative_axis_support,
+                            topk_negative_axis_dynamic_rank,
+                            topk_v1_partial_ouptut,
+                            topk_rank_static_k_unknown,
+                            topk_default_index_element_type);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop, topk_type_prop, TopKTypes, );
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop, TopKTypes, );

@@ -56,7 +56,7 @@ class PoolingTest : public myriadLayersTests_nightly,
                                                        pooling_layer_params, vpu::LayoutPreference, Types...>>
 {
 public:
-    virtual void SetUp() {
+    void SetUp() override {
         myriadLayersTests_nightly::SetUp();
         auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, pooling_layer_params, vpu::LayoutPreference, Types...>>::GetParam();
         _input_tensor       = std::get<0>(p);
@@ -118,7 +118,7 @@ class GlobalPoolingTest : public myriadLayersTests_nightly,
                     public testing::WithParamInterface<GlobalPoolingTestParam>
 {
 public:
-    virtual void SetUp() {
+    void SetUp() override {
         myriadLayersTests_nightly::SetUp();
          auto params = ::testing::WithParamInterface<GlobalPoolingTestParam>::GetParam();
         _input_tensor = std::get<0>(params);
@@ -166,7 +166,7 @@ class PoolingTestPad4 : public myriadLayersTests_nightly,
                     public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, paddings4, vpu::LayoutPreference, Types...>>
 {
 public:
-    virtual void SetUp() {
+    void SetUp() override {
         myriadLayersTests_nightly::SetUp();
         auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, paddings4, vpu::LayoutPreference, Types...>>::GetParam();
         _input_tensor       = std::get<0>(p);
@@ -225,7 +225,7 @@ class ConvolutionTest : public myriadLayersTests_nightly,
                         public testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, uint32_t, uint32_t, Types...>>
 {
 public:
-    virtual void SetUp() {
+    void SetUp() override {
         myriadLayersTests_nightly::SetUp();
         auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, uint32_t, uint32_t, Types...>>::GetParam();
         _input_tensor = std::get<0>(p);
@@ -281,7 +281,7 @@ class FCTest : public myriadLayersTests_nightly,
                public testing::WithParamInterface<std::tuple<fcon_test_params, int32_t, int32_t, Types...>>
 {
 public:
-    virtual void SetUp() {
+    void SetUp() override {
         myriadLayersTests_nightly::SetUp();
         auto p = ::testing::WithParamInterface<std::tuple<fcon_test_params, int32_t, int32_t, Types...>>::GetParam();
         _par = std::get<0>(p);

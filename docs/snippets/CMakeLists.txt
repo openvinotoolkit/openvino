@@ -26,17 +26,6 @@ if(NOT OpenCV_FOUND)
                              "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
-# ONNX importer related files
-if(NOT NGRAPH_ONNX_IMPORT_ENABLE)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial0.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial1.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial2.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/OnnxImporterTutorial3.cpp")
-endif()
-
-# remove snippets for deprecated / removed API
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Migration_CoreAPI.cpp")
-
 # requires mfxFrameSurface1 and MSS API
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide3.cpp"
