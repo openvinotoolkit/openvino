@@ -109,11 +109,6 @@ bool MKLDNNEdge::needReorder() {
         }
     }
 
-    if (in_place) {
-        if (inNumber >= 0 && inNumber < parentSPD->getConfig().outConfs.size() && parentSPD->getConfig().outConfs[inNumber].inPlace >= 0 &&
-            outNumber >= 0 && outNumber < childSPD->getConfig().inConfs.size() && childSPD->getConfig().inConfs[outNumber].inPlace >= 0)
-            canBeInPlaceConflicts = true;
-    }
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
 }
 
