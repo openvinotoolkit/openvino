@@ -80,6 +80,7 @@ private:
     reg64_t reg_ow_pos = rdx;
     reg64_t aux_reg_output = reg_ow_pos;
     reg64_t reg_dg_iter = reg_output;
+    reg64_t reg_gr_iter = rsp;
     reg64_t aux_reg_input = rax;
     reg64_t aux2_reg_input = reg_kernel;
     reg64_t reg_ic_iter = rbx;
@@ -853,7 +854,6 @@ private:
         L(oc_unrolled_loop); {
             cmp(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
             jl(oc_main_loop, T_NEAR);
-
             ic_loop(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
             store_output(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
 
@@ -869,7 +869,6 @@ private:
         L(oc_main_loop); {
             cmp(reg_oc_work, jcp_.oc_block);
             jl(oc_tail, T_NEAR);
-
             ic_loop(ow_step, 1, jcp_.oc_block);
             store_output(ow_step, 1, jcp_.oc_block);
 
@@ -987,17 +986,18 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
 
     impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+//    if (mayiuse(cpu::x64::avx512_common)) {
+//        impl_type = impl_desc_type::jit_avx512;
+//    } else if (mayiuse(cpu::x64::avx2)) {
+//        impl_type = impl_desc_type::jit_avx2;
+//    } else if (mayiuse(cpu::x64::sse41)) {
+//        impl_type = impl_desc_type::jit_sse42;
+//    } else {
+//        impl_type = impl_desc_type::ref;
+//    }
+    impl_type = impl_desc_type::ref;
 
-    if (mayiuse(cpu::x64::sse41)) {
+    if (false && mayiuse(cpu::x64::sse41)) {
         // optimzed implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
@@ -1072,9 +1072,9 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     jcp.oh = dstDims[2];
     jcp.ow = dstDims[3];
 
-    bool with_groups = group > 1;
-    jcp.kh = weiDims[with_groups + 2];
-    jcp.kw = weiDims[with_groups + 3];
+//    bool with_groups = group > 1;
+    jcp.kh = weiDims[2];
+    jcp.kw = weiDims[3];
 
     jcp.t_pad = paddingL[0];
     jcp.l_pad = paddingL[1];
@@ -1107,13 +1107,13 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
 
     jcp.nthr = dnnl_get_max_threads();
 
-    if (mayiuse(cpu::x64::avx512_common)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
-    }
+//    if (mayiuse(cpu::x64::avx512_common)) {
+//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
+//    } else if (mayiuse(cpu::x64::avx2)) {
+//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+//    } else if (mayiuse(cpu::x64::sse41)) {
+//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+//    }
 
     if (def_conv_kernel)
         def_conv_kernel->create_ker();
@@ -1157,7 +1157,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 
         for (int ic = 0; ic < IC; ic++) {
             const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1] + h_in * src_strides[2] + w_in * src_strides[3];
-            const int deformable_group_index = ic / channel_per_deformable_group;
+            const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             const float *data_offset_ptr = offsets + mb * off_strides[0] + (deformable_group_index * 2 * KH * KW) * off_strides[1];
             const float *modulation_offset_ptr = nullptr;
             if (modulation != nullptr) {
@@ -1175,7 +1175,20 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
 
                     const float h_im = h_in + map_h; // absolute pixel index with offset
                     const float w_im = w_in + map_w; // absolute pixel index with offset
-                    if (h_im >= 0 && w_im >= 0 && h_im < IH && w_im < IW) {
+                    bool skip_compute;
+                    if (with_bilinear_pad) {
+                        skip_compute = !(static_cast<int>(w_im) > -1 &&
+                                static_cast<int>(w_im) < IW &&
+                                static_cast<int>(h_im) > -1 &&
+                                static_cast<int>(h_im) < IH);
+                    } else {
+                        skip_compute = !(w_im >= 0 &&
+                                w_im < IW &&
+                                h_im >= 0 &&
+                                h_im < IH);
+                    }
+                    if (!skip_compute) {
+//                    if (h_im >= 0 && w_im >= 0 && h_im < IH && w_im < IW) {
                         const int cur_height = IH - h_in;
                         const int cur_width = IW - w_in;
                         int h_low = std::max(static_cast<int>(floorf(map_h)), 0);
@@ -1202,8 +1215,8 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                             modulation_scalar = modulation_offset_ptr[modulation_index];
                         }
 
-                        const float weight = with_groups ? weights[g * wei_strides[0] + oc * wei_strides[1] + ic * wei_strides[2] + kh * wei_strides[3] +
-                                                             kw * wei_strides[4]]
+                        const float weight = with_groups ? weights[(g + oc / G) * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] +
+                                                             kw * wei_strides[3]]
                                                          : weights[oc * wei_strides[0] + ic * wei_strides[1] + kh * wei_strides[2] + kw * wei_strides[3]];
                         d += val * weight * modulation_scalar;
                     }
@@ -1215,7 +1228,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
     };
 
     parallel_nd(G, MB, OC, OH, OW,
-    [&](int g, int mb, int oc, int oh, int ow) {
+    [&](int g, int mb, int oc, int oh, int ow)  {
         dst[mb * dst_strides[0] + (g * OC + oc) * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]] = ker(g, mb, oc, oh, ow);
     });
 }
