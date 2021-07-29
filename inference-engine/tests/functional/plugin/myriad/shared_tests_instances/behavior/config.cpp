@@ -259,6 +259,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
         ::testing::ValuesIn(getCorrectMultiConfigs())),
     CorrectConfigTests::getTestCaseName);
 
+const std::vector<std::map<std::string, std::string>>& getCorrectAutoConfigs() {
+    static const std::vector<std::map<std::string, std::string>> correctAutoConfigs = {
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_MYRIAD}, {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, "YES"}},
+            {{InferenceEngine::KEY_AUTO_DEVICE_LIST , CommonTestUtils::DEVICE_MYRIAD}, {std::string("AUTO_"), "NAN"}}
+    };
+    return correctAutoConfigs;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(getPrecisions()),
+                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::ValuesIn(getCorrectAutoConfigs())),
+                         CorrectConfigTests::getTestCaseName);
+
 const std::vector<std::pair<std::string, InferenceEngine::Parameter>>& getDefaultEntries() {
     static const std::vector<std::pair<std::string, InferenceEngine::Parameter>> defaultEntries = {
         {KEY_LOG_LEVEL, {LOG_NONE}},
@@ -915,12 +930,57 @@ const std::vector<std::map<std::string, std::string>>& getIncorrectMultiConfigs(
     return incorrectMultiConfigs;
 }
 
+const std::vector<std::map<std::string, std::string>>& getIncorrectAutoConfigs() {
+    static const std::vector<std::map<std::string, std::string>> incorrectAutoConfigs = {
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {KEY_LOG_LEVEL, "INCORRECT_LOG_LEVEL"},
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {InferenceEngine::MYRIAD_PROTOCOL, "BLUETOOTH"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {KEY_PERF_COUNT, "ON"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "ONE"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {KEY_EXCLUSIVE_ASYNC_REQUESTS, "ON"}
+        },
+        {
+                {InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_AUTO},
+                {InferenceEngine::MYRIAD_DDR_TYPE, "1GB"}
+        },
+    };
+    return incorrectAutoConfigs;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
     ::testing::Combine(
         ::testing::ValuesIn(getPrecisions()),
         ::testing::Values(CommonTestUtils::DEVICE_MULTI),
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
     IncorrectConfigTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
+     ::testing::Combine(
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+        ::testing::ValuesIn(getIncorrectAutoConfigs())),
+     IncorrectConfigTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigSingleOptionTests,
     ::testing::Combine(
@@ -956,4 +1016,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
         ::testing::ValuesIn(getIncorrectMultiConfigs())),
     IncorrectConfigAPITests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
+     ::testing::Combine(
+        ::testing::ValuesIn(getPrecisions()),
+        ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+        ::testing::ValuesIn(getIncorrectAutoConfigs())),
+     IncorrectConfigAPITests::getTestCaseName);
 } // namespace
