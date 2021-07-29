@@ -9,7 +9,7 @@
 #define COUNT_OF(A) (sizeof(A) / sizeof(A[0]))
 const char split_sequence[] = {'F', 'U', 'Z', 'Z', '_', 'N', 'E', 'X',
                                'T', '_', 'F', 'I', 'E', 'L', 'D'};
-const char *PDPD = "pdpd";
+const char *PDPD = "paddle";
 
 using namespace ngraph;
 using namespace ngraph::frontend;
