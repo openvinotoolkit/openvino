@@ -83,7 +83,7 @@ namespace
         const auto& found = tim.find(type);
         if (found == tim.end())
         {
-            std::terminate(); // do not support other types
+            throw std::out_of_range{"element::Type_t not supported"};
         }
         return found->second;
     };
