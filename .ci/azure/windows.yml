@@ -88,7 +88,7 @@ jobs:
       rem For running Python API tests
       python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
       rem For running nGraph unit tests dependent on Python frameworks
-      python -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test.txt
+      python -m pip install -r $(REPO_DIR)\ngraph\test\requirements_test.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
@@ -139,7 +139,13 @@ jobs:
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: rd /Q /S $(BUILD_DIR)
+    displayName: 'Clean build dir'
+    continueOnError: false
+
+  - script: |
+      set FE_TEST_MODELS=$(INSTALL_DIR)\tests
+      call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
