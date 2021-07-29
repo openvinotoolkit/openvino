@@ -102,10 +102,7 @@ void op::v8::RandomUniform::validate_and_infer_types()
                                       ", max value: ",
                                       max_val);
             }
-            else if (get_out_type() == ngraph::element::Type_t::f16 ||
-                     get_out_type() == ngraph::element::Type_t::f32 ||
-                     get_out_type() == ngraph::element::Type_t::f64 ||
-                     get_out_type() == ngraph::element::Type_t::bf16)
+            else if (get_out_type().is_real())
             {
                 double min_val = const_min->cast_vector<double>()[0];
                 double max_val = const_max->cast_vector<double>()[0];
