@@ -1,0 +1,50 @@
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TARGET_NAME "paddlepaddle_tests")
+
+file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+add_executable(${TARGET_NAME} ${SRC})
+
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_shared_test_classes)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION tests
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
+# Test model generating
+ie_check_pip_package(paddlepaddle FATAL_ERROR)
+
+set(PADDLE_TEST_MODELS_DIRNAME test_model_zoo/paddle_test_models)
+target_compile_definitions(${TARGET_NAME} PRIVATE -D PADDLE_TEST_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\")
+set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PADDLE_TEST_MODELS_DIRNAME}/)
+
+file(GLOB_RECURSE PADDLE_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
+file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+set(OUT_FILES "")
+foreach(GEN_SCRIPT ${PADDLE_GEN_SCRIPTS})
+    get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
+    set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
+    set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
+    add_custom_command(OUTPUT ${OUT_DONE_FILE}
+            COMMAND ${PYTHON_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+            ${GEN_SCRIPT}
+            ${TEST_PADDLE_MODELS}
+            ${OUT_DONE_FILE}
+            DEPENDS ${PADDLE_ALL_SCRIPTS}
+            )
+endforeach()
+add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+add_dependencies(${TARGET_NAME} paddlepaddle_test_models)
+add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+
+install(DIRECTORY ${TEST_PADDLE_MODELS}
+        DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

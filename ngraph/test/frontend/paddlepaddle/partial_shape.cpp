@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(
     PDPDPartialShapeTest,
     FrontEndPartialShapeTest,
     ::testing::Combine(
-        ::testing::Values(BaseFEParam{PADDLE_FE, std::string(TEST_PADDLE_MODELS_DIRNAME)}),
+        ::testing::Values(BaseFEParam{PADDLE_FE, std::string(PADDLE_TEST_MODELS_DIRNAME)}),
         ::testing::ValuesIn(std::vector<PartShape>{getTestShape_2in_2out(),
                                                    getTestShape_conv2d_relu(),
                                                    getTestShape_conv2d(),
