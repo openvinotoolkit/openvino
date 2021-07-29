@@ -1105,15 +1105,15 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         return new_list
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        # the transformation configuration file specifies what operations should be included with this transformation
-        if match.custom_replacement_desc.custom_attributes.get('operation_to_add', 'Proposal') == 'DetectionOutput':
-            self.matched_input_nodes_to_keep = 3  # keep the third input with prior boxes (anchors)
-            return self.insert_detection_output_instead_of_proposal(graph, match)
-
         argv = graph.graph['cmd_params']
         if argv.tensorflow_object_detection_api_pipeline_config is None:
             raise Error(missing_param_error)
         pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
+
+        # the transformation configuration file specifies what operations should be included with this transformation
+        if match.custom_replacement_desc.custom_attributes.get('operation_to_add', 'Proposal') == 'DetectionOutput':
+            self.matched_input_nodes_to_keep = 3  # keep the third input with prior boxes (anchors)
+            return self.insert_detection_output_instead_of_proposal(graph, match, pipeline_config)
 
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
         proposal_ratios = _value_or_raise(match, pipeline_config, 'anchor_generator_aspect_ratios')
@@ -1204,7 +1204,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                                           pipeline_config)}
 
     @staticmethod
-    def insert_detection_output_instead_of_proposal(graph: Graph, match: SubgraphMatch):
+    def insert_detection_output_instead_of_proposal(graph: Graph, match: SubgraphMatch,
+                                                    pipeline_config: PipelineConfig):
         """
         The function inserts DetectionOutput operation instead of Proposal operation which may result in an increase of
         the accuracy for some models. The function is enabled with the custom attribute "operation_to_insert" with
@@ -1215,13 +1216,9 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
         this information.
         :param graph: the graph to operate on
         :param match: the object containing information about the matched sub-graph
+        :param pipeline_config: object containing information from the pipeline.config file of the model
         :return: the dictionary with mapping information needed for other transformations
         """
-        argv = graph.graph['cmd_params']
-        if argv.tensorflow_object_detection_api_pipeline_config is None:
-            raise Error(missing_param_error)
-        pipeline_config = PipelineConfig(argv.tensorflow_object_detection_api_pipeline_config)
-
         max_proposals = _value_or_raise(match, pipeline_config, 'first_stage_max_proposals')
 
         # Convolution/matmul node that produces classes predictions
