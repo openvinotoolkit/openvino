@@ -2878,11 +2878,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int64_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
+        if (op->get_index_element_type() == element::i32) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int32_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        } else if (op->get_index_element_type() == element::i64) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int64_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        }
         return true;
     }
 

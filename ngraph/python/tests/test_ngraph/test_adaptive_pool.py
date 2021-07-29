@@ -1,13 +1,11 @@
 import ngraph as ng
 import numpy as np
-from tests import xfail_issue_59935
 from tests.runtime import get_runtime
 
 
-@xfail_issue_59935
 def test_adaptive_avg_pool():
     runtime = get_runtime()
-    input = np.reshape([0, 4, 1, 3, -2, -5, -2,
+    input = np.reshape([0.0, 4, 1, 3, -2, -5, -2,
                         -2, 1, -3, 1, -3, -4, 0,
                         -2, 1, -1, -2, 3, -1, -3,
 
@@ -31,7 +29,6 @@ def test_adaptive_avg_pool():
     assert np.allclose(adaptive_pool_results, expected_results)
 
 
-@xfail_issue_59935
 def test_adaptive_max_pool():
     runtime = get_runtime()
     input = np.reshape([0, 4, 1, 3, -2, -5, -2,

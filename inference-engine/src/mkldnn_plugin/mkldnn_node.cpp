@@ -72,6 +72,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "FullyConnected", FullyConnected },
         { "MaxPool", Pooling },
         { "AvgPool", Pooling },
+        { "AdaptiveMaxPool", AdaptivePooling},
+        { "AdaptiveAvgPool", AdaptivePooling},
         { "Add", Eltwise },
         { "Subtract", Eltwise },
         { "Multiply", Eltwise },
