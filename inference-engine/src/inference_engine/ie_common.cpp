@@ -59,7 +59,6 @@ void setSharedObject(const std::shared_ptr<NewExtension>& extension, const detai
 }
 
 
-NGRAPH_RTTI_DEFINITION(IRExtension, "IRExtension", 0);
 namespace details {
 
 void Rethrow() {

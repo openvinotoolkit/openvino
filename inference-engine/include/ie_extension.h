@@ -137,11 +137,8 @@ class INFERENCE_ENGINE_API_CLASS(NewExtension) {
 public:
     using Ptr = std::shared_ptr<NewExtension>;
 
-    using type_info_t = ngraph::Node::type_info_t;
-
     virtual ~NewExtension();
 
-    virtual const type_info_t& get_type_info() const = 0;
     friend void setSharedObject(const std::shared_ptr<NewExtension>&, const details::SharedObjectLoader&);
 
 private:
@@ -152,14 +149,12 @@ class INFERENCE_ENGINE_API_CLASS(IRExtension) : public NewExtension {
     std::string m_opset;
 
 public:
-    NGRAPH_RTTI_DECLARATION;
     IRExtension(const std::string& opsetVersion) : m_opset(opsetVersion) {}
 
     const std::string& get_opset() {
         return m_opset;
     }
 
-    virtual const ngraph::Node::type_info_t get_type() = 0;
     virtual ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) = 0;
 };
 
@@ -175,9 +170,6 @@ public:
             node->constructor_validate_and_infer_types();
         }
         return node->outputs();
-    }
-    const ngraph::Node::type_info_t get_type() override {
-        return T::type_info;
     }
 };
 

@@ -43,13 +43,9 @@ struct Parsed {
 
 class ExtensionWrapper: public IRExtension {
 public:
-    NGRAPH_RTTI_DECLARATION;
     ExtensionWrapper(const IExtensionPtr& ext, const std::string& opsetVersion, const ngraph::Node::type_info_t& type, const ngraph::OpSet& opset)
         : IRExtension(opsetVersion), extension(ext), type(type), opset(opset) {}
 
-    const ngraph::Node::type_info_t get_type() override {
-        return type;
-    }
     ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
         std::shared_ptr<ngraph::Node> node(opset.create_insensitive(type.name));
 
@@ -65,8 +61,6 @@ private:
     ngraph::Node::type_info_t type;
     ngraph::OpSet opset;
 };
-
-NGRAPH_RTTI_DEFINITION(ExtensionWrapper, "ExtensionWrapper", 0, IRExtension);
 
 template <typename T = Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {

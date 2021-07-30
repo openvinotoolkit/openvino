@@ -58,8 +58,6 @@ TEST(ExtensionTests, testNewExtensionCast) {
     Core ie;
     std::vector<NewExtension::Ptr> extensions = load_extensions(getExtensionPath());
     ASSERT_EQ(2, extensions.size());
-    ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[0]));
-    ASSERT_TRUE(ngraph::is_type<IRExtension>(extensions[1]));
     auto opsetExt = std::dynamic_pointer_cast<IRExtension>(extensions[0]);
     auto* opsetExtP = dynamic_cast<IRExtension*>(extensions[1].get());
     ASSERT_NE(opsetExtP, nullptr);
