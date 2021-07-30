@@ -51,7 +51,7 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     std::string win_dir_path{ PADDLE_TEST_MODELS };
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    auto model = unicode_win_dir_path + L"ひらがな日本語.pdmodel";
+    auto model = unicode_win_dir_path + L"relu.pdmodel";
     InferenceEngine::Core ie;
     auto cnnNetwork = ie.ReadNetwork(model);
     auto function = cnnNetwork.getFunction();

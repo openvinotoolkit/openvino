@@ -79,15 +79,16 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
 
 if(ENABLE_TESTS)
     # Note: paddlepaddle==2.1.0 is not found for 32bits architecture
-    if((NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE) AND NOT X86)
+    if(NGRAPH_ONNX_IMPORT_ENABLE)
         find_package(PythonInterp 3 REQUIRED)
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test_onnx.txt")
         add_custom_target(test_pip_prerequsites ALL
-                        "${PYTHON_EXECUTABLE}" -m pip install --use-feature=2020-resolver -r ${reqs}
-                        COMMENT "Install requirements_test.txt"
-                        VERBATIM
-                        SOURCES ${reqs})
+                          "${PYTHON_EXECUTABLE}" -m pip install --quiet
+                            --use-feature=2020-resolver -r ${reqs}
+                          COMMENT "Install requirements_test.txt"
+                          VERBATIM
+                          SOURCES ${reqs})
     endif()
 
     add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
