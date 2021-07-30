@@ -207,7 +207,7 @@ void MKLDNNMatMulNode::createPrimitive() {
     params.shift1 = params.M * params.N * params.MB2;
     params.shift2 = params.M * params.N;
 
-    runtimePrecision = getParentEdgeAt(0)->getDesc().getPrecision();
+    runtimePrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
