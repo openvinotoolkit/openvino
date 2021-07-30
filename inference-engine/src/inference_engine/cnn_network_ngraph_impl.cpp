@@ -105,7 +105,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
         if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
-            IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
+            IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
         }
         unique_names.insert({name, parent});
     }

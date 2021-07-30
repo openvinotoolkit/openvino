@@ -642,8 +642,6 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            [](const Dimension& d) -> Dimension {
                                return d.get_max_length();
                            });
-            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
-                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
@@ -685,6 +683,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
+    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
@@ -711,9 +710,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (const auto & i : node->inputs()) {
-                NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Unsupported dynamic input shape in ", node);
-
                 // WA for LSTMCellv0, peephole input shall not be serialized
                 if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell *>(node)) {
                     port_id++;
@@ -724,10 +720,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                         .set_value(get_precision_name(i.get_element_type()).c_str());
-                for (auto d : i.get_shape()) {
+                for (auto d : i.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
 
@@ -739,9 +739,6 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (const auto & o : node->outputs()) {
-                NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Unsupported dynamic output shape in ", node);
-
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
@@ -762,10 +759,14 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                     port.append_attribute("names").set_value(names.c_str());
                 }
 
-                for (auto d : o.get_shape()) {
+                for (auto d : o.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
-                    dim.append_child(pugi::xml_node_type::node_pcdata)
-                        .set_value(std::to_string(d).c_str());
+                    if (d.is_dynamic()) {
+                        dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");
+                    } else {
+                        dim.append_child(pugi::xml_node_type::node_pcdata)
+                                .set_value(std::to_string(d.get_length()).c_str());
+                    }
                 }
             }
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {

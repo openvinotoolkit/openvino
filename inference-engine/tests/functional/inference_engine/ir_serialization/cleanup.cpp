@@ -49,15 +49,15 @@ TEST_F(SerializationCleanupTest, SerializationShouldWork) {
     ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }
 
-TEST_F(SerializationCleanupTest, SerializationShouldFail) {
+TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
     const auto f =
-        CreateTestFunction("DynamicFunction", ngraph::PartialShape::dynamic());
+        CreateTestFunction("DynamicFunction",
+                           ngraph::PartialShape{ngraph::Dimension()});
 
     const InferenceEngine::CNNNetwork net{f};
-    ASSERT_THROW(net.serialize(m_out_xml_path, m_out_bin_path),
-                 InferenceEngine::Exception);
+    net.serialize(m_out_xml_path, m_out_bin_path);
 
-    // .xml & .bin files shouldn't be present
-    ASSERT_FALSE(std::ifstream(m_out_xml_path, std::ios::in).good());
-    ASSERT_FALSE(std::ifstream(m_out_bin_path, std::ios::in).good());
+    // .xml & .bin files should be present
+    ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
+    ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }
