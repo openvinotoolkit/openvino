@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "range.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -28,7 +28,6 @@ namespace ngraph
                     auto stop_scalar = std::make_shared<ngraph::opset6::Squeeze>(stop, axis);
                     auto step_scalar = std::make_shared<ngraph::opset6::Squeeze>(step, axis);
 
-                    // TODO to support other data types other than FP32 #55267
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Range>(
                             start_scalar, stop_scalar, step_scalar, type)},

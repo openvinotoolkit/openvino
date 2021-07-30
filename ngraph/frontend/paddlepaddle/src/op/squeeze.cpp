@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "squeeze.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -22,12 +22,19 @@ namespace ngraph
                         axes = node.get_attribute<std::vector<int32_t>>("axes");
                     }
 
-                    auto axesNode =
-                        ngraph::opset6::Constant::create(ngraph::element::i32, {axes.size()}, axes);
-                    return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Squeeze>(data, axesNode)}, {"Out"});
+                    std::shared_ptr<Node> out;
+                    if (!axes.empty())
+                    {
+                        auto axesNode = ngraph::opset6::Constant::create(
+                            ngraph::element::i32, {axes.size()}, axes);
+                        out = std::make_shared<ngraph::opset6::Squeeze>(data, axesNode);
+                    }
+                    else
+                    {
+                        out = std::make_shared<ngraph::opset6::Squeeze>(data);
+                    }
+                    return node.default_single_output_mapping(out, {"Out"});
                 }
-
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
