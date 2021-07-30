@@ -138,7 +138,6 @@ namespace ngraph
                         {"transpose2", op::transpose2},
                         {"unsqueeze2", op::unsqueeze},
                         {"yolo_box", op::yolo_box}};
-
             };
 
         } // namespace pdpd
