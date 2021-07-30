@@ -90,6 +90,8 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
       # For running nGraph unit tests dependent on Python frameworks
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test.txt
+      # For running PaddlePaddle frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt

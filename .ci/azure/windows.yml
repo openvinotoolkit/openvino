@@ -89,6 +89,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
       rem For running nGraph unit tests dependent on Python frameworks
       python -m pip install -r $(REPO_DIR)\ngraph\test\requirements_test.txt
+      rem For running PaddlePaddle frontend unit tests
+      python -m pip install -r $(REPO_DIR)\ngraph\test\frontend\paddlepaddle\requirements_dev.txt
       rem For MO unit tests
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt

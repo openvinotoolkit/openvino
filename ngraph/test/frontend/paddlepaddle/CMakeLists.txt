@@ -20,13 +20,14 @@ install(TARGETS ${TARGET_NAME}
 # Test model generating
 ie_check_pip_package(paddlepaddle WARNING)
 
+set(PADDLE_TEST_MODELS_DIRNAME test_model_zoo/paddle_test_models)
+target_compile_definitions(${TARGET_NAME} PRIVATE -D PADDLE_TEST_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\")
+
 # If 'paddlepaddle' is not found, code will still be compiled
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
 if (paddlepaddle_FOUND)
-    set(PADDLE_TEST_MODELS_DIRNAME test_model_zoo/paddle_test_models)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -D PADDLE_TEST_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\")
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PADDLE_TEST_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE PADDLE_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
@@ -46,11 +47,19 @@ if (paddlepaddle_FOUND)
                 )
     endforeach()
     add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(${TARGET_NAME} paddlepaddle_test_models)
-    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 
     install(DIRECTORY ${TEST_PADDLE_MODELS}
             DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
             COMPONENT tests
             EXCLUDE_FROM_ALL)
+else()
+    # Produce warning message at build time as well
+    add_custom_command(OUTPUT unable_build_models.txt
+            COMMAND ${CMAKE_COMMAND}
+            -E cmake_echo_color --red "Warning: Unable to generate PaddlePaddle test models. Running '${TARGET_NAME}' will likely fail"
+            )
+    add_custom_target(paddlepaddle_test_models DEPENDS unable_build_models.txt)
 endif()
+
+add_dependencies(${TARGET_NAME} paddlepaddle_test_models)
+add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
