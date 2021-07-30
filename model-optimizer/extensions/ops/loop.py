@@ -62,6 +62,27 @@ class Loop(TensorIterator):
         return suitable_nodes[0] if len(suitable_nodes) == 1 else None
 
     @staticmethod
+    def get_external_nodes_by_internal_id(loop_node: Node, internal_layer_id: int) -> list:
+        """
+        Get a list of nodes from the main graph that are connected with a node with internal_layer_id
+        from the body graph
+
+        :param loop_node: The Loop node
+        :param internal_layer_id: Internal layer ID of the node in the body graph
+        :return: A list of external nodes (from the main graph) that are connected with a node with
+        internal_layer_id from the body graph
+        """
+        for map_item in loop_node.input_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and loop_node.is_in_port_connected(map_item['external_port_id']):
+                return [loop_node.in_port(map_item['external_port_id']).get_source().node]
+        for map_item in loop_node.output_port_map:
+            if map_item['internal_layer_id'] == internal_layer_id \
+                    and loop_node.is_out_port_connected(map_item['external_port_id']):
+                return [dest.node for dest in loop_node.out_port(map_item['external_port_id']).get_destinations()]
+        return []
+
+    @staticmethod
     def updated_body_parameters_shape(loop_node: Node):
         """
         Update shape for Loop body parameters.
