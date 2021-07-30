@@ -16,6 +16,7 @@ enum Type {
     Deconvolution,
     Lrn,
     Pooling,
+    AdaptivePooling,
     FullyConnected,
     Softmax,
     Split,
@@ -85,7 +86,9 @@ enum Type {
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
     ExtractImagePatches,
-    NonMaxSuppression
+    NonMaxSuppression,
+    MatrixNms,
+    MulticlassNms
 };
 
 enum Algorithm {
@@ -94,6 +97,10 @@ enum Algorithm {
     // Pooling algorithms
     PoolingMax,
     PoolingAvg,
+
+    // Adaptive pooling algorithms
+    AdaptivePoolingMax,
+    AdaptivePoolingAvg,
 
     // Convolution algorithms
     ConvolutionCommon,

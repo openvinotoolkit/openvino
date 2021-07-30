@@ -35,6 +35,9 @@
 
 #include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
+
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
@@ -88,12 +91,12 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
-    std::unordered_set<std::string> unique_names;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
         }
-        unique_names.insert(param->get_friendly_name());
+        unique_names.insert({param->get_friendly_name(), param});
     }
     for (const auto& result : _ngraph_function->get_results()) {
         const auto& parent = result->get_input_node_shared_ptr(0);
@@ -101,10 +104,10 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent)) {
+        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
             IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
         }
-        unique_names.insert(name);
+        unique_names.insert({name, parent});
     }
 }
 
@@ -389,6 +392,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+                manager.register_pass<::ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
+                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision

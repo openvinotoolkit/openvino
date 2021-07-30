@@ -438,11 +438,11 @@ extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
-extensions/front/tf/KerasRNNTransformation.py
 extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
 extensions/front/tf/lrn_ext.py
+extensions/front/tf/MapFNTransformation.py
 extensions/front/tf/mask_rcnn_support.json
 extensions/front/tf/mask_rcnn_support_api_v1.11.json
 extensions/front/tf/mask_rcnn_support_api_v1.13.json
@@ -944,7 +944,7 @@ mo/main_caffe.py
 mo/main_kaldi.py
 mo/main_mxnet.py
 mo/main_onnx.py
-mo/main_pdpd.py
+mo/main_paddle.py
 mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py
@@ -1090,6 +1090,7 @@ mo_caffe.py
 mo_kaldi.py
 mo_mxnet.py
 mo_onnx.py
+mo_paddle.py
 mo_tf.py
 requirements.txt
 requirements_caffe.txt

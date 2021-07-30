@@ -149,3 +149,13 @@ def set_tf_custom_call_node_attrs(node_attrs: dict):
     node_attrs['op'] = 'TFCustomSubgraphCall'
     node_attrs['infer'] = tf_subgraph_infer
     node_attrs['kind'] = 'op'
+
+
+def skip_nodes_by_condition(current_node: Node, condition: callable, forward: bool = False):
+    if forward:
+        while condition(current_node):
+            current_node = current_node.out_node()
+    else:
+        while condition(current_node):
+            current_node = current_node.in_node()
+    return current_node
