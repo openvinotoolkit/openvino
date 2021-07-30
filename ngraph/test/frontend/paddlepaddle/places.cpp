@@ -10,7 +10,7 @@
 using namespace ngraph::frontend;
 
 const std::string model_file =
-    std::string(PADDLE_TEST_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
+    std::string(TEST_PADDLE_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
 
 /***
 model:

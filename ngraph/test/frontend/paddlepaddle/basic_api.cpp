@@ -23,6 +23,6 @@ INSTANTIATE_TEST_SUITE_P(
     PDPDBasicTest,
     FrontEndBasicTest,
     ::testing::Combine(::testing::Values(PADDLE_FE),
-                       ::testing::Values(std::string(PADDLE_TEST_MODELS_DIRNAME)),
+                       ::testing::Values(std::string(TEST_PADDLE_MODELS_DIRNAME)),
                        ::testing::ValuesIn(models)),
     FrontEndBasicTest::getTestCaseName);
