@@ -56,7 +56,7 @@ namespace ngraph
             ///            to a complete function with actual compute operations
             ///
             /// \return    A nGraph function.
-            std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function);
+            void convert_decoded_function(std::shared_ptr<Function> function);
         } // namespace detail
     }     // namespace onnx_import
 } // namespace ngraph
