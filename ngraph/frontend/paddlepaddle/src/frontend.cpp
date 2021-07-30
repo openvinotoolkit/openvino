@@ -134,11 +134,9 @@ namespace ngraph
             std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant,
                                                 std::ifstream& ext_stream)
             {
-                if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variant))
+                if (is_type<VariantWrapper<std::istream*>>(variant))
                 {
-                    auto m_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)->get();
-                    return m_stream.get();
+                    return as_type_ptr<VariantWrapper<std::istream*>>(variant)->get();
                 }
                 else if (is_type<VariantWrapper<std::string>>(variant))
                 {
@@ -281,13 +279,13 @@ namespace ngraph
                 return model_str && model_str.is_open();
             }
 #endif
-            else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+            else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
             {
                 // Validating first stream, it must contain a model
-                std::shared_ptr<std::istream> p_model_stream =
-                    as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])->get();
+                auto p_model_stream =
+                    as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                 paddle::framework::proto::ProgramDesc fw;
-                return fw.ParseFromIstream(p_model_stream.get());
+                return fw.ParseFromIstream(p_model_stream);
             }
             return false;
         }
@@ -314,13 +312,12 @@ namespace ngraph
 #endif
                 // The case with only model stream provided and no weights. This means model has
                 // no learnable weights
-                else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+                else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
                 {
-                    std::shared_ptr<std::istream> p_model_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
-                            ->get();
+                    auto p_model_stream =
+                        as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(
-                        std::vector<std::istream*>{p_model_stream.get()});
+                        std::vector<std::istream*>{p_model_stream});
                 }
             }
             else if (variants.size() == 2)
