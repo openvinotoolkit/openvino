@@ -716,9 +716,9 @@ V10Parser::V10Parser::GenericLayerParams XmlDeserializer::parseGenericParams(
             int64_t dim = 0;
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
-            if (!(ss >> dim) || dim < 0) {
+            if (!(ss >> dim) || dim < -1) {
                 IE_THROW() << "dimension (" << dimVal << ") in node " << node.name()
-                                   << " must be a non-negative integer: at offset "
+                                   << " must be greater or equal to -1: at offset "
                                    << node.offset_debug();
             }
             port.dims.push_back(dim);
@@ -855,7 +855,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
 
         size_t index{0};
         for (const auto & output_params : params.outputPorts) {
-            ngraphNode->set_output_type(index, output_params.precision, ngraph::Shape(output_params.dims));
+            ngraphNode->set_output_type(index, output_params.precision, ngraph::PartialShape(output_params.dims));
             ++index;
         }
     }
