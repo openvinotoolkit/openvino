@@ -1093,7 +1093,11 @@ bool MKLDNNBinaryConvolutionNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
 
     if (node->getType() == FakeQuantize) {
-        return node->getAlgorithm() == FQBinarization;
+        bool ret = node->getAlgorithm() == FQBinarization;
+        for (size_t i = 1; i < node->getParentEdges().size(); i++) {
+            ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
+        }
+        return ret;
     } else {
         return canFuseSimpleOperation(node);
     }
