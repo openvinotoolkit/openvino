@@ -20,6 +20,8 @@ def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     pass_manager.run_passes(ngraph_function)
 
     network = function_to_cnn(ngraph_function)
+    from mo.back.offline_transformations import apply_moc_transformations
+    apply_moc_transformations(network, argv.transform)
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
     network.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
