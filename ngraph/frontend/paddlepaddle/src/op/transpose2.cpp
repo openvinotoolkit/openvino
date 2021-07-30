@@ -21,9 +21,6 @@ namespace ngraph
                     auto rank =
                         static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
 
-                    std::cout << perm.size() << std::endl;
-                    std::cout << data.get_partial_shape().rank() << ":" << rank << std::endl;
-
                     PDPD_OP_VALIDATION_CHECK(node,
                                              perm.size() == rank,
                                              "transpose2: axis size must equal to data rank!");
