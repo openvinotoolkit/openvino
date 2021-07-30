@@ -1228,10 +1228,16 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         # Convolution/matmul node that produces classes predictions
         # Transpose result of the tensor with classes permissions so it will be in a correct layout for Softmax
-        predictions_node = backward_bfs_for_operation(match.single_input_node(1)[0], ['Add'])[0]
+        predictions_nodes = backward_bfs_for_operation(match.single_input_node(1)[0], ['Add'])
+        assert len(predictions_nodes) >= 1, 'Expected to find nodes of type "Add" starting from the node "{}" in ' \
+                                            'backward direction'.format(match.single_input_node(1)[0].id)
+        predictions_node = predictions_nodes[0]
 
-        ########################################################################################
-        # prepare input with class probabilities
+        # prepare input with class probabilities. The DetectionOutput operation which will consume this tensor as a
+        # second input expects probabilities to be normalized with SoftMax operation per each bounding box class. In
+        # order to do this we first reshape the tensor so the last dimension contain probability for 2 classes
+        # (background and foreground) for each bounding box. Before feeding this tensor to the DO operation the tensor
+        # is flattened to the shape [num_batches, num_classes * num_bounding_boxes]
         reshape_classes_node = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1, 2]),
                                                                 dict(name='predictions/Reshape'))
         # transpose from NCHW to NHWC will be inserted as input to the Reshape automatically. This is expected
@@ -1275,6 +1281,8 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                         {'name': 'flattened_anchors'}, scaled_anchors)
         cropped_anchors = AttributedClamp(graph, {'min': 0.0, 'max': 1.0, 'name': 'clamped_xyxy',
                                                   'nchw_layout': True}).create_node([flattened_anchors])
+        # the input tensor "scaled_anchors" for the "flattened_anchors" may be 4D. In order to avoid inserting Transpose
+        # operation mark the "flattened_anchors" with the correct data layout
         mark_as_correct_data_layout(flattened_anchors)
 
         # create tensor of shape [4] with variance values which then are tiled by the number of boxes which is obtained
@@ -1284,14 +1292,14 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
 
         anchors_shape = Shape(graph, {'name': 'anchors_shape'}).create_node([yxyx_anchors])
         anchors_count = node_to_get_shape_value_of_indices(anchors_shape, [0])
-        tiled_anchors = Tile(graph, {'name': 'tiled_anchors'}).create_node([variances, anchors_count])
-        reshaped_tiled_anchors = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
-                                                             {'name': 'flattened_variances'}, tiled_anchors)
+        tiled_variances = Tile(graph, {'name': 'tiled_variances'}).create_node([variances, anchors_count])
+        reshaped_tiled_variances = create_op_with_const_inputs(graph, Reshape, {1: int64_array([1, 1, -1])},
+                                                               {'name': 'flattened_variances'}, tiled_variances)
 
         # now we can merge actual anchors coordinates with a tensor with variances as it is expected by the
         # DetectionOutput operation
         duplicate_anchors = Concat(graph, {'axis': 1, 'name': 'anchors_with_variances'}).create_node(
-            [cropped_anchors, reshaped_tiled_anchors])
+            [cropped_anchors, reshaped_tiled_variances])
 
         do = DetectionOutput(graph,
                              {'background_label_id': 0,
@@ -1312,17 +1320,22 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                               'nms_threshold': _value_or_raise(match, pipeline_config, 'first_stage_nms_iou_threshold'),
                               'name': 'first_do',
                               }).create_node([reshape_box_logits, flattened_conf, duplicate_anchors])
-        # DetectionOutput output tensor has x and y coordinates swapped
-
+        # DetectionOutput output tensor has YXYX box coordinates order
         # switch to 3D to avoid issues that part of the model with 4D shapes should be inferred in NCHW layout
-        do_3d = create_op_with_const_inputs(graph, Squeeze, {1: int64_array(0)}, {'name': do.name + '/squeeze_do'}, do)
+        do_3d = create_op_with_const_inputs(graph, Squeeze, {1: int64_array(0)}, {'name': do.name + '/SqueezeDO'}, do)
         mark_as_correct_data_layout(do_3d)
 
+        # DetectionOutput output tensor produces a tensor of tuples with the following 7 elements:
+        # [batch_id, class_id, confidence, x1, y1, x2, y2]. Here we split the DetectionOutput result into the 7
+        # tensors with each of these elements for predictions. Then we crop predicted box coordinates (scaled) to be
+        # within [0, 1] range (as it is predicted in the TF model) and then combine tensors back to the Proposal
+        # operation output format: [batch_id, x1, y1, x2, y2].
         do_split = create_op_node_with_second_input(graph, Split, int64_array(2), {'num_splits': 7, 'nchw_layout': True,
                                                                                    'name': do.name + '/Split'}, do_3d)
 
         xyxy_coord = Concat(graph, {'axis': -1, 'nchw_layout': True, 'in_ports_count': 4,
                                     'name': do_split.name + '/xyxy'}).create_node()
+        # change output from YXYX to XYXY order
         do_split.out_port(3).connect(xyxy_coord.in_port(1))
         do_split.out_port(4).connect(xyxy_coord.in_port(0))
         do_split.out_port(5).connect(xyxy_coord.in_port(3))
