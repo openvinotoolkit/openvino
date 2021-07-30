@@ -53,7 +53,7 @@ namespace ngraph
                 decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                           const std::string& model_path);
 
-            std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function);
+            void convert_decoded_function(std::shared_ptr<Function> function);
         } // namespace detail
     }     // namespace onnx_import
 } // namespace ngraph
