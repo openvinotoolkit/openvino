@@ -7,10 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 # TODO: fix it
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
-if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_STAGING_PREFIX "${TEMP}")
-endif()
-
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
 else()
