@@ -28,12 +28,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         frontend_manager.load_by_framework(PDPD);
     ngraph::frontend::InputModel::Ptr input_model;
     std::stringstream model;
+    std::stringstream params;
     model << std::string((const char *)model_buf, model_size);
-    std::shared_ptr<std::istream> in_model(&model);
+    std::istream* in_model(&model);
     if (params_buf) {
-      std::stringstream params;
       params << std::string((const char *)params_buf, params_size);
-      std::shared_ptr<std::istream> in_params(&params);
+      std::istream* in_params(&params);
       input_model = frontend->load(in_model, in_params);
     } else
       input_model = frontend->load(in_model);
