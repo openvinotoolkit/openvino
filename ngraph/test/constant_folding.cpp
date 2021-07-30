@@ -2274,6 +2274,75 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant)
     ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
+TEST(constant_folding, const_reshape_no_data_copy)
+{
+    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = op::Constant::create(element::i64, Shape{2}, {2, 32});
+    auto reshape = std::make_shared<op::v1::Reshape>(const_data, const_reshape, false);
+    auto consumer1 = std::make_shared<op::Relu>(reshape);
+    auto consumer2 = std::make_shared<op::Relu>(reshape);
+
+    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(const1);
+    ASSERT_TRUE(const2);
+    ASSERT_EQ(const1, const2);
+    ASSERT_EQ(const1->get_data_ptr(), const2->get_data_ptr());
+}
+
+TEST(constant_folding, const_squeeze_no_data_copy)
+{
+    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = op::Constant::create(element::i64, Shape{1}, {0});
+    auto reshape = std::make_shared<op::v0::Squeeze>(const_data, const_reshape);
+    auto consumer1 = std::make_shared<op::Relu>(reshape);
+    auto consumer2 = std::make_shared<op::Relu>(reshape);
+
+    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(const1);
+    ASSERT_TRUE(const2);
+    ASSERT_EQ(const1, const2);
+    ASSERT_EQ(const1->get_data_ptr(), const2->get_data_ptr());
+}
+
+TEST(constant_folding, const_unsqueeze_no_data_copy)
+{
+    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = op::Constant::create(element::i64, Shape{1}, {0});
+    auto reshape = std::make_shared<op::v0::Unsqueeze>(const_data, const_reshape);
+    auto consumer1 = std::make_shared<op::Relu>(reshape);
+    auto consumer2 = std::make_shared<op::Relu>(reshape);
+
+    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<pass::ConstantFolding>();
+    pass_manager.run_passes(f);
+
+    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+
+    ASSERT_TRUE(const1);
+    ASSERT_TRUE(const2);
+    ASSERT_EQ(const1, const2);
+    ASSERT_EQ(const1->get_data_ptr(), const2->get_data_ptr());
+}
+
 TEST(constant_folding, constant_transpose)
 {
     Shape shape_in{2, 4};

@@ -12,45 +12,47 @@
 #include "ngraph/type/element_type_traits.hpp"
 
 using namespace ngraph;
-using namespace std;
 
 constexpr DiscreteTypeInfo AttributeAdapter<element::Type>::type_info;
-
-class TypeInfo
+namespace
 {
-public:
-    TypeInfo(size_t bitwidth,
-             bool is_real,
-             bool is_signed,
-             bool is_quantized,
-             const std::string& cname,
-             const std::string& type_name)
-        : m_bitwidth{bitwidth}
-        , m_is_real{is_real}
-        , m_is_signed{is_signed}
-        , m_is_quantized{is_quantized}
-        , m_cname{cname}
-        , m_type_name{type_name}
+    class TypeInfo
     {
-    }
-    size_t m_bitwidth;
-    bool m_is_real;
-    bool m_is_signed;
-    bool m_is_quantized;
-    std::string m_cname;
-    std::string m_type_name;
-};
+    public:
+        TypeInfo(size_t bitwidth,
+                 bool is_real,
+                 bool is_signed,
+                 bool is_quantized,
+                 const std::string& cname,
+                 const std::string& type_name)
+            : m_bitwidth{bitwidth}
+            , m_is_real{is_real}
+            , m_is_signed{is_signed}
+            , m_is_quantized{is_quantized}
+            , m_cname{cname}
+            , m_type_name{type_name}
+        {
+        }
+        size_t m_bitwidth;
+        bool m_is_real;
+        bool m_is_signed;
+        bool m_is_quantized;
+        std::string m_cname;
+        std::string m_type_name;
+    };
 
-struct element_type_hash
-{
-    size_t operator()(element::Type_t t) const { return static_cast<size_t>(t); }
-};
+    struct ElementTypes
+    {
+        struct TypeHash
+        {
+            size_t operator()(element::Type_t t) const { return static_cast<size_t>(t); }
+        };
 
-typedef unordered_map<element::Type_t, const TypeInfo, element_type_hash> element_types_map_t;
+        using ElementsMap = std::unordered_map<element::Type_t, TypeInfo, TypeHash>;
+        static const ElementsMap elements_map;
+    };
 
-static const element_types_map_t& get_type_info_map()
-{
-    static element_types_map_t s_type_info_map{
+    const ElementTypes::ElementsMap ElementTypes::elements_map{
         {element::Type_t::undefined,
          TypeInfo(
              std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
@@ -72,8 +74,20 @@ static const element_types_map_t& get_type_info_map()
         {element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
         {element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
     };
-    return s_type_info_map;
-};
+
+    const ElementTypes::ElementsMap& get_type_info_map() { return ElementTypes::elements_map; };
+
+    const TypeInfo& get_type_info(element::Type_t type)
+    {
+        const auto& tim = get_type_info_map();
+        const auto& found = tim.find(type);
+        if (found == tim.end())
+        {
+            throw std::out_of_range{"element::Type_t not supported"};
+        }
+        return found->second;
+    };
+} // namespace
 
 std::vector<const element::Type*> element::Type::get_known_types()
 {
@@ -103,7 +117,7 @@ element::Type::Type(size_t bitwidth,
                     bool is_quantized,
                     const std::string& /* cname */)
 {
-    for (auto& t : get_type_info_map())
+    for (const auto& t : get_type_info_map())
     {
         const TypeInfo& info = t.second;
         if (bitwidth == info.m_bitwidth && is_real == info.m_is_real &&
@@ -117,7 +131,7 @@ element::Type::Type(size_t bitwidth,
 
 const std::string& element::Type::c_type_string() const
 {
-    return get_type_info_map().at(m_type).m_cname;
+    return get_type_info(m_type).m_cname;
 }
 
 size_t element::Type::size() const
@@ -132,7 +146,7 @@ size_t element::Type::hash() const
 
 const std::string& element::Type::get_type_name() const
 {
-    return get_type_info_map().at(m_type).m_type_name;
+    return get_type_info(m_type).m_type_name;
 }
 
 namespace ngraph
@@ -247,12 +261,12 @@ bool element::Type::merge(element::Type& dst, const element::Type& t1, const ele
 
 bool element::Type::is_static() const
 {
-    return get_type_info_map().at(m_type).m_bitwidth != 0;
+    return get_type_info(m_type).m_bitwidth != 0;
 }
 
 bool element::Type::is_real() const
 {
-    return get_type_info_map().at(m_type).m_is_real;
+    return get_type_info(m_type).m_is_real;
 }
 
 bool element::Type::is_integral_number() const
@@ -262,17 +276,17 @@ bool element::Type::is_integral_number() const
 
 bool element::Type::is_signed() const
 {
-    return get_type_info_map().at(m_type).m_is_signed;
+    return get_type_info(m_type).m_is_signed;
 }
 
 bool element::Type::is_quantized() const
 {
-    return get_type_info_map().at(m_type).m_is_quantized;
+    return get_type_info(m_type).m_is_quantized;
 }
 
 size_t element::Type::bitwidth() const
 {
-    return get_type_info_map().at(m_type).m_bitwidth;
+    return get_type_info(m_type).m_bitwidth;
 }
 
 size_t ngraph::compiler_byte_size(element::Type_t et)

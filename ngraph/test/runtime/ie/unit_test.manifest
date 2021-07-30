@@ -473,6 +473,9 @@ abc_int64
 # [NOT_IMPLEMENTED] Output format I64 is not supported yet...
 onnx_constant_integer_scalar
 onnx_constant_integer_array
+adaptive_max_pool_1d
+adaptive_max_pool_2d
+adaptive_max_pool_3d
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -902,12 +905,6 @@ non_zero_all_0s
 # Issue: 59586
 IE_CPU.normalize_l2_4D_axes_123_big_eps_max
 IE_CPU.normalize_l2_4D_axes_123_big_eps_add
-
-# NomalizeL2 - unsorted axes are not supported,
-# message: "Doesn't support reduction axes: (3.1.2)"
-# Issue: 59794
-IE_CPU.normalize_l2_4D_axes_unsorted_312_max
-IE_CPU.normalize_l2_4D_axes_unsorted_312_add
 
 # NormalizeL2 - Plugins support normalize over "channel" dimension
 # or "channel + all spatial" dimensions for 2D, 3D or 4D cases
@@ -1608,10 +1605,3 @@ IE_GPU.deformable_convolution_opset8_2D_neg_offsets_groups_and_deforgroups_mask
 IE_GPU.deformable_convolution_2D_integral_offsets_groups_and_deforgroups
 IE_GPU.deformable_convolution_opset8_2D_integral_offsets_groups_and_deforgroups
 
-# No plugin support for AdaptiveAvgPool and AdaptiveMaxPool
-adaptive_avg_pool_1d
-adaptive_avg_pool_2d
-adaptive_avg_pool_3d
-adaptive_max_pool_1d
-adaptive_max_pool_2d
-adaptive_max_pool_3d
