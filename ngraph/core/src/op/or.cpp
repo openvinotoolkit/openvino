@@ -22,13 +22,6 @@ op::v1::LogicalOr::LogicalOr(const Output<Node>& arg0,
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::LogicalOr::visit_attributes(AttributeVisitor& visitor)
-{
-    NGRAPH_OP_SCOPE(v1_LogicalOr_visit_attributes);
-    BinaryElementwiseLogical::visit_attributes(visitor);
-    return true;
-}
-
 shared_ptr<Node> op::v1::LogicalOr::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v1_LogicalOr_clone_with_new_inputs);
