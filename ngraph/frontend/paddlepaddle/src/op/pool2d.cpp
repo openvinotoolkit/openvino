@@ -4,9 +4,9 @@
 //
 //*****************************************************************************
 
-#include <node_context.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
