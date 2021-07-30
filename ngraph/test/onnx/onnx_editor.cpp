@@ -1511,7 +1511,7 @@ NGRAPH_TEST(onnx_editor, model_inputs)
 NGRAPH_TEST(onnx_editor, model_inputs_with_non_input_initializers)
 {
     ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt")};
+        SERIALIZED_ZOO, "onnx/instance_norm_dynamic.onnx")};
 
     const auto inputs = editor.model_inputs();
     EXPECT_TRUE(inputs == (std::vector<std::string>{"input"}));
