@@ -91,6 +91,10 @@ class GemmDecomposer(FrontReplacementSubgraph):
         node.out_port(0).get_connection().set_source(bias_node.out_port(0))
         node.in_port(2).get_connection().set_destination(bias_node.in_port(1))
         node.out_port(0).connect(bias_node.in_port(0))
+        if not bias_node.in_port(1).get_source():
+            bias_const_node = Const(graph, {'name': name + '/Const',
+                                            'value': 0}).create_node()
+            bias_const_node.out_port(0).connect(bias_node.in_port(1))
 
         if node.has_valid('alpha') and not math.isclose(node.alpha, 1):
             bias_node.insert_op_on_input_port(in_port_idx=0, new_op_class=Mul, value=np.array(node.alpha),
@@ -98,10 +102,6 @@ class GemmDecomposer(FrontReplacementSubgraph):
             del node['alpha']
 
         if node.has_valid('beta') and not math.isclose(node.beta, 1):
-            if not bias_node.in_port(1).get_source():
-                bias_const_node = Const(graph, {'name': name + '/Const',
-                                                'value': 0}).create_node()
-                bias_const_node.out_port(0).connect(bias_node.in_port(1))
             bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=np.array(node.beta),
                                               new_op_attrs={'name': name + '/Beta_', 'can_be_scaleshift': False})
             del node['beta']
