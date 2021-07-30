@@ -490,6 +490,7 @@ namespace ngraph
 
         void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const void* value)
         {
+            m_graph_changed = true;
             auto tensor_place = pdpd::castToTensorPlace(place);
             auto p_shape = tensor_place->get_partial_shape();
             auto type = tensor_place->get_element_type();

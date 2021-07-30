@@ -207,27 +207,27 @@ namespace ngraph
 
                         const auto& out_ports = op_desc.outputs();
                         for (const auto& port : out_ports)
-                    {
+                        {
                             // TODO: figure a way to safely handle unused outputs
                             if (named_outputs.count(port.parameter()))
                             {
                                 const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(
+                                FRONT_END_OP_CONVERSION_CHECK(
                                     ng_outputs.size() == port.arguments_size(),
-                            "The number of output tensors must be equal to "
-                            "the number of outputs of the ngraph node.");
+                                    "The number of output tensors must be equal to "
+                                    "the number of outputs of the ngraph node.");
                                 for (size_t idx = 0; idx < ng_outputs.size(); ++idx)
-                        {
+                                {
                                     const auto& var_name = port.arguments()[idx];
                                     ng_outputs[idx].get_tensor().set_names({var_name});
                                     // if nodes_dict already has node mapped to this tensor name it
                                     // usually means that it was overwritten using setTensorValue
                                     if (!nodes_dict.count(var_name))
                                         nodes_dict[var_name] = ng_outputs[idx];
+                                }
+                            }
                         }
                     }
-                }
-            }
                 }
             }
 
