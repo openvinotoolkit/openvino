@@ -43,16 +43,6 @@ namespace ngraph
                 }
             }
 
-            NGRAPH_DEPRECATED("Remove when arm plugin supports the new signature")
-            static inline void reduce_logical_and(const char* arg,
-                                                  char* out,
-                                                  const Shape& input_shape,
-                                                  const AxisSet& reduction_axes,
-                                                  bool)
-            {
-                reduce_logical_and(arg, out, input_shape, reduction_axes);
-            }
-
             static inline void reduce_logical_or(const char* arg,
                                                  char* out,
                                                  const Shape& in_shape,
@@ -76,16 +66,6 @@ namespace ngraph
 
                     out[out_idx] = out[out_idx] || arg[in_idx];
                 }
-            }
-
-            NGRAPH_DEPRECATED("Remove when arm plugin supports the new signature")
-            static inline void reduce_logical_or(const char* arg,
-                                                 char* out,
-                                                 const Shape& input_shape,
-                                                 const AxisSet& reduction_axes,
-                                                 bool)
-            {
-                reduce_logical_or(arg, out, input_shape, reduction_axes);
             }
         } // namespace reference
     }     // namespace runtime
