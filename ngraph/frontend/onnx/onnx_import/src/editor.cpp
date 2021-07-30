@@ -385,9 +385,9 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::model_inputs() const
 {
     const auto& graph = m_pimpl->m_model_proto->graph();
     std::vector<std::string> inputs;
-    inputs.reserve(graph.input_size() - graph.initializer_size());
     for (const auto& in : graph.input())
     {
+        // ignore inputs which are initializers
         if (std::find_if(graph.initializer().begin(),
                          graph.initializer().end(),
                          [&in](const TensorProto& initializer) {
