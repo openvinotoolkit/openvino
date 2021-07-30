@@ -610,8 +610,8 @@ bool has_dynamic_output(std::shared_ptr<Node> n) {
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-                    [](std::shared_ptr<Node> results) {
-        return !results->is_dynamic() && !has_dynamic_output(results); })) {
+            [](std::shared_ptr<Node> results) {
+                return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
 
@@ -640,8 +640,8 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
             std::transform(std::begin(shape), std::end(shape),
                            std::back_inserter(out_shape),
                            [](const Dimension& d) -> Dimension {
-                return d.get_max_length();
-            });
+                               return d.get_max_length();
+                           });
             return out_shape;
         };
 
@@ -649,14 +649,14 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
         if (!clone_op->constant_fold(replacements, clone_op->input_values())) {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
                 clone_op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
-                                          dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
+                        dynamic_to_static(clone_op->output(output_id).get_partial_shape()));
                 op->set_output_type(output_id, clone_op->output(output_id).get_element_type(),
-                                    clone_op->output(output_id).get_partial_shape());
+                        clone_op->output(output_id).get_partial_shape());
             }
         } else {
             for (size_t output_id = 0; output_id < clone_op->get_output_size(); ++output_id) {
                 op->set_output_type(output_id, replacements[output_id].get_element_type(),
-                                    replacements[output_id].get_partial_shape());
+                        replacements[output_id].get_partial_shape());
             }
 
             for (size_t i = 0; i < replacements.size(); ++i) {
