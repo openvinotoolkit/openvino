@@ -18,13 +18,14 @@
       "files": [
         "deployment_tools/inference_engine/version.txt",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine.dll",
-        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_transformations.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_preproc.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_ir_reader.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_onnx_reader.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_c_api.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/AutoPlugin.dll",
+        "deployment_tools/inference_engine/lib/intel64/Release/HeteroPlugin.dll",
+        "deployment_tools/inference_engine/lib/intel64/Release/MultiDevicePlugin.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/plugins.xml",
         "deployment_tools/inference_engine/lib/intel64/Release/inference_engine.lib",
         "deployment_tools/inference_engine/lib/intel64/Release/inference_engine_transformations.lib",
@@ -38,6 +39,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/MKLDNNPlugin.dll"
       ]
     },
@@ -47,6 +49,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "deployment_tools/inference_engine/bin/intel64/Release/cache.json",
+        "deployment_tools/inference_engine/bin/intel64/Release/inference_engine_lp_transformations.dll",
         "deployment_tools/inference_engine/bin/intel64/Release/clDNNPlugin.dll"
       ]
     },

@@ -3,8 +3,8 @@
 //
 
 #include "cut_specific_model.hpp"
-#include "utils.hpp"
 #include "ngraph/opsets/opset7.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -34,7 +34,8 @@ void FrontEndCutModelTest::SetUp()
 void FrontEndCutModelTest::initParamTest()
 {
     m_param = GetParam();
-    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
+    m_param.m_modelName =
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
 void FrontEndCutModelTest::doLoadFromFile()

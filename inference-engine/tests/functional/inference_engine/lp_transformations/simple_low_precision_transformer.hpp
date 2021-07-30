@@ -14,7 +14,7 @@
 #include "low_precision/common/operation_precision_restriction.hpp"
 #include "low_precision/common/operation_per_tensor_quantization_restriction.hpp"
 
-class SimpleLowPrecisionTransformer {
+class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
 public:
     SimpleLowPrecisionTransformer(
         const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions = {},
@@ -25,12 +25,8 @@ public:
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
 
-    template <class T>
-    void set_callback(const std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>& callback) {
-        common->get_pass_config()->set_callback<T>(callback);
-    }
-
     void transform(std::shared_ptr<ngraph::Function>& function);
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
     std::shared_ptr<ngraph::pass::Manager> markup;
     std::shared_ptr<ngraph::pass::Manager> common;

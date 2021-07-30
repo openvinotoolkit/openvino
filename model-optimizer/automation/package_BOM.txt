@@ -29,7 +29,6 @@ extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
-extensions/back/LayoutChangeForEinsum.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LinearToLinearONNXReplacer.py
@@ -597,6 +596,7 @@ extensions/middle/InsertSelect.py
 extensions/middle/InterpolateSequenceToInterpolate.py
 extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
+extensions/middle/LayoutChangeForEinsum.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MakeKaldiConstReshapable.py
@@ -944,7 +944,7 @@ mo/main_caffe.py
 mo/main_kaldi.py
 mo/main_mxnet.py
 mo/main_onnx.py
-mo/main_pdpd.py
+mo/main_paddle.py
 mo/main_tf.py
 mo/middle/__init__.py
 mo/middle/passes/__init__.py
@@ -1070,6 +1070,7 @@ mo/utils/ir_reader/extenders/topk_extender.py
 mo/utils/ir_reader/extenders/variadic_split_extender.py
 mo/utils/ir_reader/layer_to_class.py
 mo/utils/ir_reader/restore_graph.py
+mo/utils/json_schema.py
 mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
@@ -1089,6 +1090,7 @@ mo_caffe.py
 mo_kaldi.py
 mo_mxnet.py
 mo_onnx.py
+mo_paddle.py
 mo_tf.py
 requirements.txt
 requirements_caffe.txt

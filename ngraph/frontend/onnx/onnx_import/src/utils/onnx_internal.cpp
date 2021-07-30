@@ -5,10 +5,10 @@
 #include <onnx/onnx_pb.h>
 
 #include "core/graph.hpp"
-#include "core/model.hpp"
 #include "core/null_node.hpp"
 #include "core/transform.hpp"
-#include "onnx_import/onnx_framework_node.hpp"
+#include "onnx_framework_node.hpp"
+#include "onnx_import/core/model.hpp"
 #include "onnx_import/utils/onnx_internal.hpp"
 
 namespace ngraph
@@ -61,7 +61,7 @@ namespace ngraph
                 }
             }
 
-            void convert_decoded_function(std::shared_ptr<Function> function)
+            std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function)
             {
                 for (const auto& node : function->get_ordered_ops())
                 {
@@ -75,12 +75,7 @@ namespace ngraph
                             subgraph_node->infer_inputs_from_parent();
                             convert_decoded_function(subgraph_node->get_subgraph_body());
                         }
-                        const auto& onnx_node = raw_node->get_onnx_node();
-                        OutputVector ng_nodes{onnx_node.get_ng_nodes()};
-                        if (ng_nodes.size() > raw_node->get_output_size())
-                        {
-                            ng_nodes.resize(raw_node->get_output_size());
-                        }
+                        auto ng_nodes = raw_node->get_ng_nodes();
                         replace_node(raw_node, ng_nodes);
                     }
                     else
@@ -90,21 +85,36 @@ namespace ngraph
                         node->revalidate_and_infer_types();
                     }
                 }
-                remove_dangling_parameters(function);
-                remove_dangling_results(function);
+                detail::remove_dangling_parameters(function);
+                detail::remove_dangling_results(function);
+
+                return function;
             }
 
-            std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
-                                                        const std::string& model_path)
+            void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto,
+                                       const std::string& model_path)
             {
                 transform::expand_onnx_functions(model_proto);
                 transform::fixup_legacy_operators(model_proto);
                 transform::update_external_data_paths(model_proto, model_path);
+            }
 
-                auto p_model_proto = common::make_unique<ONNX_NAMESPACE::ModelProto>(model_proto);
-                auto model = common::make_unique<Model>(std::move(p_model_proto));
-                Graph graph{std::move(model)};
+            std::shared_ptr<Function>
+                import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                  const std::string& model_path)
+            {
+                apply_transformations(*model_proto, model_path);
+                Graph graph{model_proto};
                 return graph.convert();
+            }
+
+            std::shared_ptr<Function>
+                decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+                                          const std::string& model_path)
+            {
+                apply_transformations(*model_proto, model_path);
+                auto graph = std::make_shared<Graph>(model_proto);
+                return graph->decode();
             }
         } // namespace detail
     }     // namespace onnx_import

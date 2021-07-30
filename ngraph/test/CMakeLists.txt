@@ -122,6 +122,7 @@ set(SRC
     type_prop/dft.cpp
     type_prop/dyn_reshape.cpp
     type_prop/einsum.cpp
+    type_prop/erf.cpp
     type_prop/exp.cpp
     type_prop/experimental_detectron_generate_proposals.cpp
     type_prop/experimental_detectron_roi_feature_extractor.cpp
@@ -177,6 +178,7 @@ set(SRC
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/prior_box_clustered.cpp
+    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -230,8 +232,10 @@ set(SRC
     visitors/partial_shape.cpp
     visitors/user_op.cpp
     visitors/value_map.cpp
+    visitors/op/acosh.cpp
     visitors/op/adaptive_avg_pool.cpp
     visitors/op/adaptive_max_pool.cpp
+    visitors/op/add.cpp
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/batch_norm.cpp
@@ -251,15 +255,23 @@ set(SRC
     visitors/op/detection_output.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/equal.cpp
+    visitors/op/erf.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
+    visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
     visitors/op/gelu.cpp
+    visitors/op/greater_equal.cpp
+    visitors/op/greater.cpp
     visitors/op/grn.cpp
     visitors/op/group_conv.cpp
     visitors/op/interpolate.cpp
+    visitors/op/less_equal.cpp
+    visitors/op/less.cpp
     visitors/op/log.cpp
+    visitors/op/logical_or.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
@@ -267,21 +279,27 @@ set(SRC
     visitors/op/matmul.cpp
     visitors/op/matrix_nms.cpp
     visitors/op/max_pool.cpp
+    visitors/op/maximum.cpp
+    visitors/op/minimum.cpp
     visitors/op/mish.cpp
     visitors/op/mod.cpp
     visitors/op/multiclass_nms.cpp
+    visitors/op/multiply.cpp
     visitors/op/mvn.cpp
     visitors/op/negative.cpp
     visitors/op/non_max_suppression.cpp
     visitors/op/non_zero.cpp
     visitors/op/normalize_l2.cpp
+    visitors/op/not_equal.cpp
     visitors/op/one_hot.cpp
     visitors/op/pad.cpp
     visitors/op/parameter.cpp
+    visitors/op/power.cpp
     visitors/op/prior_box.cpp
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/random_uniform.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -300,6 +318,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/roi_pooling.cpp
     visitors/op/round.cpp
+    visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
     visitors/op/shuffle_channels.cpp
@@ -310,10 +329,11 @@ set(SRC
     visitors/op/space_to_batch.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/split.cpp
+    visitors/op/sqrt.cpp
     visitors/op/squared_difference.cpp
     visitors/op/squeeze.cpp
-    visitors/op/sqrt.cpp
     visitors/op/strided_slice.cpp
+    visitors/op/subtract.cpp
     visitors/op/swish.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
@@ -370,7 +390,6 @@ set(MULTI_TEST_SRC
     backend/abc.in.cpp
     backend/abs.in.cpp
     backend/acos.in.cpp
-    backend/acosh.in.cpp
     backend/adaptive_avg_pool.in.cpp
     backend/adaptive_max_pool.in.cpp
     backend/add.in.cpp
@@ -414,7 +433,6 @@ set(MULTI_TEST_SRC
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/elu.in.cpp
-    backend/erf.in.cpp
     backend/exp.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
@@ -450,7 +468,6 @@ set(MULTI_TEST_SRC
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/multiply.in.cpp
-    backend/mvn.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
@@ -482,12 +499,10 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
-    backend/roi_pooling.in.cpp
     backend/roll.in.cpp
     backend/round.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/select.in.cpp
     backend/selu.in.cpp
     backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
@@ -550,6 +565,8 @@ file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/
 file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
 set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
 
+add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
+
 # ---- PaddlePaddle FrontEnd testing ------
 if (NGRAPH_PDPD_FRONTEND_ENABLE)
     ie_check_pip_package(paddlepaddle WARNING)
@@ -557,8 +574,9 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/pdpd_test_models/)
-        add_definitions("-DTEST_PDPD_MODELS=\"${TEST_PDPD_MODELS}\"")
+        set(PADDLE_TEST_MODELS_DIRNAME paddle_test_models)
+        set(TEST_PADDLE_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PADDLE_TEST_MODELS_DIRNAME}/)
+        add_definitions("-DTEST_PADDLE_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\"")
     endif()
 endif()
 # ---- End PaddlePaddle FrontEnd testing ------
@@ -613,16 +631,16 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             ${Protobuf_INCLUDE_DIRS})
     target_compile_definitions(unit-test
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-
-    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+if (OV_COMPILER_IS_CLANG)
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
+    get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
     target_link_libraries(unit-test PRIVATE onnx_importer)
 endif()
 
@@ -644,18 +662,23 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
                 COMMAND ${PYTHON_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
-                        ${TEST_PDPD_MODELS}
+                        ${TEST_PADDLE_MODELS}
                         ${OUT_DONE_FILE}
                 DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                 )
     endforeach()
-    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(unit-test pdpd_test_models)
+    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test paddlepaddle_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
+
+    install(DIRECTORY ${TEST_PADDLE_MODELS}
+            DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
 endif()
