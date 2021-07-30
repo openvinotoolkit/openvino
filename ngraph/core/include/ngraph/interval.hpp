@@ -41,9 +41,16 @@ namespace ngraph
         Interval& operator=(const Interval& interval) = default;
 
         /// \brief The number of elements in the interval. Zero if max < min.
-        size_type size() const;
+        size_type size() const
+        {
+            if (m_max_val == s_max)
+            {
+                return m_min_val == s_max ? 0 : s_max;
+            }
+            return m_max_val - m_min_val + 1;
+        }
         /// \brief Returns true if the interval has no elements
-        bool empty() const;
+        bool empty() const { return m_min_val == s_max; }
         /// \brief the inclusive lower bound of the interval
         value_type get_min_val() const { return m_min_val; }
         /// \brief Set the inclusive lower bound of the interval
@@ -84,7 +91,7 @@ namespace ngraph
         Interval& operator&=(const Interval& interval);
 
         /// \brief True if this interval includes value
-        bool contains(value_type value) const;
+        bool contains(value_type value) const { return m_min_val <= value && value <= m_max_val; }
         /// \brief True if this interval includes all the values in interval
         bool contains(const Interval& interval) const;
 
@@ -93,10 +100,6 @@ namespace ngraph
 
     protected:
         void canonicalize();
-        static value_type clip(value_type value);
-        static value_type clip_times(value_type a, value_type b);
-        static value_type clip_add(value_type a, value_type b);
-        static value_type clip_minus(value_type a, value_type b);
 
         value_type m_min_val{0};
         value_type m_max_val{s_max};

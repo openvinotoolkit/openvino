@@ -28,7 +28,7 @@ namespace ngraph
                 });
                 return rc;
             };
-            for (auto p : get().m_string_enums)
+            for (const auto& p : get().m_string_enums)
             {
                 if (to_lower(p.first) == to_lower(name))
                 {
@@ -41,7 +41,7 @@ namespace ngraph
         /// Converts enum values to strings
         static const std::string& as_string(EnumType e)
         {
-            for (auto& p : get().m_string_enums)
+            for (const auto& p : get().m_string_enums)
             {
                 if (p.second == e)
                 {
