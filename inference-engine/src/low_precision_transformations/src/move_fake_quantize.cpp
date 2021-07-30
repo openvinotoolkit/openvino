@@ -58,26 +58,34 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto result = *fq->output(0).get_target_inputs().begin();
     auto input1 = concat->get_input_node_shared_ptr(0);
     auto input2 = concat->get_input_node_shared_ptr(1);
-    auto fq1 = std::make_shared<opset1::FakeQuantize>(input1,
-        fq->get_input_node_shared_ptr(1),
-        fq->get_input_node_shared_ptr(2),
-        fq->get_input_node_shared_ptr(3),
-        fq->get_input_node_shared_ptr(4),
-        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
-    auto fq2 = std::make_shared<opset1::FakeQuantize>(input2,
-        fq->get_input_node_shared_ptr(1),
-        fq->get_input_node_shared_ptr(2),
-        fq->get_input_node_shared_ptr(3),
-        fq->get_input_node_shared_ptr(4),
-        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+    auto fq1 = std::make_shared<opset1::FakeQuantize>(relu1,
+        fq->get_input_node_shared_ptr(1),
+        fq->get_input_node_shared_ptr(2),
+        fq->get_input_node_shared_ptr(3),
+        fq->get_input_node_shared_ptr(4),
+        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+    auto fq2 = std::make_shared<opset1::FakeQuantize>(relu2,
+        fq->get_input_node_shared_ptr(1),
+        fq->get_input_node_shared_ptr(2),
+        fq->get_input_node_shared_ptr(3),
+        fq->get_input_node_shared_ptr(4),
+        as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
 
-    insert_new_node_between(input1, concat, fq1);
+    auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
+    auto& rtInfo = new_concat->get_rt_info();
+    new_concat->set_friendly_name("output");
+
+    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
+    replace_node(concat, new_concat);
+    replace_node(fq, new_concat);
+
+    /*insert_new_node_between(input1, concat, fq1);
     insert_new_node_between(input1, fq1, relu1);
     insert_new_node_between(input2, concat, fq2);
     insert_new_node_between(input2, fq2, relu2);
-    result.replace_source_output(concat->output(0));
+    result.replace_source_output(concat->output(0));*/
 
     return true;
 }
