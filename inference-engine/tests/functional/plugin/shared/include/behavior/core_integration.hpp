@@ -431,8 +431,7 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie = createCoreWithTemplate();
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU ||
-        deviceName == CommonTestUtils::DEVICE_GPU) {
+    if (deviceName == CommonTestUtils::DEVICE_GPU) {
         ASSERT_THROW(ie.ImportNetwork("model", deviceName), NetworkNotRead);
 
         const std::string modelName = "compiled_blob.blob";
