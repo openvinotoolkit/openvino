@@ -53,9 +53,9 @@ bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, st
 
 bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto fq = m.get_match_root();
-    auto concat = fq->get_input_node_shared_ptr(0);
+    auto relu = fq->get_input_node_shared_ptr(0);
+    auto concat = relu->get_input_node_shared_ptr(0);
     auto result = *fq->output(0).get_target_inputs().begin();
-    
     auto input1 = concat->get_input_node_shared_ptr(0);
     auto input2 = concat->get_input_node_shared_ptr(1);
     auto fq1 = std::make_shared<opset1::FakeQuantize>(input1,
@@ -70,9 +70,15 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         fq->get_input_node_shared_ptr(3),
         fq->get_input_node_shared_ptr(4),
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+    auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
+    auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+
     insert_new_node_between(input1, concat, fq1);
+    insert_new_node_between(input1, fq1, relu1);
     insert_new_node_between(input2, concat, fq2);
+    insert_new_node_between(input2, fq2, relu2);
     result.replace_source_output(concat->output(0));
+
     return true;
 }
 

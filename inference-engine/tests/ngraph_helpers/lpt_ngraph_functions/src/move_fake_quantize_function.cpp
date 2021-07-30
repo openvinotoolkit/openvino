@@ -3,6 +3,7 @@
 //
 
 #include "lpt_ngraph_functions/move_fake_quantize_function.hpp"
+#include <low_precision/relu.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
@@ -40,8 +41,11 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     input2->set_friendly_name("input2");
 
+
     if (fqOnData3.empty()) {
-        std::shared_ptr<Node> parent1 = makeFakeQuantizeTypeRelaxed(input1, inputPrecision, fqOnData1);
+        auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
+        auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+        std::shared_ptr<Node> parent1 = makeFakeQuantizeTypeRelaxed(relu1, inputPrecision, fqOnData1);
         if (!convert1.empty()) {
             parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
         }
@@ -49,7 +53,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
             parent1 = makeDequantization(parent1, dequantization1);
         }
 
-        std::shared_ptr<Node> parent2 = makeFakeQuantizeTypeRelaxed(input2, inputPrecision, fqOnData2);
+        std::shared_ptr<Node> parent2 = makeFakeQuantizeTypeRelaxed(relu2, inputPrecision, fqOnData2);
         if (!convert2.empty()) {
             parent2 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
         }
@@ -75,8 +79,11 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ input1, input2 }, axis);
         auto& rtInfo = concat->get_rt_info();
         rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
+
         concat->set_friendly_name("output");
-        std::shared_ptr<Node> fq = makeFakeQuantize(concat, inputPrecision, fqOnData3);
+        auto relu = std::make_shared<ngraph::opset1::Relu>(concat->output(0));
+        std::shared_ptr<Node> fq = makeFakeQuantize(relu, inputPrecision, fqOnData3);
+
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fq) };
         std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
             results,
