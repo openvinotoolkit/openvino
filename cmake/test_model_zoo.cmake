@@ -74,12 +74,29 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
 
-add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
-                                         ${ie_onnx_out_files}
-                                         ${ie_serialize_out_files}
-                                         ${ie_onnx_import_out_files})
+if(ENABLE_TESTS)
+    if(NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+        find_package(PythonInterp 3 REQUIRED)
 
-install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
-        DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test.txt")
+        add_custom_target(test_pip_prerequsites ALL
+                        "${PYTHON_EXECUTABLE}" -m pip install -r ${reqs}
+                        COMMENT "Install requirements_test.txt"
+                        VERBATIM
+                        SOURCES ${reqs})
+    endif()
 
-set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")
+    add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+                                             ${ie_onnx_out_files}
+                                             ${ie_serialize_out_files}
+                                             ${ie_onnx_import_out_files})
+
+    if(TARGET test_pip_prerequsites)
+        add_dependencies(test_model_zoo test_pip_prerequsites)
+    endif()
+
+    install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
+            DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+
+    set(TEST_MODEL_ZOO "./test_model_zoo" CACHE PATH "Path to test model zoo")
+endif()
