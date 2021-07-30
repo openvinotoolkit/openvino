@@ -274,7 +274,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     params.dstDims = dstBlockingDesc.getBlockDims();
     params.srcMemPtr = srcMemPtr;
     params.dstMemPtr = dstMemPtr;
-    params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc.getPrecision().size();
+    params.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[DATA_ID].desc->getPrecision().size();
 
     if (params.parametersAreConstant) {
         size_t realNDims = params.dstDims.size();
@@ -527,9 +527,13 @@ void MKLDNNStridedSliceNode::dimsGluing(const size_t realNDims, const SizeVector
 
 void MKLDNNStridedSliceNode::indicesCalculation() {
     // indices calculation before execution for the best performance
-    params.nThreads = parallel_get_max_threads();
     params.srcIndices.resize(params.workAmount, 0);
     params.dstIndices.resize(params.workAmount, 0);
+
+    // should choose more optimal thread count
+    const size_t nthr = parallel_get_max_threads();
+    params.nThreads = nthr > params.workAmount ? params.workAmount : nthr;
+
     if (params.isOptimized) {
         indicesCalculationForOptimized();
         return;
@@ -621,7 +625,7 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
 
         SizeVector newSrcDims, newDstDims;
         dimsNormalization(newSrcDims, newDstDims);
-        dimsGluing(dstDims.ndims(), newSrcDims, newDstDims);
+        dimsGluing(dstDims.size(), newSrcDims, newDstDims);
         indicesCalculation();
     }
 
