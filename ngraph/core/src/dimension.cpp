@@ -99,12 +99,12 @@ bool Dimension::merge(Dimension& dst, const Dimension d1, const Dimension d2)
 
 bool Dimension::broadcast_merge(Dimension& dst, const Dimension d1, const Dimension d2)
 {
-    if (d1.m_dimension.size() == 1 && d1.m_dimension.get_min_val() == 1)
+    if (d1.m_dimension.get_min_val() == 1 && d1.m_dimension.size() == 1)
     {
         dst = d2;
         return true;
     }
-    if (d2.m_dimension.size() == 1 && d2.m_dimension.get_min_val() == 1)
+    if (d2.m_dimension.get_min_val() == 1 && d2.m_dimension.size() == 1)
     {
         dst = d1;
         return true;

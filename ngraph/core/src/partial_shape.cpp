@@ -34,15 +34,15 @@ PartialShape::PartialShape(const Shape& shape)
 {
 }
 
-PartialShape::PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions)
+PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
     : m_rank_is_static(rank_is_static)
-    , m_dimensions(dimensions)
+    , m_dimensions(std::move(dimensions))
 {
 }
 
-PartialShape::PartialShape(const std::vector<Dimension>& dimensions)
+PartialShape::PartialShape(std::vector<Dimension> dimensions)
     : m_rank_is_static(true)
-    , m_dimensions(dimensions)
+    , m_dimensions(std::move(dimensions))
 {
 }
 
@@ -387,7 +387,7 @@ bool PartialShape::broadcast_merge_into(PartialShape& dst,
                     i < (new_rank - src_rank) ? Dimension(1) : src[i - (new_rank - src_rank)];
                 success &= Dimension::broadcast_merge(dims[i], dsti, srci);
             }
-            dst = PartialShape(dims);
+            dst = PartialShape(std::move(dims));
             return success;
         }
     }
