@@ -79,6 +79,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+    bool enforceRef = false;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 

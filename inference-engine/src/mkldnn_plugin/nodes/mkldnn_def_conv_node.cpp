@@ -966,6 +966,12 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+    if (group != 1 && (((getParentEdgeAt(0)->getShape().getStaticDims()[0] / group) % simd_w != 0)
+    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
+        enforceRef = true;
+    }
+
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -986,19 +992,20 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
 
     impl_desc_type impl_type;
-//    if (mayiuse(cpu::x64::avx512_common)) {
-//        impl_type = impl_desc_type::jit_avx512;
-//    } else if (mayiuse(cpu::x64::avx2)) {
-//        impl_type = impl_desc_type::jit_avx2;
-//    } else if (mayiuse(cpu::x64::sse41)) {
-//        impl_type = impl_desc_type::jit_sse42;
-//    } else {
-//        impl_type = impl_desc_type::ref;
-//    }
-    impl_type = impl_desc_type::ref;
+    if (enforceRef) {
+        impl_type = impl_desc_type::ref;
+    } else if (mayiuse(cpu::x64::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
 
-    if (false && mayiuse(cpu::x64::sse41)) {
-        // optimzed implementation
+    if (!enforceRef && mayiuse(cpu::x64::sse41)) {
+        // optimized implementation
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
         auto weiFormat = group > 1 ? mayiuse(avx512_common) ? memory::format_tag::gOIhw16i16o : memory::format_tag::gOIhw8i8o
@@ -1107,13 +1114,15 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
 
     jcp.nthr = dnnl_get_max_threads();
 
-//    if (mayiuse(cpu::x64::avx512_common)) {
-//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
-//    } else if (mayiuse(cpu::x64::avx2)) {
-//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
-//    } else if (mayiuse(cpu::x64::sse41)) {
-//        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
-//    }
+    if (enforceRef) {
+        return;
+    } else if (mayiuse(cpu::x64::avx512_common)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_common>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::sse41>(jcp));
+    }
 
     if (def_conv_kernel)
         def_conv_kernel->create_ker();
