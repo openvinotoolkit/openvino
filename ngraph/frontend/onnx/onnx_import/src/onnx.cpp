@@ -58,9 +58,9 @@ namespace ngraph
                 op_name, version, domain == "ai.onnx" ? "" : domain);
         }
 
-        std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function)
+        void convert_decoded_function(std::shared_ptr<Function> function)
         {
-            return detail::convert_decoded_function(function);
+            detail::convert_decoded_function(function);
         }
 
     } // namespace onnx_import
