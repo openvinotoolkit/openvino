@@ -122,7 +122,7 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
     //        --> g_topk(vector<>(all detections) --> indices per class))
     int cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
-        (confidenceThreshold != 0.0f) &&
+        (confidenceThreshold > sparsityThreshold) &&
         ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
     confInfoLen = (!decreaseClassId && isSparsityWorthwhile) ? (2 * priorsNum + 1) : priorsNum;
     reorderedConf.resize(imgNum * classesNum * confInfoLen);
@@ -197,11 +197,8 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         ppriors += varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
         getActualPriorNum(ppriors, numPriorsActualdata, n);
     }
-    if (!isPriorsPerImg && imgNum > 1) {
-        for (int n = 1; n < imgNum; ++n) {
-            numPriorsActualdata[n] = numPriorsActualdata[0];
-        }
-    }
+    if (!isPriorsPerImg && imgNum > 1)
+        std::fill_n(numPriorsActualdata + 1, imgNum - 1, numPriorsActualdata[0]);
 
     if (!isSparsityWorthwhile) {
         confReorderDense(confData, ARMConfData, reorderedConfData);
@@ -225,18 +222,21 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         const float *ppriors = priorData;
         const float *priorVariances = priorData + priorsNum * priorSize;
         if (isPriorsPerImg) {
-            ppriors += varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
-            priorVariances += varianceEncodedInTarget ? 0 : (2 * n * priorsNum * priorSize);
+            int priorSizePerImg = varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
+            ppriors += priorSizePerImg;
+            priorVariances += varianceEncodedInTarget ? 0 : priorSizePerImg;
         }
 
         if (isShareLoc) {
-            const float *ploc = locData + n * 4 * priorsNum;
-            float *pboxes = decodedBboxesData + n * 4 * priorsNum;
-            float *psizes = bboxSizesData + n * priorsNum;
-            int *confInfoVB = confInfoV + n * priorsNum;
+            int locShift = n * priorsNum;
+            int coordShift = locShift * 4;
+            const float *ploc = locData + coordShift;
+            float *pboxes = decodedBboxesData + coordShift;
+            float *psizes = bboxSizesData + locShift;
+            int *confInfoVB = confInfoV + locShift;
 
             if (withAddBoxPred) {
-                const float *pARMLoc = ARMLocData + n * 4 * priorsNum;
+                const float *pARMLoc = ARMLocData + coordShift;
                 decodeBBoxes(ppriors, pARMLoc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, nullptr, confInfoVB);
                 decodeBBoxes(pboxes, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, 0, 4, false, nullptr, confInfoVB);
             } else {
@@ -247,9 +247,11 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
                 if (c == backgroundClassId) {
                     continue;
                 }
-                const float *ploc = locData + n * 4 * locNumForClasses * priorsNum + c * 4;
-                float *pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum + c * 4 * priorsNum;
-                float *psizes = bboxSizesData + n * locNumForClasses * priorsNum + c * priorsNum;
+                int locShift = n * priorsNum * locNumForClasses;
+                int coordShift = locShift * 4;
+                const float *ploc = locData + coordShift + c * 4;
+                float *pboxes = decodedBboxesData + coordShift + c * 4 * priorsNum;
+                float *psizes = bboxSizesData + locShift + c * priorsNum;
                 int *confInfoHBC = reorderedConfDataIndices + n * confInfoLen * classesNum + c*confInfoLen;
                 if (withAddBoxPred) {
                     const float *pARMLoc = ARMLocData + n * 4 * locNumForClasses * priorsNum + c * 4;
@@ -297,15 +299,16 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
         }
 
         int detectionsTotal = 0;
-        for (int c = 0; c < classesNum; ++c) {
-            detectionsTotal += detectionsData[n * classesNum + c];
-        }
+        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c)->int {
+            return detectionsData[n * classesNum + c];
+        });
 
         // combine detections of all class for this image and filter with global(image) topk(keep_topk)
         if (keepTopK > -1 && detectionsTotal > keepTopK) {
             std::vector<std::pair<float, std::pair<int, int>>> confIndicesClassMap;
 
-            for (int c = 0; c < classesNum; ++c) {
+            std::mutex mtx;
+            parallel_for(classesNum, [&](int c) {
                 int detections = detectionsData[n * classesNum + c];
                 int *pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
@@ -313,9 +316,11 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
 
                 for (int i = 0; i < detections; ++i) {
                     int pr = pindices[i];
+                    mtx.lock();
                     confIndicesClassMap.push_back(std::make_pair(pconf[pr], std::make_pair(c, pr)));
+                    mtx.unlock();
                 }
-            }
+            });
 
             std::sort(confIndicesClassMap.begin(), confIndicesClassMap.end(),
                       SortScorePairDescend<std::pair<int, int>>);
@@ -329,7 +334,7 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
                 int pr = confIndicesClassMap[j].second.second;
                 int *pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
-                detectionsData[n*classesNum + cls]++;
+                detectionsData[n * classesNum + cls]++;
             }
         }
     }
@@ -338,12 +343,12 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     generateOutput(reorderedConfData, indicesData, detectionsData, decodedBboxesData, dstData);
 }
 
-void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
+inline void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
     numPriorsActual[n] = priorsNum;
     if (!normalized) {
         int num = 0;
         for (; num < priorsNum; ++num) {
-            float imgId = priorData[num * priorSize + 0];
+            float imgId = priorData[num * priorSize];
             if (imgId == -1.f) {
                 numPriorsActual[n] = num;
                 break;
@@ -352,40 +357,37 @@ void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData, int* n
     }
 }
 
-void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
+inline void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
     if (withAddBoxPred) {
-        for (int n = 0; n < imgNum; ++n) {
-            for (int p = 0; p < priorsNum; ++p) {
-                if (ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore) {
-                    for (int c = 0; c < classesNum; ++c) {
-                        reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == backgroundClassId ? 1.0f : 0.0f;
-                    }
-                } else {
-                    for (int c = 0; c < classesNum; ++c) {
-                        reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = confData[n * priorsNum * classesNum + p * classesNum + c];
-                    }
-                }
-            }
-        }
-    } else {
-        if (permuteKernel_) {
-            auto srcData = reinterpret_cast<const uint8_t*>(confData);
-            auto dstData = reinterpret_cast<uint8_t*>(reorderedConfData);
-            permuteKernel_->execute(srcData, dstData);
-        } else {
-            for (int n = 0; n < imgNum; ++n) {
+        parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
+            if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
                 for (int c = 0; c < classesNum; ++c) {
-                    for (int p = 0; p < priorsNum; ++p) {
-                        reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
-                        confData[n * priorsNum * classesNum + p * classesNum + c];
-                    }
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == backgroundClassId ? 1.0f : 0.0f;
+                }
+            } else {
+                for (int c = 0; c < classesNum; ++c) {
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = confData[n * priorsNum * classesNum + p * classesNum + c];
                 }
             }
-        }
+        });
+        return;
     }
+    // withAddBoxPred is false
+    if (permuteKernel_) {
+        auto srcData = reinterpret_cast<const uint8_t*>(confData);
+        auto dstData = reinterpret_cast<uint8_t*>(reorderedConfData);
+        permuteKernel_->execute(srcData, dstData);
+        return;
+    }
+    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
+        for (int p = 0; p < priorsNum; ++p) {
+            reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
+            confData[n * priorsNum * classesNum + p * classesNum + c];
+        }
+    });
 }
 
-void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
+inline void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
         // in:  reorderedConf
         // out: pindices count
@@ -414,7 +416,7 @@ void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, int* indi
 
 // MX filter is per image filter, max output is prior num(select max for all class within this prior)
 // NMS is per class, keep topk is per image, final output is per class
-void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
         int offB = n * priorsNum * classesNum;
@@ -476,7 +478,7 @@ void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const float*
     }
 }
 
-void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
@@ -559,7 +561,7 @@ void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const float* conf
     }
 }
 
-void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
     int* indicesData, int* indicesBufData, int* detectionsData) {
     for (int n = 0; n < imgNum; ++n) {
         int off = n * priorsNum * classesNum;
@@ -619,7 +621,7 @@ void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const float* conf
     }
 }
 
-void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
+inline void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
                                        const float *locData,
                                        const float *varianceData,
                                        float *decodedBboxes,
@@ -724,7 +726,7 @@ void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
     });
 }
 
-void MKLDNNDetectionOutputNode::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
+inline void MKLDNNDetectionOutputNode::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
     std::partial_sort_copy(indicesIn, indicesIn + n,
                            indicesOut, indicesOut + k,
                            ConfidenceComparatorDO(conf));
@@ -767,7 +769,7 @@ static inline float JaccardOverlap(const float *decodedBbox,
     return intersectSize / (bbox1Size + bbox2Size - intersectSize);
 }
 
-void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
+inline void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
                                         int& detections,
                                         int* indicesOut,
                                         const float* bboxes,
@@ -794,7 +796,7 @@ void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
     }
 }
 
-void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
+inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
                                     int* detections,
                                     int* indicesOut,
                                     const float* bboxes,
@@ -833,7 +835,8 @@ void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
     }
 }
 
-void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData, float* dstData) {
+inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
+    float* dstData) {
     const int numResults = getChildEdgesAtPort(0)[0]->getDims()[2];
     const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getDims()[3];
     if (DETECTION_SIZE != 7) {
