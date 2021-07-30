@@ -24,11 +24,6 @@ op::v8::If::If()
 {
 }
 
-op::v8::If::If(const OutputVector& values)
-    : op::util::MultiSubGraphOp(values, 2)
-{
-}
-
 op::v8::If::If(const Output<Node>& execution_condition)
     : If()
 {
@@ -94,7 +89,7 @@ void op::v8::If::validate_and_infer_type_body(
         auto index = input_description->m_input_index;
 
         auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
-        auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+        auto input_partial_shape = input_value(index).get_partial_shape();
         body_parameter->set_partial_shape(input_partial_shape);
     }
     body->validate_nodes_and_infer_types();
@@ -102,26 +97,35 @@ void op::v8::If::validate_and_infer_type_body(
 void op::v8::If::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v8_If_validate_and_infer_types);
-    auto cond_output = inputs().at(0).get_source_output();
 
-    auto cond_partial_shape = cond_output.get_partial_shape();
-    auto cond_rank = cond_partial_shape.rank();
-    if (cond_rank.is_static())
+    NODE_VALIDATION_CHECK(
+        this, m_bodies.size() == 2, "If contains incorrect number of bodies:", m_bodies.size());
+
+    NODE_VALIDATION_CHECK(this,
+                          m_input_descriptions.size() == 2,
+                          "If contains incorrect number of body input descriptions:",
+                          m_input_descriptions.size());
+    NODE_VALIDATION_CHECK(this,
+                          m_output_descriptions.size() == 2,
+                          "If contains incorrect number of body output descriptions:",
+                          m_output_descriptions.size());
+
+    const auto& if_condition = input_value(0);
+    const auto& if_condition_rank = if_condition.get_partial_shape().rank();
+    if (if_condition_rank.is_static())
     {
-        NODE_VALIDATION_CHECK(this, cond_rank.get_length() < 2, "Incorrect condition");
-    }
-    if (cond_partial_shape.is_static())
-    {
-        auto cond_shape = cond_partial_shape.to_shape();
-        if (cond_rank.get_length() == 1)
-        {
-            NODE_VALIDATION_CHECK(this, cond_shape.at(0) == 1, "Incorrect shape of condition");
-        }
+        NODE_VALIDATION_CHECK(this,
+                              if_condition_rank.compatible(1) || if_condition_rank.compatible(0),
+                              "Rank of If condition input must be equal to 0 or 1");
     }
     // Trying to get cond as const value
-    if (const auto& cond_value = get_constant_from_source(cond_output))
+    if (const auto& cond_value = get_constant_from_source(if_condition))
     {
         auto val = cond_value->cast_vector<bool>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the If condition constant is greater than 1");
+
         auto cond_index = val[0] ? then_body_index : else_body_index;
         auto body = m_bodies[cond_index];
         auto input_descriptors = m_input_descriptions[cond_index];
@@ -141,125 +145,111 @@ void op::v8::If::validate_and_infer_types()
     {
         validate_and_infer_type_body(get_then_body(), m_input_descriptions[then_body_index]);
         validate_and_infer_type_body(get_else_body(), m_input_descriptions[else_body_index]);
-
-        std::set<int64_t> then_output_indexes{};
-        std::set<int64_t> else_output_indexes{};
         auto output_nodes = outputs();
-        for (const auto& then_output_description : m_output_descriptions[then_body_index])
-        {
-            auto out_index = then_output_description->m_output_index;
-            auto cond = [=](Output<Node>& node) { return node.get_index() == out_index; };
-            auto it = std::find_if(output_nodes.begin(), output_nodes.end(), cond);
-            NGRAPH_CHECK(it != output_nodes.end(),
-                         "Incorrect output with index %i in \'then_body\'",
-                         out_index);
-            then_output_indexes.insert(then_output_description->m_output_index);
+
+        auto then_outputs_map = 
+            get_mapping_outputs_on_body_description(m_output_descriptions[then_body_index]);
+        auto else_outputs_map =
+            get_mapping_outputs_on_body_description(m_output_descriptions[else_body_index]);
+        
+        for (size_t output_index = 0; output_index < output_nodes.size(); ++output_index) {
+           
+            NODE_VALIDATION_CHECK(this,
+                                  then_outputs_map.count(output_index)!=0,
+                                  "Incorrect associating in then_body! Output ",
+                                  output_index,
+                                  " is not associated with results in then_body!");
+            NODE_VALIDATION_CHECK(this,
+                                  else_outputs_map.count(output_index) != 0,
+                                  "Incorrect associating in else_body! Output ",
+                                  output_index,
+                                  " is not associated with results in else_body!");
+          
+            auto then_desc = then_outputs_map.at(output_index);
+            auto else_desc = else_outputs_map.at(output_index);
+
+            auto then_node_result = m_bodies[then_body_index]
+                                        ->get_results()
+                                        .at(then_desc->m_body_value_index)
+                                        ->input_value(0);
+
+            auto else_node_result = m_bodies[else_body_index]
+                                        ->get_results()
+                                        .at(else_desc->m_body_value_index)
+                                        ->input_value(0);
+
+            NODE_VALIDATION_CHECK(this,
+                                  then_node_result.get_element_type() ==
+                                      else_node_result.get_element_type(),
+                                  "type of then_body output is not equal type of else_body output");
+
+            auto partial_shape = resolve_shape(then_node_result.get_partial_shape(),
+                                               else_node_result.get_partial_shape());
+            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
         }
-
-        NGRAPH_CHECK(
-            then_output_indexes.size() == output_nodes.size(),
-            "Incorect then_body! Number of then_body outputs must be same as number If outputs");
-
-        for (const auto& else_output_description : m_output_descriptions[else_body_index])
-        {
-            auto out_index = else_output_description->m_output_index;
-            auto cond = [=](Output<Node>& node) { return node.get_index() == out_index; };
-            auto it = std::find_if(output_nodes.begin(), output_nodes.end(), cond);
-            NGRAPH_CHECK(it != output_nodes.end(),
-                         "Incorrect output with index %i in \'else_body\'",
-                         out_index);
-            else_output_indexes.insert(else_output_description->m_output_index);
-        }
-
-        NGRAPH_CHECK(
-            else_output_indexes.size() == output_nodes.size(),
-            "Incorect else_body! Number of else_body outputs must be same as number If outputs");
-
-        for (const auto& output_index : then_output_indexes)
-        {
-            auto description_find_lambda = [=](MultiSubgraphOutputDescriptionPtr& descr) {
-                return descr->m_output_index == static_cast<uint64_t>(output_index);
-            };
-
-            auto then_output_description = *find_if(m_output_descriptions[then_body_index].begin(),
-                                                    m_output_descriptions[then_body_index].end(),
-                                                    description_find_lambda);
-            auto else_output_description = *find_if(m_output_descriptions[else_body_index].begin(),
-                                                    m_output_descriptions[else_body_index].end(),
-                                                    description_find_lambda);
-            auto then_out_node = m_bodies[then_body_index]
-                                     ->get_results()
-                                     .at(then_output_description->m_body_value_index)
-                                     ->input_value(0);
-            auto else_out_node = m_bodies[else_body_index]
-                                     ->get_results()
-                                     .at(else_output_description->m_body_value_index)
-                                     ->input_value(0);
-            auto then_node_partial_shape = then_out_node.get_partial_shape();
-            auto else_node_partial_shape = else_out_node.get_partial_shape();
-            NGRAPH_CHECK(then_out_node.get_element_type() == else_out_node.get_element_type(),
-                         "type of then_body output is not equal type of else_body output");
-
-            auto partial_shape = resolve_shape(then_node_partial_shape, else_node_partial_shape);
-            set_output_type(output_index, then_out_node.get_element_type(), partial_shape);
-        }
-    }
-}
-
-void op::v8::If::fill_body(const std::shared_ptr<op::v8::If>& new_op,
-                           size_t branch_index,
-                           const OutputVector& new_args) const
-{
-    auto body = m_bodies[branch_index];
-    auto param_size = body->get_parameters().size();
-    std::vector<::ngraph::element::Type> types(param_size);
-    std::vector<::ngraph::PartialShape> new_shapes(param_size);
-    auto& input_descriptions = m_input_descriptions[branch_index];
-    size_t parameters_num = 0;
-    for (auto& input_description : input_descriptions)
-    {
-        if (input_description->m_input_index < new_args.size())
-        {
-            types[input_description->m_body_parameter_index] =
-                new_args[input_description->m_input_index].get_element_type();
-            new_shapes[input_description->m_body_parameter_index] =
-                new_args[input_description->m_input_index].get_partial_shape();
-            parameters_num++;
-        }
-    }
-    auto func =
-        std::make_shared<Function>(body->get_results(), body->get_sinks(), body->get_parameters());
-    auto spec_func =
-        specialize_function(func, types, new_shapes, std::vector<void*>(parameters_num, nullptr));
-    new_op->m_bodies[branch_index] = std::make_shared<Function>(
-        spec_func->get_results(), spec_func->get_sinks(), spec_func->get_parameters());
-
-    for (const auto& input_description : input_descriptions)
-    {
-        new_op->m_input_descriptions[branch_index].push_back(input_description->copy());
-    }
-    for (const auto& output_description : m_output_descriptions[branch_index])
-    {
-        new_op->m_output_descriptions[branch_index].push_back(output_description->copy());
     }
 }
 
 std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_args) const
 {
     NGRAPH_OP_SCOPE(v8_If_clone_with_new_inputs);
-    auto op = make_shared<op::v8::If>(new_args);
+
+    check_new_args_count(this, new_args);
+    auto op = make_shared<op::v8::If>();
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
                  "Cannot clone ",
                  description(),
                  " operation with name ",
                  get_friendly_name());
-    op->set_output_size(m_output_descriptions[0].size());
-    fill_body(op, then_body_index, new_args);
-    fill_body(op, else_body_index, new_args);
-    op->validate_and_infer_types();
+    clone_to(*op, new_args);
     return op;
 }
+
+op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
+        const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors)
+{
+    OutputMap outputs_map = OutputMap();
+    std::unordered_set<int64_t> checked_results_in_body;
+
+    for (const auto& output_description : output_descriptors)
+    {
+        auto out_index = output_description->m_output_index;
+        auto internal_result_index = output_description->m_body_value_index;
+        NODE_VALIDATION_CHECK(this,
+                              checked_results_in_body.count(internal_result_index) == 0,
+                              "Incorrect associating in then_body! Result ",
+                              internal_result_index,
+                              " is already associated with another output!");
+        NODE_VALIDATION_CHECK(this,
+                              outputs_map.count(out_index) == 0,
+                              "Incorrect associating in then_body! Several results try to "
+                              "associate with the same output!");
+        checked_results_in_body.insert(internal_result_index);
+        outputs_map.insert({out_index, output_description});
+    }
+
+    return outputs_map;
+}
+void op::v8::If::clone_to(op::v8::If& dst, const OutputVector& new_args) const
+    {
+    dst.set_arguments(new_args);
+    dst.set_output_size(m_output_descriptions[0].size());
+    dst.set_then_body(clone_function(*get_then_body()));
+    dst.set_else_body(clone_function(*get_else_body()));
+    
+    for (auto body_index = 0; body_index < 2; ++body_index) {
+        for (const auto& m_input_descr : m_input_descriptions[body_index]) {
+            dst.m_input_descriptions[body_index].push_back(m_input_descr->copy());
+        }
+        for (const auto& m_output_descr : m_output_descriptions[body_index])
+        {
+            dst.m_output_descriptions[body_index].push_back(m_output_descr->copy());
+        }
+    }
+    dst.validate_and_infer_types();
+}
+
 
 bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
@@ -273,20 +263,33 @@ void op::v8::If::set_input(const Output<Node>& value,
                            const std::shared_ptr<Parameter>& then_parameter,
                            const std::shared_ptr<Parameter>& else_parameter)
 {
-    ParameterVector param_vec;
-    if (then_parameter != nullptr)
-    {
-        param_vec.push_back(then_parameter);
-    }
-    if (else_parameter != nullptr)
-    {
-        param_vec.push_back(else_parameter);
-    }
-    set_invariant_inputs(value, param_vec);
+    auto then_param_index = m_bodies[then_body_index]->get_parameter_index(then_parameter);
+    auto else_param_index = m_bodies[else_body_index]->get_parameter_index(else_parameter);
+    NGRAPH_CHECK(then_parameter == nullptr || then_param_index != -1,
+                 "Missing parameter ", then_parameter->get_friendly_name(), " for \'then_body\'!");
+    NGRAPH_CHECK(else_parameter == nullptr || else_param_index != -1,
+                 "Missing parameter ",
+                  else_parameter->get_friendly_name(),
+                 " for \'else_body\'!");
+    set_invariant_inputs(value, {then_parameter, else_parameter});
 }
 
 Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
                                     const std::shared_ptr<Result>& else_result)
 {
+    NGRAPH_CHECK(then_result != nullptr,
+                 "Incorrect result in \"then_body\"! Result cant be \'nullptr\'");
+    NGRAPH_CHECK(else_result != nullptr,
+                 "Incorrect result in \"else_body\"! Result cant be \'nullptr\'");
+    auto then_result_id = m_bodies[then_body_index]->get_result_index(then_result);
+    auto else_result_id = m_bodies[else_body_index]->get_result_index(else_result);
+
+    NGRAPH_CHECK(then_result_id != -1,
+                 "Missing result ", then_result->get_friendly_name(), "in \'then_body\'!");
+    NGRAPH_CHECK(else_result_id != -1,
+                 "Missing result ",
+                  else_result->get_friendly_name(),
+                 "in \'then_body\'!");
+
     return set_body_outputs({then_result, else_result});
 }

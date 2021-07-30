@@ -34,7 +34,6 @@ namespace ngraph
                 /// \param     execution_condition   condition node.
                 If(const Output<Node>& execution_condition);
                 If();
-                explicit If(const OutputVector& values);
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -95,12 +94,16 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
             private:
+                using OutputMap = 
+                    std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
                 void validate_and_infer_type_body(
                     const std::shared_ptr<Function>& body,
                     const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
-                void fill_body(const std::shared_ptr<op::v8::If>& new_op,
-                               size_t branch_index,
-                               const OutputVector& new_args) const;
+                void clone_to(If& dst, const OutputVector& new_args) const;
+
+                OutputMap get_mapping_outputs_on_body_description(
+                        const ngraph::op::util::MultiSubgraphOutputDescriptionVector&
+                            output_descriptors);
             };
         } // namespace v8
     }     // namespace op
