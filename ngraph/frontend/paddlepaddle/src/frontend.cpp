@@ -185,7 +185,7 @@ namespace ngraph
                 parameter_nodes.push_back(param);
             }
 
-            const auto& op_places = model->returnOpPlaces();
+            const auto& op_places = model->getOpPlaces();
             for (const auto& op_place : op_places)
             {
                 const auto& op_desc = op_place->get_desc();
