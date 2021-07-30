@@ -73,7 +73,8 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
+// TODO: CVS-61224
+TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
     std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');

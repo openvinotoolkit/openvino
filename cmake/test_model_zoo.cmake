@@ -82,10 +82,32 @@ if(ENABLE_TESTS)
     if(NGRAPH_ONNX_IMPORT_ENABLE)
         find_package(PythonInterp 3 REQUIRED)
 
+        get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
+        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version
+            WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
+            RESULT_VARIABLE pip3_exit_code
+            OUTPUT_VARIABLE pip3_version)
+
+        if(NOT pip3_exit_code EQUAL 0)
+            message(FATAL_ERROR "Failed to extract pip module version")
+        endif()
+
+        set(pip3_version "pip 18.1 ")
+        if(pip3_version MATCHES ".* ([0-9]+)+\.([0-9]+)([\.0-9 ]).*")
+            set(pip3_version ${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
+        else()
+            message(FATAL_ERROR "Failed to parse ${pip3_version}")
+        endif()
+
+        message(STATUS "pip version is ${pip3_version}")
+        set(args --quiet)
+        if(pip3_version VERSION_GREATER 20.2.2)
+            list(APPEND args --use-feature=2020-resolver)
+        endif()
+
         set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test_onnx.txt")
         add_custom_target(test_pip_prerequsites ALL
-                          "${PYTHON_EXECUTABLE}" -m pip install --quiet
-                            --use-feature=2020-resolver -r ${reqs}
+                          "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
                           COMMENT "Install requirements_test.txt"
                           VERBATIM
                           SOURCES ${reqs})
