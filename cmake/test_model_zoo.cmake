@@ -24,7 +24,10 @@ function(ov_model_convert SRC DST OUT)
 
         if(ext STREQUAL ".prototxt")
             # convert model
-            set(rel_out_name "${rel_dir}/${name_we}.onnx")
+            set(rel_out_name "${name_we}.onnx")
+            if(rel_dir)
+                set(rel_out_name "${rel_dir}/${rel_out_name}")
+            endif()
         else()
             # copy as is
             set(rel_out_name "${in_file}")
@@ -75,7 +78,8 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
-    if(NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE)
+    # Note: paddlepaddle==2.1.0 is not found for 32bits architecture
+    if((NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_ONNX_IMPORT_ENABLE) AND X86)
         find_package(PythonInterp 3 REQUIRED)
 
         set(reqs "${OpenVINO_SOURCE_DIR}/ngraph/test/requirements_test.txt")

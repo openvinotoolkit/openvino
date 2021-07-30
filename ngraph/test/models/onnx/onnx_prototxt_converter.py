@@ -74,8 +74,6 @@ if __name__ == '__main__':
     else:
         output_file_path = args['OUTPUT_FILE']
 
-    print('Converting {} to {}.'.format(input_file_path, output_file_path))
-
     if not os.path.exists(input_file_path):
         sys.exit('ERROR: Provided input model path does not exists: {}'.format(input_file_path))
 
