@@ -71,4 +71,3 @@ TEST(attributes, group_conv_backprop_data_op)
     EXPECT_EQ(g_gcbd->get_auto_pad(), gcbd->get_auto_pad());
     EXPECT_EQ(g_gcbd->get_output_padding(), gcbd->get_output_padding());
 }
-

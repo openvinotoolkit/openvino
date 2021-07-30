@@ -41,7 +41,6 @@ static string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
 NGRAPH_TEST(${BACKEND_NAME}, hardsigmoid)
 {
     const Shape shape{2, 7};

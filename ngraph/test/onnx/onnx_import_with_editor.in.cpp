@@ -32,8 +32,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0)
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
-    in_vals.emplace("input", op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
-    in_vals.emplace("condition", op::Constant::create(element::boolean, Shape{3}, {false, true, true}));
+    in_vals.emplace("input",
+                    op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
+    in_vals.emplace("condition",
+                    op::Constant::create(element::boolean, Shape{3}, {false, true, true}));
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
@@ -50,7 +52,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1)
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
-    in_vals.emplace("input", op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
+    in_vals.emplace("input",
+                    op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
     in_vals.emplace("condition", op::Constant::create(element::boolean, Shape{2}, {false, true}));
     editor.set_input_values(in_vals);
 
@@ -68,8 +71,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis)
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
-    in_vals.emplace("input", op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
-    in_vals.emplace("condition", op::Constant::create(element::boolean, Shape{5}, {false, true, false, false, true}));
+    in_vals.emplace("input",
+                    op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
+    in_vals.emplace(
+        "condition",
+        op::Constant::create(element::boolean, Shape{5}, {false, true, false, false, true}));
     editor.set_input_values(in_vals);
 
     const auto function = editor.get_function();
@@ -86,7 +92,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis)
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
-    in_vals.emplace("input", op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
+    in_vals.emplace("input",
+                    op::Constant::create(element::f32, Shape{3, 2}, {1., 2., 3., 4., 5., 6.}));
     in_vals.emplace("condition", op::Constant::create(element::boolean, Shape{2}, {false, true}));
     editor.set_input_values(in_vals);
 

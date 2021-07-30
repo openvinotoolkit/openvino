@@ -517,8 +517,7 @@ TEST(type_prop, group_convolution_backprop_data_invalid_et_inputs)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Element type of inputs must be numeric"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Element type of inputs must be numeric"));
     }
     catch (...)
     {

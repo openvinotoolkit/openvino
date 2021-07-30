@@ -75,7 +75,8 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes)
     auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
+    auto nms =
+        make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
     NodeBuilder builder(nms);
     auto g_nms = as_type_ptr<opset8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;

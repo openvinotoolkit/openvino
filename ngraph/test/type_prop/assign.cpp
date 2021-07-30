@@ -79,8 +79,7 @@ TEST(type_prop, variable_comparison)
     auto variable4 =
         std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::f32, "ID"});
 
-    auto variable5 =
-        std::make_shared<Variable>(VariableInfo{Shape{1}, element::dynamic, "ID"});
+    auto variable5 = std::make_shared<Variable>(VariableInfo{Shape{1}, element::dynamic, "ID"});
 
     ASSERT_TRUE(variable1->get_info() == variable2->get_info());
     ASSERT_FALSE(variable1->get_info() == variable3->get_info());

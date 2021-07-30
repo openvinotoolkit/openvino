@@ -129,11 +129,10 @@ TEST(type_prop, space_to_batch_invalid_element_type_block_shape)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape must be an integral number");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
-
 }
 
 TEST(type_prop, space_to_batch_invalid_element_type_pads_begin)
@@ -154,11 +153,10 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_begin)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "pads_begin must be an integral number but got");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
-
 }
 
 TEST(type_prop, space_to_batch_invalid_element_type_pads_end)
@@ -179,11 +177,10 @@ TEST(type_prop, space_to_batch_invalid_element_type_pads_end)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "pads_end must be an integral number but got");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "Integral element type node validation check failed for unexpected reason";
     }
-
 }
 
 TEST(type_prop, space_to_batch_invalid_value_block_shape)
@@ -204,10 +201,8 @@ TEST(type_prop, space_to_batch_invalid_value_block_shape)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "block_shape values must be greater than 0");
     }
-    catch(...)
+    catch (...)
     {
         FAIL() << "block_shape value node validation check failed for unexpected reason";
     }
-
 }
-

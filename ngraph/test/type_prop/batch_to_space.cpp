@@ -11,7 +11,8 @@
 using namespace std;
 using namespace ngraph;
 
-namespace {
+namespace
+{
     constexpr size_t data_input_idx = 0;
     constexpr size_t block_shape_input_idx = 1;
     constexpr size_t crops_begin_input_idx = 2;
@@ -27,18 +28,18 @@ namespace {
 
     std::shared_ptr<Node> makeBatchToSpaceOp(const BatchToSpaceInputParams& p)
     {
-        if(p.size() != batch_to_space_required_inputs)
+        if (p.size() != batch_to_space_required_inputs)
         {
             throw runtime_error("BatchToSpace requires 4 inputs");
         }
-        auto data = make_shared<op::Parameter>(
-            p.at(data_input_idx).in_et, p.at(data_input_idx).in_pshape);
-        auto block_shape = make_shared<op::Parameter>(
-            p.at(block_shape_input_idx).in_et,  p.at(block_shape_input_idx).in_pshape);
-        auto crops_begin = make_shared<op::Parameter>(
-            p.at(crops_begin_input_idx).in_et, p.at(crops_begin_input_idx).in_pshape);
-        auto crops_end = make_shared<op::Parameter>(
-            p.at(crops_end_input_idx).in_et, p.at(crops_end_input_idx).in_pshape);
+        auto data =
+            make_shared<op::Parameter>(p.at(data_input_idx).in_et, p.at(data_input_idx).in_pshape);
+        auto block_shape = make_shared<op::Parameter>(p.at(block_shape_input_idx).in_et,
+                                                      p.at(block_shape_input_idx).in_pshape);
+        auto crops_begin = make_shared<op::Parameter>(p.at(crops_begin_input_idx).in_et,
+                                                      p.at(crops_begin_input_idx).in_pshape);
+        auto crops_end = make_shared<op::Parameter>(p.at(crops_end_input_idx).in_et,
+                                                    p.at(crops_end_input_idx).in_pshape);
         return make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
     }
 } // namespace
@@ -53,42 +54,39 @@ TEST(type_prop, batch_to_space_incompatible_input_element_types)
     Shape inputs_sshape{2};
 
     vector<BatchToSpaceInputParams> test_cases;
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-            InputInfo{float_et, data_sshape},
-            InputInfo{integer64_et, inputs_sshape},
-            InputInfo{integer32_et, inputs_sshape},
-            InputInfo{integer32_et, inputs_sshape}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{float_et, data_sshape},
+                                                 InputInfo{integer64_et, inputs_sshape},
+                                                 InputInfo{integer32_et, inputs_sshape},
+                                                 InputInfo{integer32_et, inputs_sshape}});
 
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-            InputInfo{float_et, data_sshape},
-            InputInfo{integer32_et, inputs_sshape},
-            InputInfo{integer64_et, inputs_sshape},
-            InputInfo{integer32_et, inputs_sshape}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{float_et, data_sshape},
+                                                 InputInfo{integer32_et, inputs_sshape},
+                                                 InputInfo{integer64_et, inputs_sshape},
+                                                 InputInfo{integer32_et, inputs_sshape}});
 
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-            InputInfo{float_et, data_sshape},
-            InputInfo{integer64_et, inputs_sshape},
-            InputInfo{float_et, inputs_sshape},
-            InputInfo{float_et, inputs_sshape}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{float_et, data_sshape},
+                                                 InputInfo{integer64_et, inputs_sshape},
+                                                 InputInfo{float_et, inputs_sshape},
+                                                 InputInfo{float_et, inputs_sshape}});
 
     for (const auto& test_case : test_cases)
     {
         try
         {
             auto batch_to_space = makeBatchToSpaceOp(test_case);
-            FAIL() << "Incompatible element types for block_shape/crops_begin/crops_end inputs not detected";
+            FAIL() << "Incompatible element types for block_shape/crops_begin/crops_end inputs not "
+                      "detected";
         }
-        catch(const NodeValidationFailure& error)
+        catch (const NodeValidationFailure& error)
         {
-            EXPECT_HAS_SUBSTRING(error.what(),
-            "block_shape, crops_begin and crops_end inputs must have same element type.");
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                "block_shape, crops_begin and crops_end inputs must have same element type.");
         }
         catch (...)
         {
-            FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
+            FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for "
+                      "unexpected reason";
         }
     }
 }
@@ -100,25 +98,26 @@ TEST(type_prop, batch_to_space_invalid_input_element_types)
     Shape data_sshape{10, 26};
     Shape inputs_sshape{2};
 
-    const BatchToSpaceInputParams params{
-         InputInfo{float_et, data_sshape},
-         InputInfo{float_et, inputs_sshape},
-         InputInfo{float_et, inputs_sshape},
-         InputInfo{float_et, inputs_sshape}};
+    const BatchToSpaceInputParams params{InputInfo{float_et, data_sshape},
+                                         InputInfo{float_et, inputs_sshape},
+                                         InputInfo{float_et, inputs_sshape},
+                                         InputInfo{float_et, inputs_sshape}};
 
     try
     {
         auto batch_to_space = makeBatchToSpaceOp(params);
-        FAIL() << "Invalid non-integer element type for block_shape/crops_begin/crops_end inputs not detected";
+        FAIL() << "Invalid non-integer element type for block_shape/crops_begin/crops_end inputs "
+                  "not detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-        "block_shape and crops inputs must have integer element type.");
+                             "block_shape and crops inputs must have integer element type.");
     }
     catch (...)
     {
-        FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
+        FAIL() << "Element type check for block_shape/crops_begin/crops_end inputs failed for "
+                  "unexpected reason";
     }
 }
 
@@ -130,18 +129,17 @@ TEST(type_prop, batch_to_space_invalid_data_input_rank)
     Shape inputs_sshape{2};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceInputParams params{
-         InputInfo{data_et, data_sshape},
-         InputInfo{inputs_et, inputs_sshape},
-         InputInfo{inputs_et, inputs_sshape},
-         InputInfo{inputs_et, inputs_sshape}};
+    const BatchToSpaceInputParams params{InputInfo{data_et, data_sshape},
+                                         InputInfo{inputs_et, inputs_sshape},
+                                         InputInfo{inputs_et, inputs_sshape},
+                                         InputInfo{inputs_et, inputs_sshape}};
 
     try
     {
         auto batch_to_space = makeBatchToSpaceOp(params);
         FAIL() << "Invalid rank of data input not detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "data input must have rank greater or equal than 2.");
     }
@@ -161,42 +159,39 @@ TEST(type_prop, batch_to_space_incompatible_secondary_inputs_shapes)
     element::Type inputs_et = element::i64;
 
     vector<BatchToSpaceInputParams> test_cases;
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-             InputInfo{data_et, data_sshape},
-             InputInfo{inputs_et, inputs_sshape_2D},
-             InputInfo{inputs_et, inputs_sshape_1D},
-             InputInfo{inputs_et, inputs_sshape_1D}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{data_et, data_sshape},
+                                                 InputInfo{inputs_et, inputs_sshape_2D},
+                                                 InputInfo{inputs_et, inputs_sshape_1D},
+                                                 InputInfo{inputs_et, inputs_sshape_1D}});
 
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-             InputInfo{data_et, data_sshape},
-             InputInfo{inputs_et, inputs_sshape_1D},
-             InputInfo{inputs_et, inputs_sshape_2D},
-             InputInfo{inputs_et, inputs_sshape_1D}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{data_et, data_sshape},
+                                                 InputInfo{inputs_et, inputs_sshape_1D},
+                                                 InputInfo{inputs_et, inputs_sshape_2D},
+                                                 InputInfo{inputs_et, inputs_sshape_1D}});
 
-    test_cases.push_back(
-        BatchToSpaceInputParams{
-             InputInfo{data_et, data_sshape},
-             InputInfo{inputs_et, inputs_sshape_1D},
-             InputInfo{inputs_et, inputs_sshape_2D},
-             InputInfo{inputs_et, inputs_sshape_2D}});
+    test_cases.push_back(BatchToSpaceInputParams{InputInfo{data_et, data_sshape},
+                                                 InputInfo{inputs_et, inputs_sshape_1D},
+                                                 InputInfo{inputs_et, inputs_sshape_2D},
+                                                 InputInfo{inputs_et, inputs_sshape_2D}});
 
     for (const auto& test_case : test_cases)
     {
         try
         {
             auto batch_to_space = makeBatchToSpaceOp(test_case);
-            FAIL() << "Incompatible shapes for block_shape/crops_begin/crops_end inputs not detected";
+            FAIL()
+                << "Incompatible shapes for block_shape/crops_begin/crops_end inputs not detected";
         }
-        catch(const NodeValidationFailure& error)
+        catch (const NodeValidationFailure& error)
         {
-            EXPECT_HAS_SUBSTRING(error.what(),
-            "block_shape, crops_begin and crops_end inputs must have the same shape.");
+            EXPECT_HAS_SUBSTRING(
+                error.what(),
+                "block_shape, crops_begin and crops_end inputs must have the same shape.");
         }
         catch (...)
         {
-            FAIL() << "Shapes check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
+            FAIL() << "Shapes check for block_shape/crops_begin/crops_end inputs failed for "
+                      "unexpected reason";
         }
     }
 }
@@ -209,25 +204,24 @@ TEST(type_prop, batch_to_space_invalid_secondary_inputs_rank)
     Shape inputs_sshape_2D{2, 1};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceInputParams params{
-         InputInfo{data_et, data_sshape},
-         InputInfo{inputs_et, inputs_sshape_2D},
-         InputInfo{inputs_et, inputs_sshape_2D},
-         InputInfo{inputs_et, inputs_sshape_2D}};
+    const BatchToSpaceInputParams params{InputInfo{data_et, data_sshape},
+                                         InputInfo{inputs_et, inputs_sshape_2D},
+                                         InputInfo{inputs_et, inputs_sshape_2D},
+                                         InputInfo{inputs_et, inputs_sshape_2D}};
 
     try
     {
         auto batch_to_space = makeBatchToSpaceOp(params);
         FAIL() << "Invalid rank for block_shape/crops_begin/crops_end inputs not detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-        "block_shape and crops inputs must have rank 1.");
+        EXPECT_HAS_SUBSTRING(error.what(), "block_shape and crops inputs must have rank 1.");
     }
     catch (...)
     {
-        FAIL() << "Rank check for block_shape/crops_begin/crops_end inputs failed for unexpected reason";
+        FAIL() << "Rank check for block_shape/crops_begin/crops_end inputs failed for unexpected "
+                  "reason";
     }
 }
 
@@ -239,26 +233,27 @@ TEST(type_prop, batch_to_space_incompatible_data_and_secondary_inputs_shapes)
     Shape inputs_sshape{5};
     element::Type inputs_et = element::i64;
 
-    const BatchToSpaceInputParams params{
-        InputInfo{data_et, data_sshape},
-        InputInfo{inputs_et, inputs_sshape},
-        InputInfo{inputs_et, inputs_sshape},
-        InputInfo{inputs_et, inputs_sshape}};
+    const BatchToSpaceInputParams params{InputInfo{data_et, data_sshape},
+                                         InputInfo{inputs_et, inputs_sshape},
+                                         InputInfo{inputs_et, inputs_sshape},
+                                         InputInfo{inputs_et, inputs_sshape}};
 
     try
     {
         auto batch_to_space = makeBatchToSpaceOp(params);
-        FAIL() << "Incompatible shapes for data and block_shape/crops_begin/crops_end inputs not detected";
+        FAIL() << "Incompatible shapes for data and block_shape/crops_begin/crops_end inputs not "
+                  "detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-        "block_shape and crop inputs must have same number of elements "
-        "as data input rank.");
+                             "block_shape and crop inputs must have same number of elements "
+                             "as data input rank.");
     }
     catch (...)
     {
-        FAIL() << "Compatibility shape check for data and block_shape/crops_begin/crops_end inputs failed for unexpected reason";
+        FAIL() << "Compatibility shape check for data and block_shape/crops_begin/crops_end inputs "
+                  "failed for unexpected reason";
     }
 }
 
@@ -271,25 +266,28 @@ TEST(type_prop, batch_to_space_invalid_block_shape_input)
     element::Type inputs_et = element::i64;
 
     auto data = make_shared<op::Parameter>(data_et, data_sshape);
-    auto block_shape = make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 10, 5, 1});
-    auto crops_begin = make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 1, 0});
-    auto crops_end = make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 0, 0});
+    auto block_shape =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 10, 5, 1});
+    auto crops_begin =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 1, 0});
+    auto crops_end =
+        make_shared<op::Constant>(inputs_et, inputs_sshape, vector<int64_t>{0, 3, 0, 0});
 
     try
     {
         auto batch_to_space =
-        make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+            make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
         FAIL() << "Invalid elements of block_shape input not detected";
     }
     catch (const NodeValidationFailure& error)
     {
-
         EXPECT_HAS_SUBSTRING(error.what(),
-            "Elements of block_shape input must be greater or equal to one.");
+                             "Elements of block_shape input must be greater or equal to one.");
     }
     catch (...)
     {
-        FAIL() << "Greater than zero elements of block_shape input check failed for unexpected reason";
+        FAIL()
+            << "Greater than zero elements of block_shape input check failed for unexpected reason";
     }
 }
 
@@ -316,12 +314,14 @@ TEST(type_prop, batch_to_space_invalid_crops_input_values)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
             "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
     }
     catch (...)
     {
-        FAIL() << "Non-negative element check of crops_begin input values failed for unexpected reason";
+        FAIL() << "Non-negative element check of crops_begin input values failed for unexpected "
+                  "reason";
     }
 
     try
@@ -339,12 +339,14 @@ TEST(type_prop, batch_to_space_invalid_crops_input_values)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
             "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
     }
     catch (...)
     {
-        FAIL() << "Non-negative element check of crops_end input values failed for unexpected reason";
+        FAIL()
+            << "Non-negative element check of crops_end input values failed for unexpected reason";
     }
 }
 
@@ -373,7 +375,8 @@ TEST(type_prop, batch_to_space_incompatible_block_shape_input_values_with_data_s
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-            "The input data's 'batch' axis size: 80 must be a multiple of product of block_shape values: 50");
+                             "The input data's 'batch' axis size: 80 must be a multiple of product "
+                             "of block_shape values: 50");
     }
     catch (...)
     {
@@ -406,7 +409,8 @@ TEST(type_prop, batch_to_space_invalid_crops_out_of_bounds)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-            "crops_begin[i] + crops_end[i] must be less or equal to block_shape[i] * input_shape[i]");
+                             "crops_begin[i] + crops_end[i] must be less or equal to "
+                             "block_shape[i] * input_shape[i]");
     }
     catch (...)
     {
@@ -417,12 +421,9 @@ TEST(type_prop, batch_to_space_invalid_crops_out_of_bounds)
 TEST(type_prop, batch_to_space_output_shape_2D)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{10, 26});
-    auto block_shape =
-        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
-    auto crops_begin =
-        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
-    auto crops_end =
-        make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{1, 5});
+    auto crops_begin = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 2});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 0});
     auto batch_to_space =
         make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
@@ -437,8 +438,7 @@ TEST(type_prop, batch_to_space_output_shape_4D)
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
     auto crops_begin =
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
-    auto crops_end =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
     auto batch_to_space =
         make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
@@ -492,8 +492,7 @@ TEST(type_prop, batch_to_space_dynamic_shape_static_rank)
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
     auto crops_begin =
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
-    auto crops_end =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
     auto batch_to_space =
         make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
@@ -508,8 +507,7 @@ TEST(type_prop, batch_to_space_dynamic_shape_dynamic_rank)
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
     auto crops_begin =
         make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
-    auto crops_end =
-        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
     auto batch_to_space =
         make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 

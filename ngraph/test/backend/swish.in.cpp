@@ -24,9 +24,12 @@ NGRAPH_TEST(${BACKEND_NAME}, swish_2D_with_beta0_6)
     auto swish = make_shared<op::v4::Swish>(args0, args1);
     auto f = make_shared<Function>(swish, ParameterVector{args0, args1});
 
-    vector<vector<float>> in_vec{vector<float>{0.4, -5.7, -6, 3, -0.9, 23, 5, 3.3} , vector<float>{beta}};
+    vector<vector<float>> in_vec{vector<float>{0.4, -5.7, -6, 3, -0.9, 23, 5, 3.3},
+                                 vector<float>{beta}};
     vector<float> out_vec{in_vec[0]};
-    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [&beta](float x) -> float { return (x / (1.0f + std::exp(x * beta * -1.0f)));});
+    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [&beta](float x) -> float {
+        return (x / (1.0f + std::exp(x * beta * -1.0f)));
+    });
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>(in_vec);
@@ -45,7 +48,9 @@ NGRAPH_TEST(${BACKEND_NAME}, swish_2D_without_beta)
 
     vector<float> in_vec{1, 8, -8, 17, -0.5, -1};
     vector<float> out_vec{in_vec};
-    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [](float x) -> float { return (x / (1.0f + std::exp(x * -1.0f)));});
+    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [](float x) -> float {
+        return (x / (1.0f + std::exp(x * -1.0f)));
+    });
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(in_vec);
@@ -64,9 +69,12 @@ NGRAPH_TEST(${BACKEND_NAME}, swish_4D_with_beta0_33)
     auto swish = make_shared<op::v4::Swish>(args0, args1);
     auto f = make_shared<Function>(swish, ParameterVector{args0, args1});
 
-    vector<vector<float>> in_vec{vector<float>{0.1, 0.6, 20, -7, -5.3, 3.5, -9, 11} , vector<float>{beta}};
+    vector<vector<float>> in_vec{vector<float>{0.1, 0.6, 20, -7, -5.3, 3.5, -9, 11},
+                                 vector<float>{beta}};
     vector<float> out_vec{in_vec[0]};
-    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [&beta](float x) -> float { return (x / (1.0f + std::exp(x * beta * -1.0f)));});
+    std::transform(out_vec.begin(), out_vec.end(), out_vec.begin(), [&beta](float x) -> float {
+        return (x / (1.0f + std::exp(x * beta * -1.0f)));
+    });
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>(in_vec);

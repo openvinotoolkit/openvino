@@ -28,7 +28,8 @@ TEST(type_prop, squeeze)
 
 TEST(type_prop, squeeze_unsqueezable_no_axes)
 {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), Dimension(3, 4), 6});
+    auto param =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), Dimension(3, 4), 6});
     auto squeeze = make_shared<op::Squeeze>(param);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
@@ -92,8 +93,7 @@ TEST(type_prop, squeeze_dynamic_dynamic_rank)
 TEST(type_prop, squeeze_axes_dynamic)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
-    auto axes_node =
-        make_shared<ngraph::op::Parameter>(element::u64, PartialShape::dynamic());
+    auto axes_node = make_shared<ngraph::op::Parameter>(element::u64, PartialShape::dynamic());
     auto squeeze = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);
@@ -161,19 +161,18 @@ TEST(type_prop, squeeze_negative_axes)
     ASSERT_EQ(squeeze_default_axes->get_shape(), (Shape{4, 4, 8}));
 }
 
-
 TEST(type_prop, squeeze_incorrect_negative_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
     auto axes_node =
         make_shared<ngraph::op::Constant>(element::i64, Shape{2}, vector<int64_t>{-6, -10});
 
-    try     
+    try
     {
         auto squeeze = make_shared<op::Squeeze>(param, axes_node);
         FAIL() << "Squeeze axis invalid value not detected";
     }
-    catch (ngraph_error &error)
+    catch (ngraph_error& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), "Parameter axis -10 out of the tensor rank range");
     }
@@ -186,8 +185,7 @@ TEST(type_prop, squeeze_incorrect_negative_axes)
 TEST(type_prop, squeeze_scalar_axes)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{1, 4, 1, 4, 1, 8});
-    auto axes_node =
-            make_shared<ngraph::op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
+    auto axes_node = make_shared<ngraph::op::Constant>(element::i64, Shape{}, vector<int64_t>{2});
     auto squeeze = make_shared<op::Squeeze>(param, axes_node);
 
     ASSERT_EQ(squeeze->get_element_type(), element::f32);

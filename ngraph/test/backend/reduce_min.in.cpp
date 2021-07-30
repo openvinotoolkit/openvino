@@ -348,7 +348,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_min_keep_matrix_rows_int32)
     EXPECT_EQ((vector<int32_t>{1, 3, 5}), read_vector<int32_t>(result));
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, reduce_min_keep_3d_to_matrix_most_sig)
 {
     Shape shape_a{3, 3, 3};

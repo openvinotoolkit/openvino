@@ -43,15 +43,16 @@ class GatherNodesPass : public ngraph::pass::MatcherPass
 {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherNodesPass(NodeVector & order)
-            : MatcherPass()
+    GatherNodesPass(NodeVector& order)
+        : MatcherPass()
     {
         ngraph::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
             order.push_back(m.get_match_root());
             return false;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(), "GatherNodesPass");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(),
+                                                            "GatherNodesPass");
         this->register_matcher(m, callback);
     }
 };

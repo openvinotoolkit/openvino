@@ -558,12 +558,12 @@ endif()
 
 # SOURCE FOR FRONTEND TESTING
 
-file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
-set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
+file(GLOB FRONTEND_TESTS_SRC frontend/frontend_manager.cpp)
+list(APPEND SRC ${FRONTEND_TESTS_SRC})
 
-file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
-file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
-set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
+file(GLOB FRONTEND_SHARED_TESTS_SRC frontend/shared/src/*.cpp)
+file(GLOB FRONTEND_SHARED_TESTS_HDR frontend/shared/include/*.hpp)
+list(APPEND SRC ${FRONTEND_SHARED_TESTS_SRC})
 
 add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
 
@@ -572,8 +572,8 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     ie_check_pip_package(paddlepaddle WARNING)
 
     if(paddlepaddle_FOUND)
-        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
-        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
+        file(GLOB FRONTEND_PDPD_TESTS_SRC frontend/paddlepaddle/*.cpp)
+        list(APPEND SRC ${FRONTEND_PDPD_TESTS_SRC})
         set(PADDLE_TEST_MODELS_DIRNAME paddle_test_models)
         set(TEST_PADDLE_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PADDLE_TEST_MODELS_DIRNAME}/)
         add_definitions("-DTEST_PADDLE_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\"")
@@ -581,7 +581,15 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
 endif()
 # ---- End PaddlePaddle FrontEnd testing ------
 
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
+foreach(src IN LISTS SRC MULTI_TEST_SRC FRONTEND_SHARED_TESTS_HDR)
+    if(IS_ABSOLUTE "${src}")
+        list(APPEND full_src_names ${src})
+    else()
+        list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+    endif()
+endforeach()
+
+add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)

@@ -24,7 +24,14 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_erf_mode_inference_f32_8D)
     auto f = make_shared<Function>(gelu, ParameterVector{param});
 
     vector<float> in_vec{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0};
-    vector<float> out_vec{-0.00012636185, -0.0040495098, -0.04550028, -0.15865529, 0.0, 0.8413447, 1.9544997, 2.9959507};
+    vector<float> out_vec{-0.00012636185,
+                          -0.0040495098,
+                          -0.04550028,
+                          -0.15865529,
+                          0.0,
+                          0.8413447,
+                          1.9544997,
+                          2.9959507};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(in_shape, in_vec);
@@ -42,7 +49,14 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_8D)
     auto f = make_shared<Function>(gelu, ParameterVector{param});
 
     vector<float> in_vec{-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0};
-    vector<float> out_vec{-0.00012636185, -0.0040495098, -0.04550028, -0.15865529, 0.0, 0.8413447, 1.9544997, 2.9959507};
+    vector<float> out_vec{-0.00012636185,
+                          -0.0040495098,
+                          -0.04550028,
+                          -0.15865529,
+                          0.0,
+                          0.8413447,
+                          1.9544997,
+                          2.9959507};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(in_shape, in_vec);
@@ -60,7 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_erf_mode_inference_f32_3D)
     auto f = make_shared<Function>(gelu, ParameterVector{param});
 
     vector<float> in_vec{-0.5, 0.1, 0.4};
-    vector<float> out_vec{-0.15426877,  0.05398279,  0.2621686};
+    vector<float> out_vec{-0.15426877, 0.05398279, 0.2621686};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input(in_shape, in_vec);
@@ -78,7 +92,7 @@ NGRAPH_TEST(${BACKEND_NAME}, gelu_tanh_mode_inference_f32_3D)
     auto f = make_shared<Function>(gelu, ParameterVector{param});
 
     vector<float> in_vec{-0.5, 0.1, 0.4};
-    vector<float> out_vec{-0.15428599,  0.053982753,  0.262161165};
+    vector<float> out_vec{-0.15428599, 0.053982753, 0.262161165};
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input(in_shape, in_vec);

@@ -38,5 +38,3 @@ TEST(attributes, round_op_enum_mode_half_away_from_zero)
 {
     test_mode(opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
 }
-
-

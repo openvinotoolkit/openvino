@@ -55,7 +55,7 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
     auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+        make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
@@ -101,8 +101,8 @@ static void DeformableConvolutionOpset8Test(const std::vector<float>& inputs,
                                                            group,
                                                            deformable_group,
                                                            use_bilinear_interpolation_padding);
-    auto f =
-            make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
+    auto f = make_shared<Function>(
+        conv, ParameterVector{inputs_param, offsets_param, filter_param, mask_param});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);

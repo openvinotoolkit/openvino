@@ -56,8 +56,7 @@ TEST(type_prop, adaptive_avg_pool_dyn_spatial)
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
     auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
 
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, 5, 7}));
+    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, 5, 7}));
 }
 
 TEST(type_prop, adaptive_avg_pool_dyn_output_shape)
@@ -102,6 +101,5 @@ TEST(type_prop, adaptive_avg_pool_wrong_out_shape)
     auto data = make_shared<op::Parameter>(element::f32, arg_shape);
     auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, output_shape);
 
-    EXPECT_THROW(make_shared<op::v8::AdaptiveAvgPool>(data, out_shape),
-                 NodeValidationFailure);
+    EXPECT_THROW(make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
 }

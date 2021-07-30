@@ -45,4 +45,3 @@ TEST(attributes, reverse_op_string_mode)
 
     EXPECT_EQ(g_reverse->get_mode(), reverse->get_mode());
 }
-

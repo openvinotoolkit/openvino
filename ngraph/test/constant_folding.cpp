@@ -1908,11 +1908,11 @@ TEST(constant_folding, const_gather_v1_subgraph_skip_if_not_single_input)
 TEST(constant_folding, const_gather_v7)
 {
     auto constant_data = op::Constant::create(
-            element::f32,
-            Shape{2, 5},
-            vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        element::f32,
+        Shape{2, 5},
+        vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     auto constant_indices =
-            op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     auto constant_axis = op::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
     auto gather = make_shared<op::v7::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
@@ -1926,7 +1926,7 @@ TEST(constant_folding, const_gather_v7)
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
-            as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
     auto values_out = new_const->get_vector<float>();
@@ -1939,11 +1939,11 @@ TEST(constant_folding, const_gather_v7)
 TEST(constant_folding, const_gather_v7_scalar)
 {
     auto constant_data = op::Constant::create(
-            element::f32,
-            Shape{2, 5},
-            vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        element::f32,
+        Shape{2, 5},
+        vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     auto constant_indices =
-            op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     auto constant_axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
     auto gather = make_shared<op::v7::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
@@ -1957,7 +1957,7 @@ TEST(constant_folding, const_gather_v7_scalar)
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const =
-            as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
     auto values_out = new_const->get_vector<float>();
@@ -1993,7 +1993,7 @@ TEST(constant_folding, const_gather_v7_subgraph)
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     const auto new_const =
-            as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
 
@@ -2027,7 +2027,7 @@ TEST(constant_folding, const_gather_v7_subgraph_neg_axis)
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     const auto new_const =
-            as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     ASSERT_EQ(new_const->get_friendly_name(), "test");
 
@@ -2288,8 +2288,10 @@ TEST(constant_folding, const_reshape_no_data_copy)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 =
+        std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 =
+        std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2311,8 +2313,10 @@ TEST(constant_folding, const_squeeze_no_data_copy)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 =
+        std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 =
+        std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2334,8 +2338,10 @@ TEST(constant_folding, const_unsqueeze_no_data_copy)
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 =
+        std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 =
+        std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);

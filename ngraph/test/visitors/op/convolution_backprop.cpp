@@ -56,19 +56,24 @@ TEST(attributes, convolution_backprop_output_shape_output_padding)
     const auto dilations = Strides{3, 1};
     const auto output_padding = CoordinateDiff{3, 4};
 
-    const std::initializer_list<op::PadType> allPadTypes = {op::PadType::EXPLICIT, op::PadType::SAME_UPPER, op::PadType::SAME_LOWER, op::PadType::VALID, op::PadType::AUTO, op::PadType::NOTSET};
+    const std::initializer_list<op::PadType> allPadTypes = {op::PadType::EXPLICIT,
+                                                            op::PadType::SAME_UPPER,
+                                                            op::PadType::SAME_LOWER,
+                                                            op::PadType::VALID,
+                                                            op::PadType::AUTO,
+                                                            op::PadType::NOTSET};
 
     for (auto padType : allPadTypes)
     {
         const auto convolution = make_shared<opset1::ConvolutionBackpropData>(data,
-                                                                            filter,
-                                                                            output_shape,
-                                                                            strides,
-                                                                            pads_begin,
-                                                                            pads_end,
-                                                                            dilations,
-                                                                            padType,
-                                                                            output_padding);
+                                                                              filter,
+                                                                              output_shape,
+                                                                              strides,
+                                                                              pads_begin,
+                                                                              pads_end,
+                                                                              dilations,
+                                                                              padType,
+                                                                              output_padding);
         NodeBuilder builder(convolution);
         const auto g_convolution = as_type_ptr<opset1::ConvolutionBackpropData>(builder.create());
 

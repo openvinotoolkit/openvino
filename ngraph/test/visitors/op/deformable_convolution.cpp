@@ -26,7 +26,8 @@ TEST(attributes, deformable_convolution_default_attributes)
     auto pads_begin = CoordinateDiff{0, 0};
     auto pads_end = CoordinateDiff{0, 0};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset8::DeformableConvolution>(data, offsets, filters, strides, pads_begin, pads_end, dilations);
+    auto convolution = make_shared<opset8::DeformableConvolution>(
+        data, offsets, filters, strides, pads_begin, pads_end, dilations);
     NodeBuilder builder(convolution);
     auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
@@ -41,7 +42,8 @@ TEST(attributes, deformable_convolution_default_attributes)
     EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
     EXPECT_EQ(g_convolution->get_group(), convolution->get_group());
     EXPECT_EQ(g_convolution->get_deformable_group(), convolution->get_deformable_group());
-    EXPECT_EQ(g_convolution->get_bilinear_interpolation_pad(), convolution->get_bilinear_interpolation_pad());
+    EXPECT_EQ(g_convolution->get_bilinear_interpolation_pad(),
+              convolution->get_bilinear_interpolation_pad());
 }
 
 TEST(attributes, deformable_convolution_attributes)
@@ -56,8 +58,18 @@ TEST(attributes, deformable_convolution_attributes)
     auto pads_begin = CoordinateDiff{0, 0};
     auto pads_end = CoordinateDiff{0, 0};
     auto dilations = Strides{1, 1};
-    auto convolution = make_shared<opset8::DeformableConvolution>(data, offsets, filters, mask, strides, pads_begin, pads_end, dilations,
-                                                                  op::PadType::SAME_LOWER, 2, 2, true);
+    auto convolution = make_shared<opset8::DeformableConvolution>(data,
+                                                                  offsets,
+                                                                  filters,
+                                                                  mask,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations,
+                                                                  op::PadType::SAME_LOWER,
+                                                                  2,
+                                                                  2,
+                                                                  true);
     NodeBuilder builder(convolution);
     auto g_convolution = as_type_ptr<opset8::DeformableConvolution>(builder.create());
 
@@ -72,5 +84,6 @@ TEST(attributes, deformable_convolution_attributes)
     EXPECT_EQ(g_convolution->get_auto_pad(), convolution->get_auto_pad());
     EXPECT_EQ(g_convolution->get_group(), convolution->get_group());
     EXPECT_EQ(g_convolution->get_deformable_group(), convolution->get_deformable_group());
-    EXPECT_EQ(g_convolution->get_bilinear_interpolation_pad(), convolution->get_bilinear_interpolation_pad());
+    EXPECT_EQ(g_convolution->get_bilinear_interpolation_pad(),
+              convolution->get_bilinear_interpolation_pad());
 }

@@ -31,7 +31,6 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
 NGRAPH_TEST(${BACKEND_NAME}, sinh)
 {
     Shape shape{8};
@@ -41,7 +40,8 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, 0, 1, 2, 3});
     test_case.add_expected_output<float>(
-        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(0), sinhf(1), sinhf(2), sinhf(3)});
+        shape,
+        {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(0), sinhf(1), sinhf(2), sinhf(3)});
     test_case.run();
 }
 
@@ -53,8 +53,8 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_negative)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-4, -3, -2, -1, -5});
-    test_case.add_expected_output<float>(
-        shape, {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(-5)});
+    test_case.add_expected_output<float>(shape,
+                                         {sinhf(-4), sinhf(-3), sinhf(-2), sinhf(-1), sinhf(-5)});
     test_case.run();
 }
 
@@ -92,7 +92,8 @@ NGRAPH_TEST(${BACKEND_NAME}, sinh_in_place)
 NGRAPH_TEST(${BACKEND_NAME}, sinh_i32)
 {
     Shape shape{5};
-    auto A = make_shared<op::Parameter>(element::i32, shape);;
+    auto A = make_shared<op::Parameter>(element::i32, shape);
+    ;
     auto f = make_shared<Function>(make_shared<op::Sinh>(A), ParameterVector{A});
 
     const vector<int32_t> input{2, 1, 0, -1, -2};

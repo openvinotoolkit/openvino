@@ -4,8 +4,8 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/test_case.hpp"
 #include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;
@@ -14,7 +14,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-template<typename T>
+template <typename T>
 struct BatchNormTestParams
 {
     std::vector<T> in;
@@ -36,15 +36,9 @@ static void BatchNormInferenceTest(const BatchNormTestParams<T>& p)
     auto beta = make_shared<op::Parameter>(element::from<T>(), ch_shape);
     auto mean = make_shared<op::Parameter>(element::from<T>(), ch_shape);
     auto variance = make_shared<op::Parameter>(element::from<T>(), ch_shape);
-    auto batch_norm = make_shared<op::v5::BatchNormInference>(
-        input,
-        gamma,
-        beta,
-        mean,
-        variance,
-        p.epsilon);
-    auto f = make_shared<Function>(
-        batch_norm, ParameterVector{input, gamma, beta, mean, variance});
+    auto batch_norm =
+        make_shared<op::v5::BatchNormInference>(input, gamma, beta, mean, variance, p.epsilon);
+    auto f = make_shared<Function>(batch_norm, ParameterVector{input, gamma, beta, mean, variance});
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<T>(p.in_shape, p.in);
     test_case.add_input<T>(ch_shape, p.in_g);
@@ -58,48 +52,44 @@ static void BatchNormInferenceTest(const BatchNormTestParams<T>& p)
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_2d_f32)
 {
     const std::vector<BatchNormTestParams<float>> batch_norm_tests{
-        BatchNormTestParams<float>{
-                {1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
-                Shape{2, 3},
-                {2.0, 3.0, 4.0},
-                {0.0, 0.0, 0.0},
-                {0.0, 0.0, 0.0},
-                {0.75, 0.75, 0.75},
-                0.25,
-                {2.0, 6.0, 12.0, -2.0, -6.0, -12.0}},
+        BatchNormTestParams<float>{{1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
+                                   Shape{2, 3},
+                                   {2.0, 3.0, 4.0},
+                                   {0.0, 0.0, 0.0},
+                                   {0.0, 0.0, 0.0},
+                                   {0.75, 0.75, 0.75},
+                                   0.25,
+                                   {2.0, 6.0, 12.0, -2.0, -6.0, -12.0}},
 
-        BatchNormTestParams<float>{
-                {1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
-                Shape{2, 3},
-                {1.0, 1.0, 1.0},
-                {2.0, -2.0, 3.0},
-                {0.0, 0.0, 0.0},
-                {0.75, 0.75, 0.75},
-                0.25,
-                {3.0, 0.0, 6.0, 1.0, -4.0, 0.0}},
+        BatchNormTestParams<float>{{1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
+                                   Shape{2, 3},
+                                   {1.0, 1.0, 1.0},
+                                   {2.0, -2.0, 3.0},
+                                   {0.0, 0.0, 0.0},
+                                   {0.75, 0.75, 0.75},
+                                   0.25,
+                                   {3.0, 0.0, 6.0, 1.0, -4.0, 0.0}},
 
-        BatchNormTestParams<float>{
-                {1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
-                Shape{2, 3},
-                {1.0, 1.0, 1.0},
-                {0.0, 0.0, 0.0},
-                {-2.0, 2.0, -3.0},
-                {0.75, 0.75, 0.75},
-                0.25,
-                {3.0, 0.0, 6.0, 1.0, -4.0, 0.0}},
+        BatchNormTestParams<float>{{1.0, 2.0, 3.0, -1.0, -2.0, -3.0},
+                                   Shape{2, 3},
+                                   {1.0, 1.0, 1.0},
+                                   {0.0, 0.0, 0.0},
+                                   {-2.0, 2.0, -3.0},
+                                   {0.75, 0.75, 0.75},
+                                   0.25,
+                                   {3.0, 0.0, 6.0, 1.0, -4.0, 0.0}},
 
-        BatchNormTestParams<float>{
-                {3.0, 5.0, 1.0, -3.0, -5.0, -1.0},
-                Shape{2, 3},
-                {1.0, 1.0, 1.0},
-                {0.0, 0.0, 0.0},
-                {0.0, 0.0, 0.0},
-                {2.0, 6.0, 0.0},
-                0.25,
-                {2.0, 2.0, 2.0, -2.0, -2.0, -2.0}},
+        BatchNormTestParams<float>{{3.0, 5.0, 1.0, -3.0, -5.0, -1.0},
+                                   Shape{2, 3},
+                                   {1.0, 1.0, 1.0},
+                                   {0.0, 0.0, 0.0},
+                                   {0.0, 0.0, 0.0},
+                                   {2.0, 6.0, 0.0},
+                                   0.25,
+                                   {2.0, 2.0, 2.0, -2.0, -2.0, -2.0}},
     };
 
-    for(const auto& test_case : batch_norm_tests)
+    for (const auto& test_case : batch_norm_tests)
     {
         BatchNormInferenceTest(test_case);
     }
@@ -119,10 +109,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_4d_f32)
                           0.4375872f,
                           0.89177299f};
 
-    std::vector<std::vector<float>> ch_in_1{{1.0, 1.0},
-                                            {1.0, 1.0},
-                                            {1.0, 1.0},
-                                            {1.0, 1.0}};
+    std::vector<std::vector<float>> ch_in_1{{1.0, 1.0}, {1.0, 1.0}, {1.0, 1.0}, {1.0, 1.0}};
     std::vector<float> out_1{0.54903894f,
                              0.71533161f,
                              0.60296183f,
@@ -132,25 +119,18 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_4d_f32)
                              0.43786817f,
                              0.89182704f};
 
-    std::vector<std::vector<float>> ch_in_2{{1.0, 1.0},
-                                            {0.0f, 0.0f},
-                                            {0.583388f, 0.619252f},
-                                            {0.0119972f, 0.0282681f}};
-    std::vector<float> out_2{-0.30327f,
-                             1.1561f,
-                             -0.096382f,
-                             -0.434702f,
-                             -1.4011f,
-                             0.548275f,
-                             -1.06187f,
-                             1.59295f};
+    std::vector<std::vector<float>> ch_in_2{
+        {1.0, 1.0}, {0.0f, 0.0f}, {0.583388f, 0.619252f}, {0.0119972f, 0.0282681f}};
+    std::vector<float> out_2{
+        -0.30327f, 1.1561f, -0.096382f, -0.434702f, -1.4011f, 0.548275f, -1.06187f, 1.59295f};
 
     const std::vector<BatchNormTestParams<float>> batch_norm_tests{
-        BatchNormTestParams<float>{in, in_shape, ch_in_1[0], ch_in_1[1], ch_in_1[2], ch_in_1[3], eps, out_1},
-        BatchNormTestParams<float>{in, in_shape, ch_in_2[0], ch_in_2[1], ch_in_2[2], ch_in_2[3], eps, out_2}
-    };
-    
-    for(const auto& test_case : batch_norm_tests)
+        BatchNormTestParams<float>{
+            in, in_shape, ch_in_1[0], ch_in_1[1], ch_in_1[2], ch_in_1[3], eps, out_1},
+        BatchNormTestParams<float>{
+            in, in_shape, ch_in_2[0], ch_in_2[1], ch_in_2[2], ch_in_2[3], eps, out_2}};
+
+    for (const auto& test_case : batch_norm_tests)
     {
         BatchNormInferenceTest(test_case);
     }

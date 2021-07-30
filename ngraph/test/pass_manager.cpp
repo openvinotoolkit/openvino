@@ -41,4 +41,4 @@ namespace
         }
         bool run_on_function(std::shared_ptr<ngraph::Function> /* f */) override { return false; }
     };
-}
+} // namespace

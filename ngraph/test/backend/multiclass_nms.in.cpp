@@ -31,8 +31,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
                                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -43,7 +42,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
     attrs.background_class = -1;
     attrs.nms_eta = 1.0f;
 
-    const auto boxes_shape = Shape{1, 6, 4};  // N 1, C 2, M 6
+    const auto boxes_shape = Shape{1, 6, 4}; // N 1, C 2, M 6
     const auto scores_shape = Shape{1, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -54,10 +53,9 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_score)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,                                                    
-                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,                                                    
-                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00 };
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
+        0.00, 0.90, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -75,8 +73,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
                                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -98,10 +95,9 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00  };
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
+        1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -110,7 +106,6 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_class_id)
     test_case.add_expected_output<int64_t>({4, 1}, expected_selected_indices);
     test_case.add_expected_output<int64_t>({1}, expected_valid_outputs);
     test_case.run();
-
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
@@ -120,8 +115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
                                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3};
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -144,10 +138,9 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int32_t> expected_selected_indices = {3, 0, 0, 3};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00  };
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
+        1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00};
     std::vector<int32_t> expected_valid_outputs = {4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -160,20 +153,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_output_type_i32)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -184,7 +174,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
     attrs.background_class = -1;
     attrs.nms_eta = 1.0f;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -194,12 +184,12 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
-                                                      9, 6, 6, 9};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3, 9, 6, 6, 9};
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
+        0.00, 0.90, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
+        0.00, 0.90, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 1
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -212,20 +202,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -236,7 +223,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
     attrs.background_class = -1;
     attrs.nms_eta = 1.0f;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -245,12 +232,12 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3,
-                                                      9, 6, 6, 9};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 3, 9, 6, 6, 9};
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
+        1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
+        1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 1
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -263,20 +250,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cross_batch)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -288,7 +272,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cro
     attrs.nms_eta = 1.0f;
     attrs.sort_result_across_batch = true;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -298,16 +282,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cro
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6,
-                                                      0, 6, 3, 9};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   //3
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,  //0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00, //9
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00, //6                                           
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00, //0
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00, //6
-                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00, //3                                                   
-                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 9
+    std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6, 0, 6, 3, 9};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,  // 3
+                                                   1.00, 0.95, 0.00, 0.00,  1.00, 1.00,   // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,  // 9
+                                                   1.00, 0.95, 0.00, 0.00,  1.00, 1.00,   // 6
+                                                   0.00, 0.90, 0.00, 0.00,  1.00, 1.00,   // 0
+                                                   0.00, 0.90, 0.00, 0.00,  1.00, 1.00,   // 6
+                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00,  // 3
+                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 9
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -320,20 +303,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_score_cro
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id_cross_batch)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -345,7 +325,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id_
     attrs.nms_eta = 1.0f;
     attrs.sort_result_across_batch = true;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -354,16 +334,15 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_two_batches_two_classes_by_class_id_
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6,
-                                                      0, 3, 6, 9};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00, //3
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00, //0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   //9
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00, //6
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,   //0 
-                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 3                                                   
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,    //6 
-                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 9
+    std::vector<int64_t> expected_selected_indices = {3, 0, 9, 6, 0, 3, 6, 9};
+    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,  // 3
+                                                   0.00, 0.90, 0.00, 0.00,  1.00, 1.00,   // 0
+                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,  // 9
+                                                   0.00, 0.90, 0.00, 0.00,  1.00, 1.00,   // 6
+                                                   1.00, 0.95, 0.00, 0.00,  1.00, 1.00,   // 0
+                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00,  // 3
+                                                   1.00, 0.95, 0.00, 0.00,  1.00, 1.00,   // 6
+                                                   1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 9
     std::vector<int64_t> expected_valid_outputs = {4, 4};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -401,9 +380,24 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_flipped_coordinates)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {3, 0, 1};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                   0.00, 0.90, 1.00, 1.00, 0.00, 0.00 ,
-                                                   0.00, 0.75, 0.00, 0.10, 1.00, 1.10};
+    std::vector<float> expected_selected_scores = {0.00,
+                                                   0.95,
+                                                   0.00,
+                                                   10.00,
+                                                   1.00,
+                                                   11.00,
+                                                   0.00,
+                                                   0.90,
+                                                   1.00,
+                                                   1.00,
+                                                   0.00,
+                                                   0.00,
+                                                   0.00,
+                                                   0.75,
+                                                   0.00,
+                                                   0.10,
+                                                   1.00,
+                                                   1.10};
     std::vector<int64_t> expected_valid_outputs = {3};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -480,8 +474,8 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_limit_output_size)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {3, 0};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00 };
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {2};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -555,8 +549,8 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_IOU)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {3, 0};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                   0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00};
     std::vector<int64_t> expected_valid_outputs = {2};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -645,20 +639,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_no_output)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -669,7 +660,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
     attrs.background_class = 0;
     attrs.nms_eta = 1.0f;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -679,8 +670,9 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
     std::vector<int64_t> expected_selected_indices = {0, 3, 6, 9};
-    std::vector<float> expected_selected_scores = {1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00, // 0
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     1.00, 0.80, 0.00, 10.00, 1.00, 11.00  }; // 1
+    std::vector<float> expected_selected_scores = {
+        1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,  // 0
+        1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00}; // 1
     std::vector<int64_t> expected_valid_outputs = {2, 2};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -693,20 +685,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_background)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = 3;
@@ -717,7 +706,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
     attrs.background_class = -1;
     attrs.nms_eta = 1.0f;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -726,12 +715,12 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 0,
-                                                      9, 6, 6};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00,     // 0
-                                                   0.00, 0.95, 0.00, 10.00, 1.00, 11.00,   0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-                                                   1.00, 0.95, 0.00, 0.00, 1.00, 1.00  };  // 1
+    std::vector<int64_t> expected_selected_indices = {3, 0, 0, 9, 6, 6};
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
+        0.00, 1.00, 1.00, 1.00,  0.95, 0.00,  0.00, 1.00, 1.00, // 0
+        0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
+        0.00, 1.00, 1.00, 1.00,  0.95, 0.00,  0.00, 1.00, 1.00}; // 1
     std::vector<int64_t> expected_valid_outputs = {3, 3};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);
@@ -744,20 +733,17 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_keep_top_k)
 
 NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
 {
-    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
-                                     0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1                                   
-                                     };
+    std::vector<float> boxes_data = {
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, // 0
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 // 1
+    };
 
     std::vector<float> scores_data = {
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
-        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 
-        0.95, 0.75, 0.6, 0.80, 0.5, 0.3 // 1        
-        };
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3, // 0
+        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3  // 1
+    };
 
     op::v8::MulticlassNms::Attributes attrs;
     attrs.nms_top_k = -1;
@@ -768,7 +754,7 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
     attrs.background_class = -1;
     attrs.nms_eta = 0.1f;
 
-    const auto boxes_shape = Shape{2, 6, 4};  // N 2, C 2, M 6
+    const auto boxes_shape = Shape{2, 6, 4}; // N 2, C 2, M 6
     const auto scores_shape = Shape{2, 2, 6};
 
     const auto boxes = make_shared<op::Parameter>(element::f32, boxes_shape);
@@ -777,20 +763,14 @@ NGRAPH_TEST(${BACKEND_NAME}, multiclass_nms_by_nms_eta)
 
     auto f = make_shared<Function>(nms, ParameterVector{boxes, scores});
 
-    std::vector<int64_t> expected_selected_indices = {3, 0, 5, 0, 3, 5, 
-                                                      9, 6, 11, 6, 9, 11};
-    std::vector<float> expected_selected_scores = {0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
-                                                    0.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
-                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00 ,
-                                                    1.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
-                                                    0.00, 0.95, 0.00, 10.00, 1.00, 11.00 ,
-                                                    0.00, 0.90, 0.00, 0.00, 1.00, 1.00 ,
-                                                    0.00, 0.30, 0.00, 100.00, 1.00, 101.00 ,
-                                                    1.00, 0.95, 0.00, 0.00, 1.00, 1.00 ,
-                                                    1.00, 0.80, 0.00, 10.00, 1.00, 11.00 ,
-                                                    1.00, 0.30, 0.00, 100.00, 1.00, 101.00 };
+    std::vector<int64_t> expected_selected_indices = {3, 0, 5, 0, 3, 5, 9, 6, 11, 6, 9, 11};
+    std::vector<float> expected_selected_scores = {
+        0.00, 0.95, 0.00, 10.00,  1.00, 11.00,  0.00, 0.90, 0.00, 0.00,   1.00, 1.00,
+        0.00, 0.30, 0.00, 100.00, 1.00, 101.00, 1.00, 0.95, 0.00, 0.00,   1.00, 1.00,
+        1.00, 0.80, 0.00, 10.00,  1.00, 11.00,  1.00, 0.30, 0.00, 100.00, 1.00, 101.00,
+        0.00, 0.95, 0.00, 10.00,  1.00, 11.00,  0.00, 0.90, 0.00, 0.00,   1.00, 1.00,
+        0.00, 0.30, 0.00, 100.00, 1.00, 101.00, 1.00, 0.95, 0.00, 0.00,   1.00, 1.00,
+        1.00, 0.80, 0.00, 10.00,  1.00, 11.00,  1.00, 0.30, 0.00, 100.00, 1.00, 101.00};
     std::vector<int64_t> expected_valid_outputs = {6, 6};
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(f);

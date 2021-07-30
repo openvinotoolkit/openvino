@@ -51,4 +51,3 @@ TEST(attributes, cum_sum_op_custom_attributes)
     EXPECT_EQ(g_cs->is_exclusive(), cs->is_exclusive());
     EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
 }
-

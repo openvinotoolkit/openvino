@@ -30,7 +30,7 @@ namespace
         }
         return munged_name;
     }
-}
+} // namespace
 
 #define CHECK_OPSET(op1, op2)                                                                      \
     EXPECT_TRUE(is_type<op1>(make_shared<op2>()));                                                 \

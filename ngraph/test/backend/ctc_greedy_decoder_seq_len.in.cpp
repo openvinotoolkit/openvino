@@ -171,7 +171,6 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len_multiple_batche
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len_no_optional_input)
 {
     const int N = 1;
@@ -179,17 +178,17 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_ctc_greedy_decoder_seq_len_no_optional_inp
     const int C = 3;
     const auto data_shape = Shape{N, T, C};
     const auto seq_len_shape = Shape{N};
-    
+
     auto data = make_shared<op::Parameter>(element::f32, data_shape);
     auto seq_len = make_shared<op::Parameter>(element::i32, seq_len_shape);
     auto decoder = make_shared<op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, false);
     auto function = make_shared<Function>(decoder, ParameterVector{data, seq_len});
     auto test_case = test::TestCase<TestEngine>(function);
-    
+
     test_case.add_input<float>({0.1f, 0.2f, 0.f, 0.4f, 0.3f, 0.f, 0.5f, 0.6f, 0.f});
     test_case.add_input<int32_t>({2});
     test_case.add_expected_output(Shape{N, T}, vector<int32_t>{1, 0, -1});
     test_case.add_expected_output(Shape{N}, vector<int32_t>{2});
-    
+
     test_case.run();
 }

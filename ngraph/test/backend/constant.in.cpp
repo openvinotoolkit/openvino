@@ -209,7 +209,7 @@ namespace
         handle->call_with_validate({result}, {});
         EXPECT_EQ(data, read_raw_data(result));
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, constant_equality_u4_2x2x3)
 {

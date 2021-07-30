@@ -5,8 +5,8 @@
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
-#include "util/visitor.hpp"
 #include "ngraph/opsets/opset1.hpp"
+#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;

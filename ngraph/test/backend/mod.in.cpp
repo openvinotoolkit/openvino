@@ -144,6 +144,6 @@ NGRAPH_TEST(${BACKEND_NAME}, mod_in_place)
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape, {0, 0 ,0 ,0});
+    test_case.add_expected_output<float>(shape, {0, 0, 0, 0});
     test_case.run();
 }

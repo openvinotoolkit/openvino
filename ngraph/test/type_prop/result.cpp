@@ -12,7 +12,7 @@ using namespace ngraph;
 
 TEST(type_prop, result)
 {
-    const auto arg_shape =Shape{1, 2, 3, 4, 5};
+    const auto arg_shape = Shape{1, 2, 3, 4, 5};
     auto arg = make_shared<opset1::Constant>(element::f32, arg_shape);
 
     auto result = make_shared<opset1::Result>(arg);

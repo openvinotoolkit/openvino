@@ -124,7 +124,8 @@ TEST(type_prop, transpose_arg_rank_static_dynamic_input_order_rank_dynamic_ok)
 
 TEST(type_prop, transpose_dynamic_interval_input_data)
 {
-    auto arg = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(4, 6), Dimension(2, 3), 8});
+    auto arg =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(4, 6), Dimension(2, 3), 8});
     auto input_order = make_shared<op::Parameter>(element::i64, Shape{3});
 
     auto r = make_shared<op::Transpose>(arg, input_order);

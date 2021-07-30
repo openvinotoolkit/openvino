@@ -39,7 +39,7 @@ namespace
     };
 
     constexpr NodeTypeInfo UnhandledOp::type_info;
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, unhandled_op)
 {

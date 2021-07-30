@@ -814,7 +814,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_acc)
 }
 #endif
 
-
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_float)
 {
     std::string backend_name = "${BACKEND_NAME}";

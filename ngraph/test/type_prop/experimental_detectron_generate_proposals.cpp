@@ -47,9 +47,6 @@ TEST(type_prop, detectron_proposals)
     ASSERT_EQ(proposals->get_output_element_type(1), element::f32);
     EXPECT_EQ(proposals->get_output_shape(0), (Shape{post_nms_count, 4}));
     EXPECT_EQ(proposals->get_output_shape(1), (Shape{post_nms_count}));
-
-
-
 }
 
 TEST(type_prop, detectron_proposals_dynamic)

@@ -81,7 +81,7 @@ namespace
                                       read_vector<float>(result),
                                       MIN_FLOAT_TOLERANCE_BITS));
     }
-}
+} // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, scatter_nd_update_1x1)
 {

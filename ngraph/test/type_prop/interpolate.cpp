@@ -201,7 +201,8 @@ TEST(type_prop, interpolate_v4_interval_logic)
     auto scales = op::Constant::create<float>(element::f32, Shape{3}, {0.5f, 0.25f, 0.125f});
     auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
 
-    const auto out_shape = PartialShape{2, 2, Dimension(6, 400), Dimension(0, -1), Dimension(3, -1)};
+    const auto out_shape =
+        PartialShape{2, 2, Dimension(6, 400), Dimension(0, -1), Dimension(3, -1)};
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::nearest;

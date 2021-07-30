@@ -23,10 +23,10 @@ TEST(attributes, variadic_split_op)
     auto data = make_shared<Parameter>(element::i32, Shape{200});
     auto axis = make_shared<Parameter>(element::i32, Shape{1});
     auto split_lengths = make_shared<Parameter>(element::i32, Shape{1});
-    
+
     auto split = make_shared<VariadicSplit>(data, axis, split_lengths);
     NodeBuilder builder(split);
     const auto expected_attr_count = 0;
 
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);    
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 }

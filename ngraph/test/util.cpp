@@ -255,14 +255,18 @@ TEST(graph_util, clone_multiple_results)
 TEST(graph_util, clone_function_variables)
 {
     auto c_fp16 = make_shared<opset8::Constant>(element::f16, Shape{3}, std::vector<float>{0});
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
+    auto variable =
+        make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
     auto read_value = make_shared<opset8::ReadValue>(c_fp16, variable);
     auto assign = make_shared<opset8::Assign>(read_value, variable);
-    auto f = make_shared<Function>(OutputVector{assign}, ParameterVector{}, VariableVector{variable});
+    auto f =
+        make_shared<Function>(OutputVector{assign}, ParameterVector{}, VariableVector{variable});
     auto copy = clone_function(*f);
     auto c_fp32 = make_shared<opset8::Constant>(element::f32, Shape{3}, std::vector<float>{0});
-    for (const auto& op : copy->get_ops()) {
-        if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(op)) {
+    for (const auto& op : copy->get_ops())
+    {
+        if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(op))
+        {
             ngraph::replace_node(constant, c_fp32);
         }
     }

@@ -41,4 +41,3 @@ TEST(attributes, reorg_yolo_op_strides)
 
     EXPECT_EQ(g_op->get_strides(), op->get_strides());
 }
-

@@ -30,8 +30,16 @@ TEST(attributes, deformable_psroi_pooling_op)
     const float trans_std = 0.1;
     const int part_size = 3;
 
-    auto op = make_shared<opset1::DeformablePSROIPooling>(
-        input, coords, output_dim, spatial_scale, group_size, mode, spatial_bins_x, spatial_bins_y, trans_std, part_size);
+    auto op = make_shared<opset1::DeformablePSROIPooling>(input,
+                                                          coords,
+                                                          output_dim,
+                                                          spatial_scale,
+                                                          group_size,
+                                                          mode,
+                                                          spatial_bins_x,
+                                                          spatial_bins_y,
+                                                          trans_std,
+                                                          part_size);
     NodeBuilder builder(op);
     auto g_op = as_type_ptr<opset1::DeformablePSROIPooling>(builder.create());
 

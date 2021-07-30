@@ -34,4 +34,3 @@ TEST(attributes, one_hot_op)
 
     EXPECT_EQ(g_one_hot->get_axis(), one_hot->get_axis());
 }
-

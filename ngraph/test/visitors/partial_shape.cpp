@@ -54,4 +54,3 @@ TEST(attributes, partial_shape)
     loader.on_attribute("general", g_general);
     EXPECT_EQ(general, g_general);
 }
-

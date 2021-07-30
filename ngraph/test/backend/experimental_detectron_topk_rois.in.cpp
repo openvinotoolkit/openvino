@@ -71,8 +71,22 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_topk_rois_eval_2)
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
     auto topk_rois_output = backend->create_tensor(element::f32, output_shape);
 
-    std::vector<float> input_rois_data = {1.0f,  1.0f,  4.0f,  5.0f,  3.0f,  2.0f,  7.0f,  9.0f,
-                                          10.0f, 15.0f, 13.0f, 17.0f, 13.0f, 10.0f, 18.0f, 15.0f};
+    std::vector<float> input_rois_data = {1.0f,
+                                          1.0f,
+                                          4.0f,
+                                          5.0f,
+                                          3.0f,
+                                          2.0f,
+                                          7.0f,
+                                          9.0f,
+                                          10.0f,
+                                          15.0f,
+                                          13.0f,
+                                          17.0f,
+                                          13.0f,
+                                          10.0f,
+                                          18.0f,
+                                          15.0f};
     std::vector<float> input_probs_data = {0.1f, 0.7f, 0.5f, 0.9f};
     std::vector<float> expected_result = {13.0f, 10.0f, 18.0f, 15.0f, 3.0f, 2.0f, 7.0f, 9.0f};
 

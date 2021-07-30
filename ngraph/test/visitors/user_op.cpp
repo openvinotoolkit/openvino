@@ -87,7 +87,7 @@ namespace ngraph
     };
 
     constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
-}
+} // namespace ngraph
 
 // Given a Turing machine program and data, return scalar 1 if the program would
 // complete, 1 if it would not.

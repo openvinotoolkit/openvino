@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/op/floor_mod.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/op/floor_mod.hpp"
 #include "util/engine/interpreter_engine.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
@@ -48,8 +48,7 @@ TEST(op_eval, floor_mod_broadcasted)
 
     auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
     test_case.add_multiple_inputs<float>({a, b});
-    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f,
-                                                   1.0f, 0.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(shape_r, {1.0f, 0.0f, 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f});
     test_case.run();
 }
 
@@ -119,8 +118,7 @@ TEST(op_eval, floor_mod_broadcasted_int64)
 
     auto test_case = test::TestCase<ngraph::test::INTERPRETER_Engine>(f);
     test_case.add_multiple_inputs<int64_t>({a, b});
-    test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2,
-                                                     1, 0, 0, 1});
+    test_case.add_expected_output<int64_t>(shape_r, {1, 0, 1, 2, 1, 0, 0, 1});
     test_case.run();
 }
 
