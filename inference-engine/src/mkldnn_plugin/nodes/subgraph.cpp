@@ -123,13 +123,13 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
     }
     tdCreatorTypes.push_back(TensorDescCreatorTypes::ncsp);
 
-    auto creatorsMap = TensorDescCreator::getCommonCreators();
+    auto& creatorsMap = TensorDescCreator::getCommonCreators();
     for (auto type : tdCreatorTypes) {
         for (auto k = 0; k < inDims.size(); k++)
-            config.inConfs[k].desc = creatorsMap[type]->createDesc(prec, inDims[k].ToSizeVector());
+            config.inConfs[k].desc = creatorsMap.at(type)->createDesc(prec, inDims[k].ToSizeVector());
 
         for (auto k = 0; k < outDims.size(); k++)
-            config.outConfs[k].desc = creatorsMap[type]->createDesc(prec, outDims[k].ToSizeVector());
+            config.outConfs[k].desc = creatorsMap.at(type)->createDesc(prec, outDims[k].ToSizeVector());
 
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, MKLDNNMemoryDesc(config.outConfs.front().desc).getFormat());
     }
