@@ -201,7 +201,7 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
         elif not is_network_compiled:
@@ -222,7 +222,7 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, ie_network.input_info)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  ie_network.input_info)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { k : v.shape for k,v in app_inputs_info.items() }
@@ -280,7 +280,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
 
@@ -305,7 +305,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests, args.input_scale, args.input_mean)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

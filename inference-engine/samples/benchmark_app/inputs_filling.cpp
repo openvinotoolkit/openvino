@@ -39,48 +39,9 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
     return filtered;
 }
 
-std::vector<float> splitFloatList(const std::string& str, char delim) {
-    if (str.empty())
-        return {};
-
-    std::istringstream istr(str);
-
-    std::vector<float> result;
-    std::string elem;
-    while (std::getline(istr, elem, delim)) {
-        if (elem.empty()) {
-            continue;
-        }
-        result.emplace_back(std::stof(std::move(elem)));
-    }
-
-    return result;
-}
-
-std::pair<std::vector<float>, std::vector<float>> getScaleMean(std::string iscale, std::string imean) {
-    std::vector<float> input_scale(3, 1);
-    std::vector<float> input_mean(3);
-
-    if (!iscale.empty()) {
-        input_scale = splitFloatList(iscale, ' ');
-        if (input_scale.size() != 3) {
-            IE_THROW() << "Parse error input scale";
-        }
-    }
-
-    if (!imean.empty()) {
-        input_mean = splitFloatList(imean, ' ');
-        if (input_mean.size() != 3) {
-            IE_THROW() << "Parse error input mean";
-        }
-    }
-
-    return std::make_pair(input_scale, input_mean);
-}
-
 template <typename T>
 void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePaths, const size_t& batchSize, const benchmark_app::InputInfo& app_info,
-                   const size_t& requestId, const size_t& inputId, const size_t& inputSize, std::vector<float> input_scale, std::vector<float> input_mean) {
+                   const size_t& requestId, const size_t& inputId, const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
         IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in "
@@ -131,8 +92,8 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
                                                                                   ? (ch * width * height + h * width + w)
                                                                                   : (h * width * numChannels + w * numChannels + ch));
                     inputBlobData[offset] =
-                        static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) / static_cast<T>(input_scale[ch]) +
-                        static_cast<T>(input_mean[ch]);
+                        (static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) - static_cast<T>(app_info.mean[ch])) /
+                        static_cast<T>(app_info.scale[ch]);
                 }
             }
         }
@@ -231,7 +192,7 @@ void fillBlobImInfo(Blob::Ptr& inputBlob, const size_t& batchSize, std::pair<siz
 }
 
 void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSize, benchmark_app::InputsInfo& app_inputs_info,
-               std::vector<InferReqWrap::Ptr> requests, const std::string& iscale, const std::string& imean) {
+               std::vector<InferReqWrap::Ptr> requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
@@ -300,8 +261,6 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
         }
     }
 
-    auto scale_mean = getScaleMean(iscale, imean);
-
     for (size_t requestId = 0; requestId < requests.size(); requestId++) {
         slog::info << "Infer Request " << requestId << " filling" << slog::endl;
 
@@ -315,20 +274,15 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     if (precision == InferenceEngine::Precision::FP32) {
-                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
-                                             scale_mean.second);
+                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else if (precision == InferenceEngine::Precision::FP16) {
-                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
-                                             scale_mean.second);
+                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else if (precision == InferenceEngine::Precision::I32) {
-                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
-                                               scale_mean.second);
+                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else if (precision == InferenceEngine::Precision::I64) {
-                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
-                                               scale_mean.second);
+                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else if (precision == InferenceEngine::Precision::U8) {
-                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount, scale_mean.first,
-                                               scale_mean.second);
+                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     } else {
                         IE_THROW() << "Input precision is not supported for " << item.first;
                     }
