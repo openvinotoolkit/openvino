@@ -7,12 +7,17 @@ from mo.pipeline.common import get_ir_version
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.utils.cli_parser import get_meta_info
 
-from ngraph import Function         # pylint: disable=no-name-in-module,import-error
-from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-error
+from ngraph import Function            # pylint: disable=no-name-in-module,import-error
+from ngraph import function_to_cnn     # pylint: disable=no-name-in-module,import-error
+from ngraph.impl.passes import Manager # pylint: disable=no-name-in-module,import-error
 
 
 def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+
+    pass_manager = Manager()
+    pass_manager.register_pass("ConstantFolding")
+    pass_manager.run_passes(ngraph_function)
 
     network = function_to_cnn(ngraph_function)
 
