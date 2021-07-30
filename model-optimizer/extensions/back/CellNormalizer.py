@@ -5,7 +5,7 @@ import numpy as np
 
 from extensions.ops.split import VariadicSplit
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined, dynamic_dimension
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
@@ -40,22 +40,20 @@ class CellNormalizer(BackReplacementPattern):
 
         WR_shape = node.in_port(WR_input_id).data.get_shape()
         assert WR_shape is not None, "Undefined 'WR' input shape for Cell node '{}'".format(cell_name)
+        assert is_fully_defined(WR_shape), 'Not fully defined shape for WR for Cell node "{}"'.format(cell_name)
 
-        if is_fully_defined(WR_shape):
-            num_elements_in_WR = np.prod(WR_shape)
-        else:
-            num_elements_in_WR = dynamic_dimension
+        num_elements_in_WR = np.prod(WR_shape)
         input_size = (num_elements_in_WR / (hidden_size_coef * hidden_size)) - hidden_size
 
         # Reshape
         reshape = create_op_node_with_second_input(graph, Reshape,
-                                                   shape_array([hidden_size_coef * hidden_size,
+                                                   int64_array([hidden_size_coef * hidden_size,
                                                                 hidden_size + input_size]),
                                                    {'name': cell_name + '/Dims'})
 
         # VariadicSplit
         split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(1),
-                                                                   2: shape_array([input_size, hidden_size])},
+                                                                   2: int64_array([input_size, hidden_size])},
                                             {'out_ports_count': 2, 'name': cell_name + '/Split'},
                                             reshape)
 
