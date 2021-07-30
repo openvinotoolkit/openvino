@@ -88,7 +88,7 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion_with_sigmoid, FqFusionWithSigmoidTest,
+INSTANTIATE_TEST_CASE_P(smoke_fq_fusion_with_sigmoid, FqFusionWithSigmoidTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(netPrecisions),

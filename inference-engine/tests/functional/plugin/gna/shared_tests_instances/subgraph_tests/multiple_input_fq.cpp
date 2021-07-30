@@ -16,7 +16,7 @@ std::map<std::string, std::string> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_multiple_input, MultipleInputTest,
+INSTANTIATE_TEST_CASE_P(smoke_multiple_input, MultipleInputTest,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::Values(InferenceEngine::Precision::FP32),
