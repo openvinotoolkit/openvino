@@ -63,6 +63,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 
 if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
+
     openvino_developer_export_targets(COMPONENT inference_engine_tests
                                       TARGETS gmock gmock_main gtest gtest_main)
 endif()

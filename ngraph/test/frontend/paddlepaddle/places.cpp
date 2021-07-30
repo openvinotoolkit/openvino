@@ -4,12 +4,13 @@
 
 #include <frontend/shared/include/utils.hpp>
 #include <frontend_manager/frontend_manager.hpp>
-#include <memory>
 #include "gtest/gtest.h"
+#include "paddle_utils.hpp"
 
 using namespace ngraph::frontend;
 
-const std::string model_file = "place_test_model/place_test_model.pdmodel";
+const std::string model_file =
+    std::string(TEST_PADDLE_MODELS_DIRNAME) + "place_test_model/place_test_model.pdmodel";
 
 /***
 model:
@@ -56,8 +57,8 @@ TEST(PDPD_Places, check_tensor_names)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -70,8 +71,8 @@ TEST(PDPD_Places, check_input_outputs)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     auto inputs = input_model->get_inputs();
     auto outputs = input_model->get_outputs();
@@ -105,8 +106,8 @@ TEST(PDPD_Places, check_out_port_of_all_ops)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -128,8 +129,8 @@ TEST(PDPD_Places, check_in_out_ports_of_model_outputs)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs)
@@ -163,8 +164,8 @@ TEST(PDPD_Places, check_source_target_tensors_of_model_outputs)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs)
@@ -198,8 +199,8 @@ TEST(PDPD_Places, check_producing_consuming_ops_of_model_outputs)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     auto outputs = input_model->get_outputs();
     for (const auto& output : outputs)
@@ -234,8 +235,8 @@ TEST(PDPD_Places, check_data_flow)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -275,8 +276,8 @@ TEST(PDPD_Places, check_tensor_to_multiple_ports)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -307,8 +308,8 @@ TEST(PDPD_Places, check_consuming_ops)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -352,8 +353,8 @@ TEST(PDPD_Places, check_consuming_ops_2)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     auto it = find(tensor_names.begin(), tensor_names.end(), "lstm_0.tmp_2");
     EXPECT_NE(it, tensor_names.end());
@@ -394,8 +395,8 @@ TEST(PDPD_Places, check_producing_ops)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     for (const auto& tensor_name : tensor_names)
     {
@@ -418,8 +419,8 @@ TEST(PDPD_Places, check_input_output_ports_dy_idx)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
                                              "save_infer_model/scale_1.tmp_1",
@@ -445,8 +446,8 @@ TEST(PDPD_Places, check_ops_tensors_by_idx)
 {
     FrontEndTestUtils::setupTestEnv();
     auto m_fem = FrontEndManager();
-    auto frontend = m_fem.load_by_framework("pdpd");
-    auto input_model = frontend->load(TEST_PDPD_MODELS + model_file);
+    auto frontend = m_fem.load_by_framework(PADDLE_FE);
+    auto input_model = frontend->load(FrontEndTestUtils::make_model_path(model_file));
 
     std::vector<std::string> output_names = {"save_infer_model/scale_0.tmp_1",
                                              "save_infer_model/scale_1.tmp_1",

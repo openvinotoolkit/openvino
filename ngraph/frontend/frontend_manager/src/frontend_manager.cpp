@@ -147,7 +147,7 @@ std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<ngraph::Function> FrontEnd::convert(std::shared_ptr<ngraph::Function>) const
+void FrontEnd::convert(std::shared_ptr<ngraph::Function>) const
 {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
@@ -183,7 +183,7 @@ Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) 
     return nullptr;
 }
 
-Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name)
+Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const
 {
     return nullptr;
 }
@@ -277,7 +277,7 @@ void InputModel::set_partial_shape(Place::Ptr place, const ngraph::PartialShape&
 
 ngraph::PartialShape InputModel::get_partial_shape(Place::Ptr place) const
 {
-    FRONT_END_NOT_IMPLEMENTED(set_partial_shape);
+    FRONT_END_NOT_IMPLEMENTED(get_partial_shape);
 }
 
 void InputModel::set_element_type(Place::Ptr place, const ngraph::element::Type&)
