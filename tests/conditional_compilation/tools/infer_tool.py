@@ -9,8 +9,10 @@
 """
 import argparse
 import logging as log
-import sys
 import os
+import sys
+from pathlib import Path
+
 import numpy as np
 from openvino.inference_engine import IECore
 
@@ -58,9 +60,9 @@ def cli_parser():
     :return: ir path, device and output folder path variables.
     """
     parser = argparse.ArgumentParser(description='Arguments for python API inference')
-    parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR')
+    parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR',  action="append")
     parser.add_argument('-d', dest='device', required=True, help='Target device to infer on')
-    parser.add_argument('-r', dest='out_path', required=True,
+    parser.add_argument('-r', dest='out_path', required=True, type=Path,
                         help='Dumps results to the output file')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
                         help='Increase output verbosity')
@@ -75,9 +77,13 @@ def cli_parser():
 
 if __name__ == "__main__":
     ir_path, device, out_path = cli_parser()
-    results = infer(ir_path=ir_path, device=device)
-    np.savez(out_path, **results)
-    log.info("Path for inference results: {}".format(out_path))
-    log.debug("Inference results:")
-    log.debug(results)
-    log.debug("SUCCESS!")
+
+    for model in ir_path:
+        result = infer(ir_path=model, device=device)
+
+        np.savez(out_path / f"{Path(model).name}.npz", **result)
+
+        log.info("Path for inference results: {}".format(out_path))
+        log.debug("Inference results:")
+        log.debug(result)
+        log.debug("SUCCESS!")
