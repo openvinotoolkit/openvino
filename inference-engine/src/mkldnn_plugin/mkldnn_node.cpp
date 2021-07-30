@@ -678,10 +678,6 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
                                                       fmt};
 
         return desc.isCompatible(fmt_tdesc);
-// TODO [DS]: code clean up
-//        auto tmp_partial_tdesc = PartialBlkDesc::extractFrom(fmt_tdesc);
-//        auto actual_partial_tdesc = PartialBlkDesc::extractFrom(tdesc);
-//        return tmp_partial_tdesc == actual_partial_tdesc;
     };
 
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
@@ -1042,30 +1038,10 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.src_desc(idx));
-    // TODO [DS]: uncomment or remove
-//    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
-//    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-//        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                            getParentEdgeAt(idx)->getShape().getDims(),
-//                                                            desc.getLayout()));
-//    else
-//        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                            getParentEdgeAt(idx)->getShape().getDims(),
-//                                                            desc.getBlockingDesc()));
 }
 
 std::unique_ptr<MKLDNNMemoryDesc> MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     return MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(primitive_desc_it.dst_desc(idx));
-    // TODO [DS]: uncomment or remove
-//    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
-//    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-//        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                            getChildEdgeAt(idx)->getShape().getDims(),
-//                                                            desc.getLayout()));
-//    else
-//        return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
-//                                                            getChildEdgeAt(idx)->getShape().getDims(),
-//                                                            desc.getBlockingDesc()));
 }
 
 int MKLDNNNode::batchToProcess() {

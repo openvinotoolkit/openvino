@@ -308,36 +308,6 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isConfigDefined(config))
         return;
-    //TODO [mkutakov]: code cleanup
-//    for (size_t i = 0; i < config.outConfs.size(); i++) {
-////        if (config.outConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
-////                !isUninitTensorDesc(config.outConfs[i].desc))
-////            continue;
-//        if (config.outConfs[i].desc->isDefined())
-//            continue;
-//
-//        int num = getChildEdgeAt(i)->getOutputNum();
-//        if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-//            if (num >= 0) {
-//                auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-//                childConf.desc->setPrecision(config.outConfs[i].desc->getPrecision());
-//
-//                if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
-//                    getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
-//
-//                if (!childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[i].desc)) {
-//                    config.outConfs[i].desc = childConf.desc->clone();
-//                    continue;
-//                }
-//            }
-//        }
-//        // TODO [DS]: Why do we need this code?
-////        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
-////                                                              config.outConfs[i].desc.getDims(), {
-////                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
-////                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder()
-////                                                              });
-//    }
 
     for (size_t i = 0; i < config.inConfs.size(); i++) {
         if (config.inConfs[i].desc->isDefined())
