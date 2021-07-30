@@ -54,6 +54,8 @@ namespace ngraph
 
                 virtual std::vector<OutPortName> get_output_names() const = 0;
 
+                virtual size_t get_output_size() const = 0;
+
                 /// \brief Get output port type
                 ///
                 /// Current API assumes that output port has only one output type.
@@ -139,6 +141,18 @@ namespace ngraph
                 OutputVector get_ng_inputs(const std::string& name) const
                 {
                     return name_map.at(name);
+                }
+
+                /// Returns all inputs in order they appear in map. This is used for FrameworkNode
+                /// creation
+                OutputVector get_all_ng_inputs() const
+                {
+                    OutputVector res;
+                    for (const auto& entry : name_map)
+                    {
+                        res.insert(res.end(), entry.second.begin(), entry.second.end());
+                    }
+                    return res;
                 }
 
                 std::vector<OutPortName> get_output_names() const

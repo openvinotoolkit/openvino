@@ -155,6 +155,7 @@ namespace ngraph
                 }
 
                 Constant(const Constant& other);
+                Constant(const Constant& other, const Shape& new_shape);
                 Constant& operator=(const Constant&) = delete;
 
                 virtual ~Constant() override;
@@ -213,6 +214,7 @@ namespace ngraph
                 /// count
                 ///
                 /// \param shape The shape of the tensor constant.
+                NGRAPH_DEPRECATED("Use Constant c-tor with shape argument instead")
                 void set_data_shape(const Shape& shape);
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -377,7 +379,7 @@ namespace ngraph
                 {
                     const uint8_t i4data =
                         (get_data_ptr<uint8_t>()[index / 2] >> (index % 2 ? 0 : 4)) & 0x0F;
-                    const bool is_negative_number = (i4data >> 3) & 0b1;
+                    const bool is_negative_number = (i4data >> 3) & 0x01;
                     const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
                     return data;
                 }
@@ -463,7 +465,7 @@ namespace ngraph
                         for (const auto i : {4, 0})
                         {
                             const uint8_t i4data = (c >> i) & 0x0F;
-                            const bool is_negative_number = (i4data >> 3) & 0b1;
+                            const bool is_negative_number = (i4data >> 3) & 0x01;
                             const int8_t data = is_negative_number ? i4data | 0xF0 : i4data;
                             output.push_back(data);
                         }

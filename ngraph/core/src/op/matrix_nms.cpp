@@ -74,7 +74,8 @@ bool ngraph::op::v8::MatrixNms::visit_attributes(AttributeVisitor& visitor)
 namespace ngraph
 {
     template <>
-    EnumNames<op::v8::MatrixNms::DecayFunction>& EnumNames<op::v8::MatrixNms::DecayFunction>::get()
+    NGRAPH_API EnumNames<op::v8::MatrixNms::DecayFunction>&
+        EnumNames<op::v8::MatrixNms::DecayFunction>::get()
     {
         static auto enum_names = EnumNames<op::v8::MatrixNms::DecayFunction>(
             "op::v8::MatrixNms::DecayFunction",

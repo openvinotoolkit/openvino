@@ -99,6 +99,31 @@ namespace ngraph
             return output_names;
         }
 
+        size_t DecoderPDPDProto::get_output_size() const
+        {
+            size_t res = 0;
+            for (const auto& output : op_place->get_desc().outputs())
+            {
+                res += output.arguments().size();
+            }
+            return res;
+        }
+
+        std::map<std::string, std::vector<ngraph::element::Type>>
+            DecoderPDPDProto::get_output_type_map() const
+        {
+            std::map<std::string, std::vector<ngraph::element::Type>> output_types;
+            for (const auto& out_port_pair : op_place->get_output_ports())
+            {
+                for (const auto& p_place : out_port_pair.second)
+                {
+                    output_types[out_port_pair.first].push_back(
+                        p_place->get_target_tensor_pdpd()->get_element_type());
+                }
+            }
+            return output_types;
+        }
+
         ngraph::element::Type
             DecoderPDPDProto::get_out_port_type(const std::string& port_name) const
         {
@@ -135,5 +160,40 @@ namespace ngraph
                                     " Expected number: 0 or 1");
             return attrs;
         }
+
+        namespace
+        {
+            inline std::map<std::string, OutputVector> map_for_each_input_impl(
+                const google::protobuf::RepeatedPtrField<paddle::framework::proto::OpDesc_Var>& c,
+                const std::function<Output<Node>(const std::string&, size_t)>& func)
+            {
+                size_t idx = 0;
+                std::map<std::string, OutputVector> res;
+                for (const auto& port : c)
+                {
+                    std::vector<Output<Node>> v;
+                    v.reserve(port.arguments_size());
+                    for (const auto& inp : port.arguments())
+                    {
+                        v.push_back(func(inp, idx++));
+                    }
+                    res.emplace(std::make_pair(port.parameter(), v));
+                }
+                return res;
+            }
+        } // namespace
+
+        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_input(
+            const std::function<Output<Node>(const std::string&, size_t)>& func) const
+        {
+            return map_for_each_input_impl(op_place->get_desc().inputs(), func);
+        }
+
+        std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_output(
+            const std::function<Output<Node>(const std::string&, size_t)>& func) const
+        {
+            return map_for_each_input_impl(op_place->get_desc().outputs(), func);
+        }
+
     } // namespace frontend
 } // namespace ngraph

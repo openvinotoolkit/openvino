@@ -334,7 +334,7 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
-    Place::Ptr get_place_by_operation_name(const std::string& operationName) override
+    Place::Ptr get_place_by_operation_name(const std::string& operationName) const override
     {
         m_stat.m_get_place_by_operation_name++;
         m_stat.m_lastArgString = operationName;
@@ -515,11 +515,7 @@ public:
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
-    std::shared_ptr<ngraph::Function> convert(std::shared_ptr<ngraph::Function> func) const override
-    {
-        m_stat.m_convert++;
-        return func;
-    }
+    void convert(std::shared_ptr<ngraph::Function> func) const override { m_stat.m_convert++; }
 
     std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override
     {

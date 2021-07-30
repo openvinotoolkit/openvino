@@ -33,7 +33,7 @@ const auto fqParams = ::testing::Combine(
         ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTestRevise,
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
                         ::testing::Combine(
                                 fqParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -44,6 +44,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTestRevise,
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                 ::testing::Values(config)),
-                        FakeQuantizeLayerTestRevise::getTestCaseName);
+                        FakeQuantizeLayerTest::getTestCaseName);
 
 }  // namespace

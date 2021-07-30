@@ -3,11 +3,10 @@
 //
 
 #include "partial_shape.hpp"
+#include "paddle_utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
-
-static const auto PDPD = "pdpd";
 
 using PDPDPartialShapeTest = FrontEndPartialShapeTest;
 
@@ -61,14 +60,14 @@ static PartShape getTestShape_conv2d_relu()
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(PDPDPartialShapeTest,
-                         FrontEndPartialShapeTest,
-                         ::testing::Combine(::testing::Values(BaseFEParam{
-                                                PDPD, std::string(TEST_PDPD_MODELS_DIRNAME)}),
-                                            ::testing::ValuesIn(std::vector<PartShape>{
-                                                getTestShape_2in_2out(),
-                                                getTestShape_conv2d_relu(),
-                                                getTestShape_conv2d(),
-                                                getTestShape_conv2d_setDynamicBatch(),
-                                                getTestShape_2in_2out_dynbatch()})),
-                         FrontEndPartialShapeTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    PDPDPartialShapeTest,
+    FrontEndPartialShapeTest,
+    ::testing::Combine(
+        ::testing::Values(BaseFEParam{PADDLE_FE, std::string(TEST_PADDLE_MODELS_DIRNAME)}),
+        ::testing::ValuesIn(std::vector<PartShape>{getTestShape_2in_2out(),
+                                                   getTestShape_conv2d_relu(),
+                                                   getTestShape_conv2d(),
+                                                   getTestShape_conv2d_setDynamicBatch(),
+                                                   getTestShape_2in_2out_dynbatch()})),
+    FrontEndPartialShapeTest::getTestCaseName);

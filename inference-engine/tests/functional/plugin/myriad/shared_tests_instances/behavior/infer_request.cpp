@@ -17,6 +17,11 @@ const std::vector<std::map<std::string, std::string>> configs = {
         {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD}}
 };
 
+const std::vector<std::map<std::string, std::string>> autoconfigs = {
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_MYRIAD}},
+        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_MYRIAD}}
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),
@@ -29,5 +34,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestTests,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                 ::testing::ValuesIn(configs)),
+        InferRequestTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestTests,
+        ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                ::testing::ValuesIn(autoconfigs)),
         InferRequestTests::getTestCaseName);
 }  // namespace

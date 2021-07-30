@@ -72,6 +72,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "FullyConnected", FullyConnected },
         { "MaxPool", Pooling },
         { "AvgPool", Pooling },
+        { "AdaptiveMaxPool", AdaptivePooling},
+        { "AdaptiveAvgPool", AdaptivePooling},
         { "Add", Eltwise },
         { "Subtract", Eltwise },
         { "Multiply", Eltwise },
@@ -223,7 +225,9 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ExperimentalDetectronPriorGridGenerator", ExperimentalDetectronPriorGridGenerator},
         { "ExperimentalDetectronGenerateProposalsSingleImage", ExperimentalDetectronGenerateProposalsSingleImage},
         { "ExtractImagePatches", ExtractImagePatches},
-        { "NonMaxSuppressionIEInternal", NonMaxSuppression}
+        { "NonMaxSuppressionIEInternal", NonMaxSuppression},
+        { "MatrixNms", MatrixNms},
+        { "MulticlassNms", MulticlassNms}
 };
 
 Type TypeFromName(const std::string type) {
@@ -1328,7 +1332,7 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
             if (i == fusingPort)
                 continue;
             auto weightShape = getParentEdgeAt(i)->getDims().ToSizeVector();
-            if (!isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
+            if (getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() != 1 || !isPerTensorOrPerChannelBroadcastable(dataShape, weightShape))
                 return false;
         }
         return true;
@@ -1351,7 +1355,11 @@ bool MKLDNNNode::canBePerformedAsScaleShift(const MKLDNNNode *parentNode) const 
 
 bool MKLDNNNode::canFuseSimpleOperation(const MKLDNNNodePtr& node) const {
     if (node->getType() == FakeQuantize) {
-        return node->getAlgorithm() != FQBinarization;
+        bool ret = node->getAlgorithm() != FQBinarization;
+        for (size_t i = 1; i < node->getParentEdges().size(); i++) {
+            ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
+        }
+        return ret;
     } else if (node->getType() == Eltwise) {
         return one_of(node->getAlgorithm(), EltwiseRelu, EltwiseGelu, EltwiseElu, EltwiseSigmoid, EltwiseClamp, EltwiseTanh,
                                             EltwiseSwish, EltwiseHswish, EltwiseMish, EltwiseHsigmoid, EltwiseRoundHalfToEven,

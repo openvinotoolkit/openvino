@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
+#include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
@@ -133,6 +134,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();

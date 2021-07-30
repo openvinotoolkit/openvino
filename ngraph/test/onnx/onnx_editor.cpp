@@ -1508,6 +1508,15 @@ NGRAPH_TEST(onnx_editor, model_inputs)
     EXPECT_TRUE(inputs == (std::vector<std::string>{"in1", "in2", "in3"})); // in4 is initializer
 }
 
+NGRAPH_TEST(onnx_editor, model_inputs_with_non_input_initializers)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/instance_norm_dynamic.prototxt")};
+
+    const auto inputs = editor.model_inputs();
+    EXPECT_TRUE(inputs == (std::vector<std::string>{"input"}));
+}
+
 NGRAPH_TEST(onnx_editor, model_output)
 {
     ONNXModelEditor editor{file_util::path_join(

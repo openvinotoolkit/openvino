@@ -5,7 +5,7 @@
 #include <map>
 
 #include <ngraph/opsets/opset6.hpp>
-#include "elementwise_ops.hpp"
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -94,6 +94,16 @@ namespace ngraph
                 NamedOutputs elementwise_pow(const NodeContext& node_context)
                 {
                     return elementwise_ops<ngraph::opset6::Power>(node_context);
+                }
+
+                NamedOutputs elementwise_equal(const NodeContext& node_context)
+                {
+                    return elementwise_ops<ngraph::opset6::Equal>(node_context);
+                }
+
+                NamedOutputs elementwise_greater_equal(const NodeContext& node_context)
+                {
+                    return elementwise_ops<ngraph::opset6::GreaterEqual>(node_context);
                 }
 
             } // namespace op

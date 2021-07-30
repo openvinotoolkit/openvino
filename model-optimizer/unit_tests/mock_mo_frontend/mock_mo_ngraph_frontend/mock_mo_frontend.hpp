@@ -21,6 +21,35 @@ using namespace ngraph;
 using namespace ngraph::frontend;
 
 ////////////////////////////////
+/// \brief This structure holds number static setup values
+/// It will be used by Python unit tests to setup particular mock behavior
+struct MOCK_API MockSetup
+{
+    static std::string m_equal_data_node1;
+    static std::string m_equal_data_node2;
+    static int m_max_input_port_index;
+    static int m_max_output_port_index;
+
+    static void clear_setup()
+    {
+        m_equal_data_node1 = {};
+        m_equal_data_node2 = {};
+        m_max_input_port_index = 0;
+        m_max_output_port_index = 0;
+    }
+
+    static void set_equal_data(const std::string& node1, const std::string& node2)
+    {
+        m_equal_data_node1 = node1;
+        m_equal_data_node2 = node2;
+    }
+
+    static void set_max_port_counts(int max_input, int max_output)
+    {
+        m_max_input_port_index = max_input;
+        m_max_output_port_index = max_output;
+    }
+};
 
 /// \brief This structure holds number of calls of particular methods of Place objects
 /// It will be used by Python unit tests to verify that appropriate API
@@ -33,6 +62,7 @@ struct MOCK_API PlaceStat
     int m_is_input = 0;
     int m_is_output = 0;
     int m_is_equal = 0;
+    int m_is_equal_data = 0;
 
     // Arguments tracking
     std::string m_lastArgString;
@@ -46,6 +76,7 @@ struct MOCK_API PlaceStat
     int is_input() const { return m_is_input; }
     int is_output() const { return m_is_output; }
     int is_equal() const { return m_is_equal; }
+    int is_equal_data() const { return m_is_equal_data; }
 
     // Arguments getters
     std::string get_lastArgString() const { return m_lastArgString; }
@@ -60,10 +91,14 @@ class MOCK_API PlaceMockPy : public Place
 {
     static PlaceStat m_stat;
     std::string m_name;
+    bool m_is_op = false;
+    int m_portIndex = -1;
 
 public:
-    PlaceMockPy(const std::string& name = {})
+    PlaceMockPy(const std::string& name = {}, bool is_op = false, int portIndex = -1)
         : m_name(name)
+        , m_is_op(is_op)
+        , m_portIndex(portIndex)
     {
     }
 
@@ -84,7 +119,11 @@ public:
     {
         m_stat.m_get_input_port++;
         m_stat.m_lastArgInt = inputPortIndex;
-        return std::make_shared<PlaceMockPy>();
+        if (inputPortIndex < MockSetup::m_max_input_port_index)
+        {
+            return std::make_shared<PlaceMockPy>(m_name, false, inputPortIndex);
+        }
+        return nullptr;
     }
 
     Place::Ptr get_input_port(const std::string& inputName) const override
@@ -114,7 +153,11 @@ public:
     {
         m_stat.m_get_output_port++;
         m_stat.m_lastArgInt = outputPortIndex;
-        return std::make_shared<PlaceMockPy>();
+        if (outputPortIndex < MockSetup::m_max_output_port_index)
+        {
+            return std::make_shared<PlaceMockPy>(m_name, false, outputPortIndex);
+        }
+        return nullptr;
     }
 
     Place::Ptr get_output_port(const std::string& outputName) const override
@@ -149,7 +192,27 @@ public:
     {
         m_stat.m_is_equal++;
         m_stat.m_lastArgPlace = another;
-        return m_name == another->get_names().at(0);
+        std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
+        return m_name == mock->m_name && m_is_op == mock->m_is_op &&
+               m_portIndex == mock->m_portIndex;
+    }
+
+    bool is_equal_data(Ptr another) const override
+    {
+        m_stat.m_is_equal_data++;
+        m_stat.m_lastArgPlace = another;
+        std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
+        if (!MockSetup::m_equal_data_node1.empty() && !MockSetup::m_equal_data_node2.empty())
+        {
+            if ((mock->m_name.find(MockSetup::m_equal_data_node1) != std::string::npos ||
+                 mock->m_name.find(MockSetup::m_equal_data_node2) != std::string::npos) &&
+                (m_name.find(MockSetup::m_equal_data_node1) != std::string::npos ||
+                 m_name.find(MockSetup::m_equal_data_node2) != std::string::npos))
+            {
+                return true;
+            }
+        }
+        return mock->m_is_op == m_is_op;
     }
 
     //---------------Stat--------------------
@@ -167,6 +230,7 @@ struct MOCK_API ModelStat
     int m_get_inputs = 0;
     int m_get_outputs = 0;
     int m_get_place_by_tensor_name = 0;
+    int m_get_place_by_operation_name = 0;
     int m_set_partial_shape = 0;
     int m_get_partial_shape = 0;
     int m_set_element_type = 0;
@@ -190,6 +254,7 @@ struct MOCK_API ModelStat
     int extract_subgraph() const { return m_extract_subgraph; }
     int override_all_inputs() const { return m_override_all_inputs; }
     int override_all_outputs() const { return m_override_all_outputs; }
+    int get_place_by_operation_name() const { return m_get_place_by_operation_name; }
     int get_place_by_tensor_name() const { return m_get_place_by_tensor_name; }
     int set_partial_shape() const { return m_set_partial_shape; }
     int get_partial_shape() const { return m_get_partial_shape; }
@@ -208,11 +273,30 @@ struct MOCK_API ModelStat
 /// \brief Mock implementation of InputModel
 /// Every call increments appropriate counters in statistic and stores argument values to statistics
 /// as well
-/// ("mock_output1", "mock_output2")
 class MOCK_API InputModelMockPy : public InputModel
 {
     static ModelStat m_stat;
     static PartialShape m_returnShape;
+
+    std::set<std::string> m_operations = {
+        "8", "9", "8:9", "operation", "operation:0", "0:operation", "tensorAndOp", "conv2d"};
+    std::set<std::string> m_tensors = {"8:9",
+                                       "tensor",
+                                       "tensor:0",
+                                       "0:tensor",
+                                       "tensorAndOp",
+                                       "conv2d:0",
+                                       "0:conv2d",
+                                       "mock_input1",
+                                       "mock_input2",
+                                       "newInput1",
+                                       "newIn1",
+                                       "newIn2",
+                                       "mock_output1",
+                                       "mock_output2",
+                                       "new_output2",
+                                       "newOut1",
+                                       "newOut2"};
 
 public:
     std::vector<Place::Ptr> get_inputs() const override
@@ -229,11 +313,26 @@ public:
                 std::make_shared<PlaceMockPy>("mock_output2")};
     }
 
+    Place::Ptr get_place_by_operation_name(const std::string& opName) const override
+    {
+        m_stat.m_get_place_by_operation_name++;
+        m_stat.m_lastArgString = opName;
+        if (m_operations.count(opName))
+        {
+            return std::make_shared<PlaceMockPy>(opName, true);
+        }
+        return nullptr;
+    }
+
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override
     {
         m_stat.m_get_place_by_tensor_name++;
         m_stat.m_lastArgString = tensorName;
-        return std::make_shared<PlaceMockPy>(tensorName);
+        if (m_tensors.count(tensorName))
+        {
+            return std::make_shared<PlaceMockPy>(tensorName);
+        }
+        return nullptr;
     }
 
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override
@@ -319,7 +418,7 @@ public:
 
     static void clear_stat() { m_stat = {}; }
 
-protected:
+private:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
         if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))

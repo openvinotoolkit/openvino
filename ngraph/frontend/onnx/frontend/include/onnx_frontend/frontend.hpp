@@ -20,8 +20,7 @@ namespace ngraph
         {
         public:
             std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
-            std::shared_ptr<ngraph::Function>
-                convert(std::shared_ptr<ngraph::Function> partially_converted) const override;
+            void convert(std::shared_ptr<ngraph::Function> partially_converted) const override;
             std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override;
 
         protected:

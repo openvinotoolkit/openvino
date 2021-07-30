@@ -15,6 +15,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: task 32568, enable after supporting constants outputs in plugins
         ".*TransformationTests\\.ConstFoldingPriorBox.*",
         // azure is failing after #6199
-        ".*NmsLayerTest.*",
+        ".*/NmsLayerTest.*",
     };
 }
