@@ -11,24 +11,24 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ScaleInputs;
+class TRANSFORMATIONS_API SubtractMeanInputs;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ScaleInputs : public ngraph::pass::FunctionPass {
+class ngraph::pass::SubtractMeanInputs : public ngraph::pass::FunctionPass {
 public:
-    using ScaleMap = std::map<std::string, std::shared_ptr<ngraph::op::Constant>>;
+    using MeanMap = std::map<std::string, std::shared_ptr<ngraph::op::Constant>>;
 
     enum class Version {
         IR_V10
     };
     NGRAPH_RTTI_DECLARATION;
 
-    ScaleInputs(const ScaleMap& scale_map);
+    SubtractMeanInputs(const MeanMap& mean_map);
 
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 
 private:
-    ScaleMap m_scale_map;
+    MeanMap m_mean_map;
 };
