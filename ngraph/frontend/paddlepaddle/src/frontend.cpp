@@ -51,12 +51,15 @@ namespace ngraph
                     for (const auto& in_tensor_name : input_port.arguments())
                     {
                         auto node_it = nodes.find(in_tensor_name);
-                        if (node_it != nodes.end())
-                            named_inputs[input_port.parameter()].push_back(node_it->second);
-                        else
-                            // return empty map when not all inputs exist. It usually means that
-                            // these nodes are not used because model inputs were overwritten
-                            return NamedOutputs();
+                        // general check, because in case of error partial conversion should fail
+                        FRONT_END_GENERAL_CHECK(
+                            node_it != nodes.end(),
+                            "Input ",
+                            in_tensor_name,
+                            " for node with type ",
+                            op_desc.type(),
+                            " wasn't found. It may happen if model was cut incorrectly.");
+                        named_inputs[input_port.parameter()].push_back(node_it->second);
                     }
                 }
 
@@ -76,17 +79,16 @@ namespace ngraph
                     for (const auto& in_tensor_name : input_port.arguments())
                     {
                         auto it = nodes.find(in_tensor_name);
-                        if (it != nodes.end())
-                        {
-                            inputs_vector.push_back(it->second);
-                            inputs_names.push_back(in_tensor_name);
-                        }
-                        else
-                        {
-                            // return empty map when not all inputs exist. It usually means that
-                            // these nodes are not used because model inputs were overwritten
-                            return named_outputs;
-                        }
+                        // general check, because in case of error partial conversion should fail
+                        FRONT_END_GENERAL_CHECK(
+                            it != nodes.end(),
+                            "Input ",
+                            in_tensor_name,
+                            " for node with type ",
+                            op_desc.type(),
+                            " wasn't found. It may happen if model was cut incorrectly.");
+                        inputs_vector.push_back(it->second);
+                        inputs_names.push_back(in_tensor_name);
                     }
                 }
 
@@ -134,11 +136,9 @@ namespace ngraph
             std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant,
                                                 std::ifstream& ext_stream)
             {
-                if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variant))
+                if (is_type<VariantWrapper<std::istream*>>(variant))
                 {
-                    auto m_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)->get();
-                    return m_stream.get();
+                    return as_type_ptr<VariantWrapper<std::istream*>>(variant)->get();
                 }
                 else if (is_type<VariantWrapper<std::string>>(variant))
                 {
@@ -158,7 +158,6 @@ namespace ngraph
                                                "Cannot open model file.");
                 return &ext_stream;
             }
-
         } // namespace pdpd
 
         std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
@@ -281,13 +280,13 @@ namespace ngraph
                 return model_str && model_str.is_open();
             }
 #endif
-            else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+            else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
             {
                 // Validating first stream, it must contain a model
-                std::shared_ptr<std::istream> p_model_stream =
-                    as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])->get();
+                auto p_model_stream =
+                    as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                 paddle::framework::proto::ProgramDesc fw;
-                return fw.ParseFromIstream(p_model_stream.get());
+                return fw.ParseFromIstream(p_model_stream);
             }
             return false;
         }
@@ -314,13 +313,12 @@ namespace ngraph
 #endif
                 // The case with only model stream provided and no weights. This means model has
                 // no learnable weights
-                else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+                else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
                 {
-                    std::shared_ptr<std::istream> p_model_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
-                            ->get();
+                    auto p_model_stream =
+                        as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(
-                        std::vector<std::istream*>{p_model_stream.get()});
+                        std::vector<std::istream*>{p_model_stream});
                 }
             }
             else if (variants.size() == 2)
