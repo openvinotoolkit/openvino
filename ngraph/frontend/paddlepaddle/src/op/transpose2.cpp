@@ -13,16 +13,14 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs clip(const NodeContext& node)
+                NamedOutputs transpose2(const NodeContext& node)
                 {
                     auto data = node.get_ng_input("X");
-                    auto min = node.get_attribute<float>("min");
-                    auto max = node.get_attribute<float>("max");
-                    PDPD_OP_VALIDATION_CHECK(
-                        node, max >= min, "clip: max value must greater than min value!");
-
+                    auto perm = node.get_attribute<std::vector<int>>("axis");
+                    auto input_order =
+                        ngraph::opset6::Constant::create(ngraph::element::i64, {perm.size()}, perm);
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Clamp>(data, min, max)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
                 }
 
             } // namespace op

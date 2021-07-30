@@ -229,7 +229,8 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 
     if (getParentEdges().size() != expectedInputEdgesNum)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Incorrect number of input edges for layer " << getName() << ", expected: " << expectedInputEdgesNum
+                   << " actual: " << getParentEdges().size();
     if (getChildEdges().empty())
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
