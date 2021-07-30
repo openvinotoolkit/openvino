@@ -92,7 +92,6 @@ if(ENABLE_TESTS)
             message(FATAL_ERROR "Failed to extract pip module version")
         endif()
 
-        set(pip3_version "pip 18.1 ")
         if(pip3_version MATCHES ".* ([0-9]+)+\.([0-9]+)([\.0-9 ]).*")
             set(pip3_version ${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
         else()
