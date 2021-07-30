@@ -11,7 +11,7 @@ from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.split_normalizer import SqueezeAxis
 from extensions.front.tf.CropAndResizeReplacement import CropAndResizeReplacement
 from extensions.front.tf.FakeQuantWithMinMaxVars import FakeQuantWithMinMaxVarsToQuantize
-from extensions.front.tf.KerasRNNTransformation import KerasRNNInputSlicing, KerasRNNOutputConcatenation
+from extensions.front.tf.MapFNTransformation import MapFNInputSlicing, MapFNOutputConcatenation
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
@@ -31,6 +31,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import output_user_data_repack, add_output_ops
 from mo.front.subgraph_matcher import SubgraphMatch
+from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from mo.front.tf.graph_utils import add_activation_function_after_node, add_convolution_to_swap_xy_coordinates, \
     mark_squeeze_reshape_concat_before_detection_output, add_fake_background_loc, create_op_node_with_second_input, \
     create_op_with_const_inputs
@@ -346,12 +347,6 @@ def swap_weights_xy(graph: Graph, nodes: list):
                 insert_weights_swap_xy_sub_graph(graph, m.in_port(1).get_connection())
 
 
-def skip_nodes_by_condition(current_node: Node, condition: callable):
-    while condition(current_node):
-        current_node = current_node.in_node()
-    return current_node
-
-
 def calculate_shape_keeping_aspect_ratio(height: int, width: int, min_size: int, max_size: int,
                                          pad_to_max_dimension: bool = False):
     """
@@ -529,7 +524,7 @@ class ObjectDetectionAPITransformationsFinish(FrontReplacementPattern):
         # is removed during removing nodes from the DO sub-graph so the first input to Transpose is missing which
         # results in TransposeOrderNormalizer transformation failure.
         return [Pack, TransposeOrderNormalizer, PadTFToPad, SqueezeAxis, TFSliceToSliceReplacer,
-                KerasRNNOutputConcatenation, KerasRNNInputSlicing]
+                MapFNOutputConcatenation, MapFNInputSlicing]
 
     def find_and_replace_pattern(self, graph: Graph):
         pass

@@ -147,4 +147,3 @@ xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rt
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_54630 = xfail_test(reason="Gather with negative indices is not yet implemented on CPU")
-xfail_issue_59935 = xfail_test(reason="AdaptivePool is not implemented in CPU plugin.")
