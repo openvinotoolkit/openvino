@@ -4,6 +4,7 @@
 
 #include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+#include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
 {
@@ -13,18 +14,12 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs clip(const NodeContext& node)
+                NamedOutputs log(const NodeContext& node)
                 {
-                    auto data = node.get_ng_input("X");
-                    auto min = node.get_attribute<float>("min");
-                    auto max = node.get_attribute<float>("max");
-                    PDPD_OP_VALIDATION_CHECK(
-                        node, max >= min, "clip: max value must greater than min value!");
-
+                    auto x = node.get_ng_input("X");
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Clamp>(data, min, max)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Log>(x)}, {"Out"});
                 }
-
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
