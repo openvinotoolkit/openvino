@@ -19,10 +19,12 @@ operations_with_data_type_attributes = {
 
 class ChangeOutputTypeAttributes(BackReplacementPattern):
     """
-    For operations that allow specify output type by attribute this transformation
-    changes output type from fp64 to fp32 since not all plugins support fp64 data type.
-    Changes output type from fp32 to fp16 (and ensure that this is possible) when generating IR for fp16.
-    But leave fp32 if node returns shape value even if --data_type=FP16 (look extensions/back/MarkNodesWithShapeValues.py)
+    The transformation changes output type for the specific operations defined in the
+    operations_with_data_type_attributes dictionary if one of the following conditions is met:
+    - The operation output type is fp64. Since not all plugins support fp64 data type it is converted to fp32.
+    - Changes output type from fp32 to fp16 (and ensure that this is possible) when generating fp16 IR.
+    - Keep operation output type equal to fp32 for operations located in the shape calculation sub-graphs to
+    avoid floating point overflow.
     """
     enabled = True
     force_shape_inference = True
@@ -37,11 +39,11 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         ir_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
-        for op_name, op_map in operations_with_data_type_attributes.items():
-            dst_type = op_map['attr_name']
-            for node in graph.get_op_nodes(op=op_name):
+        for node in graph.get_op_nodes():
+            if node.op in operations_with_data_type_attributes:
+                dst_type = operations_with_data_type_attributes[node.op]['attr_name']
                 node_name = node.soft_get('name', node.id)
-                assert node.has_valid(dst_type)
+                assert node.has_valid(dst_type), '{} attribute is missing for node {}'.format(dst_type, node_name)
 
                 final_type = None
                 if node[dst_type] == np.float64:
@@ -89,7 +91,7 @@ def assert_that_is_castable_to_fp16(node: Node):
     if original_output_len != casted_output_len:
         raise Error("Try to convert with --data_type=FP32 argument. "
                     "This model can not be converted to FP16 precision, since "
-                    "after '{}' node dtype to FP16 output shape {} differs from original {}."
+                    "after conversion of '{}' node to FP16 output shape {} differs from the original {}."
                     .format(node_name, casted_output_len, original_output_len))
 
     diff_count = np.count_nonzero(np.subtract(original_output, casted_output) > 1.e-4)
