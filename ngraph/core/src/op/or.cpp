@@ -7,6 +7,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/or.hpp"
 
+#include "ngraph/validation_util.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -18,6 +20,13 @@ op::v1::LogicalOr::LogicalOr(const Output<Node>& arg0,
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
 {
     constructor_validate_and_infer_types();
+}
+
+bool op::v1::LogicalOr::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v1_LogicalOr_visit_attributes);
+    BinaryElementwiseLogical::visit_attributes(visitor);
+    return true;
 }
 
 shared_ptr<Node> op::v1::LogicalOr::clone_with_new_inputs(const OutputVector& new_args) const
@@ -54,12 +63,6 @@ namespace logor
         switch (arg0->get_element_type())
         {
             NGRAPH_TYPE_CASE(evaluate_logor, boolean, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, i32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, i64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, u32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, u64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, f16, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logor, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -78,13 +81,7 @@ bool op::v1::LogicalOr::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_LogicalOr_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ngraph::element::boolean: return true;
     default: break;
     }
     return false;
