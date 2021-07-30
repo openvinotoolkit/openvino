@@ -1,8 +1,9 @@
-// Copyright (C) 2021 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 #include "conv2d_utils.hpp"
 
 namespace ngraph
@@ -13,9 +14,10 @@ namespace ngraph
         {
             namespace op
             {
-                NamedOutputs conv2d(const NodeContext& node)
+                NamedOutputs conv2d_transpose(const NodeContext& node)
                 {
-                    return conv2d_base<opset6::GroupConvolution, opset6::Convolution>(node);
+                    return conv2d_base<opset6::GroupConvolutionBackpropData,
+                                       opset6::ConvolutionBackpropData>(node);
                 }
 
             } // namespace op

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "split.hpp"
 #include <ngraph/opsets/opset7.hpp>
+#include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
@@ -24,7 +24,7 @@ namespace ngraph
                     {
                         auto input = node.get_ng_input("AxisTensor");
                         auto zero_node = Constant::create(element::i32, {1}, {0});
-                        axis = std::make_shared<Reshape>(input, zero_node, false);
+                        axis = std::make_shared<ReduceMin>(input, zero_node, false);
                     }
                     else
                     {
