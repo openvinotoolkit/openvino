@@ -642,8 +642,6 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
                            [](const Dimension& d) -> Dimension {
                 return d.get_max_length();
             });
-            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
-                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
@@ -685,6 +683,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
         create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
+    // TODO remove resolve_dynamic_shapes function completely when support for -1 will be implemented in the MO
     bool has_dynamic_shapes = resolve_dynamic_shapes(f);
 
     const bool exec_graph = is_exec_graph(f);
