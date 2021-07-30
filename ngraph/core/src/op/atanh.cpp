@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::Atanh, "Atanh", 0, util::UnaryElementwiseArithmetic);
+NGRAPH_RTTI_DEFINITION(op::v3::Atanh, "Atanh", 0, util::UnaryElementwiseArithmetic);
 
 op::v3::Atanh::Atanh(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
