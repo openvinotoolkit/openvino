@@ -77,7 +77,7 @@ void HeteroInferRequest::SetBlob(const std::string& name, const InferenceEngine:
             if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
                 r->SetBlob(name, data, foundInput->getPreProcess());
             }
-        } catch (const InferenceEngine::NotFound& ex) {}
+        } catch (const InferenceEngine::NotFound&) {}
     }
 }
 

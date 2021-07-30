@@ -66,7 +66,6 @@
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
-#include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
@@ -1604,24 +1603,6 @@ namespace
             throw ngraph_error(
                 "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
         }
-        return true;
-    }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::Select>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-
-        runtime::reference::select<T>(inputs[0]->get_data_ptr<const char>(),
-                                      inputs[1]->get_data_ptr<const T>(),
-                                      inputs[2]->get_data_ptr<const T>(),
-                                      outputs[0]->get_data_ptr<T>(),
-                                      op->get_input_shape(0),
-                                      op->get_input_shape(1),
-                                      op->get_input_shape(2),
-                                      op->get_auto_broadcast());
         return true;
     }
 
