@@ -365,7 +365,8 @@ namespace ngraph
     bool is_post_dominated(Node* X, Node* Y);
 
     NGRAPH_API
-    bool is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant);
+    bool is_equal_to_const_value(const std::string& const_value,
+                                 const Output<Node>& reduce_constant);
 
     // input nodes are cloned and returned
     // NodeMap input may contain default node mapping i.e. pre-cloned nodes
