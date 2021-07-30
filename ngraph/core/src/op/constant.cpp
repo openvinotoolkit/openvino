@@ -162,6 +162,18 @@ op::Constant::Constant(const Constant& other)
     constructor_validate_and_infer_types();
 }
 
+op::Constant::Constant(const Constant& other, const Shape& new_shape)
+{
+    NGRAPH_CHECK(shape_size(other.m_shape) == shape_size(new_shape),
+                 "Shape size " + std::to_string(shape_size(new_shape)) + " is not equal to " +
+                     std::to_string(shape_size(other.m_shape)));
+    m_element_type = other.m_element_type;
+    m_shape = new_shape;
+    m_data = other.m_data;
+    m_all_elements_bitwise_identical = other.m_all_elements_bitwise_identical;
+    constructor_validate_and_infer_types();
+}
+
 op::Constant::~Constant() {}
 
 string op::Constant::convert_value_to_string(size_t index) const
