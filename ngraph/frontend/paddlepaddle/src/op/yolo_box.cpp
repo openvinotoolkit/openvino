@@ -5,7 +5,7 @@
 #include <numeric>
 
 #include <ngraph/opsets/opset6.hpp>
-#include "yolo_box.hpp"
+#include <node_context.hpp>
 
 namespace ngraph
 {

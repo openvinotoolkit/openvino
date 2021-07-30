@@ -3500,7 +3500,7 @@ public:
         return generic_test::generate_generic_test_params(all_generic_params);
     }
 
-    virtual bool is_format_supported(cldnn::format format)
+    bool is_format_supported(cldnn::format format) override
     {
         if ((format == cldnn::format::yxfb) || (format == cldnn::format::bfyx) || (format == cldnn::format::bfyx))
         {
@@ -3509,7 +3509,7 @@ public:
         return false;
     }
 
-    virtual void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs)
+    void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {
@@ -3532,7 +3532,7 @@ public:
         set_values(input, input_rnd_vec);
     }
 
-    virtual cldnn::tensor get_expected_output_tensor()
+    cldnn::tensor get_expected_output_tensor() override
     {
         auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
@@ -3733,7 +3733,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs)
+    memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {

@@ -46,25 +46,6 @@ void TransposeAfterMatMulTransformation::SetUp() {
     std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
     function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
-
-    validate();
-}
-
-void TransposeAfterMatMulTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    bool perTensor;
-    bool transposeChannelDim;
-    std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
-
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto layer = output->get_input_node_shared_ptr(0);
-    const std::string typeName = layer->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

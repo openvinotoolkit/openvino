@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pad3d.hpp"
+#include <node_context.hpp>
 #include <ngraph/opsets/opset6.hpp>
 
 namespace ngraph

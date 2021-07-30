@@ -47,7 +47,6 @@ void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
@@ -56,34 +55,10 @@ void NormalizeL2Transformation::SetUp() {
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
-        params.precisionsOnActivations[0],
+        ngraph::element::u8,
         axes,
         fuseMultiply,
         shift);
-
-    validate();
-}
-
-void NormalizeL2Transformation::validate() {
-    ngraph::element::Type precision;
-    std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
-    std::string targetDevice;
-    std::vector<uint64_t> axes;
-    bool fuseMultiply;
-    bool shift;
-    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
-
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto normalize = output->get_input_node_shared_ptr(0);
-    const std::string typeName = normalize->get_type_name();
-    ASSERT_EQ("NormalizeIE", typeName);
-
-    const auto inputPrecision = normalize->get_input_element_type(0);
-    const auto expectedPrecision = shift ? precision : ngraph::element::u8;
-    ASSERT_EQ(inputPrecision, expectedPrecision);
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {

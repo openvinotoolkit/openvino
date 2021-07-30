@@ -187,8 +187,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
-set(CMAKE_WARN_DEPRECATED OFF)
-set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON)
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
 
 # LTO
 
@@ -254,8 +254,10 @@ endfunction()
 function(ie_check_pip_package name message_type)
     find_package(PythonInterp 3 REQUIRED)
 
+    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
     execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
+        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
         RESULT_VARIABLE PIP_EXIT_CODE
         OUTPUT_QUIET
     )
