@@ -13,6 +13,7 @@
 #include <file_utils.h>
 #include <streambuf>
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include <ngraph/ngraph.hpp>
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
@@ -76,15 +77,20 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 }
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-// TODO: CVS-61224
-TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromWstringNamedFile) {
+TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
-    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(ONNX_TEST_MODELS);
-    std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
-    const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    const std::wstring path = unicode_win_dir_path + L"onnx_external_data.onnx";
+    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(
+        ONNX_TEST_MODELS "onnx_external_data.onnx");
+    std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
+        CommonTestUtils::test_unicode_postfix_vector[0]);
+    bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
+    if (!is_copy_successfully) {
+        FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
+                << FileUtils::wStringtoMBCSstringChar(wmodel) << "'";
+    }
 
-    auto cnnNetwork = ie.ReadNetwork(path, L"");
+    auto cnnNetwork = ie.ReadNetwork(wmodel, L"");
+    CommonTestUtils::removeFile(wmodel);
     auto function = cnnNetwork.getFunction();
 
     int count_multiply = 0;

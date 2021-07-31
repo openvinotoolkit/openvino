@@ -57,7 +57,7 @@ function(add_common_utils ADD_TARGET_NAME)
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
             )
-    target_include_directories(${ADD_TARGET_NAME} PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
+    target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
     target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ${ARGN})
 endfunction()
