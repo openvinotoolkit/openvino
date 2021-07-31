@@ -119,7 +119,8 @@ TEST(ONNX_Importer_Tests, ImportModelWhenFileDoesNotExist) {
     }
 }
 
-TEST(ONNX_Importer_Tests, ImportModelFromStream) {
+// TODO: CVS-61224
+TEST(ONNX_Importer_Tests, DISABLED_ImportModelFromStream) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ngraph::file_util::path_join(ONNX_MODELS_DIR, "addmul_abc.onnx"));
     std::ifstream model_file_stream(model_file_path);

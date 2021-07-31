@@ -3,6 +3,7 @@
 //
 
 #include <ngraph/file_util.hpp>
+#include <cstring>
 
 #ifdef __APPLE__
 # include <mach-o/dyld.h>
@@ -11,6 +12,7 @@
 #ifdef _WIN32
 # include <Windows.h>
 #else
+# include <dlfcn.h>
 # include <unistd.h>
 # include <limits.h>
 #endif
@@ -23,11 +25,10 @@ std::string getExecutableDirectory() {
     char buffer[MAX_PATH];
     int len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
 #elif defined(__APPLE__)
-    char buffer[PATH_MAX];
-    uint32_t len = 1024; // Definitely enough for test purposes
-    if (_NSGetExecutablePath(buffer, &len) != 0) {
-        throw "Can't get test executable path name";
-    }
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getExecutableDirectory), &info);
+    const char * buffer = info.dli_fname;
+    int len = std::strlen(buffer);
 #else
     char buffer[PATH_MAX];
     int len = readlink("/proc/self/exe", buffer, PATH_MAX);
