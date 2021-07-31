@@ -8,6 +8,7 @@
 #include <ie_api.h>
 #include <ie_iextension.h>
 #include <ie_network_reader.hpp>
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
@@ -40,7 +41,8 @@ protected:
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -62,7 +64,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 #ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.onnx";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.onnx");
 
     InferenceEngine::Core ie;
     ie.AddExtension(
@@ -84,7 +87,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 #endif
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     auto extension =
@@ -123,7 +127,8 @@ public:
 };
 
 TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
-    const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_op.xml");
 
     InferenceEngine::Core ie;
     auto extension = std::make_shared<FrameworkNodeExtension>();

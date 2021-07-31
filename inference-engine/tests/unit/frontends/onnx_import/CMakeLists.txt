@@ -10,6 +10,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             gtest
             gtest_main
+            commonTestUtils
             onnx_importer
         DEFINES
             ONNX_MODELS_DIR=\"${TEST_MODEL_ZOO}/onnx_import\"

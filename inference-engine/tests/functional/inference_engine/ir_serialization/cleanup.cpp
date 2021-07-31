@@ -17,7 +17,7 @@ protected:
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
-        std::remove(m_out_xml_path.c_str());
+        std::remove(m_out_bin_path.c_str());
     }
 };
 

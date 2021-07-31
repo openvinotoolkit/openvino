@@ -12,11 +12,13 @@
 #include <ie_core.hpp>
 #include <file_utils.h>
 #include <streambuf>
+#include "common_test_utils/file_utils.hpp"
 #include <ngraph/ngraph.hpp>
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx", "");
+    auto cnnNetwork = ie.ReadNetwork(CommonTestUtils::getModelFromTestModelZoo(
+        std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx"), "");
     auto function = cnnNetwork.getFunction();
 
     int count_additions = 0;
@@ -48,8 +50,9 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
-    const auto path = std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx";
-    InferenceEngine::Blob::CPtr weights; //not used
+    const auto path = CommonTestUtils::getModelFromTestModelZoo(
+        std::string(ONNX_TEST_MODELS) + "onnx_external_data.onnx");
+    InferenceEngine::Blob::CPtr weights; // not used
     std::ifstream stream(path, std::ios::binary);
     std::string modelAsString((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
     stream.close();
@@ -76,7 +79,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 // TODO: CVS-61224
 TEST(ONNX_Reader_Tests, DISABLED_ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
-    std::string win_dir_path = ONNX_TEST_MODELS;
+    std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(ONNX_TEST_MODELS);
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
     const std::wstring path = unicode_win_dir_path + L"onnx_external_data.onnx";

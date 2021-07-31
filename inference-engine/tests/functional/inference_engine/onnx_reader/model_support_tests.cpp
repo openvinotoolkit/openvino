@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/file_utils.hpp"
 #include "ie_common.h"
 #include <gtest/gtest.h>
 #include <fstream>
@@ -13,7 +14,7 @@ namespace {
         std::string path = ONNX_TEST_MODELS;
         path += "support_test/";
         path += model;
-        return path;
+        return CommonTestUtils::getModelFromTestModelZoo(path);
     }
 }
 
