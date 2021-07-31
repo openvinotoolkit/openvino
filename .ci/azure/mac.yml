@@ -124,12 +124,10 @@ jobs:
     continueOnError: false
 
   - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-    workingDirectory: $(BIN_DIR)
     displayName: 'ONNX Importer UT'
     continueOnError: false
 
   - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-    workingDirectory: $(BIN_DIR)
     displayName: 'IE FuncTests'
     continueOnError: false
 

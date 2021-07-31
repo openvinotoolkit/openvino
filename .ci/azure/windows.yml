@@ -173,12 +173,10 @@ jobs:
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Importer UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
-    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'IE FuncTests'
     continueOnError: false
 
