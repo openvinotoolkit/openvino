@@ -642,6 +642,11 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 
     target_link_libraries(unit-test PRIVATE onnx_importer)
+    if (LINUX)
+        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+    elseif(APPLE)
+        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+    endif()
 endif()
 
 install(TARGETS unit-test
