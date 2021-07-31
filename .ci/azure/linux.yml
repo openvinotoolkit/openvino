@@ -195,10 +195,12 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
+    workingDirectory: $(INSTALL_TEST_DIR)
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
+    workingDirectory: $(INSTALL_TEST_DIR)
     continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
