@@ -24,6 +24,7 @@ Options:
 from docopt import docopt
 from google.protobuf import text_format
 import onnx
+from onnx.external_data_helper import convert_model_to_external_data
 import os
 
 ONNX_SUFFX = '.onnx'
@@ -53,6 +54,18 @@ _ext_map = {
 def _get_output_file_path(path, extension):
     return path + _ext_map[extension]
 
+
+def save_model(proto, f, format=None, save_as_external_data=False, all_tensors_to_one_file=True, location=None, size_threshold=1024, convert_attribute=False):
+    if isinstance(proto, bytes):
+        proto = onnx._deserialize(proto, onnx.ModelProto())
+
+    if save_as_external_data:
+        convert_model_to_external_data(proto, all_tensors_to_one_file, location, size_threshold, convert_attribute)
+
+    s = onnx._serialize(proto)
+    onnx._save_bytes(s, f)
+
+
 if __name__ == '__main__':
     args = docopt(__doc__)
     input_file_path = args['INPUT_FILE']
@@ -60,8 +73,6 @@ if __name__ == '__main__':
         output_file_path = _get_output_file_path(*os.path.splitext(input_file_path))
     else:
         output_file_path = args['OUTPUT_FILE']
-
-    print('Converting {} to {}.'.format(input_file_path, output_file_path))
 
     if not os.path.exists(input_file_path):
         sys.exit('ERROR: Provided input model path does not exists: {}'.format(input_file_path))
@@ -75,6 +86,6 @@ if __name__ == '__main__':
     elif _is_txt_file(input_file_path) and _is_bin_file(output_file_path):
         with open(input_file_path, 'r') as f:
             converted_model = _txt2bin(f.read())
-        onnx.save(converted_model, output_file_path)
+        save_model(converted_model, output_file_path)
     else:
         sys.exit('ERROR: Provided input or output file has unsupported format.')

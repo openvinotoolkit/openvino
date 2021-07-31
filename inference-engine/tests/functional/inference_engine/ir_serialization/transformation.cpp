@@ -8,9 +8,10 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 class SerializationTransformationTest : public ::testing::Test {
@@ -22,8 +23,10 @@ protected:
     std::shared_ptr<ngraph::Function> m_function;
 
     void SetUp() override {
-        const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.xml";
-        const std::string weights = IR_SERIALIZATION_MODELS_PATH "add_abc.bin";
+        const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+            IR_SERIALIZATION_MODELS_PATH "add_abc.xml");
+        const std::string weights = CommonTestUtils::getModelFromTestModelZoo(
+            IR_SERIALIZATION_MODELS_PATH "add_abc.bin");
         InferenceEngine::Core ie;
         m_function = ie.ReadNetwork(model, weights).getFunction();
     }

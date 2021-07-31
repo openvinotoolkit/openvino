@@ -13,6 +13,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 
 TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     auto model = std::string(PADDLE_TEST_MODELS) + "relu.pdmodel";
@@ -48,12 +49,17 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
-    std::string win_dir_path{ PADDLE_TEST_MODELS };
-    std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
-    const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
-    auto model = unicode_win_dir_path + L"ひらがな日本語.pdmodel";
+    std::string win_dir_path{ PADDLE_TEST_MODELS "relu.pdmodel" };
+    std::wstring wmodel = CommonTestUtils::addUnicodePostfixToPath(win_dir_path,
+        CommonTestUtils::test_unicode_postfix_vector[0]);
+    bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
+    if (!is_copy_successfully) {
+        FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
+                << FileUtils::wStringtoMBCSstringChar(wmodel) << "'";
+    }
     InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(model);
+    auto cnnNetwork = ie.ReadNetwork(wmodel);
+    CommonTestUtils::removeFile(wmodel);
     auto function = cnnNetwork.getFunction();
 
     const auto inputType = ngraph::element::f32;

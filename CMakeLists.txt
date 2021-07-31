@@ -77,6 +77,9 @@ endfunction()
 ie_cpack_add_component(ngraph REQUIRED)
 ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 
+# add target with processed tests model zoo
+include(cmake/test_model_zoo.cmake)
+
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(ngraph)

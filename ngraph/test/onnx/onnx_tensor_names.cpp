@@ -21,7 +21,7 @@ using Outputs = std::vector<std::vector<float>>;
 NGRAPH_TEST(onnx_tensor_names, simple_model)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/tensor_names.onnx"));
 
     auto ops = function->get_ordered_ops();
     ASSERT_EQ(ops[0]->get_friendly_name(), "input");
@@ -43,7 +43,7 @@ NGRAPH_TEST(onnx_tensor_names, simple_model)
 NGRAPH_TEST(onnx_tensor_names, node_multiple_outputs)
 {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.prototxt"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/top_k.onnx"));
 
     auto ops = function->get_ordered_ops();
 
