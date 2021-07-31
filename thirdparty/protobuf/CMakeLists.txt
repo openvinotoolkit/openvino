@@ -55,12 +55,6 @@ set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
-if(NGRAPH_USE_PROTOBUF_LITE)
-    set(Protobuf_LIBRARIES libprotobuf-lite)
-else()
-    set(Protobuf_LIBRARIES libprotobuf)
-endif()
-
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
    CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     if(protobuf_BUILD_PROTOC_BINARIES)
@@ -104,5 +98,5 @@ endif()
 
 set(protobuf_VERSION ${protobuf_VERSION} PARENT_SCOPE)
 set(Protobuf_LITE_LIBRARIES libprotobuf-lite PARENT_SCOPE)
-set(Protobuf_LIBRARIES ${Protobuf_LIBRARIES} PARENT_SCOPE)
+set(Protobuf_LIBRARIES libprotobuf-lite PARENT_SCOPE)
 set(Protobuf_INCLUDE_DIRS ${Protobuf_INCLUDE_DIRS} PARENT_SCOPE)
