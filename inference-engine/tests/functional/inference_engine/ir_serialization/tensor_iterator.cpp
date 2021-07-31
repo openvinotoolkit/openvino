@@ -4,6 +4,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 #include "ie_core.hpp"
@@ -12,7 +13,7 @@
 #include "pugixml.hpp"
 
 #ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
+# error "IR_SERIALIZATION_MODELS_PATH is not defined"
 #endif
 
 class SerializationTensorIteratorTest : public ::testing::Test {
@@ -24,7 +25,7 @@ protected:
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
-        std::remove(m_out_xml_path.c_str());
+        std::remove(m_out_bin_path.c_str());
     }
 
     void serialize_and_compare(const std::string& model_path, InferenceEngine::Blob::Ptr weights) {
@@ -47,7 +48,8 @@ protected:
 };
 
 TEST_F(SerializationTensorIteratorTest, TiResnet) {
-    const std::string model_path = IR_SERIALIZATION_MODELS_PATH "ti_resnet.xml";
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "ti_resnet.xml");
 
     size_t weights_size = 8396840;
 
@@ -67,7 +69,8 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
 }
 
 TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
-    const std::string model_path = IR_SERIALIZATION_MODELS_PATH "ti_negative_stride.xml";
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "ti_negative_stride.xml");
 
     size_t weights_size = 3149864;
 
@@ -87,8 +90,10 @@ TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
 }
 
 TEST_F(SerializationTensorIteratorTest, SerializationExternalPortIdInXmlFile) {
-    const std::string model_path = IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml";
-    const std::string binary_path = IR_SERIALIZATION_MODELS_PATH "loop_2d_add.bin";
+    const std::string model_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml");
+    const std::string binary_path = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "loop_2d_add.bin");
 
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork expected;
