@@ -123,23 +123,21 @@ TEST(ONNX_Importer_Tests, ImportModelFromStream) {
     auto model_file_path = CommonTestUtils::getModelFromTestModelZoo(
         ngraph::file_util::path_join(ONNX_MODELS_DIR, "addmul_abc.onnx"));
     std::ifstream model_file_stream(model_file_path);
-    if (model_file_stream.is_open()) {
-        int count_adds = 0;
-        int count_multiplies = 0;
-        int count_parameters = 0;
+    ASSERT_TRUE(model_file_stream.is_open());
+    int count_adds = 0;
+    int count_multiplies = 0;
+    int count_parameters = 0;
 
-        auto function = ngraph::onnx_import::import_onnx_model(model_file_stream);
-        for (auto op : function->get_ops()) {
+    auto function = ngraph::onnx_import::import_onnx_model(model_file_stream);
+    for (auto op : function->get_ops()) {
         const auto op_type = std::string(op->get_type_name());
-            count_adds += (op_type == "Add" ? 1 : 0);
-            count_multiplies += (op_type == "Multiply" ? 1 : 0);
-            count_parameters += (op_type == "Parameter" ? 1 : 0);
-        }
-        ASSERT_EQ(count_adds, 1);
-        ASSERT_EQ(count_multiplies, 1);
-        ASSERT_EQ(count_parameters, 3);
+        count_adds += (op_type == "Add" ? 1 : 0);
+        count_multiplies += (op_type == "Multiply" ? 1 : 0);
+        count_parameters += (op_type == "Parameter" ? 1 : 0);
     }
-    model_file_stream.close();
+    ASSERT_EQ(count_adds, 1);
+    ASSERT_EQ(count_multiplies, 1);
+    ASSERT_EQ(count_parameters, 3);
 }
 
 TEST(ONNX_Importer_Tests, GetSupportedOperators) {

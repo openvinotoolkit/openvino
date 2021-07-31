@@ -93,14 +93,14 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     CommonTestUtils::removeFile(wmodel);
     auto function = cnnNetwork.getFunction();
 
-    int count_multiply = 0;
+    int count_add = 0;
     int count_constants = 0;
     int count_parameters = 0;
 
     std::shared_ptr<ngraph::Node> external_data_node;
     for (auto op : function->get_ops()) {
         const auto op_type = std::string(op->get_type_name());
-        count_multiply += (op_type == "Multiply" ? 1 : 0);
+        count_add += (op_type == "Add" ? 1 : 0);
         count_parameters += (op_type == "Parameter" ? 1 : 0);
         if (op_type == "Constant") {
             count_constants += 1;
@@ -112,7 +112,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     ASSERT_EQ(std::string(function->get_output_op(0)->get_type_name()), "Result");
     ASSERT_EQ(function->get_output_element_type(0), ngraph::element::f32);
     ASSERT_EQ(function->get_output_shape(0), ngraph::Shape({2, 2}));
-    ASSERT_EQ(count_multiply, 2);
+    ASSERT_EQ(count_add, 2);
     ASSERT_EQ(count_constants, 1);
     ASSERT_EQ(count_parameters, 2);
 
