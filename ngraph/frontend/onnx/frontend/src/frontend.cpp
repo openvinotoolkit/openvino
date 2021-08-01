@@ -43,10 +43,9 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
     return model_onnx->convert();
 }
 
-std::shared_ptr<ngraph::Function>
-    FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const
+void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const
 {
-    return onnx_import::detail::convert_decoded_function(partially_converted);
+    onnx_import::detail::convert_decoded_function(partially_converted);
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const

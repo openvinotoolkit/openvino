@@ -25,17 +25,21 @@ set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
+    HeteroPlugin
+    AutoPlugin
+    MultiDevicePlugin
     template_extension
     lptNgraphFunctions
     sharedTestClasses
+    test_model_zoo
 )
 
-if (NOT NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
+if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
 if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
-    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader")
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
 addIeTargetTest(
@@ -55,13 +59,13 @@ set_ie_threading_interface_for(${TARGET_NAME})
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_FRONTEND_ENABLE
-        ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
+        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        PDPD_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/pdpd_reader/models/")
+            PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
     add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 endif()
 
@@ -259,4 +263,5 @@ else()
 endif()
 
 # ir serialization functional tests variables
-target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")
+target_compile_definitions(${TARGET_NAME} PRIVATE
+    IR_SERIALIZATION_MODELS_PATH="${TEST_MODEL_ZOO}/ir_serialization/models/")

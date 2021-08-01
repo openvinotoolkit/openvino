@@ -61,7 +61,7 @@ namespace ngraph
                 }
             }
 
-            std::shared_ptr<Function> convert_decoded_function(std::shared_ptr<Function> function)
+            void convert_decoded_function(std::shared_ptr<Function> function)
             {
                 for (const auto& node : function->get_ordered_ops())
                 {
@@ -87,8 +87,6 @@ namespace ngraph
                 }
                 detail::remove_dangling_parameters(function);
                 detail::remove_dangling_results(function);
-
-                return function;
             }
 
             void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto,

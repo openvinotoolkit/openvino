@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
+add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
@@ -178,6 +178,7 @@ set(SRC
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
     type_prop/prior_box_clustered.cpp
+    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -298,6 +299,7 @@ set(SRC
     visitors/op/prior_box_clustered.cpp
     visitors/op/proposal.cpp
     visitors/op/psroi_pooling.cpp
+    visitors/op/random_uniform.cpp
     visitors/op/reduce_l1.cpp
     visitors/op/reduce_l2.cpp
     visitors/op/reduce_logical_and.cpp
@@ -372,7 +374,7 @@ if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${CMAKE_CURRENT_SOURCE_DIR}/files\"")
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
 
 # backend specific test files must meet the following requirements:
@@ -528,7 +530,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
@@ -572,9 +574,9 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE)
     if(paddlepaddle_FOUND)
         file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
         set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(PDPD_TEST_MODELS_DIRNAME pdpd_test_models)
-        set(TEST_PDPD_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PDPD_TEST_MODELS_DIRNAME}/)
-        add_definitions("-DTEST_PDPD_MODELS_DIRNAME=\"${PDPD_TEST_MODELS_DIRNAME}/\"")
+        set(PADDLE_TEST_MODELS_DIRNAME paddle_test_models)
+        set(TEST_PADDLE_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PADDLE_TEST_MODELS_DIRNAME}/)
+        add_definitions("-DTEST_PADDLE_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\"")
     endif()
 endif()
 # ---- End PaddlePaddle FrontEnd testing ------
@@ -619,7 +621,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_FRONTEND_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -652,7 +654,7 @@ install(TARGETS unit-test
 
 ############ FRONTEND ############
 target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
-target_link_libraries(unit-test PRIVATE frontend_manager cnpy)
+target_link_libraries(unit-test PRIVATE frontend_manager cnpy commonTestUtils)
 
 add_subdirectory(frontend)
 ### END FRONTEND ###
@@ -663,23 +665,26 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PDPD_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
                 COMMAND ${PYTHON_EXECUTABLE}
                         ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                         ${GEN_SCRIPT}
-                        ${TEST_PDPD_MODELS}
+                        ${TEST_PADDLE_MODELS}
                         ${OUT_DONE_FILE}
                 DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
                 )
     endforeach()
-    add_custom_target(pdpd_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(unit-test pdpd_test_models)
+    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+    add_dependencies(unit-test paddlepaddle_test_models)
     add_dependencies(unit-test paddlepaddle_ngraph_frontend)
 
-    install(DIRECTORY ${TEST_PDPD_MODELS}
-            DESTINATION tests/${PDPD_TEST_MODELS_DIRNAME}
+    install(DIRECTORY ${TEST_PADDLE_MODELS}
+            DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 endif()
+
+# process models
+add_dependencies(unit-test test_model_zoo)
