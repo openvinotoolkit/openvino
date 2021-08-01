@@ -36,6 +36,7 @@
     },
     {
         "custom_attributes": {
+            "operation_to_add": "Proposal",
             "clip_before_nms": true,
             "clip_after_nms": false
         },
