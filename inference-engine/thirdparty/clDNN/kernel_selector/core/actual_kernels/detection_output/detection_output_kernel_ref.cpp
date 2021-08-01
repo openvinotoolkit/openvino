@@ -134,26 +134,48 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
 }
 
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
-    if (idx == 0) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-    } else if (idx == 1) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-    } else if (idx == 2) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-    } else if (idx == 3) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+    if (params.detectOutParams.decrease_label_id) {
+        if (idx == 0) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 1) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 2) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        } else if (idx == 3) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        }
+    } else {
+        if (idx == 0) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 1) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 2) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        } else if (idx == 3) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        }
     }
 }
 
@@ -177,7 +199,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     size_t num_scores_size = num_of_images * (num_classes + 1) * sizeof(int);
 
     kd.internalBufferSizes.push_back(buffer_size);
-    kd.internalBufferSizes.push_back(buffer_size);
+    if (detectOutParams.detectOutParams.decrease_label_id) {
+        kd.internalBufferSizes.push_back(buffer_size);
+    }
     kd.internalBufferSizes.push_back(num_scores_size);
     kd.internalBufferDataType = GetUnitType(detectOutParams);
 
@@ -227,7 +251,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
-                cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"));
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
+                                      MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
             }
         }
 
