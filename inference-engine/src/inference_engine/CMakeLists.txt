@@ -162,7 +162,8 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph ngraph::frontend_manager::static inference_engine_transformations)
+                                             ngraph::frontend_manager::static inference_engine_transformations
+                                     PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -216,7 +217,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+export(TARGETS ngraph ${TARGET_NAME} NAMESPACE IE::
         APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
 # Export for developer package
@@ -229,7 +230,14 @@ list(APPEND core_components ngraph)
 list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
                       "IE_PARALLEL_CMAKE")
 
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
+# define variables for InferenceEngineConfig.cmake
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    set(IE_TBB_DIR "${TBB_DIR}")
+    list(APPEND PATH_VARS "IE_TBB_DIR")
+endif()
+
+# install only downloaded TBB, system one is not installed
+if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
@@ -249,8 +257,6 @@ if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCH
             COMPONENT tbb)
 
     set(IE_TBB_DIR_INSTALL "external/tbb/cmake")
-    set(IE_TBB_DIR "${TBB_DIR}")
-    list(APPEND PATH_VARS "IE_TBB_DIR")
 
     install(FILES "${TBB}/cmake/TBBConfig.cmake"
                   "${TBB}/cmake/TBBConfigVersion.cmake"
