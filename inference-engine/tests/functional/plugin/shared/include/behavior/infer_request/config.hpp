@@ -81,15 +81,6 @@ TEST_P(InferRequestConfigTest, canSetExclusiveAsyncRequests) {
         targetDevice != CommonTestUtils::DEVICE_HETERO) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-//    if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
-//        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    } else if ((targetDevice == CommonTestUtils::DEVICE_MYRIAD) ||
-//               (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
-//        ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI)) {
-//    } else {
-//        ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    }
 }
 
 TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
@@ -99,14 +90,5 @@ TEST_P(InferRequestConfigTest, withoutExclusiveAsyncRequests) {
         targetDevice != CommonTestUtils::DEVICE_HETERO) {
         ASSERT_EQ(streamExecutorNumber, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-//    if ((targetDevice == CommonTestUtils::DEVICE_GNA) || (targetDevice == CommonTestUtils::DEVICE_HDDL)) {
-//        ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    } else if ((targetDevice == CommonTestUtils::DEVICE_AUTO) || (targetDevice == CommonTestUtils::DEVICE_MULTI) ||
-//               (targetDevice == CommonTestUtils::DEVICE_HETERO)) {
-//    } else if (targetDevice == CommonTestUtils::DEVICE_MYRIAD) {
-//        ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    } else {
-//        ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
-//    }
 }
 }  // namespace BehaviorTestsDefinitions

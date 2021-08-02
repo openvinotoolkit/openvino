@@ -19,10 +19,6 @@ const std::vector<std::map<std::string, std::string>> autoconfigs = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
-        {{InferenceEngine::KEY_AUTO_DEVICE_LIST, CommonTestUtils::DEVICE_MYRIAD}},
-        {{InferenceEngine::KEY_AUTO_DEVICE_LIST , std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_MYRIAD}}
-};
-
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                 ::testing::Values(std::map<std::string, std::string>({}))),
