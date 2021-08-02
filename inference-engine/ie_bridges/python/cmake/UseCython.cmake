@@ -261,8 +261,6 @@ function( compile_pyx _name generated_file )
     # set import statement to update in C code
     if(${_name} STREQUAL "ie_api")
       set(import_statements "constants")
-    elseif(${_name} STREQUAL "offline_transformations")
-      set(import_statements "ie_api")
     else()
       set(import_statements " ")
     endif()
