@@ -21,7 +21,7 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"ScatterBase", 3};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 virtual void validate_and_infer_types() override;
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
             protected:
                 ScatterBase() = default;

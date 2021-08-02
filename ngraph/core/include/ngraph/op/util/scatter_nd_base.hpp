@@ -25,7 +25,7 @@ namespace ngraph
                 static constexpr int INDICES = 1;
                 static constexpr int UPDATES = 2;
                 virtual void validate_and_infer_types() override;
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
             protected:
                 ScatterNDBase() = default;
