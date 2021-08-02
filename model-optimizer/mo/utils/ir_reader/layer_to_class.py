@@ -341,7 +341,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     # Create a new copy of graph with correct attributes (shape & type infer, backend attrs etc.)
     for op in graph.get_op_nodes():
 
-        # save restored restored from IR input shapes
+        # Save input shapes restored from IR
         op['old_input_shapes'] = list()
         for n in op.in_nodes():
             op.old_input_shapes.append(int64_array(op.in_node(n).shape))
