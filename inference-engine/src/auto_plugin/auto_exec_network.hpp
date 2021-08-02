@@ -60,6 +60,9 @@ public:
 private:
     void WaitForActualDevice() const;
     void ScheduleToWorkerInferRequest(InferenceEngine::Task, DeviceName preferred_device = "");
+    static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
+                                NotBusyWorkerRequests& idleWorkerRequests,
+                                const DeviceName& preferred_device);
 
 private:
     AutoInferencePlugin*                                                _autoPlugin;

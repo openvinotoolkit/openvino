@@ -254,41 +254,39 @@ Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
 
 void AutoExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
     // printf("%s:%d\n", __FUNCTION__, __LINE__);
-    WorkerInferRequest *workerRequestPtr = nullptr;
     if (!preferred_device.empty()) {
-        // _acceleratorDeviceName could be the same as _cpuDeviceName, such as AUTO:CPU
         auto &idleWorkerRequests = _idleWorkerRequests[preferred_device];
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            PluginHelper::IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-            _thisWorkerInferRequest = workerRequestPtr;
-            {
-                auto capturedTask = std::move(inferPipelineTask);
-                capturedTask();
-            }
-            idleGuard.Release();
-            return;
+        if (!RunPipelineTask(inferPipelineTask, idleWorkerRequests, preferred_device)) {
+            // no vacant requests this time, storing the task to the respective queue
+            _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
         }
-        _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
     } else {
         // _acceleratorDeviceName could be the same as _cpuDeviceName, such as AUTO:CPU
         auto &idleWorkerRequests = _alreadyActualNetwork
-                                       ? _idleWorkerRequests[_acceleratorDeviceName]
-                                       : _idleWorkerRequests[_cpuDeviceName];
-        if (idleWorkerRequests.try_pop(workerRequestPtr)) {
-            PluginHelper::IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
-            _thisWorkerInferRequest = workerRequestPtr;
-            {
-                auto capturedTask = std::move(inferPipelineTask);
-                capturedTask();
-            }
-            idleGuard.Release();
-            return;
+                                 ? _idleWorkerRequests[_acceleratorDeviceName]
+                                 : _idleWorkerRequests[_cpuDeviceName];
+        if (!RunPipelineTask(inferPipelineTask, idleWorkerRequests, preferred_device)) {
+            // no vacant requests this time, storing the task to the respective queue
+            _inferPipelineTasks.push(std::move(inferPipelineTask));
         }
-
-        // no vacant requests this time, storing the task to the respective queue
-        _inferPipelineTasks.push(std::move(inferPipelineTask));
-        // printf("!!! DEBUG: _inferPipelineTasks size = %zu\n", _inferPipelineTasks.unsafe_size());
     }
+}
+
+bool AutoExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
+                                            NotBusyWorkerRequests& idleWorkerRequests,
+                                            const DeviceName& preferred_device) {
+    WorkerInferRequest *workerRequestPtr = nullptr;
+    if (idleWorkerRequests.try_pop(workerRequestPtr)) {
+        PluginHelper::IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
+        _thisWorkerInferRequest = workerRequestPtr;
+        {
+            auto capturedTask = std::move(inferPipelineTask);
+            capturedTask();
+        }
+        idleGuard.Release();
+        return true;
+    }
+    return false;
 }
 
 }  // namespace AutoPlugin
