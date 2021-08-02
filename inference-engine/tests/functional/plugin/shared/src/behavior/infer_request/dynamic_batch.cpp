@@ -5,24 +5,14 @@
 #include <tuple>
 #include <string>
 #include <vector>
-#include <memory>
-#include <functional>
 #include <algorithm>
 
 #include "ie_core.hpp"
 
 #include "ie_transformations.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/precision_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
-
-#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "configuration_tests/dynamic_batch.hpp"
+#include "behavior/infer_request/dynamic_batch.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
 
