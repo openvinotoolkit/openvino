@@ -11,7 +11,7 @@ extensions/back/__init__.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
-extensions/back/ChangeCastOutputType.py
+extensions/back/ChangeOutputTypeAttributes.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
