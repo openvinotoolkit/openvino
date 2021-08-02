@@ -652,7 +652,7 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 }  // namespace Bf16TestUtils
 
-enum class BlobType {
+enum BlobType {
     Memory,
     Batched,
     Compound,
