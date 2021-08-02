@@ -15,7 +15,6 @@ from install_pkg import get_openvino_environment  # pylint: disable=import-error
 from path_utils import get_lib_path  # pylint: disable=import-error
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
-
 SESSION_INFO_FILE = "cc_tests.json"
 infer_tool = str((Path(getsourcefile(lambda: 0)) / ".." / "tools" / "infer_tool.py").resolve())
 
@@ -75,8 +74,7 @@ def run_infer(model, out_file, install_dir):
 def make_build(openvino_root_dir, build_dir, install_dir, build_target=None, cmake_additional_args=None, log=None):
     """Parametrized build and install OpenVINO package."""
     additional_args_line = " ".join(cmake_additional_args) + " " if cmake_additional_args else ""
-    build_target_arg_line = f"cmake --build {build_dir} --target " + " ".join(
-        build_target) + " && " if build_target else ""
+    build_target_arg_line = f"cmake --build {build_dir} --target {' '.join(build_target)} && " if build_target else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
         f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "
