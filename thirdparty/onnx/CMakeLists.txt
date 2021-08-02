@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-
 #------------------------------------------------------------------------------
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 set(BUILD_SHARED_LIBS OFF)
 
