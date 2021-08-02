@@ -425,7 +425,7 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     auto non_zero = pattern::wrap_type<opset8::NonZero>({convert_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto pattern_map = m.get_pattern_map();
+        const auto & pattern_map = m.get_pattern_map();
         auto convert = pattern_map.at(convert_pattern);
         // remove convert
         convert->output(0).replace(convert->input_value(0));
