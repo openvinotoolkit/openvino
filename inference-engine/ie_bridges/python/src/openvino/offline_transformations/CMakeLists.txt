@@ -50,7 +50,9 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/offline_transformations/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+    COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py -i ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
+                --match_string "from .offline_transformations_api" --replace_string "from .offline_transformations_api${IE_BUILD_POSTFIX}"
+                                                                                        -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
 )
 
 # install
