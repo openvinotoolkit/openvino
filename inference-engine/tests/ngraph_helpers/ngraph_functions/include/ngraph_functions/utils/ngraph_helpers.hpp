@@ -148,6 +148,11 @@ enum ComparisonTypes {
     GREATER_EQUAL
 };
 
+enum ConvertionTypes {
+    CONVERT,
+    CONVERT_LIKE
+};
+
 enum LogicalTypes {
     LOGICAL_AND,
     LOGICAL_OR,
