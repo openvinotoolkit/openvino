@@ -9,10 +9,6 @@
 #include "ie_core.hpp"
 #include "ngraph_functions/builders.hpp"
 
-#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
-#define IR_SERIALIZATION_MODELS_PATH ""
-#endif
-
 class SerializationCleanupTest : public CommonTestUtils::TestsCommon {
 protected:
     const std::string test_name = GetTestName() + "_" + GetTimestamp();
@@ -21,7 +17,7 @@ protected:
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
-        std::remove(m_out_xml_path.c_str());
+        std::remove(m_out_bin_path.c_str());
     }
 };
 
@@ -49,15 +45,15 @@ TEST_F(SerializationCleanupTest, SerializationShouldWork) {
     ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }
 
-TEST_F(SerializationCleanupTest, SerializationShouldFail) {
+TEST_F(SerializationCleanupTest, SerializationShouldWorkWithDynamicFunction) {
     const auto f =
-        CreateTestFunction("DynamicFunction", ngraph::PartialShape::dynamic());
+        CreateTestFunction("DynamicFunction",
+                           ngraph::PartialShape{ngraph::Dimension()});
 
     const InferenceEngine::CNNNetwork net{f};
-    ASSERT_THROW(net.serialize(m_out_xml_path, m_out_bin_path),
-                 InferenceEngine::Exception);
+    net.serialize(m_out_xml_path, m_out_bin_path);
 
-    // .xml & .bin files shouldn't be present
-    ASSERT_FALSE(std::ifstream(m_out_xml_path, std::ios::in).good());
-    ASSERT_FALSE(std::ifstream(m_out_bin_path, std::ios::in).good());
+    // .xml & .bin files should be present
+    ASSERT_TRUE(std::ifstream(m_out_xml_path, std::ios::in).good());
+    ASSERT_TRUE(std::ifstream(m_out_bin_path, std::ios::in).good());
 }

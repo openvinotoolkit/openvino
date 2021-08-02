@@ -8,6 +8,7 @@
 #include "blob_factory.hpp"
 #include "mkldnn_memory.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "cpu_memory_desc_utils.h"
 
 #include <string>
 
@@ -17,7 +18,7 @@ class MKLDNNVariableState : public InferenceEngine::IVariableStateInternal {
 public:
     MKLDNNVariableState(std::string name, MKLDNNMemoryPtr storage) :
             InferenceEngine::IVariableStateInternal{name} {
-        state = make_blob_with_precision(MKLDNNMemoryDesc(storage->GetDescriptor()));
+        state = make_blob_with_precision(MemoryDescUtils::convertToTensorDesc(storage->GetDesc()));
         state->allocate();
         cpu_memcpy(state->buffer(), storage->GetData(), storage->GetSize());
     }
