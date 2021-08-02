@@ -5,6 +5,7 @@
 #include "normalize_preprocess.h"
 #include "ie_parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
+#include "utils/general_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -12,7 +13,7 @@ using namespace InferenceEngine;
 NormalizePreprocess::NormalizePreprocess() : meanBuffer(nullptr) {
 }
 
-void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
+void NormalizePreprocess::Load(const Shape& inputShape, InputInfo::Ptr inputInfo) {
     PreProcessInfo &pp = inputInfo->getPreProcess();
     size_t inChannels = pp.getNumberOfChannels();
     if (inChannels == 0) {
@@ -20,7 +21,7 @@ void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr input
         return;
     }
 
-    if (inChannels != inputDims[1]) {
+    if (!dimsEqualStrong(inChannels, inputShape.getDims()[1])) {
         IE_THROW() << "channels mismatch between mean and input";
     }
 
@@ -76,10 +77,11 @@ void NormalizePreprocess::Load(const MKLDNNDims& inputDims, InputInfo::Ptr input
     }
 }
 
-void NormalizePreprocess::NormalizeImage(const MKLDNNDims &inputDims, float *input, InferenceEngine::Layout layout) {
+void NormalizePreprocess::NormalizeImage(const Shape &inputShape, float *input, InferenceEngine::Layout layout) {
     IE_ASSERT(input != nullptr);
 
-    if (inputDims.ndims() != 4) {
+    const auto inputDims = inputShape.getStaticDims();
+    if (inputDims.size() != 4) {
         IE_THROW() << "Expecting input as 4 dimension blob with format NxCxHxW.";
     }
 
@@ -88,7 +90,7 @@ void NormalizePreprocess::NormalizeImage(const MKLDNNDims &inputDims, float *inp
     }
 
     int MB = inputDims[0];
-    int srcSize = inputDims.size() / MB;
+    int srcSize = inputShape.getElementsCount() / MB;
 
     if (meanBuffer && meanBuffer->size()) {
         const float * meanBufferValues = meanBuffer->readOnly();

@@ -16,7 +16,7 @@ class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
     MKLDNNFullyConnectedNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
@@ -27,15 +27,15 @@ public:
     }
 
     const std::vector<impl_desc_type>& getPrimitivesPriority() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -47,6 +47,9 @@ protected:
     std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
 
 private:
+    void createDescriptorInternal(const mkldnn::memory::desc &inputDesc,
+                                  const mkldnn::memory::desc &outputDesc);
+
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
 

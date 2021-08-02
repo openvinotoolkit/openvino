@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 class MKLDNNInputNode : public MKLDNNNode {
 public:
     MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNInputNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &prc, const std::string &name,
+    MKLDNNInputNode(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
                     const std::string &type, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;

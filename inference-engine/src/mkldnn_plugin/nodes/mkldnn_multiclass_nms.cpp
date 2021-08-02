@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include "base.hpp"
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
 
@@ -75,13 +74,13 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     nms_eta = atrri.nms_eta;
     normalized = atrri.normalized;
 
-    const SizeVector& boxes_dims = inDims[NMS_BOXES].ToSizeVector();
+    const SizeVector& boxes_dims = inputShapes[NMS_BOXES].getStaticDims();
     if (boxes_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
     if (boxes_dims[2] != 4)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
 
-    const SizeVector& scores_dims = inDims[NMS_SCORES].ToSizeVector();
+    const SizeVector& scores_dims = inputShapes[NMS_SCORES].getStaticDims();
     if (scores_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 
@@ -90,7 +89,7 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (boxes_dims[1] != scores_dims[2])
         IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
 
-    const SizeVector& valid_outputs_dims = outDims[NMS_SELECTEDNUM].ToSizeVector();
+    const SizeVector& valid_outputs_dims = outputShapes[NMS_SELECTEDNUM].getStaticDims();
     if (valid_outputs_dims.size() != 1)
         IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_dims.size();
     if (valid_outputs_dims[0] != boxes_dims[0])  // valid_outputs_dims[0] != num_batches
@@ -100,10 +99,10 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
 void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    const SizeVector& boxes_dims = inDims[NMS_BOXES].ToSizeVector();
+    const SizeVector& boxes_dims = inputShapes[NMS_BOXES].getStaticDims();
     num_batches = boxes_dims[0];
     num_boxes = boxes_dims[1];
-    const SizeVector& scores_dims = inDims[NMS_SCORES].ToSizeVector();
+    const SizeVector& scores_dims = inputShapes[NMS_SCORES].getStaticDims();
     num_classes = scores_dims[1];
     numFiltBox.resize(num_batches, std::vector<size_t>(num_classes));  // batches
     numBoxOffset.resize(num_batches);
@@ -124,11 +123,11 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDOUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTEDNUM), supportedIntOutputPrecision, "selected_num", outType);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 
@@ -136,7 +135,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
-    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getDesc().getDims();
+    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().GetDesc().getShape().getStaticDims();
 
     if (max_output_boxes_per_class == 0)
         return;
@@ -147,8 +146,8 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getDesc().getBlockingDesc().getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getDesc().getBlockingDesc().getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
 
     if ((nms_eta >= 0) && (nms_eta < 1)) {
         nmsWithEta(boxes, scores, boxesStrides, scoresStrides);
@@ -233,7 +232,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         });
     }
 
-    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getDesc().getDims()[0];
+    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().GetDesc().getShape().getStaticDims()[0];
     const size_t validOutputs = std::min(startOffset, selectedBoxesNum);
 
     std::vector<size_t> m_selected_num;

@@ -95,7 +95,7 @@ private:
     int loopTripCountIdx = -1;
     int loopExecutionConditionIdx = -1;
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
 
     const std::shared_ptr<ngraph::Node> ngraphOp;
 };

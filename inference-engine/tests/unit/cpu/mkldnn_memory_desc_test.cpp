@@ -6,18 +6,19 @@
 #include <gtest/gtest.h>
 
 #include "mkldnn_memory.h"
+#include "cpu_memory_desc_utils.h"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 TEST(MemDescTest, Conversion) {
     // Check if conversion keep desc structure
-    // dnnl::memory::desc -> MKLDNNMemoryDesc -> TensorDesc -> MKLDNNMemoryDesc -> dnnl::memory::desc
+    // dnnl::memory::desc -> MKLDNNMemoryDesc -> BlockedMemoryDesc -> MKLDNNMemoryDesc -> dnnl::memory::desc
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
         MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
-        TensorDesc ie_tdesc {plg_tdesc};
-        MKLDNNMemoryDesc plg_tdesc_after {ie_tdesc};
+        BlockedMemoryDesc blk_tdesc = MemoryDescUtils::convertToBlockedDescriptor(plg_tdesc);
+        MKLDNNMemoryDesc plg_tdesc_after = MemoryDescUtils::convertToMKLDNNMemoryDesc(blk_tdesc);
         dnnl::memory::desc after_tdesc(plg_tdesc_after);
 
         return  orig_tdesc == after_tdesc;
@@ -40,12 +41,11 @@ TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
     auto converted_correctly = [] (dnnl::memory::format_tag fmt, dnnl::memory::dims dims) {
         dnnl::memory::desc orig_tdesc {dims, dnnl::memory::data_type::u8, fmt};
         MKLDNNMemoryDesc plg_tdesc {orig_tdesc};
-        TensorDesc ie_tdesc {plg_tdesc};
+        BlockedMemoryDesc blk_tdesc = MemoryDescUtils::convertToBlockedDescriptor(plg_tdesc);
 
-        const BlockingDesc block_dess(ie_tdesc.getBlockingDesc().getBlockDims(), ie_tdesc.getBlockingDesc().getOrder());
-        TensorDesc recomputed_tdesc(ie_tdesc.getPrecision(), ie_tdesc.getDims(), block_dess);
+        BlockedMemoryDesc recomputed_blk_tdesc(blk_tdesc.getPrecision(), blk_tdesc.getShape().getStaticDims(), blk_tdesc.getBlockDims(), blk_tdesc.getOrder());
 
-        return  ie_tdesc == recomputed_tdesc;
+        return  blk_tdesc.isCompatible(recomputed_blk_tdesc);
     };
 
     std::pair<dnnl::memory::format_tag, dnnl::memory::dims> payload[] {
@@ -61,16 +61,6 @@ TEST(MemDescTest, CompareWithTensorDescRecomputedStrides) {
         ASSERT_TRUE(converted_correctly(p.first, p.second));
 }
 
-TEST(MemDescTest, ConversionKeepAny) {
-    dnnl::memory::desc tdesc {{1, 2, 3, 4}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::any};
-    MKLDNNMemoryDesc plg_tdesc {tdesc};
-    TensorDesc ie_tdesc {plg_tdesc};
-    MKLDNNMemoryDesc plg_tdesc_2 {ie_tdesc};
-    dnnl::memory::desc tdesc_2 {plg_tdesc_2};
-
-    ASSERT_TRUE(tdesc == tdesc_2);
-}
-
 TEST(MemDescTest, isPlainCheck) {
     const auto dims = dnnl::memory::dims {3, 2, 5, 7};
     const auto type = dnnl::memory::data_type::u8;
@@ -78,9 +68,9 @@ TEST(MemDescTest, isPlainCheck) {
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc blckd_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
 
-    ASSERT_TRUE(MKLDNNMemoryDesc(plain_tdesc).isPlainFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).isPlainFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).isPlainFormat());
+    ASSERT_TRUE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::ncsp));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blckd_tdesc).hasLayoutType(LayoutType::ncsp));
 }
 
 TEST(MemDescTest, isBlockedCCheck) {
@@ -89,23 +79,21 @@ TEST(MemDescTest, isBlockedCCheck) {
 
     dnnl::memory::desc plain_tdesc {dims, type, dnnl::memory::format_tag::abcd};
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
-    dnnl::memory::desc blck4_tdesc {dims, type, dnnl::memory::format_tag::aBcd4b};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).isBlockedCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_tdesc).isBlockedCFormat());
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck4_tdesc).isBlockedCFormat());
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_tdesc).isBlockedCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).isBlockedCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck4_tdesc).isBlockedCFormat(8));
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck4_tdesc).isBlockedCFormat(4));
+    const MKLDNNMemoryDesc plain_mdesc(plain_tdesc);
+    const MKLDNNMemoryDesc tailc_mdesc(tailc_tdesc);
+    ASSERT_FALSE(plain_mdesc.hasLayoutType(LayoutType::nCsp8c) || plain_mdesc.hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_FALSE(tailc_mdesc.hasLayoutType(LayoutType::nCsp8c) || tailc_mdesc.hasLayoutType(LayoutType::nCsp16c));
+    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nCsp16c));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc blck8_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
     dnnl::memory::desc blck8_permCD_crop_tdesc = blck8_permCD_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_crop_tdesc).isBlockedCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_crop_tdesc).isBlockedCFormat());
+    ASSERT_TRUE(MKLDNNMemoryDesc(blck8_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_crop_tdesc).hasLayoutType(LayoutType::nCsp8c));
 }
 
 TEST(MemDescTest, isTailCCheck) {
@@ -116,18 +104,18 @@ TEST(MemDescTest, isTailCCheck) {
     dnnl::memory::desc tailc_tdesc {dims, type, dnnl::memory::format_tag::acdb};
     dnnl::memory::desc permt_tdesc {dims, type, dnnl::memory::format_tag::bcda};
     dnnl::memory::desc blck8_tdesc {dims, type, dnnl::memory::format_tag::aBcd8b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).isTailCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).isTailCFormat());
-    ASSERT_TRUE(MKLDNNMemoryDesc(tailc_tdesc).isTailCFormat());
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_tdesc).isTailCFormat());
+    ASSERT_FALSE(MKLDNNMemoryDesc(plain_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(permt_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_TRUE(MKLDNNMemoryDesc(tailc_tdesc).hasLayoutType(LayoutType::nspc));
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_tdesc).hasLayoutType(LayoutType::nspc));
 
     dnnl::memory::desc blck8_permCD_tdesc {dims, type, dnnl::memory::format_tag::aBdc16b};
-    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).isTailCFormat());
+    ASSERT_FALSE(MKLDNNMemoryDesc(blck8_permCD_tdesc).hasLayoutType(LayoutType::nspc));
 
     const auto crop_dims = dnnl::memory::dims {2, 1, 5, 7};
     const auto crop_off = dnnl::memory::dims {1, 0, 0, 0};
     dnnl::memory::desc tailc_crop_tdesc = blck8_tdesc.submemory_desc(crop_dims, crop_off);
-    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_crop_tdesc).isTailCFormat());
+    ASSERT_FALSE(MKLDNNMemoryDesc(tailc_crop_tdesc).hasLayoutType(LayoutType::nspc));
 }
 
 TEST(MemDescTest, constructWithPlainFormat) {

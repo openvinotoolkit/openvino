@@ -70,14 +70,14 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW()  << errorPrefix << " has incorrect number of output edges for layer " << getName();
 
-    auto inDims0 = getParentEdgeAt(0)->getDims();
-    auto inDims1 = getParentEdgeAt(1)->getDims();
-    auto outDims = getChildEdgeAt(0)->getDims();
+    auto inDims0 = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto inDims1 = getParentEdgeAt(1)->getShape().getStaticDims();
+    auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
 
-    if (inDims0.ndims() != inDims1.ndims() || inDims0.ndims() != outDims.ndims())
+    if (inDims0.size() != inDims1.size() || inDims0.size() != outDims.size())
         IE_THROW()  << errorPrefix << " has invalid dims count";
 
-    int nDims = inDims0.ndims();
+    int nDims = inDims0.size();
     xAxis = nDims - 1;
     yAxis = nDims - 2;
     auto xAxis0 = transposeA ? yAxis : xAxis;
@@ -135,22 +135,22 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
     auto inputDataType1 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec1);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
 
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     config.dynBatchSupport = true;
 
-    auto createDataConfig = [](const MKLDNNDims& dims, memory::data_type dataType) -> InferenceEngine::DataConfig {
-        InferenceEngine::DataConfig dataConfig;
+    auto createDataConfig = [](const std::vector<size_t>& dims, memory::data_type dataType) -> PortConfig {
+        PortConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNMemoryDesc(dims, dataType, MKLDNNMemory::GetPlainFormat(dims));
+        dataConfig.desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(dims, dataType, MKLDNNMemory::GetPlainFormatByRank(dims.size()));
         return dataConfig;
     };
 
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getDims(), inputDataType0));
-    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getDims(), inputDataType1));
-    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getDims(), outputDataType));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType0));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getShape().getStaticDims(), inputDataType1));
+    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType));
 
-    supportedPrimitiveDescriptors.push_back(PrimitiveDescInfo(config, impl_desc_type::gemm_any, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::gemm_any);
 }
 
 void MKLDNNMatMulNode::initOptimalPrimitiveDescriptor() {
@@ -158,8 +158,9 @@ void MKLDNNMatMulNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
     auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
-        return;
+
+     if (isConfigDefined(config))
+         return;
 
     MKLDNNNode::initOptimalPrimitiveDescriptor();
 
@@ -206,7 +207,7 @@ void MKLDNNMatMulNode::createPrimitive() {
     params.shift1 = params.M * params.N * params.MB2;
     params.shift2 = params.M * params.N;
 
-    runtimePrecision = getParentEdgeAt(0)->getDesc().getPrecision();
+    runtimePrecision = getParentEdgeAt(0)->getMemory().GetDesc().getPrecision();
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
@@ -301,13 +302,13 @@ bool MKLDNNMatMulNode::created() const {
 }
 
 int MKLDNNMatMulNode::getMaxBatch() {
-    if (!outDims.empty())
-        return outDims[0][0];
+    if (!outputShapes.empty())
+        return outputShapes[0].getStaticDims()[0];
     return 0;
 }
 
 InferenceEngine::Precision MKLDNNMatMulNode::getRuntimePrecision() const {
-    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
+    return getMaxPrecision(getInputPrecisions());
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatMulNode, MatMul);
