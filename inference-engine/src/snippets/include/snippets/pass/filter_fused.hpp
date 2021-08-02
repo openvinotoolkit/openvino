@@ -23,7 +23,9 @@ public:
     }
     bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
 };
-enum class SnippetsNodeType : int64_t {NotSet = 0, Fused, SubgraphStart, SubgraphBody};
+// Fused - is likely to be fused in CPU plugin
+// Ignored - must be skipped, since can't be handled properly at this time
+enum class SnippetsNodeType : int64_t {NotSet = 0, Fused, Ignored, SubgraphStart, SubgraphBody};
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);
 
