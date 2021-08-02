@@ -92,6 +92,10 @@ public:
             if (absoluteDifference <= threshold) {
                 continue;
             }
+            if (std::isnan(static_cast<float>(res)) &&
+                std::isnan(static_cast<float>(ref))) {
+                continue;
+            }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
                 max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
