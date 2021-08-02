@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dropout.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -18,6 +18,10 @@ namespace ngraph
                     auto data = node.get_ng_input("X");
                     auto dropout_implementation =
                         node.get_attribute<std::string>("dropout_implementation");
+                    PDPD_OP_VALIDATION_CHECK(node,
+                                             (dropout_implementation == "downgrade_in_infer" ||
+                                              dropout_implementation == "upscale_in_train"),
+                                             "Unsupported dropout mode!");
                     if (dropout_implementation == "downgrade_in_infer")
                     {
                         auto dropout_prob = ngraph::opset6::Constant::create(

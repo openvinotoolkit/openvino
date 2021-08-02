@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "expand_v2.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace ngraph
@@ -57,10 +57,11 @@ namespace ngraph
                         std::make_shared<ngraph::opset6::ShapeOf>(x, element::i32);
                     auto fixed_shape_node = std::make_shared<ngraph::opset6::Select>(
                         mask_node, shape_expected_node, input_shape_node);
+                    auto repeated_node = std::make_shared<ngraph::opset6::Divide>(
+                        fixed_shape_node, input_shape_node, false);
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Broadcast>(x, fixed_shape_node)},
-                        {"Out"});
+                        {std::make_shared<ngraph::opset6::Tile>(x, repeated_node)}, {"Out"});
                 }
 
             } // namespace op

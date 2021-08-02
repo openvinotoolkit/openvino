@@ -60,6 +60,7 @@
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <transformations/smart_reshape/matmul_sr.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -171,6 +172,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
     manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
     manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
+    manager.register_pass<ngraph::pass::TransposeMatMul>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     if (useLpt) {

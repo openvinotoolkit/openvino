@@ -37,6 +37,9 @@
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 
+#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
+#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
+
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
@@ -90,12 +93,12 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
 void CNNNetworkNGraphImpl::validateFunctionNames() const {
     // nGraph function parameters and pre-Results operations should have unique names
-    std::unordered_set<std::string> unique_names;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
     for (const auto& param : _ngraph_function->get_parameters()) {
         if (unique_names.count(param->get_friendly_name())) {
             IE_THROW() << "Function contains several inputs with one friendly name!";
         }
-        unique_names.insert(param->get_friendly_name());
+        unique_names.insert({param->get_friendly_name(), param});
     }
     for (const auto& result : _ngraph_function->get_results()) {
         const auto& parent = result->get_input_node_shared_ptr(0);
@@ -103,10 +106,10 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent)) {
-            IE_THROW() << "Function contains several inputs and outputs with one friendly name!";
+        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
+            IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
         }
-        unique_names.insert(name);
+        unique_names.insert({name, parent});
     }
 }
 
@@ -366,13 +369,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
 
     bool parameter_replaced = false;
     for (size_t i = 0; i < params.size(); i++) {
-        const auto& param = params[i];
+        auto& param = params[i];
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
-        ::ngraph::PartialShape shape(inputShapes.at(param->get_friendly_name()));
-        auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
-        newParam->set_friendly_name(param->get_friendly_name());
-        _ngraph_function->replace_parameter(i, newParam);
+        param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
         parameter_replaced = true;
     }
     if (parameter_replaced)

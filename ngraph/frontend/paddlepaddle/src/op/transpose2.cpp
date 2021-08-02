@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose2.hpp"
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -17,16 +17,8 @@ namespace ngraph
                 {
                     auto data = node.get_ng_input("X");
                     auto perm = node.get_attribute<std::vector<int>>("axis");
-
-                    auto rank =
-                        static_cast<unsigned long>(data.get_partial_shape().rank().get_length());
-
-                    PDPD_OP_VALIDATION_CHECK(node,
-                                             perm.size() == rank,
-                                             "transpose2: axis size must equal to data rank!");
-
                     auto input_order =
-                        ngraph::opset6::Constant::create(ngraph::element::i64, {rank}, perm);
+                        ngraph::opset6::Constant::create(ngraph::element::i64, {perm.size()}, perm);
                     return node.default_single_output_mapping(
                         {std::make_shared<ngraph::opset6::Transpose>(data, input_order)}, {"Out"});
                 }

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "flatten_contiguous_range.hpp"
 #include <ngraph/builder/reshape.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -48,7 +48,8 @@ namespace ngraph
 
                     auto new_shape_node = std::make_shared<opset6::Concat>(axes, 0);
                     return node.default_single_output_mapping(
-                        {std::make_shared<opset6::Reshape>(x_node, new_shape_node, false)}, {"Out"});
+                        {std::make_shared<opset6::Reshape>(x_node, new_shape_node, false)},
+                        {"Out"});
                 }
             } // namespace op
         }     // namespace pdpd
