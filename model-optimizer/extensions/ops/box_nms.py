@@ -8,9 +8,9 @@ from mo.utils.utils import refer_to_faq_msg
 
 
 class BoxNms(Op):
-    '''
+    """
     It is assumed that there is no equivalent of this op in IE.
-    '''
+    """
     op = '_contrib_box_nms'
 
     def __init__(self, graph: Graph, attrs: dict):
