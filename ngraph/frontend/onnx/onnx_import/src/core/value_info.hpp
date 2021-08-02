@@ -12,6 +12,7 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_common/utils.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 
@@ -35,7 +36,7 @@ namespace ngraph
 
                     if (onnx_tensor.has_shape())
                     {
-                        m_partial_shape = to_ng_shape(onnx_tensor.shape());
+                        m_partial_shape = onnx_common::to_ng_shape(onnx_tensor.shape());
                     }
                     else
                     {
@@ -85,28 +86,6 @@ namespace ngraph
             std::shared_ptr<ngraph::op::Constant> get_ng_constant(const Tensor& tensor) const
             {
                 return tensor.get_ng_constant();
-            }
-
-            PartialShape to_ng_shape(const ONNX_NAMESPACE::TensorShapeProto& onnx_shape) const
-            {
-                if (onnx_shape.dim_size() == 0)
-                {
-                    return Shape{}; // empty list of dimensions denotes a scalar
-                }
-
-                std::vector<Dimension> dims;
-                for (const auto& onnx_dim : onnx_shape.dim())
-                {
-                    if (onnx_dim.has_dim_value())
-                    {
-                        dims.emplace_back(onnx_dim.dim_value());
-                    }
-                    else // has_dim_param() == true or it is empty dim
-                    {
-                        dims.push_back(Dimension::dynamic());
-                    }
-                }
-                return PartialShape{dims};
             }
 
         private:

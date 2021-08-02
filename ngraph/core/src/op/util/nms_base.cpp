@@ -163,7 +163,7 @@ void op::util::NmsBase::validate_and_infer_types()
 namespace ngraph
 {
     template <>
-    EnumNames<op::util::NmsBase::SortResultType>&
+    NGRAPH_API EnumNames<op::util::NmsBase::SortResultType>&
         EnumNames<op::util::NmsBase::SortResultType>::get()
     {
         static auto enum_names = EnumNames<op::util::NmsBase::SortResultType>(

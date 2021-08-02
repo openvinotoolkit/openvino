@@ -34,8 +34,7 @@ static int set_test_env(const char* name, const char* value)
 TEST(FrontEndManagerTest, testAvailableFrontEnds)
 {
     FrontEndManager fem;
-    ASSERT_NO_THROW(fem.register_front_end(
-        "mock", []() { return std::make_shared<FrontEnd>(); }));
+    ASSERT_NO_THROW(fem.register_front_end("mock", []() { return std::make_shared<FrontEnd>(); }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
@@ -84,15 +83,15 @@ TEST(FrontEndManagerTest, testDefaultInputModel)
 {
     std::unique_ptr<InputModel> imPtr(new InputModel()); // to verify base destructor
     InputModel::Ptr im = std::make_shared<InputModel>();
-    ASSERT_ANY_THROW(im->get_inputs());
-    ASSERT_ANY_THROW(im->get_outputs());
+    ASSERT_EQ(im->get_inputs(), std::vector<Place::Ptr>{});
+    ASSERT_EQ(im->get_outputs(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(im->override_all_inputs({nullptr}));
     ASSERT_ANY_THROW(im->override_all_outputs({nullptr}));
     ASSERT_ANY_THROW(im->extract_subgraph({nullptr}, {nullptr}));
-    ASSERT_ANY_THROW(im->get_place_by_tensor_name(""));
-    ASSERT_ANY_THROW(im->get_place_by_operation_name(""));
-    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_input_port("", 0));
-    ASSERT_ANY_THROW(im->get_place_by_operation_name_and_output_port("", 0));
+    ASSERT_EQ(im->get_place_by_tensor_name(""), nullptr);
+    ASSERT_EQ(im->get_place_by_operation_name(""), nullptr);
+    ASSERT_EQ(im->get_place_by_operation_name_and_input_port("", 0), nullptr);
+    ASSERT_EQ(im->get_place_by_operation_name_and_output_port("", 0), nullptr);
     ASSERT_ANY_THROW(im->set_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->add_name_for_tensor(nullptr, ""));
     ASSERT_ANY_THROW(im->set_name_for_operation(nullptr, ""));
@@ -115,24 +114,32 @@ TEST(FrontEndManagerTest, testDefaultPlace)
     std::unique_ptr<Place> placePtr(new Place()); // to verify base destructor
     Place::Ptr place = std::make_shared<Place>();
     ASSERT_ANY_THROW(place->get_names());
-    ASSERT_ANY_THROW(place->get_consuming_operations());
-    ASSERT_ANY_THROW(place->get_consuming_operations(0));
-    ASSERT_ANY_THROW(place->get_target_tensor());
-    ASSERT_ANY_THROW(place->get_target_tensor(0));
-    ASSERT_ANY_THROW(place->get_source_tensor());
-    ASSERT_ANY_THROW(place->get_source_tensor(0));
-    ASSERT_ANY_THROW(place->get_producing_operation());
-    ASSERT_ANY_THROW(place->get_producing_operation(0));
-    ASSERT_ANY_THROW(place->get_producing_port());
-    ASSERT_ANY_THROW(place->get_input_port());
-    ASSERT_ANY_THROW(place->get_input_port(0));
-    ASSERT_ANY_THROW(place->get_input_port(""));
-    ASSERT_ANY_THROW(place->get_input_port("", 0));
-    ASSERT_ANY_THROW(place->get_output_port());
-    ASSERT_ANY_THROW(place->get_output_port(0));
-    ASSERT_ANY_THROW(place->get_output_port(""));
-    ASSERT_ANY_THROW(place->get_output_port("", 0));
-    ASSERT_ANY_THROW(place->get_consuming_ports());
+    ASSERT_EQ(place->get_consuming_operations(), std::vector<Place::Ptr>{});
+    ASSERT_EQ(place->get_consuming_operations(0), std::vector<Place::Ptr>{});
+    ASSERT_EQ(place->get_consuming_operations(""), std::vector<Place::Ptr>{});
+    ASSERT_EQ(place->get_consuming_operations("", 0), std::vector<Place::Ptr>{});
+    ASSERT_EQ(place->get_target_tensor(), nullptr);
+    ASSERT_EQ(place->get_target_tensor(0), nullptr);
+    ASSERT_EQ(place->get_target_tensor(""), nullptr);
+    ASSERT_EQ(place->get_target_tensor("", 0), nullptr);
+    ASSERT_EQ(place->get_source_tensor(), nullptr);
+    ASSERT_EQ(place->get_source_tensor(""), nullptr);
+    ASSERT_EQ(place->get_source_tensor(0), nullptr);
+    ASSERT_EQ(place->get_source_tensor("", 0), nullptr);
+    ASSERT_EQ(place->get_producing_operation(), nullptr);
+    ASSERT_EQ(place->get_producing_operation(""), nullptr);
+    ASSERT_EQ(place->get_producing_operation(0), nullptr);
+    ASSERT_EQ(place->get_producing_operation("", 0), nullptr);
+    ASSERT_EQ(place->get_producing_port(), nullptr);
+    ASSERT_EQ(place->get_input_port(), nullptr);
+    ASSERT_EQ(place->get_input_port(0), nullptr);
+    ASSERT_EQ(place->get_input_port(""), nullptr);
+    ASSERT_EQ(place->get_input_port("", 0), nullptr);
+    ASSERT_EQ(place->get_output_port(), nullptr);
+    ASSERT_EQ(place->get_output_port(0), nullptr);
+    ASSERT_EQ(place->get_output_port(""), nullptr);
+    ASSERT_EQ(place->get_output_port("", 0), nullptr);
+    ASSERT_EQ(place->get_consuming_ports(), std::vector<Place::Ptr>{});
     ASSERT_ANY_THROW(place->is_input());
     ASSERT_ANY_THROW(place->is_output());
     ASSERT_ANY_THROW(place->is_equal(nullptr));
