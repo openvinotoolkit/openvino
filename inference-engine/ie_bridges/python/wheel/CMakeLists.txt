@@ -56,7 +56,7 @@ endif()
 
 add_custom_command(TARGET ie_wheel
     PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
         COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
             --dist-dir ${CMAKE_BINARY_DIR}/wheels
             --build=${WHEEL_BUILD}
