@@ -20,6 +20,7 @@ class Switch(Op):
 
     @staticmethod
     def infer(node: Node):
+        assert False, "Switch detected"
         assert len(node.in_nodes()) == 2
         tensor = node.in_node(0)
         port_id = node.in_node(1)

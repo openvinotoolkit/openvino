@@ -22,6 +22,7 @@ class Merge(Op):
     @staticmethod
     def merge_infer(node: Node):
         # we infer only through executable input nodes
+        assert False, "Merge_detected"
         inferred_nodes = [n for n in node.in_nodes().values() if n['is_partial_inferred']]
         assert len(inferred_nodes) != 0
         tensor = inferred_nodes[0]
