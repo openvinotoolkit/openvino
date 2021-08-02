@@ -54,11 +54,11 @@ if (paddlepaddle_FOUND)
             EXCLUDE_FROM_ALL)
 else()
     # Produce warning message at build time as well
-    add_custom_command(OUTPUT unable_build_models.txt
+    add_custom_command(OUTPUT unable_build_paddle_models.txt
             COMMAND ${CMAKE_COMMAND}
             -E cmake_echo_color --red "Warning: Unable to generate PaddlePaddle test models. Running '${TARGET_NAME}' will likely fail"
             )
-    add_custom_target(paddlepaddle_test_models DEPENDS unable_build_models.txt)
+    add_custom_target(paddlepaddle_test_models DEPENDS unable_build_paddle_models.txt)
 endif()
 
 add_dependencies(${TARGET_NAME} paddlepaddle_test_models)

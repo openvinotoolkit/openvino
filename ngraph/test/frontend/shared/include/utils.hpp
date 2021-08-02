@@ -10,6 +10,7 @@
 #include "backend.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
+#include "common_test_utils/file_utils.hpp"
 
 // Helper functions
 namespace FrontEndTestUtils
@@ -73,8 +74,6 @@ namespace FrontEndTestUtils
 
     inline std::string make_model_path(const std::string& modelsRelativePath)
     {
-        // First try build path
-        auto res = get_current_executable_path() + "/" + modelsRelativePath;
-        return res;
+        return CommonTestUtils::getModelFromTestModelZoo(modelsRelativePath);
     }
 } // namespace FrontEndTestUtils
