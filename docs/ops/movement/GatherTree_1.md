@@ -43,13 +43,13 @@ Element data types for all input tensors should match each other.
 
 **Inputs**
 
-* **1**:  `step_ids` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with indices from per each step. Required.
+* **1**:  `step_ids` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with indices from per each step. **Required.**
 
-* **2**:  `parent_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with parent beam indices. Required.
+* **2**:  `parent_idx` -- a tensor of shape `[MAX_TIME, BATCH_SIZE, BEAM_WIDTH]` of type *T* with parent beam indices. **Required.**
 
-* **3**:  `max_seq_len` -- a tensor of shape `[BATCH_SIZE]` of type *T* with maximum lengths for each sequence in the batch. Required.
+* **3**:  `max_seq_len` -- a tensor of shape `[BATCH_SIZE]` of type *T* with maximum lengths for each sequence in the batch. **Required.**
 
-* **4**:  `end_token` -- a scalar tensor of type *T* with value of the end marker in a sequence. Required.
+* **4**:  `end_token` -- a scalar tensor of type *T* with value of the end marker in a sequence. **Required.**
 
 
 **Outputs**

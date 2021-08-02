@@ -41,6 +41,7 @@
 #include "gna_data_types.hpp"
 #include "gna_tensor_tools.hpp"
 #include "gna_itt.hpp"
+#include "backend/gna_limitations.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -1277,34 +1278,48 @@ void InsertSplitAligningFilterPass::run() {
                     gnalog() << std::endl;
 #endif
                     auto filterLayer =
-                            std::make_shared<WeightableLayer>(LayerParams({filterName, "AffineFilter", Precision::FP32}));
+                            std::make_shared<ConvolutionLayer>(LayerParams({filterName, "ConvolutionFilter", Precision::FP32}));
 
                     auto inputData = splitOutput;
 
                     size_t aligned64_offset = std::max(0, static_cast<int>(ALIGN64(currentOffset) - 64));
-                    size_t
-                            newOutputSize = (currentOffset + ALIGN(outputSize, 8) * bytesPerSplitElement - aligned64_offset)
-                                            / bytesPerSplitElement;
 
                     IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
                     filterLayer->params["offset"] = std::to_string(aligned64_offset / bytesPerSplitElement);
-
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
-                    auto num_rows_out = dims[1] * (dims.size() != 2 ? dims[2] : 1);
-                    std::vector<float> filterWeights(newOutputSize * num_rows_out, 0.f);
+                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / bytesPerSplitElement;
+                    // TODO consider to use a different number of filters do decrese the number of trailing zeros (additionalPaddingOfFilter)
+                    const auto numberOfFilters = GNALimitations::convMinFiltersNum;
+                    const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, GNALimitations::convFilterSizeDivider);
 
-                    auto offset = (currentOffset - aligned64_offset) / bytesPerSplitElement;
-
-                    for (int i = 0; i != outputSize; i++) {
-                        filterWeights[offset] = 1.0f;
-                        offset += newOutputSize + 1;
+                    // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
+                    // offsetOfUnalignment - the leading zeros in the filter
+                    //       |
+                    //       |             additionalPaddingOfFilter = filterSize - offsetOfUnalignment - numberOfFilters
+                    //   ____|___         ___|___
+                    //  |        |       |       |
+                    //  0 0 ... 0 1 0 0 0 0 ... 0
+                    //  0 0 ... 0 0 1 0 0 0 ... 0
+                    //  0 0 ... 0 0 0 1 0 0 ... 0
+                    //  0 0 ... 0 0 0 0 1 0 ... 0
+                    std::vector<float> filterWeights(filterSize * 4, 0.f);
+                    for (auto f = 0u; f < numberOfFilters; f++) {
+                        filterWeights[f * filterSize + f + offsetOfUnalignment] = 1;
                     }
+
+                    filterLayer->_out_depth = numberOfFilters;
+                    filterLayer->_stride_x = numberOfFilters;
+                    filterLayer->_stride_y = 1;
+                    filterLayer->_kernel_x = filterSize;
+                    filterLayer->_kernel_y = 1;
+                    filterLayer->_padding_x = 0;
+                    filterLayer->_padding_y = 0;
 
                     filterLayer->_weights = make_shared_blob<float>(TensorDesc(
                             inputData->getTensorDesc().getPrecision(),
@@ -1312,6 +1327,15 @@ void InsertSplitAligningFilterPass::run() {
                             Layout::C));
                     filterLayer->_weights->allocate();
                     CopyVectorToBlob(filterLayer->_weights, filterWeights);
+
+                    std::vector<float> biasWeights(numberOfFilters, 0.f);
+
+                    filterLayer->_biases = make_shared_blob<float>(TensorDesc(
+                        inputData->getTensorDesc().getPrecision(),
+                        SizeVector({ biasWeights.size() }),
+                        Layout::C));
+                    filterLayer->_biases->allocate();
+                    CopyVectorToBlob(filterLayer->_biases, biasWeights);
 
                     auto outData = std::make_shared<Data>(filterName,
                                                           TensorDesc(splitOutput->getTensorDesc().getPrecision(),
@@ -1506,16 +1530,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
             continue;
         }
 
-        // only 3d scaleshift supported where number of c is arbitrary
-        auto lastD = reshape_batch ? dataDims[1] : dataDims.back();
-        if (lastD != weightsElements) {
-            THROW_GNA_EXCEPTION << "Unsupported layer: " << l->name
-                                << " should have last dim(" << lastD << ") equal to weights(" << weightsElements << ") length";
-        }
-        if (dataDims.size() == 2) {
-            THROW_GNA_EXCEPTION << "For layer: " << l->name
-                                << " weights size(" << weightsElements<< ") invalid: should match input size of(" << lastD << ")";
-        }
+        // TODO: add broadcasting rules checks
 
         gnalog() << "Substitution ScaleShift broadcast for layer: " << l->name << "\n";
         if (nElements % scaleShift->_weights->size()) {
@@ -2162,7 +2177,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         if (isFQFuseAllowed) {
-            getInputTo(prevData).clear();
+            getInputTo(prevData).erase(l->name);
         }
 
         // Connect all next layers after FQ to the layer that is before FQ
@@ -2196,6 +2211,17 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
         }
     };
 
+    auto transpInfoMatchWeightsSize = [](const std::vector<TranspositionInfo> &transpositionInfo, size_t weightsSize, const std::string &layerName) {
+        size_t totalElements = 0;
+        for (auto && transpositionInfoPart : transpositionInfo) {
+            totalElements += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
+        }
+        if (totalElements != weightsSize) {
+            THROW_GNA_EXCEPTION << layerName << " weights elements from transposition info (" << totalElements
+                                << ") don't match input dimensions (" << weightsSize << ")";
+        }
+    };
+
     for (auto &&l : *pLayers) {
         if (LayerInfo(l).isScaleShift()) {
             std::vector<TranspositionInfo> transpositionInfo;
@@ -2213,6 +2239,10 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                 }
                 auto weightable = dynamic_cast<WeightableLayer*>(l.get());
                 IE_ASSERT(weightable != nullptr);
+
+                size_t totalWeights = weightable->_weights->size();
+                transpInfoMatchWeightsSize(transpositionInfo, totalWeights, l->name);
+
                 ConvertTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_weights->size(),
                     weightable->_weights->cbuffer().as<uint8_t*>(), true, transpositionInfo);
                 if (weightable->_biases) {
@@ -2246,14 +2276,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                         // If we found a split it's not possible to rotate data
                         THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a split before it";
                     }
-                    size_t totalColumns = 0;
-                    for (auto && transpositionInfoPart : transpositionInfo) {
-                        totalColumns += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsColumns != totalColumns) {
-                        THROW_GNA_EXCEPTION << l->name << " weights columns from transposition info (" << totalColumns
-                                            << ") don't match input dimensions (" << weightsColumns << ")";
-                    }
+
+                    transpInfoMatchWeightsSize(transpositionInfo, weightsColumns, l->name);
+
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 true, transpositionInfo);
                     gnalog() << l->name << " weights rows transposition info:\n";
@@ -2273,14 +2298,9 @@ void TransposeWeightsFromNCHWToNHWCPass::run() {
                         // If we found a concat it's not possible to rotate data
                         THROW_GNA_EXCEPTION << l->name << " won't be transposed due to a concat after it";
                     }
-                    size_t totalRows = 0;
-                    for (const auto& transpositionInfoPart : transpositionInfo) {
-                        totalRows += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
-                    }
-                    if (weightsRows != totalRows) {
-                        THROW_GNA_EXCEPTION << l->name << " weights rows from transposition info (" << totalRows
-                                            << ") don't match output dimensions (" << weightsRows << ")";
-                    }
+
+                    transpInfoMatchWeightsSize(transpositionInfo, weightsRows, l->name);
+
                     ConvertTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
                                                 false, transpositionInfo);
                     gnalog() << l->name << " weights columns transposition info:\n";

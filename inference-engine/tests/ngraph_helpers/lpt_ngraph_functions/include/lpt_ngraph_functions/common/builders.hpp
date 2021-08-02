@@ -10,8 +10,10 @@
 #include <ngraph/op/constant.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
-#include "low_precision/network_helper.hpp"
 #include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -73,12 +75,12 @@ std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& resha
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& input,
+    const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
-    const std::shared_ptr<ngraph::Node>& input,
+    const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
@@ -94,6 +96,53 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const FakeQuantizeOnDataWithConstant& fqOnData);
 
 std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op);
+
+template <typename ... Args>
+void addAttribute(std::vector<std::shared_ptr<ngraph::Node>> nodes, Args&& ... args) {
+    const auto attribute = std::make_shared<ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>>(
+        QuantizationAlignmentAttribute(std::forward<Args>(args)...));
+
+    for (const auto& node : nodes) {
+        node->get_rt_info()[ngraph::VariantWrapper<QuantizationAlignmentAttributePtr>::type_info.name] = attribute;
+    }
+}
+
+template <typename T>
+void addAttribute2(std::vector<std::shared_ptr<ngraph::Node>> nodes, T attribute) {
+    const std::string typeInfoName = attribute->get_type_info().name;
+    for (const auto& node : nodes) {
+        auto& rt = node->get_rt_info();
+        rt[typeInfoName] = attribute;
+    }
+}
+
+template <typename T, typename ... Args>
+void addAttribute3(std::vector<std::shared_ptr<ngraph::Node>> nodes, Args&& ... args) {
+    const auto attribute = std::make_shared<::ngraph::VariantWrapper<T>>(T(std::forward<Args>(args)...));
+    for (const auto& node : nodes) {
+        node->get_rt_info()[ngraph::VariantWrapper<T>::type_info.name] = attribute;
+    }
+}
+
+void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<std::shared_ptr<Variant>> attributes);
+
+template <typename T, typename ... Args>
+std::shared_ptr<Variant> make_shared_attribute(Args&& ... args) {
+    const auto attribute = std::make_shared<::ngraph::VariantWrapper<T>>(T(std::forward<Args>(args)...));
+    return attribute;
+}
+
+template <typename T, typename ... Args>
+std::shared_ptr<Variant> make_shared_attribute_ptr(Args&& ... args) {
+    const auto attribute = std::make_shared<::ngraph::VariantWrapper<std::shared_ptr<T>>>(std::make_shared<T>(std::forward<Args>(args)...));
+    return attribute;
+}
+
+std::shared_ptr<Node> makeConvolution(
+    const std::shared_ptr<Node>& parent,
+    const element::Type precision,
+    const bool weightsWithoutFQ,
+    const element::Type weightsprecision = element::i8);
 
 } // namespace subgraph
 } // namespace builder

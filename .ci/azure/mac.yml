@@ -87,9 +87,6 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       export CC=gcc
       export CXX=g++
-      # Disable errors with Ninja
-      export CXXFLAGS="-Wno-error=unused-command-line-argument"
-      export CFLAGS="-Wno-error=unused-command-line-argument"
       cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
@@ -106,6 +103,7 @@ jobs:
     displayName: 'Install'
 
   - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(BIN_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 

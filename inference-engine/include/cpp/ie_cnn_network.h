@@ -20,12 +20,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_extension.h"
-
-namespace ngraph {
-
-class Function;
-
-}  // namespace ngraph
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 
@@ -198,6 +193,22 @@ public:
      * of executable graph info serialization.
      */
     void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
+
+    /**
+     * @brief Serialize network to IR and weights streams.
+     *
+     * @param xmlBuf output IR stream.
+     * @param binBuf output weights stream.
+     */
+    void serialize(std::ostream& xmlBuf, std::ostream& binBuf) const;
+
+    /**
+     * @brief Serialize network to IR stream and weights Blob::Ptr.
+     *
+     * @param xmlBuf output IR stream.
+     * @param binBlob output weights Blob::Ptr.
+     */
+    void serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob) const;
 
     /**
      * @brief Method maps framework tensor name to OpenVINO name

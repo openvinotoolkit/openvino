@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -287,6 +288,11 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
+                                      bool normalizeVariance,
+                                      double eps);
+
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
                                       bool normalizeVariance,
                                       double eps);
 

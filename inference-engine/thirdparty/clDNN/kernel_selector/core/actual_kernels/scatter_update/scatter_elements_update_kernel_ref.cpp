@@ -55,14 +55,6 @@ ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static inline std::string GetOrderString(std::vector<std::string>& order) {
-    std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
-        order_str += ", " + order[i];
-
-    return order_str;
-}
-
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
@@ -145,7 +137,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params,
 
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, options, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));

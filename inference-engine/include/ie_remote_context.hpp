@@ -46,10 +46,6 @@ public:
      */
     explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
 
-    size_t element_size() const noexcept override {
-        return tensorDesc.getPrecision().size();
-    }
-
     /**
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
@@ -194,3 +190,4 @@ inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::P
 }
 
 }  // namespace InferenceEngine
+

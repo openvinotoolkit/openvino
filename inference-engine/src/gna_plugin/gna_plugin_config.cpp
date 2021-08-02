@@ -131,7 +131,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             if (supportedTargets.count(value) == 0) {
                 THROW_GNA_EXCEPTION << "Unsupported GNA config value (key, value): (" << key << ", " << value << ")";
             }
-            (key == GNA_CONFIG_KEY(EXEC_TARGET) ? gnaExecTarget : gnaCompileTarget) = value;
+            if (key == GNA_CONFIG_KEY(EXEC_TARGET)) {
+                gnaExecTarget = value;
+                if (gnaCompileTarget == "")
+                    gnaCompileTarget = value;
+            } else {
+                gnaCompileTarget = value;
+            }
         } else if (key == GNA_CONFIG_KEY(COMPACT_MODE)) {
             if (value == PluginConfigParams::YES) {
                 gnaFlags.compact_mode = true;
