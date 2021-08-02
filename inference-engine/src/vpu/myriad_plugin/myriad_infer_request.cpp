@@ -15,6 +15,9 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/shape_io.hpp>
+#include "vpu/configuration/options/enable_receiving_tensor_time.hpp"
+#include "vpu/configuration/options/perf_report_mode.hpp"
+#include "vpu/configuration/options/tensor_strides.hpp"
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -31,7 +34,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        DataInfo& compilerInputsInfo,
                                        DataInfo& compilerOutputsInfo,
                                        const std::vector<StageMetaInfo> &blobMetaData,
-                                       const MyriadConfig& myriadConfig,
+                                       const PluginConfiguration& myriadConfig,
                                        const Logger::Ptr &log,
                                        const MyriadExecutorPtr &executor,
                                        std::map<std::string, ie::Blob::Ptr> constDatas,
@@ -42,7 +45,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _graphDesc(graphDesc), _constDatas(constDatas), _isNetworkConstant(isNetworkConstant) {
     VPU_PROFILE(MyriadInferRequest);
 
-    const auto& ioStrides = _config.compileConfig().ioStrides;
+    const auto& ioStrides = _config.get<TensorStridesOption>();
     // allocate inputs
     for (auto &networkInput : _networkInputs) {
         IE_ASSERT(ioStrides.find(networkInput.first) == ioStrides.end())
@@ -309,5 +312,5 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRe
     return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
-        _config.perfReport(), _config.printReceiveTensorTime());
+        _config.get<PerfReportModeOption>(), _config.get<EnableReceivingTensorTimeOption>());
 }

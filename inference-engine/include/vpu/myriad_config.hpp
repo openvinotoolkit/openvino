@@ -59,4 +59,9 @@ DECLARE_VPU_CONFIG(MYRIAD_USB);
  */
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
 
+/**
+ * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
+ */
+DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
+
 }  // namespace InferenceEngine

@@ -24,7 +24,7 @@ def moc_pipeline(argv: argparse.Namespace):
         str(fem.get_available_front_ends())))
     log.debug('Initializing new FE for framework {}'.format(argv.framework))
     fe = fem.load_by_framework(argv.framework)
-    input_model = fe.load_from_file(argv.input_model)
+    input_model = fe.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,

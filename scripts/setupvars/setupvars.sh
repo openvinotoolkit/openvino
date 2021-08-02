@@ -68,6 +68,7 @@ fi
 if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
+    export OV_FRONTEND_PATH=$INSTALLDIR/deployment_tools/ngraph/lib${OV_FRONTEND_PATH:+:$OV_FRONTEND_PATH}
 fi
 
 if [ -e "$INSTALLDIR/opencv" ]; then
