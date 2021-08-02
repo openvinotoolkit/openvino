@@ -11,7 +11,7 @@
 After broadcasting *LogicalAnd* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} and b_{i}
+o_{i} = a_{i} \wedge b_{i}
 \f]
 
 **Attributes**:
