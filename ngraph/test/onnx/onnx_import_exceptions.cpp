@@ -16,7 +16,7 @@ using namespace ngraph;
 TEST(onnx_importer, exception_throws_ngraph_error)
 {
     EXPECT_THROW(onnx_import::import_onnx_model(file_util::path_join(
-                     SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.prototxt")),
+                     SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx")),
                  ngraph_error);
 }
 
@@ -25,7 +25,7 @@ TEST(onnx_importer, exception_msg_ngraph_error)
     try
     {
         onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.prototxt"));
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
@@ -46,7 +46,7 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure)
     try
     {
         onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_bad_scale_type.prototxt"));
+            file_util::path_join(SERIALIZED_ZOO, "onnx/instance_norm_bad_scale_type.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
@@ -75,7 +75,7 @@ TEST(onnx_importer, exception_msg_std_err_wrapped)
     try
     {
         onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.prototxt"));
+            SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }

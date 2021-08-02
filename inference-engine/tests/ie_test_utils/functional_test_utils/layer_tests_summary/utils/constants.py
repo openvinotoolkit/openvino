@@ -53,6 +53,7 @@ VERIFIED_OP_REFERENCES = [
     'HSwish-4',
     'HardSigmoid-1',
     'Interpolate-4',
+    'Less-1',
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
