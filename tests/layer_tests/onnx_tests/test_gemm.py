@@ -236,7 +236,7 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("opset", [None, 11])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_gemm_bc(self, params, alpha, beta, trans_a, trans_b, ie_device, precision, ir_version, temp_dir):
+    def test_gemm_bc(self, params, alpha, beta, trans_a, trans_b, ie_device, precision, opset, ir_version, temp_dir):
         self._test(*self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta, trans_a,
                                     trans_b, precision, opset, ir_version), ie_device, precision, ir_version,
                    temp_dir=temp_dir)
