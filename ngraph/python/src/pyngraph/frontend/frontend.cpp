@@ -37,6 +37,24 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Loaded input model.
              )");
 
+    fem.def(
+        "supported",
+        [](ngraph::frontend::FrontEnd& self, const std::string& s) { return self.supported(s); },
+        py::arg("model_path"),
+        R"(
+                Checks if specified model can be converted by particular frontend.
+
+                Parameters
+                ----------
+                model_path : str
+                    Path to input model.
+
+                Returns
+                ----------
+                supported : Boolean
+                    True if model is supported by frontend, False otherwise.
+            )");
+
     fem.def("convert",
             static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
                 ngraph::frontend::InputModel::Ptr) const>(&ngraph::frontend::FrontEnd::convert),
