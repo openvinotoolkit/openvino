@@ -256,15 +256,15 @@ function( compile_pyx _name generated_file )
   list( REMOVE_DUPLICATES pxd_dependencies )
   list( REMOVE_DUPLICATES c_header_dependencies )
 
-  # Add the command to run the compiler and update cxx files 
-  # for importing lib with debug postfix if compile in debug mode
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug") # and (WIN32 or APPLE))
+  # Add command to run the compiler
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT ("${CMAKE_DEBUG_POSTFIX}" STREQUAL ""))
+    # set import statement to update in C code
     if(${_name} STREQUAL "ie_api")
-      set(statement_to_update "constants")
+      set(import_statements "constants")
     elseif(${_name} STREQUAL "offline_transformations")
-      set(statement_to_update "ie_api")
+      set(import_statements "ie_api")
     else()
-      set(statement_to_update "None")
+      set(import_statements " ")
     endif()
 
     add_custom_command( OUTPUT ${_generated_file}
@@ -275,14 +275,16 @@ function( compile_pyx _name generated_file )
     DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
     IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
     COMMENT ${comment}
+    # add debug postfix to import and PyInit statements in C code
+    # it's required if we want to create a library whose name has debug postfix (CVS-29031)
     COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py
                       -i ${_generated_file}
                       --match_string "PyInit_${_name}"
                       --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
     COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py
                       -i ${_generated_file}
-                      --match_string "${statement_to_update}"
-                      --replace_string "${statement_to_update}${CMAKE_DEBUG_POSTFIX}"
+                      --match_string "${import_statements}"
+                      --replace_string "${import_statements}${CMAKE_DEBUG_POSTFIX}"
     )
   else()
     add_custom_command( OUTPUT ${_generated_file}
