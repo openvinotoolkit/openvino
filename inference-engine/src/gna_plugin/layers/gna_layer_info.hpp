@@ -70,6 +70,7 @@ class LayerInfo {
             [this]() { return isFullyConnected(); },
             [this]() { return isAffineFilter(); },
             [this]() { return isConcatAlignFilter(); },
+            [this]() { return isConvolutionFilter(); },
             [this]() { return isEltwise(); },
             [this]() { return isScaleShift(); },
             [this]() { return isConvolution(); },
@@ -156,6 +157,9 @@ class LayerInfo {
     }
     bool isAffineFilter() const noexcept {
         return isOfType("AffineFilter");
+    }
+    bool isConvolutionFilter() const noexcept {
+        return isOfType("ConvolutionFilter");
     }
     bool isRelu() const noexcept {
         return isOfType("relu");

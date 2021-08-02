@@ -31,9 +31,9 @@ if (NOT BIN_FOLDER)
     endif()
 endif()
 
-if(IE_MAIN_SOURCE_DIR)
+if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
+    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_SOURCE_DIR})
     # hint for find_package(InferenceEngine in the samples folder)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
     # hint for find_package(ngraph in the samples folder)
@@ -56,35 +56,30 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -DNOMINMAX")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") #no asynchronous structured exception handling
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
     if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") # treating warnings as errors
     endif ()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
     endif()
 
+    # disable some noisy warnings
     if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819") #disable some warnings
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
     endif()
 else()
+    # treating warnings as errors
     if(TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
     endif()
 
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-    if (APPLE)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
-    elseif(UNIX)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self")
-        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
-        endif()
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
 endif()
 
@@ -104,25 +99,20 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_STANDARD 11)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-    endif()
 endif()
 ####################################
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-set (INTTYPES_FORMAT C99)
-set (BUILD_TESTING OFF)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
+    NOT DEFINED OpenVINO_SOURCE_DIR)
     function(add_gflags)
-        if(NOT WIN32)
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
-        endif()
+        # common gflags settings
+        set(GFLAGS_IS_SUBPROJECT TRUE)
+        set(HAVE_SYS_STAT_H 1)
+        set(HAVE_INTTYPES_H 1)
+        set(INTTYPES_FORMAT C99)
+        set(BUILD_TESTING OFF)
         set(BUILD_SHARED_LIBS OFF)
+
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
     endfunction()
@@ -135,10 +125,6 @@ endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
@@ -154,7 +140,7 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
 endif()
 
 # samples build can be switched off during whole IE build
-if (IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
+if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
 

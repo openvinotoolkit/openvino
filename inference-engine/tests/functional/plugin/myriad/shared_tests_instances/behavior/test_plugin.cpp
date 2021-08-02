@@ -29,42 +29,42 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecision),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                     ::testing::ValuesIn(configs)),
                             BehaviorTestOutput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTestOutput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTestOutput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecision),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTests,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                     ::testing::ValuesIn(configs)),
                             BehaviorTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTests,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTests,
                             ::testing::Combine(
                                     ::testing::Values(InferenceEngine::Precision::FP32),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(MultiConfigs)),
                             BehaviorTests::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                     ::testing::ValuesIn(configs)),
                             BehaviorTestInput::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, BehaviorTestInput,
+    INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),

@@ -200,7 +200,7 @@ public:
     TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
-    MockICore  _mockCore;
+    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

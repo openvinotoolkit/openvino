@@ -242,7 +242,7 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
 
 }
 
-INSTANTIATE_TEST_CASE_P(MvncTestsPlatform,
+INSTANTIATE_TEST_SUITE_P(MvncTestsPlatform,
                         MvncDevicePlatform,
                         ::testing::ValuesIn(myriadPlatforms),
                         PrintToStringParamName());

@@ -5,25 +5,18 @@
 set(TARGET_NAME myriad_compile)
 
 file(GLOB SRCS
-    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
 add_executable(${TARGET_NAME} ${SRCS})
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${TARGET_NAME} PRIVATE
-        "-Wall"
-    )
+if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common
-    ${IE_MAIN_SOURCE_DIR}/samples/common
-)
-
 target_link_libraries(${TARGET_NAME} PRIVATE
-    inference_engine vpu_graph_transformer
+    inference_engine
+    vpu_graph_transformer
     gflags
     ie_samples_utils
 )

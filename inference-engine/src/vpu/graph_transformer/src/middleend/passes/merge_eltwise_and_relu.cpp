@@ -9,6 +9,8 @@
 
 #include <vpu/middleend/sw/utility.hpp>
 
+#include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
+
 #include <vpu/compile_env.hpp>
 
 namespace vpu {
@@ -30,7 +32,7 @@ private:
 };
 
 void PassImpl::run(const Model& model) {
-    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.compileConfig().enableEarlyEltwiseReLUFusion;
+    const bool enableEarlyEltwiseReLUFusion = CompileEnv::get().config.get<EnableEarlyEltwiseReluFusionOption>();
     if (enableEarlyEltwiseReLUFusion) {
         if (m_mode == MergeMode::DYNAMIC_NETWORK) {
             VPU_PROFILE(mergeEltwiseAndReLUDynamic);
@@ -67,7 +69,8 @@ void PassImpl::run(const Model& model) {
             eltwiseStage->type() != StageType::Logical_AND    &&
             eltwiseStage->type() != StageType::Logical_OR     &&
             eltwiseStage->type() != StageType::Logical_XOR    &&
-            eltwiseStage->type() != StageType::Logical_NOT) {
+            eltwiseStage->type() != StageType::Logical_NOT    &&
+            eltwiseStage->type() != StageType::Abs) {
             continue;
         }
 

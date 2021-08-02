@@ -51,12 +51,12 @@ public:
         ASSERT_NO_THROW(_network = InferenceEngine::CNNNetwork(fn_ptr));
 
         auto log = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput());
-        _compiledGraph = compileNetwork(_network, ncDevicePlatform_t::NC_MYRIAD_X, createConfiguration(), log, &_mockCore);
+        _compiledGraph = compileNetwork(_network, ncDevicePlatform_t::NC_MYRIAD_X, createConfiguration(), log, _mockCore);
     }
 
     CNNNetwork _network;
     CompiledGraph::Ptr _compiledGraph;
-    MockICore _mockCore;
+    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
 };
 
 TEST_P(VPUBlobReaderHeaderTests, canReadCorrectMagicNumber) {
@@ -199,6 +199,6 @@ TEST_P(VPUBlobReaderOutputTests, canGetCorrectOutputNamesFromImportedNetwork) {
 
 const std::vector<size_t> inputShape = {{1, 4, 10, 10}};
 
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
-INSTANTIATE_TEST_CASE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderHeaderTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderInputTests, ::testing::Values(inputShape));
+INSTANTIATE_TEST_SUITE_P(myriadBlobReader_nightly, VPUBlobReaderOutputTests, ::testing::Values(inputShape));

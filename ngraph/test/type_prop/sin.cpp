@@ -6,4 +6,4 @@
 
 using Type = ::testing::Types<ngraph::op::Sin>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_sin, UnaryOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_sin, UnaryOperator, Type);

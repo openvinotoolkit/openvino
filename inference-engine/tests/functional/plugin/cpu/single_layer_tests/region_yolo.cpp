@@ -160,8 +160,8 @@ const auto testCase_yolov2_caffe = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYolov3CPU, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYoloMxnetCPU, RegionYoloCPULayerTest, testCase_yolov3_mxnet, RegionYoloCPULayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsRegionYoloCaffeCPU, RegionYoloCPULayerTest, testCase_yolov2_caffe, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYolov3CPU, RegionYoloCPULayerTest, testCase_yolov3, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloMxnetCPU, RegionYoloCPULayerTest, testCase_yolov3_mxnet, RegionYoloCPULayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsRegionYoloCaffeCPU, RegionYoloCPULayerTest, testCase_yolov2_caffe, RegionYoloCPULayerTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions

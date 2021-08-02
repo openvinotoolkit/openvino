@@ -86,7 +86,7 @@ struct non_max_suppression_basic : public testing::Test {
 };
 
 using nms_types = testing::Types<float, half_t>;
-TYPED_TEST_CASE(non_max_suppression_basic, nms_types);
+TYPED_TEST_SUITE(non_max_suppression_basic, nms_types);
 
 TYPED_TEST(non_max_suppression_basic, basic) {
     auto& engine = tests::get_test_engine();

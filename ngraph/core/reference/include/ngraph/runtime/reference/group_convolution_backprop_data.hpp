@@ -134,25 +134,23 @@ namespace ngraph
                                                               pads_end);
             }
 
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCU = typename widen<OUTPUT>::type>
-            void group_convolution_backprop_data(const INPUT* in,
-                                                 const FILTER* f,
-                                                 OUTPUT* out,
+            template <typename T>
+            void group_convolution_backprop_data(const T* in,
+                                                 const T* f,
+                                                 T* out,
                                                  const Shape& in_shape,
                                                  const Shape& filter_shape,
                                                  const Shape& out_shape,
                                                  const Strides& strides,
                                                  const Strides& dilation,
                                                  const CoordinateDiff& pads_begin,
-                                                 const CoordinateDiff& pads_end)
+                                                 const CoordinateDiff& pads_end,
+                                                 const CoordinateDiff& output_padding)
 
             {
                 const size_t group_count = filter_shape[filter_group_axis];
 
-                const INPUT* group_batch = in;
+                const T* group_batch = in;
                 const Shape group_batch_shape = [&]() {
                     Shape new_shape{in_shape};
                     new_shape[in_batch_axis] = 1;
@@ -161,14 +159,14 @@ namespace ngraph
                 }();
                 const size_t group_batch_size = shape_size(group_batch_shape);
 
-                const FILTER* group_filter = f;
+                const T* group_filter = f;
                 const Shape group_filter_shape = [&]() {
                     Shape new_shape{++filter_shape.begin(), filter_shape.end()};
                     return new_shape;
                 }();
                 const size_t group_filter_size = shape_size(group_filter_shape);
 
-                OUTPUT* group_out = out;
+                T* group_out = out;
                 const Shape group_out_shape = [&]() {
                     Shape new_shape{out_shape};
                     new_shape[out_batch_axis] = 1;
@@ -178,7 +176,6 @@ namespace ngraph
                 const size_t group_out_size = shape_size(group_out_shape);
 
                 Strides in_dilation(in_shape.size(), 1);
-                const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
@@ -201,6 +198,40 @@ namespace ngraph
                         group_out += group_out_size;
                     }
                 }
+            }
+
+            // DEPRECATED, can't be removed currently due to arm-plugin dependency
+            template <typename OUTPUT,
+                      typename FILTER,
+                      typename INPUT,
+                      typename ACCUMULATION = typename widen<INPUT>::type>
+            NGRAPH_DEPRECATED(
+                "group_convolution_backprop_data function without output_paddings is deprecated, "
+                "use the one with output_padding.")
+            void group_convolution_backprop_data(const INPUT* in,
+                                                 const FILTER* f,
+                                                 OUTPUT* out,
+                                                 const Shape& in_shape,
+                                                 const Shape& filter_shape,
+                                                 const Shape& out_shape,
+                                                 const Strides& strides,
+                                                 const Strides& dilation,
+                                                 const CoordinateDiff& pads_begin,
+                                                 const CoordinateDiff& pads_end)
+            {
+                const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
+
+                group_convolution_backprop_data(in,
+                                                f,
+                                                out,
+                                                in_shape,
+                                                filter_shape,
+                                                out_shape,
+                                                strides,
+                                                dilation,
+                                                pads_begin,
+                                                pads_end,
+                                                output_padding);
             }
         } // namespace reference
 

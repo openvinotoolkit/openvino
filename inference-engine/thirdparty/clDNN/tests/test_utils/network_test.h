@@ -30,7 +30,7 @@ namespace tests {
 template <typename T>
 struct typed_comparator {
     static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, T ref, T val) {
-        return ::testing::internal::EqHelper<false>::Compare(lhs_expr, rhs_expr, ref, val);
+        return ::testing::internal::EqHelper::Compare(lhs_expr, rhs_expr, ref, val);
     }
 };
 

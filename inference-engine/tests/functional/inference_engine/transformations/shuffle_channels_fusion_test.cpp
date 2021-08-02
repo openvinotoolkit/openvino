@@ -127,7 +127,7 @@ const std::vector<ShuffleChannelsFusionTestValues> testValues = {
     { {128, 720 * 480}, {1, 2, 64, 720 * 480}, {0, 2, 1, 3},  {1, -1, 720, 480}, false, false },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     TransformationTests,
     ShuffleChannelsFusion,
     ::testing::ValuesIn(testValues),

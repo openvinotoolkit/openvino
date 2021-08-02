@@ -40,6 +40,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                 end[dim] = value + 1;
 
                 bool skip_dim_value = false;
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate & coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
@@ -47,6 +48,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet & dims,
                         break;
                     }
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
                 if (!skip_dim_value) {
                     mask->at(dim).insert(value);
                 }

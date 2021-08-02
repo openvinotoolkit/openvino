@@ -26,8 +26,8 @@ struct PartShape
 {
     std::string m_modelName;
     std::string m_tensorName;
-    std::vector<size_t> m_oldPartialShape;
-    std::vector<size_t> m_newPartialShape;
+    ngraph::PartialShape m_oldPartialShape;
+    ngraph::PartialShape m_newPartialShape;
 };
 
 using PartialShapeParam = std::tuple<BaseFEParam, PartShape>;

@@ -2394,7 +2394,7 @@ struct deconvolution_random_test_params {
 template <typename T>
 struct typed_comparator {
     static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, T ref, T val) {
-        return ::testing::internal::EqHelper<false>::Compare(lhs_expr, rhs_expr, ref, val);
+        return ::testing::internal::EqHelper::Compare(lhs_expr, rhs_expr, ref, val);
     }
 };
 
@@ -2800,7 +2800,7 @@ TEST_P(deconvolution_random_test, basic) {
     run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke, deconvolution_random_test, testing::ValuesIn(
+INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_random_test, testing::ValuesIn(
     deconvolution_random_test_params_generator()
     .add_smoke_2d(data_types::f32, data_types::f32, data_types::f32, format::bfyx, format::any)
     .add_smoke_3d(data_types::f32, data_types::f32, data_types::f32, format::bfzyx, format::any)
@@ -2816,7 +2816,7 @@ INSTANTIATE_TEST_CASE_P(smoke, deconvolution_random_test, testing::ValuesIn(
     .add_smoke_3d(data_types::i8, data_types::i8, data_types::f32, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
 ), deconvolution_random_test_params::print_params);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_extended, deconvolution_random_test, testing::ValuesIn(
+INSTANTIATE_TEST_SUITE_P(DISABLED_extended, deconvolution_random_test, testing::ValuesIn(
     deconvolution_random_test_params_generator()
     .add_extra_2d(data_types::f32, data_types::f32, data_types::f32, format::bfyx, format::any)
     .add_extra_3d(data_types::f32, data_types::f32, data_types::f32, format::bfzyx, format::any)

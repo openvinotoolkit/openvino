@@ -5,6 +5,7 @@
 #include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -54,7 +55,7 @@
 namespace {
 std::mutex cacheAccessMutex;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 std::wstring multiByteCharToWString(const char* str) {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
@@ -68,7 +69,7 @@ std::wstring multiByteCharToWString(const char* str) {
     return result;
 #endif  // _WIN32
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
@@ -241,7 +242,7 @@ kernels_cache::kernels_cache(engine& engine) : _engine(engine) { }
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
     bool dump_custom_program) {
-
+    std::lock_guard<std::mutex> lock(_mutex);
     // we need unique id in order to avoid conflict across topologies.
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
@@ -372,6 +373,10 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             dump_file << "*/\n";
     }
     if (!err_log.empty()) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose) {
+            std::cout << err_log << std::endl;
+        }
         throw std::runtime_error("Program build failed. You may enable OCL source dump to see the error log.\n");
     }
 }

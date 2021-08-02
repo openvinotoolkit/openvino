@@ -163,7 +163,7 @@ const auto psroiPoolingBilinearParams = ::testing::Combine(
         ::testing::Values("bilinear")
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         psroiPoolingAverageParams,
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerCP
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
                                         psroiPoolingBilinearParams,

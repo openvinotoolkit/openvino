@@ -24,7 +24,7 @@ static constexpr char ENV_HDDL_R[]  = "IE_VPU_ENABLE_PER_LAYER_TESTS_HDDL";
 #define DISABLE_IF(expression)                                   \
 {                                                                \
     if (expression) {                                            \
-        SKIP() << "Disabled since " << #expression << std::endl; \
+        GTEST_SKIP() << "Disabled since " << #expression << std::endl; \
     }                                                            \
 }
 

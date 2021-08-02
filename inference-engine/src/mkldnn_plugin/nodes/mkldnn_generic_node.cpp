@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <blob_factory.hpp>
+#include "cpu_memory_desc_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -20,6 +21,42 @@ void MKLDNNGenericNode::getSupportedDescriptors() {
     if (!extFactory && impls.empty()) {
         IE_THROW() << "Cannot get generic primitive for layer: " << getName() << " with type: " << getTypeStr();
     }
+}
+
+NodeConfig MKLDNNGenericNode::convertLayerToNodeConfig(const InferenceEngine::LayerConfig &layerConfig) {
+    NodeConfig config;
+    config.dynBatchSupport = layerConfig.dynBatchSupport;
+    config.inConfs.resize(layerConfig.inConfs.size());
+    for (size_t i = 0; i < layerConfig.inConfs.size(); i++) {
+        config.inConfs[i].inPlace = layerConfig.inConfs[i].inPlace;
+        config.inConfs[i].constant = layerConfig.inConfs[i].constant;
+        config.inConfs[i].desc = MemoryDescUtils::convertToMKLDNNMemoryDesc(layerConfig.inConfs[i].desc).clone();
+    }
+    config.outConfs.resize(layerConfig.outConfs.size());
+    for (size_t i = 0; i < layerConfig.outConfs.size(); i++) {
+        config.outConfs[i].inPlace = layerConfig.outConfs[i].inPlace;
+        config.outConfs[i].constant = layerConfig.outConfs[i].constant;
+        config.outConfs[i].desc = MemoryDescUtils::convertToMKLDNNMemoryDesc(layerConfig.outConfs[i].desc).clone();
+    }
+    return config;
+}
+
+InferenceEngine::LayerConfig MKLDNNGenericNode::convertNodeToLayerConfig(const NodeConfig &nodeConfig) {
+    InferenceEngine::LayerConfig config;
+    config.dynBatchSupport = nodeConfig.dynBatchSupport;
+    config.inConfs.resize(nodeConfig.inConfs.size());
+    for (size_t i = 0; i < nodeConfig.inConfs.size(); i++) {
+        config.inConfs[i].inPlace = nodeConfig.inConfs[i].inPlace;
+        config.inConfs[i].constant = nodeConfig.inConfs[i].constant;
+        config.inConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.inConfs[i].desc);
+    }
+    config.outConfs.resize(nodeConfig.outConfs.size());
+    for (size_t i = 0; i < nodeConfig.outConfs.size(); i++) {
+        config.outConfs[i].inPlace = nodeConfig.outConfs[i].inPlace;
+        config.outConfs[i].constant = nodeConfig.outConfs[i].constant;
+        config.outConfs[i].desc = MemoryDescUtils::convertToTensorDesc(*nodeConfig.outConfs[i].desc);
+    }
+    return config;
 }
 
 void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
@@ -35,7 +72,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (auto& config : configs) {
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+            supportedPrimitiveDescriptors.emplace_back(convertLayerToNodeConfig(config), impl_desc_type::unknown);
         }
     }
     if (impls.empty()) {
@@ -109,9 +146,9 @@ void MKLDNNGenericNode::execLayer() {
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     std::vector<InferenceEngine::Blob::CPtr> constInputs;
     std::vector<InferenceEngine::TensorDesc> inputDescs;
-    std::vector<InferenceEngine::SizeVector> outputShapes;
+    std::vector<InferenceEngine::SizeVector> execOutputShapes;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto inputBlob = getParentEdgeAt(i)->getBlob();
+        auto inputBlob = MemoryDescUtils::interpretAsBlob(getParentEdgeAt(i)->getMemory());
         inputs.push_back(inputBlob);
         constInputs.push_back(inputBlob);
         if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
@@ -137,14 +174,14 @@ void MKLDNNGenericNode::execLayer() {
         }
     }
     std::vector<InferenceEngine::Blob::Ptr> outputs;
-    for (size_t i = 0; i < outDims.size(); i++) {
+    for (size_t i = 0; i < outputShapes.size(); i++) {
         if (isDynBatch) {
             auto out_edge = getChildEdgesAtPort(i)[0];
-            auto td = out_edge->getBlob()->getTensorDesc();
-            td.setDims(outputShapes[i]);
+            auto td = MemoryDescUtils::convertToTensorDesc(out_edge->getMemory().GetDesc());
+            td.setDims(execOutputShapes[i]);
             outputs.push_back(make_blob_with_precision(td, out_edge->getMemory().GetData()));
         } else {
-            outputs.push_back(getChildEdgesAtPort(i)[0]->getBlob());
+            outputs.push_back(MemoryDescUtils::interpretAsBlob(getChildEdgesAtPort(i)[0]->getMemory()));
         }
     }
     InferenceEngine::ResponseDesc resp;
@@ -154,8 +191,8 @@ void MKLDNNGenericNode::execLayer() {
     }
 }
 
-void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
-    InferenceEngine::LayerConfig rightConfig = config;
+void MKLDNNGenericNode::initDescriptor(const NodeConfig &config) {
+    NodeConfig rightConfig = config;
     InferenceEngine::StatusCode rc;
     InferenceEngine::ResponseDesc resp;
 
@@ -190,14 +227,15 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
 
     impls.clear();
     impls.emplace_back(selectedImpl);
-    rc = impls[0]->init(rightConfig, &resp);
+    auto ieConfig = convertNodeToLayerConfig(rightConfig);
+    rc = impls[0]->init(ieConfig, &resp);
     if (rc != InferenceEngine::OK) {
         IE_THROW() << resp.msg;
     }
-
+    rightConfig = convertLayerToNodeConfig(ieConfig);
     auto descriptor = getSelectedPrimitiveDescriptor();
     if (descriptor != nullptr) {
-        descriptor->getConfig() = rightConfig;
+        descriptor->setConfig(rightConfig);
     }
     bool isConst = !rightConfig.inConfs.empty() || !rightConfig.outConfs.empty();
     for (const auto &inConf : rightConfig.inConfs) {

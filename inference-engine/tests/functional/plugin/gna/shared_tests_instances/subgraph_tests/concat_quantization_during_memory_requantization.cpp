@@ -31,7 +31,7 @@ namespace {
         32
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_concat_quant_memory_requant, ConcatQuantDuringMemoryRequantTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_concat_quant_memory_requant, ConcatQuantDuringMemoryRequantTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Log-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: Arithmetic unary operation
 
 **Short description**: *Log* performs element-wise natural logarithm operation with given tensor.
 
@@ -18,11 +18,11 @@ a_{i} = log(a_{i})
 
 **Inputs**
 
-* **1**: An tensor of type T and arbitrary shape. **Required.**
+* **1**: An tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise log operation. A tensor of type T and the same shape as input.
+* **1**: The result of element-wise log operation. A tensor of type *T* and the same shape as input.
 
 **Types**
 

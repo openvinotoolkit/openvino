@@ -43,24 +43,24 @@ MKLDNNMathNode::MKLDNNMathNode(const std::shared_ptr<ngraph::Node>& op, const mk
     }
 
     initializers[op->get_type_info()](op, *this);
-
-    size_t sizeVector = op->get_input_size();
-    inDataConf.reserve(sizeVector);
-    for (int i = 0; i < sizeVector; ++i)
-        inDataConf.emplace_back(TensorDescCreatorTypes::ncsp, Precision::FP32);
 }
 
 void MKLDNNMathNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    std::vector<PortConfigurator> inDataConf;
+    inDataConf.reserve(getOriginalInputsNumber());
+    for (int i = 0; i < getOriginalInputsNumber(); ++i)
+        inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
+
     addSupportedPrimDesc(inDataConf,
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
 
 void MKLDNNMathNode::execute(mkldnn::stream strm) {
-    size_t dataSize = getChildEdgeAt(0)->getBlob()->size();
+    size_t dataSize = getChildEdgeAt(0)->getShape().getElementsCount();
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 

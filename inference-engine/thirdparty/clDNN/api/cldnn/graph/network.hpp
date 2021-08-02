@@ -36,8 +36,8 @@ struct network_output {
     memory::ptr get_memory() const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream.get_queue_type() == queue_types::in_order) {
-            _stream.finish();
+        if (_stream->get_queue_type() == queue_types::in_order) {
+            _stream->finish();
         } else {
             _event->wait();
         }
@@ -47,8 +47,8 @@ struct network_output {
 private:
     event::ptr _event;
     memory::ptr _result;
-    stream& _stream;
-    network_output(event::ptr evt, memory::ptr mem, stream& stream) : _event(evt), _result(mem), _stream(stream) {}
+    stream::ptr _stream;
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream) : _event(evt), _result(mem), _stream(stream) {}
     friend struct network;
 };
 
@@ -110,6 +110,8 @@ struct network {
 
     stream& get_stream() const;
 
+    stream::ptr get_stream_ptr() const;
+
     /// @brief Return internal network id.
     uint32_t get_id();
 
@@ -144,7 +146,7 @@ struct network {
 
     /// @brief Returns @ref network_output object for particular @p output. Can't be called before network execution
     network_output get_output(const primitive_id& output_id) const {
-        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream());
+        return network_output(get_primitive_event(output_id), get_output_memory(output_id), get_stream_ptr());
     }
 
     /// @brief Returns the list of @ref event for the primitives that were executed in network.

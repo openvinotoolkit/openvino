@@ -18,12 +18,15 @@
 namespace AutoPlugin {
 
 using DeviceName = std::string;
+using NetworkFuture = std::future<InferenceEngine::SoExecutableNetworkInternal>;
 
 class AutoExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
 public:
     using Ptr = std::shared_ptr<AutoExecutableNetwork>;
 
-    explicit AutoExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& network, bool enablePerfCount);
+    explicit AutoExecutableNetwork(NetworkFuture cpuTask,
+                                   NetworkFuture acceleratorTask,
+                                   bool          enablePerfCount);
 
     void Export(std::ostream& networkModel) override;
     InferenceEngine::RemoteContext::Ptr GetContext() const override;
@@ -33,12 +36,21 @@ public:
     InferenceEngine::Parameter GetConfig(const std::string& name) const override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+    bool TryGetActualNetwork(InferenceEngine::SoExecutableNetworkInternal& soExecNetwork);
 
     ~AutoExecutableNetwork();
 
 private:
-    InferenceEngine::SoExecutableNetworkInternal _network;
+    void WaitForActualDevice() const;
+
+private:
+    InferenceEngine::SoExecutableNetworkInternal _networkFirstReady;
+    mutable InferenceEngine::SoExecutableNetworkInternal _networkActualNeeded;
+    NetworkFuture _cpuFuture;
+    mutable NetworkFuture _acceleratorFuture;
     bool _enablePerfCount;
+    mutable std::atomic<bool> _alreadyActualNetwork = {false};
+    std::map<std::string, InferenceEngine::Parameter> _cacheConfig;
 };
 
 }  // namespace AutoPlugin

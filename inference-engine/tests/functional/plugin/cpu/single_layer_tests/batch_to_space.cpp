@@ -120,10 +120,10 @@ const auto batchToSpaceParamsSet4D2 = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(cpuParams_4D));
 
-INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTestCase1_4D, BatchToSpaceCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BatchToSpaceCPULayerTestCase1_4D, BatchToSpaceCPULayerTest,
                             batchToSpaceParamsSet4D1, BatchToSpaceCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTestCase2_4D, BatchToSpaceCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BatchToSpaceCPULayerTestCase2_4D, BatchToSpaceCPULayerTest,
                             batchToSpaceParamsSet4D2, BatchToSpaceCPULayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> blockShape5D1  = {{1, 1, 2, 2, 1}, {1, 2, 1, 2, 2}};
@@ -169,10 +169,10 @@ const auto batchToSpaceParamsSet5D2 = ::testing::Combine(
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)), ::testing::ValuesIn(cpuParams_5D));
 
-INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTestCase1_5D, BatchToSpaceCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BatchToSpaceCPULayerTestCase1_5D, BatchToSpaceCPULayerTest,
                             batchToSpaceParamsSet5D1, BatchToSpaceCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTestCase2_5D, BatchToSpaceCPULayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_BatchToSpaceCPULayerTestCase2_5D, BatchToSpaceCPULayerTest,
                             batchToSpaceParamsSet5D2, BatchToSpaceCPULayerTest::getTestCaseName);
 
 }  // namespace

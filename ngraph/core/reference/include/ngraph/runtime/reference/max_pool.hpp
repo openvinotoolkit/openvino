@@ -24,6 +24,7 @@ namespace ngraph
                           const Shape& padding_below,
                           const Shape& padding_above)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 // At the outermost level we will walk over every output coordinate O.
                 CoordinateTransform output_transform(out_shape);
 
@@ -119,6 +120,7 @@ namespace ngraph
 
                     out[output_transform.index(out_coord)] = result;
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

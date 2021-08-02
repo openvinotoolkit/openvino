@@ -612,7 +612,7 @@ TEST_P(concat_gpu_4d_f16, fs_b_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::fs_b_yx_fsv32));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_4d_f16,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -625,7 +625,7 @@ TEST_P(concat_gpu_4d_i8, b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_i8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -634,7 +634,7 @@ TEST_P(concat_gpu_4d_u8, b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_gpu_4d_u8,
                         concat_gpu_all_params,
                         concat_gpu::PrintToStringParamName);
@@ -753,7 +753,7 @@ TEST_P(concat_id_conv_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_f16,
                         ::testing::Values(
                             TestParamType_concat(2, { 2, 32 }, 2, 1),
@@ -768,7 +768,7 @@ TEST_P(concat_id_conv_gpu_4d_i8, input_order_opt_b_fs_yx_fsv16) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_low_precision,
+INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         concat_id_conv_gpu_4d_i8,
                         ::testing::Values(
                             TestParamType_concat(2, { 2, 32 }, 2, 1),

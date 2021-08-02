@@ -62,6 +62,14 @@ namespace BehaviorTestsDefinitions {                                            
 }
 
 
+inline Core createCoreWithTemplate() {
+    Core ie;
+    std::string pluginName = "templatePlugin";
+    pluginName += IE_BUILD_POSTFIX;
+    ie.RegisterPlugin(pluginName, "TEMPLATE");
+    return ie;
+}
+
 class IEClassBasicTestP : public ::testing::Test, public WithParamInterface<std::pair<std::string, std::string> > {
 protected:
     std::string deviceName;
@@ -211,20 +219,20 @@ TEST(IEClassBasicTest, smoke_createDefault) {
 
 TEST_P(IEClassBasicTestP, registerExistingPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.RegisterPlugin(pluginName, deviceName), Exception);
 }
 
 TEST_P(IEClassBasicTestP, registerNewPluginNoThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.RegisterPlugin(pluginName, "NEW_DEVICE_NAME"));
     ASSERT_NO_THROW(ie.GetMetric("NEW_DEVICE_NAME", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
 }
 
 TEST(IEClassBasicTest, smoke_registerExistingPluginFileThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.RegisterPlugins("nonExistPlugins.xml"), Exception);
 }
 
@@ -277,7 +285,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
-            Core ie;
+            Core ie = createCoreWithTemplate();
             GTEST_COUT << "Core created " << testIndex << std::endl;
             ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
@@ -310,19 +318,19 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 
 TEST_P(IEClassBasicTestP, getVersionsByExactDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.GetVersions(deviceName + ".0"));
 }
 
 TEST_P(IEClassBasicTestP, getVersionsByDeviceClassNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.GetVersions(deviceName));
 }
 
 TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_EQ(2, ie.GetVersions(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName).size());
 }
 
@@ -332,7 +340,7 @@ TEST_P(IEClassBasicTestP, getVersionsNonEmpty) {
 
 TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     // device instance is not created yet
     ASSERT_THROW(ie.UnregisterPlugin(deviceName), Exception);
 
@@ -344,7 +352,7 @@ TEST_P(IEClassBasicTestP, unregisterExistingPluginNoThrow) {
 
 TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.UnregisterPlugin(deviceName), Exception);
     ASSERT_NO_THROW(ie.GetVersions(deviceName));
     ASSERT_NO_THROW(ie.UnregisterPlugin(deviceName));
@@ -355,7 +363,7 @@ TEST_P(IEClassBasicTestP, accessToUnregisteredPluginThrows) {
 
 TEST(IEClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.UnregisterPlugin("unkown_device"), Exception);
 }
 
@@ -365,45 +373,45 @@ TEST(IEClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
 
 TEST_P(IEClassBasicTestP, SetConfigAllThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{"unsupported_key", "4"}}));
     ASSERT_ANY_THROW(ie.GetVersions(deviceName));
 }
 
 TEST_P(IEClassBasicTestP, SetConfigForUnRegisteredDeviceThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.SetConfig({{"unsupported_key", "4"}}, "unregistered_device"), Exception);
 }
 
 TEST_P(IEClassBasicTestP, SetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{KEY_PERF_COUNT, YES}}, deviceName));
 }
 
 TEST_P(IEClassBasicTestP, SetConfigAllNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{KEY_PERF_COUNT, YES}}));
     ASSERT_NO_THROW(ie.GetVersions(deviceName));
 }
 
 TEST(IEClassBasicTest, smoke_SetConfigHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{KEY_PERF_COUNT, YES}}, CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST_P(IEClassBasicTestP, SetConfigHeteroTargetFallbackThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.SetConfig({{"TARGET_FALLBACK", deviceName}}, CommonTestUtils::DEVICE_HETERO));
 }
 
 TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     bool value = false;
 
     ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), YES}}, CommonTestUtils::DEVICE_HETERO));
@@ -421,7 +429,7 @@ TEST(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 
 TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (deviceName == CommonTestUtils::DEVICE_CPU ||
         deviceName == CommonTestUtils::DEVICE_GPU) {
@@ -440,20 +448,20 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
 
 TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_HETERO), NetworkNotRead);
 }
 
 TEST(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::Core ie;
+    InferenceEngine::Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.ImportNetwork("model", CommonTestUtils::DEVICE_MULTI), NetworkNotRead);
 }
 
 TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     RemoteContext::Ptr context = nullptr;
     std::istringstream stream("None");
     ASSERT_THROW(ie.ImportNetwork(stream, context, {}), Exception);
@@ -465,19 +473,19 @@ TEST_P(IEClassBasicTestP, ImportNetworkWithNullContextThrows) {
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, deviceName));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
 }
 
@@ -487,7 +495,7 @@ TEST_P(IEClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
@@ -500,7 +508,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkThrowsIfNoDeviceName) {
 
 TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
@@ -511,7 +519,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowWithDeviceName) {
 
 TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ExecutableNetwork executableNetwork;
     std::string fileName{"ExportedNetwork"};
     {
@@ -534,13 +542,13 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_NO_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName));
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     try {
         ie.QueryNetwork(actualNetwork, deviceName);
@@ -552,7 +560,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
 
 TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     try {
         auto rres = ie.QueryNetwork(ksoNetwork, deviceName);
@@ -571,7 +579,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
 
 TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     try {
         std::shared_ptr<ngraph::Function> func;
@@ -623,7 +631,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithConstantBranches) {
 
 TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     try {
         auto rres = ie.QueryNetwork(ksoNetwork, deviceName);
@@ -647,7 +655,7 @@ TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
 
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     QueryNetworkResult res;
     ASSERT_NO_THROW(res = ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {{"TARGET_FALLBACK", deviceName}}));
     ASSERT_LT(0, res.supportedLayersMap.size());
@@ -655,13 +663,13 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI), Exception);
 }
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
@@ -678,7 +686,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_HETERO;
 
@@ -695,7 +703,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroNoThrow) {
 
 TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     // TODO: check
     std::string targetDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + CommonTestUtils::DEVICE_CPU;
     ASSERT_THROW(ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)), Exception);
@@ -703,7 +711,7 @@ TEST(IEClassBasicTest, smoke_GetMetricSupportedConfigKeysHeteroThrows) {
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS)));
@@ -719,7 +727,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_METRICS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -735,7 +743,7 @@ TEST_P(IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)));
@@ -751,7 +759,7 @@ TEST_P(IEClassGetMetricTest_AVAILABLE_DEVICES, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)));
@@ -763,7 +771,7 @@ TEST_P(IEClassGetMetricTest_FULL_DEVICE_NAME, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)));
@@ -779,7 +787,7 @@ TEST_P(IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES, GetMetricAndPrintNoThrow)
 
 TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_GOPS)));
@@ -795,7 +803,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_GOPS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(DEVICE_TYPE)));
@@ -808,7 +816,7 @@ TEST_P(IEClassGetMetricTest_DEVICE_TYPE, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)));
@@ -821,7 +829,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_WAITING_INFER_REQUESTS, GetMetricAndPrintN
 
 TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)));
@@ -834,7 +842,7 @@ TEST_P(IEClassGetMetricTest_NUMBER_OF_EXEC_INFER_REQUESTS, GetMetricAndPrintNoTh
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)));
@@ -857,7 +865,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
 
 TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(RANGE_FOR_STREAMS)));
@@ -877,7 +885,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
 TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_THROW(p = ie.GetMetric(deviceName, "unsupported_metric"), Exception);
@@ -885,7 +893,7 @@ TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
 
 TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -900,7 +908,7 @@ TEST_P(IEClassGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(IEClassGetConfigTest, GetConfigHeteroNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -913,7 +921,7 @@ TEST_P(IEClassGetConfigTest, GetConfigHeteroNoThrow) {
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO, "unsupported_config"), Exception);
@@ -921,7 +929,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_THROW(p = ie.GetConfig(CommonTestUtils::DEVICE_HETERO + std::string(":") + deviceName, HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)),
@@ -930,7 +938,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
 
 TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_THROW(p = ie.GetConfig(deviceName, "unsupported_config"), Exception);
@@ -938,7 +946,7 @@ TEST_P(IEClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
 
 TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     std::vector<std::string> devices;
 
     ASSERT_NO_THROW(devices = ie.GetAvailableDevices());
@@ -962,7 +970,7 @@ TEST_P(IEClassGetAvailableDevices, GetAvailableDevicesNoThrow) {
 //
 TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -981,7 +989,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1000,7 +1008,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1015,7 +1023,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1030,7 +1038,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
 
 TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1040,7 +1048,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported, GetMetricThrow) 
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1057,7 +1065,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1067,7 +1075,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1077,7 +1085,7 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
@@ -1090,7 +1098,7 @@ TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
 
 TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
@@ -1099,7 +1107,7 @@ TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
 
 TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -1122,7 +1130,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter pHetero, pDevice;
 
     ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualNetwork, heteroDeviceName);
@@ -1156,7 +1164,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter pHetero, pDevice;
 
     ExecutableNetwork heteroExeNetwork = ie.LoadNetwork(actualNetwork, heteroDeviceName);
@@ -1196,7 +1204,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     ExecutableNetwork exeNetwork = ie.LoadNetwork(actualNetwork, heteroDeviceName);
@@ -1209,7 +1217,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
 
 TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
 
     setHeteroNetworkAffinity(deviceName);
@@ -1237,7 +1245,7 @@ bool supportsDeviceID(Core &ie, const std::string &deviceName) {
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -1252,7 +1260,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         try {
@@ -1268,7 +1276,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".110"), Exception);
@@ -1279,7 +1287,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, deviceName + ".l0"), Exception);
@@ -1290,7 +1298,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithInvalidDeviceIDThrows) {
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
@@ -1305,7 +1313,7 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 //
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -1320,7 +1328,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         auto deviceIDs = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -1334,7 +1342,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithDeviceIDNoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".10"), Exception);
@@ -1345,7 +1353,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithBigDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, deviceName + ".l0"), Exception);
@@ -1356,7 +1364,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkWithInvalidDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, "HETERO",
@@ -1368,7 +1376,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName)) {
         ASSERT_THROW(ie.LoadNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO,
@@ -1385,7 +1393,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
         auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -1406,7 +1414,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -1431,7 +1439,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -1466,7 +1474,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
@@ -1500,7 +1508,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
 
 TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Core ie;
+    Core ie = createCoreWithTemplate();
     {
         auto versions = ie.GetVersions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + deviceName + "," + CommonTestUtils::DEVICE_CPU);
         ASSERT_EQ(3, versions.size());
@@ -1510,7 +1518,7 @@ TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins
         config.insert({"CPU_THREADS_NUM", "3"});
     }
     ASSERT_NO_THROW({
-                        Core ie;
+                        Core ie = createCoreWithTemplate();
                         std::string name = actualNetwork.getInputsInfo().begin()->first;
                         actualNetwork.getInputsInfo().at(name)->setPrecision(Precision::U8);
                         auto executableNetwork = ie.LoadNetwork(actualNetwork, deviceName, config);

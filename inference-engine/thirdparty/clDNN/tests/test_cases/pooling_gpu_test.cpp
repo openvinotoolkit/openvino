@@ -2715,7 +2715,7 @@ TEST_P(pooling_random_test, avg_u8) {
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_low_precision_2d_spatial,
     pooling_random_test,
     testing::Combine(testing::Values(1, 2),
@@ -2732,7 +2732,7 @@ INSTANTIATE_TEST_CASE_P(
                      testing::Values(false, true)),
                     testing::internal::DefaultParamName<pooling_random_test_params>);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_low_precision_3d_spatial,
     pooling_random_test,
     testing::Combine(testing::Values(1, 2),
@@ -2746,7 +2746,7 @@ INSTANTIATE_TEST_CASE_P(
                      testing::Values(false, true)),
                     testing::internal::DefaultParamName<pooling_random_test_params>);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     batched_low_precision,
     pooling_random_test,
     testing::Combine(
@@ -2831,7 +2831,7 @@ TEST_P(pooling_random_test_fp16_fp32, max_fp32) {
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_low_precision,
     pooling_random_test_fp16_fp32,
     testing::Combine(testing::Values(1, 2),
@@ -3500,7 +3500,7 @@ public:
         return generic_test::generate_generic_test_params(all_generic_params);
     }
 
-    virtual bool is_format_supported(cldnn::format format)
+    bool is_format_supported(cldnn::format format) override
     {
         if ((format == cldnn::format::yxfb) || (format == cldnn::format::bfyx) || (format == cldnn::format::bfyx))
         {
@@ -3509,7 +3509,7 @@ public:
         return false;
     }
 
-    virtual void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs)
+    void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {
@@ -3532,7 +3532,7 @@ public:
         set_values(input, input_rnd_vec);
     }
 
-    virtual cldnn::tensor get_expected_output_tensor()
+    cldnn::tensor get_expected_output_tensor() override
     {
         auto pooling = std::static_pointer_cast<cldnn::pooling>(layer_params);
 
@@ -3733,7 +3733,7 @@ public:
         return output;
     }
 
-    virtual memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs)
+    memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) override
     {
         if (generic_params->data_type == data_types::f32)
         {
@@ -3760,7 +3760,7 @@ TEST_P(pooling_test, POOLING)
     run_single_test();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_POOLING,
+INSTANTIATE_TEST_SUITE_P(DISABLED_POOLING,
                         pooling_test,
                         ::testing::Combine(::testing::ValuesIn(pooling_test::generate_generic_test_params()),
                                            ::testing::ValuesIn(pooling_test::generate_specific_test_params())),
