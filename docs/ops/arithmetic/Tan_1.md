@@ -34,7 +34,7 @@ a_{i} = tan(a_{i})
 
 **Types**
 
-* *T*: int32,int64,uint32,uint64,float16,float32
+* *T*: any supported numeric type.
 
 
 **Examples**
