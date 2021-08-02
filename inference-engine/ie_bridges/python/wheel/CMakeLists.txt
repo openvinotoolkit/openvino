@@ -62,7 +62,7 @@ add_custom_command(TARGET ie_wheel
             --build=${WHEEL_BUILD}
             --plat-name=${WHEEL_PLATFORM}
     POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/.env"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/.env"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
     VERBATIM
