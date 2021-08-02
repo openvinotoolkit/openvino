@@ -27,4 +27,7 @@ class DeformableConvolution(Op):
     def backend_attrs(self):
         # the same attributes as in a regular convolution and additional attributes 'deformable_group', 'group'
         # and 'bilinear_interpolation_pad'
-        return Convolution(self.graph, {}).backend_attrs() + ['deformable_group', 'group', 'bilinear_interpolation_pad']
+        attrs = Convolution(self.graph, {}).backend_attrs() + ['deformable_group', 'group']
+        if self.get_opset() == 'opset8':
+            attrs.append('bilinear_interpolation_pad')
+        return attrs
