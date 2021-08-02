@@ -146,6 +146,7 @@ jobs:
   - script: |
       set FE_TEST_MODELS=$(INSTALL_DIR)\tests
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+    workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 

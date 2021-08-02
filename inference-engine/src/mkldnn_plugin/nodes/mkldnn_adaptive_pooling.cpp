@@ -69,19 +69,19 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
-    auto parentDims = getParentEdgeAt(0)->getDims();
-    auto childDims = getChildEdgeAt(0)->getDims();
+    auto parentDims = getParentEdgeAt(0)->getShape().getStaticDims();
+    auto childDims = getChildEdgeAt(0)->getShape().getStaticDims();
 
-    spatialDimsCount = parentDims.ndims() - 2;
+    spatialDimsCount = parentDims.size() - 2;
     if (!one_of(spatialDimsCount, 1, 2, 3)) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getDims().ndims();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
     }
 
-    if (getParentEdgeAt(1)->getDims().ndims() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getDims().ndims();
+    if (getParentEdgeAt(1)->getShape().getRank() != 1) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
     }
 
-    if (getChildEdgeAt(0)->getDims().ndims() != getParentEdgeAt(0)->getDims().ndims()) {
+    if (getChildEdgeAt(0)->getShape().getRank() != getParentEdgeAt(0)->getShape().getRank()) {
         IE_THROW() << errorPrefix << "must keep data rank";
     }
 }
@@ -98,20 +98,20 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(2);
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
-    std::vector<TensorDescCreatorTypes> dataFormats{ TensorDescCreatorTypes::ncsp };
-    if (getParentEdgeAt(0)->getDims()[1] != 1) {
-        dataFormats.push_back(TensorDescCreatorTypes::nspc);
-        dataFormats.push_back(TensorDescCreatorTypes::nCsp16c);
-        dataFormats.push_back(TensorDescCreatorTypes::nCsp8c);
+    std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
+    if (getParentEdgeAt(0)->getShape().getStaticDims()[1] != 1) {
+        dataFormats.push_back(LayoutType::nspc);
+        dataFormats.push_back(LayoutType::nCsp16c);
+        dataFormats.push_back(LayoutType::nCsp8c);
     }
     for (const auto &df : dataFormats) {
         if (algorithm == Algorithm::AdaptivePoolingAvg) {
-            addSupportedPrimDesc({{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, Precision::I32}},
                                  {{df, precision}},
                                  impl_desc_type::unknown);
         } else {
-            addSupportedPrimDesc({{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
-                                 {{df, precision}, {TensorDescCreatorTypes::ncsp, Precision::I32}},
+            addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, Precision::I32}},
+                                 {{df, precision}, {LayoutType::ncsp, Precision::I32}},
                                  impl_desc_type::unknown);
         }
     }
@@ -134,8 +134,8 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
 
     int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
-    auto isTailCFmt = srcMemory0.GetDesc().isTailCFormat();
+    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
+    auto isTailCFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
 
     const auto *src = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcPooledSpatialShapes = reinterpret_cast<const int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
@@ -165,8 +165,8 @@ void MKLDNNAdaptivePoolingNode::execute(mkldnn::stream strm) {
     if (!selectedPrimitiveDescriptor)
         IE_THROW() << errorPrefix << "doesn't have primitive descriptors.";
     auto config = selectedPrimitiveDescriptor->getConfig();
-    auto srcStrides = config.inConfs[0].desc.getBlockingDesc().getStrides();
-    auto dstStrides = config.outConfs[0].desc.getBlockingDesc().getStrides();
+    auto srcStrides = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto dstStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);

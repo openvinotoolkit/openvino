@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ie_blob.h"
+#include "mkldnn_memory.h"
 
 #include <string>
 
@@ -19,15 +19,21 @@ namespace MKLDNNPlugin {
  * NB! Channel is a second dimension for all blob types.
  */
 class BlobDumper {
-    InferenceEngine::Blob::Ptr _blob;
-    InferenceEngine::Blob::Ptr _scales;
+    MKLDNNMemoryPtr memory;
+
+    void prepare_plain_data(const MKLDNNMemoryPtr &memory, std::vector<uint8_t> &data) const;
 
 public:
     BlobDumper() = default;
+    BlobDumper(const MKLDNNMemoryDesc &desc) {
+        mkldnn::engine eng(mkldnn::engine::kind::cpu, 0);
+        memory = std::make_shared<MKLDNNMemory>(eng);
+        memory->Create(desc);
+    }
     BlobDumper(const BlobDumper&) = default;
     BlobDumper& operator = (BlobDumper&&) = default;
 
-    explicit BlobDumper(const InferenceEngine::Blob::Ptr blob):_blob(blob) {}
+    explicit BlobDumper(const MKLDNNMemoryPtr &_memory) : memory(_memory) {}
 
     static BlobDumper read(const std::string &file_path);
     static BlobDumper read(std::istream &stream);
@@ -38,13 +44,9 @@ public:
     void dumpAsTxt(const std::string &file_path) const;
     void dumpAsTxt(std::ostream &stream) const;
 
-    BlobDumper& withScales(InferenceEngine::Blob::Ptr scales);
-    BlobDumper& withoutScales();
-
-    const InferenceEngine::Blob::Ptr& getScales() const;
-
-    InferenceEngine::Blob::Ptr get();
-    InferenceEngine::Blob::Ptr getRealValue();
+    void *getDataPtr() const {
+        return memory->GetPtr();
+    }
 };
 
 }  // namespace MKLDNNPlugin

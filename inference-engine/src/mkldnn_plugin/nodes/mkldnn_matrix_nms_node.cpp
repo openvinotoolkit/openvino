@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "base.hpp"
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph_ops/nms_static_shape_ie.hpp"
@@ -63,17 +62,19 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
     if (getOriginalOutputsNumber() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    if (!(inDims[NMS_BOXES][0] == inDims[NMS_SCORES][0] && inDims[NMS_BOXES][1] == inDims[NMS_SCORES][2])) {
+    const SizeVector& boxes_dims = inputShapes[NMS_BOXES].getStaticDims();
+    const SizeVector& scores_dims = inputShapes[NMS_SCORES].getStaticDims();
+    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
         IE_THROW() << errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
-    const SizeVector& boxes_dims = op->get_input_shape(NMS_BOXES);
+
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];
     if (boxes_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
     if (boxes_dims[2] != 4)
         IE_THROW() << errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
-    const SizeVector& scores_dims = op->get_input_shape(NMS_SCORES);
+
     m_numClasses = scores_dims[1];
     if (scores_dims.size() != 3)
         IE_THROW() << errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
@@ -154,11 +155,11 @@ void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", outType);
     checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", outType);
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::FP32}},
-                         {{TensorDescCreatorTypes::ncsp, Precision::FP32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32},
-                          {TensorDescCreatorTypes::ncsp, Precision::I32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::FP32}},
+                         {{LayoutType::ncsp, Precision::FP32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          impl_desc_type::ref_any);
 }
 

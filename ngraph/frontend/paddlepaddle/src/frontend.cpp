@@ -51,12 +51,15 @@ namespace ngraph
                     for (const auto& in_tensor_name : input_port.arguments())
                     {
                         auto node_it = nodes.find(in_tensor_name);
-                        if (node_it != nodes.end())
-                            named_inputs[input_port.parameter()].push_back(node_it->second);
-                        else
-                            // return empty map when not all inputs exist. It usually means that
-                            // these nodes are not used because model inputs were overwritten
-                            return NamedOutputs();
+                        // general check, because in case of error partial conversion should fail
+                        FRONT_END_GENERAL_CHECK(
+                            node_it != nodes.end(),
+                            "Input ",
+                            in_tensor_name,
+                            " for node with type ",
+                            op_desc.type(),
+                            " wasn't found. It may happen if model was cut incorrectly.");
+                        named_inputs[input_port.parameter()].push_back(node_it->second);
                     }
                 }
 
@@ -76,17 +79,16 @@ namespace ngraph
                     for (const auto& in_tensor_name : input_port.arguments())
                     {
                         auto it = nodes.find(in_tensor_name);
-                        if (it != nodes.end())
-                        {
-                            inputs_vector.push_back(it->second);
-                            inputs_names.push_back(in_tensor_name);
-                        }
-                        else
-                        {
-                            // return empty map when not all inputs exist. It usually means that
-                            // these nodes are not used because model inputs were overwritten
-                            return named_outputs;
-                        }
+                        // general check, because in case of error partial conversion should fail
+                        FRONT_END_GENERAL_CHECK(
+                            it != nodes.end(),
+                            "Input ",
+                            in_tensor_name,
+                            " for node with type ",
+                            op_desc.type(),
+                            " wasn't found. It may happen if model was cut incorrectly.");
+                        inputs_vector.push_back(it->second);
+                        inputs_names.push_back(in_tensor_name);
                     }
                 }
 
@@ -156,7 +158,6 @@ namespace ngraph
                                                "Cannot open model file.");
                 return &ext_stream;
             }
-
         } // namespace pdpd
 
         std::shared_ptr<Function> FrontEndPDPD::convert_each_node(

@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-
 set(TARGET_NAME "onnx_common")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -29,7 +27,7 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON
                                                  $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
-link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LITE_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
+add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
@@ -374,7 +374,7 @@ if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${CMAKE_CURRENT_SOURCE_DIR}/files\"")
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
 add_subdirectory(util)
 
 # backend specific test files must meet the following requirements:
@@ -530,7 +530,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
@@ -621,7 +621,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+if (NGRAPH_ONNX_IMPORT_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
@@ -642,6 +642,11 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
 
     target_link_libraries(unit-test PRIVATE onnx_importer)
+    if (LINUX)
+        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+    elseif(APPLE)
+        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+    endif()
 endif()
 
 install(TARGETS unit-test
@@ -682,3 +687,6 @@ if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 endif()
+
+# process models
+add_dependencies(unit-test test_model_zoo)
