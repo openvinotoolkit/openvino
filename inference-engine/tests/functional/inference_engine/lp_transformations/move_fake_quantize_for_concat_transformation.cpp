@@ -43,51 +43,61 @@ namespace {
 
 class MoveFakeQuantizeActualValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize3;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert3;
-    ngraph::builder::subgraph::DequantizationOperations dequantization3;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1; //before1
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2; //before1
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    std::string operation;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter; // after
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeActualValues& values) {
     return out << "_" <<
-        values.fakeQuantize1 << "_" <<
-        values.convert1.outPrecision << "_" <<
-        values.dequantization1 << "_" <<
-        values.fakeQuantize2 << "_" <<
-        values.convert2.outPrecision << "_" <<
-        values.dequantization2;
+        values.fakeQuantizeBefore1 << "_" <<
+        values.convertBefore1.outPrecision << "_" <<
+        values.dequantizationBefore1 << "_" <<
+        values.fakeQuantizeBefore2 << "_" <<
+        values.convertBefore2.outPrecision << "_" <<
+        values.dequantizationBefore2 << "_" <<
+        values.operation << "_" <<
+        values.fakeQuantizeAfter << "_" <<
+        values.convertAfter.outPrecision << "_" <<
+        values.dequantizationAfter;
 }
 
 class MoveFakeQuantizeResultValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize1;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert1;
-    ngraph::builder::subgraph::DequantizationOperations dequantization1;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert2;
-    ngraph::builder::subgraph::DequantizationOperations dequantization2;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize3;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert3;
-    ngraph::builder::subgraph::DequantizationOperations dequantization3;
-    ngraph::element::Type precisionAfterOperation;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    std::string operation;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ngraph::element::Type precisionAfterOperation;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfterNotFQ;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeResultValues& values) {
     return out << "_" <<
-        values.fakeQuantize1 << "_" <<
-        values.convert1.outPrecision << "_" <<
-        values.dequantization1 << "_" <<
-        values.fakeQuantize2 << "_" <<
-        values.convert2.outPrecision << "_" <<
-        values.dequantization2 << "_" <<
-        values.dequantizationAfter;
+        values.fakeQuantizeBefore1 << "_" <<
+        values.convertBefore1.outPrecision << "_" <<
+        values.dequantizationBefore1 << "_" <<
+        values.fakeQuantizeBefore2 << "_" <<
+        values.convertBefore2.outPrecision << "_" <<
+        values.dequantizationBefore2 << "_" <<
+        values.operation << "_" <<
+        values.fakeQuantizeAfter << "_" <<
+        values.convertAfter << "_" <<
+        values.dequantizationAfter << "_" <<
+        values.dequantizationAfterNotFQ;
 }
 
 class MoveFakeQuantizeTestValues {
@@ -139,24 +149,25 @@ public:
 
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
-        if (!testValues.actual.dequantization1.multiply.empty()) {
-            testValues.actual.dequantization1.multiply.outPrecision = precision;
+        if (!testValues.actual.dequantizationBefore1.multiply.empty()) {
+            testValues.actual.dequantizationBefore1.multiply.outPrecision = precision;
         }
-        if (!testValues.actual.dequantization2.multiply.empty()) {
-            testValues.actual.dequantization2.multiply.outPrecision = precision;
+        if (!testValues.actual.dequantizationBefore2.multiply.empty()) {
+            testValues.actual.dequantizationBefore2.multiply.outPrecision = precision;
         }
         actualFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
             shape,
-            testValues.actual.fakeQuantize1,
-            testValues.actual.convert1,
-            testValues.actual.dequantization1,
-            testValues.actual.fakeQuantize2,
-            testValues.actual.convert2,
-            testValues.actual.dequantization2,
-            testValues.actual.fakeQuantize3,
-            testValues.actual.convert3,
-            testValues.actual.dequantization3,
+            testValues.actual.fakeQuantizeBefore1,
+            testValues.actual.convertBefore1,
+            testValues.actual.dequantizationBefore1,
+            testValues.actual.fakeQuantizeBefore2,
+            testValues.actual.convertBefore2,
+            testValues.actual.dequantizationBefore2,
+            testValues.actual.operation,
+            testValues.actual.fakeQuantizeAfter,
+            testValues.actual.convertAfter,
+            testValues.actual.dequantizationAfter,
             ngraph::element::undefined,
             {},
             testValues.axis);
@@ -196,15 +207,16 @@ public:
         referenceFunction = ngraph::builder::subgraph::MoveFakeQuantize::get(
             precision,
             shape,
-            testValues.result.fakeQuantize1,
-            testValues.result.convert1,
-            testValues.result.dequantization1,
-            testValues.result.fakeQuantize2,
-            testValues.result.convert2,
-            testValues.result.dequantization2,
-            testValues.result.fakeQuantize3,
-            testValues.result.convert3,
-            testValues.result.dequantization3,
+            testValues.result.fakeQuantizeBefore1,
+            testValues.result.convertBefore1,
+            testValues.result.dequantizationBefore1,
+            testValues.result.fakeQuantizeBefore2,
+            testValues.result.convertBefore2,
+            testValues.result.dequantizationBefore2,
+            testValues.result.operation,
+            testValues.result.fakeQuantizeAfter,
+            testValues.result.convertAfter,
+            testValues.result.dequantizationAfter,
             testValues.result.precisionAfterOperation,
             {},
             testValues.axis);
@@ -270,6 +282,7 @@ const std::vector<MoveFakeQuantizeTestValues> testValues = {
                     {},
                     {},
                     {},
+                    "",
                     { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
                     {},
                     {}
@@ -281,13 +294,45 @@ const std::vector<MoveFakeQuantizeTestValues> testValues = {
                     { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
                     {},
                     {},
+                    "",
                     {},
                     {},
                     {},
                 },
                 false,
                 false
-            },
+    },
+    {
+                LayerTransformation::createParamsU8I8(),
+                false,
+                1,
+                {
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                    {},
+                    "relu",
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+                    {},
+                    {}
+                },
+                {
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+                    {},
+                    {},
+                    { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+                    {},
+                    {},
+                    "relu",
+                    {},
+                    {},
+                    {},
+                },
+                false,
+                false
+     }
 };
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,

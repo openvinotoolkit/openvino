@@ -35,20 +35,31 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
 
 bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto fq = m.get_match_root();
-    auto relu = fq->get_input_node_shared_ptr(0);
-    auto concat = relu->get_input_node_shared_ptr(0);
     auto result = *fq->output(0).get_target_inputs().begin();
-    auto input1 = concat->get_input_node_shared_ptr(0);
-    auto input2 = concat->get_input_node_shared_ptr(1);
-    auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
-    auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
-    auto fq1 = std::make_shared<opset1::FakeQuantize>(relu1,
+    auto operation = fq->get_input_node_shared_ptr(0);
+    auto type = operation->get_type_name();
+    std::shared_ptr<ngraph::Node> concat, fq1input, fq2input;
+    if (strcmp(type, "Concat") == 0) {
+        concat = operation;
+        fq1input = operation->get_input_node_shared_ptr(0);
+        fq2input = operation->get_input_node_shared_ptr(1);
+    }
+    else {
+        concat = operation->get_input_node_shared_ptr(0);
+        auto input1 = concat->get_input_node_shared_ptr(0);
+        auto input2 = concat->get_input_node_shared_ptr(1);
+        if (strcmp(type, "Relu") == 0) {
+            fq1input = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
+            fq2input = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+        }
+    }
+    auto fq1 = std::make_shared<opset1::FakeQuantize>(fq1input,
         fq->get_input_node_shared_ptr(1),
         fq->get_input_node_shared_ptr(2),
         fq->get_input_node_shared_ptr(3),
         fq->get_input_node_shared_ptr(4),
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
-    auto fq2 = std::make_shared<opset1::FakeQuantize>(relu2,
+    auto fq2 = std::make_shared<opset1::FakeQuantize>(fq2input,
         fq->get_input_node_shared_ptr(1),
         fq->get_input_node_shared_ptr(2),
         fq->get_input_node_shared_ptr(3),
