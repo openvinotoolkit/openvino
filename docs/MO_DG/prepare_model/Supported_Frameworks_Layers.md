@@ -572,7 +572,7 @@ Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
 | relu | No |
 | relu6 | No |
 | reshape2 | No |
-| rnn | 'SimpleRNN' and 'GRU' Mode are not supported |
+| rnn | 'SimpleRNN' and 'GRU' modes are not supported |
 | scale | No |
 | shape | No |
 | slice | No |
