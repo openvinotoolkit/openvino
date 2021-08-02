@@ -5,6 +5,7 @@
 #include "itt.hpp"
 #include <functional>
 #include <memory>
+#include <numeric>
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset8.hpp>
