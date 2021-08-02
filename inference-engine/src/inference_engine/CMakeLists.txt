@@ -253,22 +253,41 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND TBBROOT MATCHES ${TEMP})
     install(DIRECTORY "${TBB}/lib"
             DESTINATION runtime/3rdparty/tbb
             COMPONENT tbb)
-    # Windows only
-    if(EXISTS "${TBB}/bin")
-        install(DIRECTORY "${TBB}/bin"
-                DESTINATION runtime/3rdparty/tbb
-                COMPONENT tbb)
-    endif()
-    install(FILES "${TBB}/LICENSE"
-            DESTINATION runtime/3rdparty/tbb
-            COMPONENT tbb)
-
     set(IE_TBB_DIR_INSTALL "3rdparty/tbb/cmake")
+    if (TBB_VERSION VERSION_LESS 2021)
+    	if(EXISTS "${TBB}/bin")
+        	install(DIRECTORY "${TBB}/bin"
+                DESTINATION runtime/3rdparty/tbb
+                	COMPONENT tbb)
+	endif()
+	install(FILES "${TBB}/LICENSE"
+            DESTINATION runtime/3rdparty/tbb
+            	COMPONENT tbb)
 
-    install(FILES "${TBB}/cmake/TBBConfig.cmake"
-                  "${TBB}/cmake/TBBConfigVersion.cmake"
+	install(FILES "${TBB}/cmake/TBBConfig.cmake"
+               "${TBB}/cmake/TBBConfigVersion.cmake"
+            DESTINATION runtime/${IE_TBB_DIR_INSTALL}
+            	COMPONENT tbb)
+    else() # oneTBB
+	install(FILES "${TBB}/LICENSE.txt"
+                DESTINATION runtime/3rdparty/tbb
+            	COMPONENT tbb)
+        if(EXISTS "${TBB}/redist/intel64/vc14")
+            file(GLOB DEPLOY_FILES "${TBB}/redist/intel64/vc14/*")
+            foreach(ITEM ${DEPLOY_FILES})
+                IF(NOT IS_DIRECTORY "${ITEM}" )
+                    LIST( APPEND DLLS_TO_DEPLOY "${ITEM}" )
+                ENDIF()
+            endforeach()
+            install(FILES ${DLLS_TO_DEPLOY}
+              DESTINATION runtime/3rdparty/tbb
+              COMPONENT tbb)
+        endif()
+        install(FILES "${TBB}/lib/cmake/tbb/TBBConfig.cmake"
+                  "${TBB}/lib/cmake/tbb/TBBConfigVersion.cmake"
             DESTINATION runtime/${IE_TBB_DIR_INSTALL}
             COMPONENT tbb)
+    endif()
 endif()
 
 # Install Inference Engine
