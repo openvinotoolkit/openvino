@@ -233,11 +233,12 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("beta", [None, 0.1, 2.0])
     @pytest.mark.parametrize("trans_a", [None])  # transA is not supported
     @pytest.mark.parametrize("trans_b", [None, 1])
+    @pytest.mark.parametrize("opset", [None, 11])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gemm_bc(self, params, alpha, beta, trans_a, trans_b, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta, trans_a,
-                                    trans_b, precision, ir_version), ie_device, precision, ir_version,
+                                    trans_b, precision, opset, ir_version), ie_device, precision, ir_version,
                    temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data)
