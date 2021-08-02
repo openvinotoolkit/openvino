@@ -160,7 +160,7 @@ namespace ngraph
                         {
                             std::vector<Output<Node>> pool_outputs;
                             pool_outputs = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(
-                                               data, output_shape, ngraph::element::i64)
+                                               data, output_shape, ngraph::element::i32)
                                                ->outputs();
                             NamedOutputs outputs;
                             outputs["Out"] = {pool_outputs[0]};
