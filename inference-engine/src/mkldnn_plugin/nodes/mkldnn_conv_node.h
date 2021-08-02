@@ -20,9 +20,9 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                          const std::vector<const MemoryDesc*>& outputDesc) override;
+    void initDescriptor(const NodeConfig& config) override;
     void createPrimitive() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -32,13 +32,13 @@ public:
         return false;
     }
     InferenceEngine::Precision getRuntimePrecision() const override;
-    MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
-        return static_cast<size_t>(isWinograd() ? 1 : getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
 
     bool canBeExecutedInInt8() const;
@@ -49,7 +49,7 @@ public:
     std::vector<int32_t> outputCompensation;
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
-    const std::vector<ptrdiff_t> &getStride() { return stride; }
+    const std::vector<size_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
@@ -77,18 +77,18 @@ private:
     bool withDWConv;
     bool isGrouped;
     bool isPrimitivesPriorityDefined = false;
-    std::vector<ptrdiff_t> stride;
+    std::vector<size_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     InferenceEngine::SizeVector weightDims;
     InferenceEngine::SizeVector biasesDims;
 
-    ptrdiff_t dw_conv_oc;
-    ptrdiff_t dw_conv_ih;
-    ptrdiff_t dw_conv_iw;
-    std::vector<ptrdiff_t> dw_conv_kernel;
-    std::vector<ptrdiff_t> dw_conv_strides;
+    size_t dw_conv_oc;
+    size_t dw_conv_ih;
+    size_t dw_conv_iw;
+    std::vector<size_t> dw_conv_kernel;
+    std::vector<size_t> dw_conv_strides;
     mkldnn::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
