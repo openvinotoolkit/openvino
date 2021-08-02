@@ -8,6 +8,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <snippets/snippets_isa.hpp>
+#include <snippets/pass/filter_fused.hpp>
 #include <snippets/pass/collapse_subgraph.hpp>
 #include <snippets/op/subgraph.hpp>
 
@@ -19,32 +20,66 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, StartSubgraphMultipleOutputs) {
+TEST(TransformationTests, DoNotStartAfterInputs) {
+    // Do not start Subgraph after input parameters to avoid U8->FP32 and FP32->U8 conversion pairs
+    // Todo: Remove this test when U8 support is enabled in SnippetS and StartSubgraph logics is updated
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
         auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        const std::vector<float> const_values{3, 2, 10};
+        auto const_data = std::make_shared<opset1::Constant>(element::f32, Shape{1, 3}, const_values);
         auto add = std::make_shared<opset1::Add>(data0, data1);
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
+        auto sub = std::make_shared<opset1::Subtract>(add, const_data);
         auto mul = std::make_shared<opset1::Multiply>(add, sub);
         f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
 
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<snippets::pass::FilterFused>();
         m.register_pass<snippets::pass::StartSubgraph>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
+    ASSERT_EQ(count_ops_of_type<snippets::op::Subgraph>(f), 0);
+}
 
+TEST(TransformationTests, StartSubgraphMultipleOutputs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        auto data0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
+        auto data0 = std::make_shared<opset1::Parameter>(element::i32, Shape{2, 3});
+        auto data1 = std::make_shared<opset1::Parameter>(element::i32, Shape{1, 3});
+        auto convert0 = std::make_shared<opset1::Convert>(data0, element::f32);
+        auto convert1 = std::make_shared<opset1::Convert>(data1, element::f32);
+        const std::vector<float> const_values{3, 2, 10};
+        auto const_data = std::make_shared<opset1::Constant>(element::f32, Shape{1, 3}, const_values);
+        auto add = std::make_shared<opset1::Add>(convert0, convert1);
+        auto sub = std::make_shared<opset1::Subtract>(add, const_data);
+        auto mul = std::make_shared<opset1::Multiply>(add, sub);
+        f = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
+
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<snippets::pass::FilterFused>();
+        m.register_pass<snippets::pass::StartSubgraph>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data0 = std::make_shared<opset1::Parameter>(element::i32, Shape{2, 3});
+        auto data1 = std::make_shared<opset1::Parameter>(element::i32, Shape{1, 3});
+        auto convert0 = std::make_shared<opset1::Convert>(data0, element::f32);
+        auto convert1 = std::make_shared<opset1::Convert>(data1, element::f32);
+        const std::vector<float> const_values{3, 2, 10};
+        auto const_data = std::make_shared<opset1::Constant>(element::f32, Shape{1, 3}, const_values);
         auto indata0 = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 3});
         auto indata1 = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 3});
-        auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{data0, data1},
-            std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)}, ParameterVector{indata0, indata1}));
-        auto sub = std::make_shared<opset1::Subtract>(add, data1);
+        auto add = std::make_shared<snippets::op::Subgraph>(NodeVector{convert0, convert1},
+       std::make_shared<Function>(NodeVector{std::make_shared<opset1::Add>(indata0, indata1)},
+                                  ParameterVector{indata0, indata1}));
+        auto sub = std::make_shared<opset1::Subtract>(add, const_data);
         auto mul = std::make_shared<opset1::Multiply>(add, sub);
         f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data0, data1});
     }
