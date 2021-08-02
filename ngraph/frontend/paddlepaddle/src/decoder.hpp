@@ -40,9 +40,19 @@ namespace ngraph
 
             std::vector<pdpd::OutPortName> get_output_names() const override;
 
+            size_t get_output_size() const override;
+
             ngraph::element::Type get_out_port_type(const std::string& port_name) const override;
 
             std::string get_op_type() const override;
+
+            std::map<std::string, std::vector<ngraph::element::Type>> get_output_type_map() const;
+
+            std::map<std::string, OutputVector> map_for_each_input(
+                const std::function<Output<Node>(const std::string&, size_t)>& func) const;
+
+            std::map<std::string, OutputVector> map_for_each_output(
+                const std::function<Output<Node>(const std::string&, size_t)>& func) const;
 
         private:
             std::vector<paddle::framework::proto::OpDesc_Attr>

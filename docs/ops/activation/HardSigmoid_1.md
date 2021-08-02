@@ -30,7 +30,7 @@ For each element from the input tensor calculates corresponding
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: any floating-point type.
 
 **Examples**
 

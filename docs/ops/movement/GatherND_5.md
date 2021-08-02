@@ -22,7 +22,7 @@ Example 1 shows how *GatherND* operates with elements from `data` tensor:
 
 ```
 indices = [[0, 0],
-           [1, 0]] 
+           [1, 0]]
 data    = [[1, 2],
            [3, 4]]
 output  = [1, 3]
@@ -55,7 +55,7 @@ output  = [[[3, 4]],
   * **Description**: *batch_dims* (denoted as `b`) is a leading number of dimensions of `data` tensor and `indices` representing the batches,
 and *GatherND* starts to gather from the `b+1` dimension.
 It requires the first `b` dimensions in `data` and `indices` tensors to be equal.
-In case non default value for *batch_dims* the output shape is calculated as 
+In case non default value for *batch_dims* the output shape is calculated as
 `(multiplication of indices.shape[:b]) + indices.shape[b:-1] + data.shape[(indices.shape[-1] + b):]`.
   * **Range of values**: integer number and belongs to `[0; min(data.rank, indices.rank))`
   * **Type**: int
@@ -107,7 +107,7 @@ output  = [[2], [5], [11], [13], [19], [23]], shape = (6, 1)
 
 **Inputs**:
 
-* **1**:  `data` tensor of type *T*. This is a tensor of a rank not less than 1. Required.
+* **1**:  `data` tensor of type *T*. This is a tensor of a rank not less than 1. **Required.**
 
 * **2**:  `indices` tensor of type *T_IND*. This is a tensor of a rank not less than 1.
 It requires that all indices from this tensor will be in a range `[0, s-1]` where `s` is corresponding dimension to which this index is applied.

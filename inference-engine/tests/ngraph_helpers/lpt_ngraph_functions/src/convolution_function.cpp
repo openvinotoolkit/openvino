@@ -169,8 +169,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
     ngraph::element::Type weightsPrecision,
     std::vector<float> weightsValues,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
-    bool isCorrect) {
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -190,12 +189,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(weights,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{ 1, 1, 1, 1 }, 3.0f));
-
     auto convolutionOriginal = ngraph::opset1::Convolution(
         ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(isCorrect ? weights : subtract, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
