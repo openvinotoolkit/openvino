@@ -43,12 +43,28 @@ namespace ngraph
                 OP_CONVERTER(log);
                 OP_CONVERTER(logical_not);
                 OP_CONVERTER(matmul);
+                OP_CONVERTER(matrix_nms);
+                OP_CONVERTER(mul);
+                OP_CONVERTER(multiclass_nms);
                 OP_CONVERTER(nearest_interp_v2);
-                OP_CONVERTER(rnn);
+                OP_CONVERTER(pad3d);
+                OP_CONVERTER(pow);
+                OP_CONVERTER(pool2d);
+                OP_CONVERTER(range);
                 OP_CONVERTER(relu);
+                OP_CONVERTER(relu6);
+                OP_CONVERTER(reshape2);
+                OP_CONVERTER(rnn);
                 OP_CONVERTER(scale);
+                OP_CONVERTER(shape);
+                OP_CONVERTER(slice);
+                OP_CONVERTER(softmax);
+                OP_CONVERTER(sigmoid);
                 OP_CONVERTER(split);
+                OP_CONVERTER(squeeze);
                 OP_CONVERTER(transpose2);
+                OP_CONVERTER(unsqueeze);
+                OP_CONVERTER(yolo_box);
             } // namespace op
         }     // namespace pdpd
     }         // namespace frontend
@@ -122,6 +138,7 @@ namespace ngraph
                         {"transpose2", op::transpose2},
                         {"unsqueeze2", op::unsqueeze},
                         {"yolo_box", op::yolo_box}};
+
             };
 
         } // namespace pdpd
