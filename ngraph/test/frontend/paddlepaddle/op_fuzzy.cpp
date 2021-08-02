@@ -97,7 +97,7 @@ static const std::vector<std::string> models{
     std::string("matmul_xt"),
     std::string("matmul_xt_yt"),
     std::string("matmul_yt"),
-//    std::string("maxAdaptivePool2D_test1"),
+    std::string("maxAdaptivePool2D_test1"),
     std::string("maxPool_test1"),
     std::string("maxPool_test10"),
     std::string("maxPool_test11"),
