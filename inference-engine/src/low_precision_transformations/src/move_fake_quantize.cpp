@@ -33,24 +33,6 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
     this->register_matcher(m, callback);
 }
 
-bool MoveFakeQuantize::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
-        return false;
-    }
-
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
-    if (dequantization.empty()) {
-        return false;
-    }
-
-    const std::vector<float> scales = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
-        return false;
-    }
-
-    return true;
-}
-
 bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto fq = m.get_match_root();
     auto relu = fq->get_input_node_shared_ptr(0);
@@ -76,17 +58,10 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
     auto& rtInfo = new_concat->get_rt_info();
     new_concat->set_friendly_name("output");
-
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
+
     replace_node(concat, new_concat);
     replace_node(fq, new_concat);
-
-    /*insert_new_node_between(input1, concat, fq1);
-    insert_new_node_between(input1, fq1, relu1);
-    insert_new_node_between(input2, concat, fq2);
-    insert_new_node_between(input2, fq2, relu2);
-    result.replace_source_output(concat->output(0));*/
-
     return true;
 }
 
