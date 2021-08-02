@@ -7,7 +7,7 @@
 #include <string>
 #include "ie_parallel.hpp"
 #include "mkldnn_select_node.h"
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
@@ -129,10 +129,10 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
     if (inputPrecisionSize != 1 && inputPrecisionSize != 2 && inputPrecisionSize != 4 && inputPrecisionSize != 8)
         IE_THROW() << errorPrefix << " has unsupported precision: " << inputPrecision << " on 'Then' and 'Else' inputs";
 
-    addSupportedPrimDesc({{TensorDescCreatorTypes::ncsp, conditionPrecision},
-                          {TensorDescCreatorTypes::ncsp, inputPrecision},
-                          {TensorDescCreatorTypes::ncsp, inputPrecision}},
-                         {{TensorDescCreatorTypes::ncsp, inputPrecision}},
+    addSupportedPrimDesc({{LayoutType::ncsp, conditionPrecision},
+                          {LayoutType::ncsp, inputPrecision},
+                          {LayoutType::ncsp, inputPrecision}},
+                         {{LayoutType::ncsp, inputPrecision}},
                          impl_desc_type::ref_any);
 }
 
@@ -180,8 +180,8 @@ void MKLDNNSelectNode::execute_impl() {
 }
 
 void MKLDNNSelectNode::execute(mkldnn::stream strm) {
-    const size_t condPrecSize = getParentEdgeAt(CONDITION)->getDesc().getPrecision().size();
-    const size_t inputsPrecSize = getParentEdgeAt(THEN)->getDesc().getPrecision().size();
+    const size_t condPrecSize = getParentEdgeAt(CONDITION)->getMemory().GetDesc().getPrecision().size();
+    const size_t inputsPrecSize = getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().size();
 
     switch (condPrecSize) {
         case 1: {
@@ -192,7 +192,7 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
                 case 8: { execute_impl<uint8_t, uint64_t>(); break; }
                 default:
                     IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                   + std::string(getParentEdgeAt(THEN)->getDesc().getPrecision().name());
+                                   + std::string(getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().name());
             }
             break;
         }
@@ -204,13 +204,13 @@ void MKLDNNSelectNode::execute(mkldnn::stream strm) {
                 case 8: { execute_impl<int32_t, uint64_t>(); break; }
                 default:
                     IE_THROW() << "Select layer doesn't support 'Then' and 'Else' inputs' precision: "
-                                  + std::string(getParentEdgeAt(THEN)->getDesc().getPrecision().name());
+                                  + std::string(getParentEdgeAt(THEN)->getMemory().GetDesc().getPrecision().name());
             }
             break;
         }
         default: {
                 IE_THROW() << "Select layer doesn't support 'Condition' inputs' precision: "
-                              + std::string(getParentEdgeAt(CONDITION)->getDesc().getPrecision().name());
+                              + std::string(getParentEdgeAt(CONDITION)->getMemory().GetDesc().getPrecision().name());
         }
     }
 }

@@ -7,7 +7,7 @@
 #include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
 #include <cpu/x64/jit_generator.hpp>
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
 
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
@@ -95,8 +95,8 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
     }
 
     // use ncsp as default for non-quantized networks and nspc for quantized
-    auto firstCreatorType = isInQuantizedGraph ? TensorDescCreatorTypes::nspc : TensorDescCreatorTypes::ncsp;
-    auto secondCreatorType = isInQuantizedGraph ? TensorDescCreatorTypes::ncsp : TensorDescCreatorTypes::nspc;
+    auto firstCreatorType = isInQuantizedGraph ? LayoutType::nspc : LayoutType::ncsp;
+    auto secondCreatorType = isInQuantizedGraph ? LayoutType::ncsp : LayoutType::nspc;
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},
@@ -106,11 +106,11 @@ void MKLDNNShuffleChannelsNode::initSupportedPrimitiveDescriptors() {
                          impl_type, supportDynamicBatch_);
     // canUseBlocked
     if (axis_ != 1) {
-        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp8c, precision}},
-                             {{TensorDescCreatorTypes::nCsp8c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision}},
+                             {{LayoutType::nCsp8c, precision}},
                              impl_type, supportDynamicBatch_);
-        addSupportedPrimDesc({{TensorDescCreatorTypes::nCsp16c, precision}},
-                             {{TensorDescCreatorTypes::nCsp16c, precision}},
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision}},
+                             {{LayoutType::nCsp16c, precision}},
                              impl_type, supportDynamicBatch_);
     }
 }
@@ -127,7 +127,8 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_SHCH_ERROR << "has unidentified preferable primitive descriptor";
 
-    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat();
+    const bool isBlocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                           getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c);
 
     int batchRank = axis_;
     int spatialRank = dataRank_ - axis_ - 1;
@@ -135,7 +136,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
     // 2 for decomposed axis dim, 1 for composed spatial dim
     int reshapedRank = batchRank + 2 + static_cast<int>(spatialRank != 0) + static_cast<int>(isBlocked && (spatialRank == 0));
     PermuteParams params;
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
+    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     params.order.resize(reshapedRank, 0);
     params.src_block_order.resize(reshapedRank);
     params.dst_block_order.resize(reshapedRank);
@@ -158,9 +159,10 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
     const int channelDim = 1;
     if (isBlocked) {
-        size_t blkSize = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims().back();
+        const auto blkDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        size_t blkSize = blkDesc.getBlockDims().back();
         size_t CB = div_up(inShape_[1], blkSize);
-        SizeVector srcBlockedDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+        SizeVector srcBlockedDims = blkDesc.getBlockDims();
         if (axis_ > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 params.order[i] = i;
@@ -179,7 +181,7 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
             params.order[2] = 2;
             params.src_block_dims[2] = spatialShapeSize;
         }
-    } else if (getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
+    } else if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
         if (axis_ == channelDim) {  // axis on channel
             params.order[0] = 0;
             params.src_block_dims[0] = inShape_[0];

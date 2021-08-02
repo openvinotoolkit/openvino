@@ -239,4 +239,9 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
     splitPath.push_back(paths);
     return splitPath;
 }
+
+std::string getExecutableDirectory();
+
+std::string getModelFromTestModelZoo(const std::string & relModelPath);
+
 }  // namespace CommonTestUtils
