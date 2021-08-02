@@ -16,4 +16,7 @@ foreach(test_source ${tests})
     target_link_libraries(${test_name} PRIVATE IE::inference_engine timetests_helper)
 
     add_dependencies(time_tests ${test_name})
+
+    install(TARGETS ${test_name}
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endforeach()

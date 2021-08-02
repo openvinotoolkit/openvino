@@ -23,6 +23,7 @@ static const caseless_unordered_map<std::string, uint32_t> supported_values = {
         {GNAConfigParams::GNA_SW_EXACT, GNA_SOFTWARE & GNA_HARDWARE}
 };
 static const  std::vector<std::string> supported_values_on_gna2 = {
+        GNAConfigParams::GNA_HW_WITH_SW_FBACK,
         GNAConfigParams::GNA_GEN,
         GNAConfigParams::GNA_GEN_EXACT,
         GNAConfigParams::GNA_SSE,
@@ -34,18 +35,19 @@ static const  std::vector<std::string> supported_values_on_gna2 = {
 };
 #else
 static const caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, bool>> supported_values = {
-                {GNAConfigParams::GNA_AUTO,       {Gna2AccelerationModeAuto,     false}},
-                {GNAConfigParams::GNA_HW,         {Gna2AccelerationModeHardware, false}},
-                {GNAConfigParams::GNA_SW,         {Gna2AccelerationModeSoftware, false}},
-                {GNAConfigParams::GNA_SW_EXACT,   {Gna2AccelerationModeSoftware, true}},
-                {GNAConfigParams::GNA_GEN,        {Gna2AccelerationModeGeneric,  false}},
-                {GNAConfigParams::GNA_GEN_EXACT,  {Gna2AccelerationModeGeneric,  true}},
-                {GNAConfigParams::GNA_SSE,        {Gna2AccelerationModeSse4x2,   false}},
-                {GNAConfigParams::GNA_SSE_EXACT,  {Gna2AccelerationModeSse4x2,   true}},
-                {GNAConfigParams::GNA_AVX1,       {Gna2AccelerationModeAvx1,     false}},
-                {GNAConfigParams::GNA_AVX1_EXACT, {Gna2AccelerationModeAvx1,     true}},
-                {GNAConfigParams::GNA_AVX2,       {Gna2AccelerationModeAvx2,     false}},
-                {GNAConfigParams::GNA_AVX2_EXACT, {Gna2AccelerationModeAvx2,     true}},
+                {GNAConfigParams::GNA_AUTO,             {Gna2AccelerationModeAuto,                         false}},
+                {GNAConfigParams::GNA_HW,               {Gna2AccelerationModeHardware,                     false}},
+                {GNAConfigParams::GNA_HW_WITH_SW_FBACK, {Gna2AccelerationModeHardwareWithSoftwareFallback, false}},
+                {GNAConfigParams::GNA_SW,               {Gna2AccelerationModeSoftware,                     false}},
+                {GNAConfigParams::GNA_SW_EXACT,         {Gna2AccelerationModeSoftware,                     true}},
+                {GNAConfigParams::GNA_GEN,              {Gna2AccelerationModeGeneric,                      false}},
+                {GNAConfigParams::GNA_GEN_EXACT,        {Gna2AccelerationModeGeneric,                      true}},
+                {GNAConfigParams::GNA_SSE,              {Gna2AccelerationModeSse4x2,                       false}},
+                {GNAConfigParams::GNA_SSE_EXACT,        {Gna2AccelerationModeSse4x2,                       true}},
+                {GNAConfigParams::GNA_AVX1,             {Gna2AccelerationModeAvx1,                         false}},
+                {GNAConfigParams::GNA_AVX1_EXACT,       {Gna2AccelerationModeAvx1,                         true}},
+                {GNAConfigParams::GNA_AVX2,             {Gna2AccelerationModeAvx2,                         false}},
+                {GNAConfigParams::GNA_AVX2_EXACT,       {Gna2AccelerationModeAvx2,                         true}},
         };
 #endif
 

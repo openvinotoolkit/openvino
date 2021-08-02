@@ -90,7 +90,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
     endif()
 
-    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    if(OV_COMPILER_IS_CLANG)
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
         ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
