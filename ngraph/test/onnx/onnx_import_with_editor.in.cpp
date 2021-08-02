@@ -28,7 +28,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0)
 {
     onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_0.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_0.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -46,7 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_0)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1)
 {
     onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_1.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_1.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -64,7 +64,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_axis_1)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis)
 {
     onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_default_axis.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_default_axis.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
@@ -82,7 +82,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_default_axis)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_compress_negative_axis)
 {
     onnx_editor::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_negative_axis.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/compress_negative_axis.onnx")};
 
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 

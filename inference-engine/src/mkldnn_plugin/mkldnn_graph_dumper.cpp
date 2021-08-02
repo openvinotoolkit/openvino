@@ -10,7 +10,6 @@
 #include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include "utils/debug_capabilities.h"
-
 #include <vector>
 #include <string>
 #include <memory>
@@ -46,11 +45,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getDesc().getPrecision().name();
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
-            if (node->getChildEdgeAt(i-1)->getDesc().getPrecision() != node->getChildEdgeAt(i)->getDesc().getPrecision()) {
+            if (node->getChildEdgeAt(i - 1)->getMemory().GetDesc().getPrecision() != node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision()) {
                 isAllEqual = false;
                 break;
             }
@@ -59,12 +58,12 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getDesc().getPrecision().name());
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().GetDesc().getPrecision().name());
         }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
-            outputPrecisionsStr = node->getParentEdgeAt(0)->getDesc().getPrecision().name();
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name();
         }
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
@@ -73,12 +72,11 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        auto fmt0 = MKLDNNMemoryDesc(outDescs[0].desc).getFormat();
-        outputLayoutsStr = mkldnn::utils::fmt2str(fmt0);
+        outputLayoutsStr = outDescs[0].desc->serializeFormat();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < outDescs.size(); i++) {
-            if (MKLDNNMemoryDesc(outDescs[i - 1].desc).getFormat() != MKLDNNMemoryDesc(outDescs[i].desc).getFormat()) {
+            if (outDescs[i - 1].desc->serializeFormat() != outDescs[i].desc->serializeFormat()) {
                 isAllEqual = false;
                 break;
             }
@@ -87,8 +85,7 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < outDescs.size(); i++) {
-                auto fmt = MKLDNNMemoryDesc(outDescs[i].desc).getFormat();
-                outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(fmt));
+                outputLayoutsStr += "," + outDescs[i].desc->serializeFormat();
             }
         }
     } else {
@@ -163,10 +160,8 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ngraph::Node> return_node;
         if (is_input) {
-            auto desc = node->getChildEdgeAt(0)->getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(
-                details::convertPrecision(desc.getPrecision()),
-                ngraph::PartialShape(desc.getDims()));
+            auto& desc = node->getChildEdgeAt(0)->getMemory().GetDesc();
+            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
@@ -177,10 +172,8 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto desc = node->getChildEdgeAt(port)->getDesc();
-                return_node->set_output_type(port,
-                    details::convertPrecision(desc.getPrecision()),
-                    ngraph::PartialShape(desc.getDims()));
+                auto& desc = node->getChildEdgeAt(port)->getMemory().GetDesc();
+                return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
             }
         }
 
@@ -237,18 +230,19 @@ void serializeToXML(const MKLDNNGraph &graph, const std::string& path) {
 void serializeToCout(const MKLDNNGraph &graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
-        if (!node->getParentEdges().empty()) {
-            const auto& parentEdge = *(node->getParentEdges()[0].lock());
-            const auto& prnt_out_desc = parentEdge.getOutputDescRO();
-            std::cout << "in: " << prnt_out_desc.getPrecision().name()
-                      << "/l=" << prnt_out_desc.getLayout()
-                      << "; ";
-        }
-        if (!node->getChildEdges().empty()) {
-            const auto& childEdge = *(node->getChildEdges()[0].lock());
-            const auto& chld_in_desc = childEdge.getInputDescRO();
-            std::cout << "out: " << chld_in_desc.getPrecision().name()
-                      << "/l=" << chld_in_desc.getLayout();
+        auto nodeDesc = node->getSelectedPrimitiveDescriptor();
+        if (nodeDesc) {
+            auto& inConfs = nodeDesc->getConfig().inConfs;
+            if (!inConfs.empty()) {
+                std::cout << "in: " << inConfs.front().desc->getPrecision().name()
+                          << "/l=" << inConfs.front().desc->serializeFormat()
+                          << "; ";
+            }
+            auto& outConfs = nodeDesc->getConfig().outConfs;
+            if (!outConfs.empty()) {
+                std::cout << "out: " << outConfs.front().desc->getPrecision().name()
+                          << "/l=" << outConfs.front().desc->serializeFormat();
+            }
         }
         std::cout << " ]"  << std::endl;
     }
