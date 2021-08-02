@@ -60,15 +60,13 @@ struct IENetwork {
 
     const std::map<std::string, InferenceEngine::InputInfo::Ptr> getInputsInfo();
 
-    const std::map<std::string, InferenceEngine::DataPtr> getInputs();
-
     const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
 
     void reshape(const std::map<std::string, std::vector<size_t>>& input_shapes);
 
     void serialize(const std::string& path_to_xml, const std::string& path_to_bin);
 
-    void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
+    IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network);
 
     IENetwork(PyObject* network);
 
@@ -142,7 +140,6 @@ struct IEExecNetwork {
     void exportNetwork(const std::string& model_file);
 
     std::map<std::string, InferenceEngine::InputInfo::CPtr> getInputsInfo();
-    std::map<std::string, InferenceEngine::DataPtr> getInputs();
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string& metric_name);

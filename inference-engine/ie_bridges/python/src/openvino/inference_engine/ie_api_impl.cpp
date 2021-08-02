@@ -177,7 +177,6 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
-
 /* FrameworkNodeExtension is a temporary extension that is needed to enable FrameworkNode usage
  * in IRReader for all unknown opsets and operations. To have a connection between Extension and
  * IRReader we register extensions with specific version equal to "framework_node_ext" which
@@ -201,7 +200,6 @@ InferenceEnginePython::IENetwork InferenceEnginePython::read_network(std::string
     return InferenceEnginePython::IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }
 
-
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>& cnn_network): actual(cnn_network) {
     if (actual == nullptr)
         IE_THROW() << "IENetwork was not initialized.";
@@ -219,16 +217,6 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     name = actual->getName();
-    batch_size = actual->getBatchSize();
-}
-
-void InferenceEnginePython::IENetwork::load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size) {
-    InferenceEngine::Core reader;
-    InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {bin_size}, InferenceEngine::Layout::C);
-    auto weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
-    auto net = reader.ReadNetwork(std::string(xml, xml + xml_size), weights_blob);
-    name = net.getName();
-    actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
 }
 
@@ -268,7 +256,6 @@ const std::map<std::string, InferenceEngine::InputInfo::Ptr> InferenceEnginePyth
     }
     return inputs;
 }
-
 
 const std::map<std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getOutputs() {
     std::map<std::string, InferenceEngine::DataPtr> outputs;
