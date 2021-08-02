@@ -134,20 +134,36 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const size_t groupCount,
     const int groupCalculationDimention,
     const FakeQuantizeOnData& fakeQuantizeOnData,
-    const FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
+    const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const bool addPrecisionPreserved) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
-    std::shared_ptr<ngraph::Node> fakeQuantizeOnActivations;
-    if (fakeQuantizeOnData.empty()) {
-        fakeQuantizeOnActivations = nullptr;
-    } else {
-        fakeQuantizeOnActivations = std::make_shared<ngraph::opset1::FakeQuantize>(
+    std::shared_ptr<ngraph::Node> parent = input;
+    if (!fakeQuantizeOnData.empty()) {
+        parent = std::make_shared<ngraph::opset1::FakeQuantize>(
             input,
             std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 }, fakeQuantizeOnData.inputLowValues),
             std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 }, fakeQuantizeOnData.inputHighValues),
             std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 }, fakeQuantizeOnData.outputLowValues),
             std::make_shared<Constant>(precision, Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 }, fakeQuantizeOnData.outputHighValues),
             fakeQuantizeOnData.quantizationLevel);
+    }
+
+    if (addPrecisionPreserved) {
+        const std::vector<size_t> stride = { 1, 1 };
+        const std::vector<size_t> padBegin = { 0, 0 };
+        const std::vector<size_t> padEnd = { 0, 0 };
+        const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+        const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+        const auto pooling = std::make_shared<ngraph::opset1::MaxPool>(
+            parent,
+            stride,
+            padBegin,
+            padEnd,
+            ngraph::Shape{ 3, 3 },
+            roundingType,
+            padType);
+        parent = pooling;
     }
 
     // TODO: pass as argument
@@ -169,7 +185,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         {});
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
-        fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
+        parent,
         weights,
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },

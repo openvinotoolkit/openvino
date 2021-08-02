@@ -20,7 +20,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type inputPrecision,
     const ngraph::PartialShape& inputShape,
     const bool addFQ,
-    const std::string additionalLayer,
+    const std::vector<std::string>& additionalLayers,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     std::shared_ptr<ngraph::Node> parent = input;
@@ -39,14 +39,22 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         op::RoundingType::FLOOR);
 
     std::shared_ptr<Node> lastLayer = avgPool;
-    if (additionalLayer == "maxpool") {
-        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
-            lastLayer,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+    for (const std::string& additionalLayer : additionalLayers) {
+        if (additionalLayer == "maxpool") {
+            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+                lastLayer,
+                Strides{ 1, 1 },
+                Shape{ 1, 1 },
+                Shape{ 0, 0 },
+                Shape{ 2, 2 },
+                op::RoundingType::FLOOR);
+        } else if (additionalLayer == "softmax") {
+            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+        } else if (additionalLayer == "convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, false);
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+        }
     }
 
     if (addFQ) {
@@ -88,10 +96,11 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const ngraph::element::Type inputPrecision,
     const ngraph::PartialShape& inputShape,
     const bool addFQ,
-    const std::string additionalLayer,
+    const std::vector<std::string>& additionalLayers,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationEnd) {
     auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -108,18 +117,32 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
         outPrecision);
 
     std::shared_ptr<Node> lastLayer = avgPool;
-    if (additionalLayer == "maxpool") {
-        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
-            lastLayer,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
+
+    auto deqStructure = dequantizationAfter;
+    deqStructure.multiply.outPrecision = precision;
+    lastLayer = makeDequantization(lastLayer, deqStructure);
+
+    for (const std::string& additionalLayer : additionalLayers) {
+        if (additionalLayer == "maxpool") {
+            lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+                lastLayer,
+                Strides{ 1, 1 },
+                Shape{ 1, 1 },
+                Shape{ 0, 0 },
+                Shape{ 2, 2 },
+                op::RoundingType::FLOOR);
+        } else if (additionalLayer == "softmax") {
+            lastLayer = std::make_shared<opset1::Softmax>(lastLayer);
+        } else if (additionalLayer == "convolution") {
+            lastLayer = makeConvolution(lastLayer, element::f32, dequantizationAfter.empty());
+        } else if (additionalLayer == "unsupported_convolution") {
+            lastLayer = makeConvolution(lastLayer, precision, true, element::f32);
+        }
     }
-    auto deqAfterStructure = dequantizationAfter;
-    deqAfterStructure.multiply.outPrecision = precision;
-    lastLayer = makeDequantization(lastLayer, deqAfterStructure);
+
+    deqStructure = dequantizationEnd;
+    deqStructure.multiply.outPrecision = precision;
+    lastLayer = makeDequantization(lastLayer, deqStructure);
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(

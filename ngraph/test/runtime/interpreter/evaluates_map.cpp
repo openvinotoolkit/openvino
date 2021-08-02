@@ -66,7 +66,6 @@
 #include <ngraph/runtime/reference/roi_pooling.hpp>
 #include <ngraph/runtime/reference/roll.hpp>
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
-#include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
@@ -1608,24 +1607,6 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::Select>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-
-        runtime::reference::select<T>(inputs[0]->get_data_ptr<const char>(),
-                                      inputs[1]->get_data_ptr<const T>(),
-                                      inputs[2]->get_data_ptr<const T>(),
-                                      outputs[0]->get_data_ptr<T>(),
-                                      op->get_input_shape(0),
-                                      op->get_input_shape(1),
-                                      op->get_input_shape(2),
-                                      op->get_auto_broadcast());
-        return true;
-    }
-
-    template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::AvgPool>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
@@ -2897,11 +2878,19 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                              outputs[0]->get_data_ptr<T>(),
-                                              outputs[1]->get_data_ptr<int64_t>(),
-                                              inputs[0]->get_shape(),
-                                              op->get_output_shape(0));
+        if (op->get_index_element_type() == element::i32) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int32_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        } else if (op->get_index_element_type() == element::i64) {
+            runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  outputs[1]->get_data_ptr<int64_t>(),
+                                                  inputs[0]->get_shape(),
+                                                  op->get_output_shape(0));
+        }
         return true;
     }
 

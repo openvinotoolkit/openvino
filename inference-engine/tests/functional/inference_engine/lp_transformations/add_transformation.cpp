@@ -65,7 +65,7 @@ public:
     ngraph::element::Type precision;
     bool broadcast;
     int constInput;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
     std::string additionalLayer;
@@ -102,7 +102,7 @@ public:
             inputShapes.first,
             inputShapes.second,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
@@ -112,8 +112,7 @@ public:
             testValues.additionalLayer);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
-                low_precision::LayerTransformation::Params(testValues.params));
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;
@@ -127,7 +126,7 @@ public:
             inputShape1Ref,
             inputShape2Ref,
             testValues.broadcast,
-            testValues.params,
+            TestTransformationParams::toParams(testValues.params),
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,
@@ -164,7 +163,7 @@ public:
 
 TEST_P(AddTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
+    auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
 }
 
