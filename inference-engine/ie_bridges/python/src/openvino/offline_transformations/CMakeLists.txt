@@ -52,10 +52,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT ("${CMAKE_DEBUG_POSTFIX}" STREQUAL 
     add_custom_command(TARGET ${TARGET_NAME}
         POST_BUILD
         # add debug postfix to import statement (CVS-29031)
-        COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py
+        COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
             -i ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
             --match_string "from .offline_transformations_api"
-            --replace_string "from .offline_transformations_api${IE_BUILD_POSTFIX}"
+            --replace_string "from .offline_transformations_api${CMAKE_DEBUG_POSTFIX}"
             -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         )
 else()

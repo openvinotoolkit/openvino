@@ -277,11 +277,11 @@ function( compile_pyx _name generated_file )
     COMMENT ${comment}
     # add debug postfix to import and PyInit statements in C code
     # it's required if we want to create a library whose name has debug postfix (CVS-29031)
-    COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py
+    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
                       -i ${_generated_file}
                       --match_string "PyInit_${_name}"
                       --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
-    COMMAND ${PYTHON_EXECUTABLE} ${OpenVINO_SOURCE_DIR}/scripts/utils/update_file_statement.py
+    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
                       -i ${_generated_file}
                       --match_string "${import_statements}"
                       --replace_string "${import_statements}${CMAKE_DEBUG_POSTFIX}"
