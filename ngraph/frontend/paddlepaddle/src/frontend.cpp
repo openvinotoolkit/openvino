@@ -21,9 +21,8 @@
 #include "decoder.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
-
-#include "frontend_manager/frontend_manager.hpp"
 
 using namespace ngraph::opset7;
 using namespace ngraph;
@@ -35,25 +34,25 @@ namespace ngraph
     {
         namespace pdpd
         {
-            NamedOutputs make_ng_node(std::map<pdpd::TensorName, Output<Node>>& nodes,
+            NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
                                       const std::shared_ptr<OpPlacePDPD>& op_place,
                                       const std::map<std::string, CreatorFunction>& CREATORS_MAP)
             {
-                const auto& op = op_place->get_desc();
+                const auto& op_desc = op_place->get_desc();
 
-                FRONT_END_OP_CONVERSION_CHECK(CREATORS_MAP.find(op.type()) != CREATORS_MAP.end(),
+                auto creator_it = CREATORS_MAP.find(op_desc.type());
+                FRONT_END_OP_CONVERSION_CHECK(creator_it != CREATORS_MAP.end(),
                                               "No creator found for ",
-                                              op.type(),
+                                              op_desc.type(),
                                               " node.");
-                pdpd::NamedInputs named_inputs;
-                const auto& input_ports = op_place->get_input_ports();
-                for (const auto& name_to_ports : input_ports)
+                NamedInputs named_inputs;
+                for (const auto& input_port : op_desc.inputs())
                 {
-                    for (const auto& port : name_to_ports.second)
+                    for (const auto& in_tensor_name : input_port.arguments())
                     {
-                        const auto& var_desc = port->get_source_tensor_pdpd()->get_desc();
-                        if (nodes.count(var_desc.name()))
-                            named_inputs[name_to_ports.first].push_back(nodes.at(var_desc.name()));
+                        auto node_it = nodes.find(in_tensor_name);
+                        if (node_it != nodes.end())
+                            named_inputs[input_port.parameter()].push_back(node_it->second);
                         else
                             // return empty map when not all inputs exist. It usually means that
                             // these nodes are not used because model inputs were overwritten
@@ -61,27 +60,83 @@ namespace ngraph
                     }
                 }
 
-                try
+                return creator_it->second(NodeContext(DecoderPDPDProto(op_place), named_inputs));
+            }
+
+            NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
+                                             const std::shared_ptr<OpPlacePDPD>& op_place)
+            {
+                const auto& op_desc = op_place->get_desc();
+
+                OutputVector inputs_vector;
+                std::vector<std::string> inputs_names;
+                NamedOutputs named_outputs;
+                for (const auto& input_port : op_desc.inputs())
                 {
-                    return CREATORS_MAP.at(op.type())(
-                        NodeContext(DecoderPDPDProto(op_place), named_inputs));
+                    for (const auto& in_tensor_name : input_port.arguments())
+                    {
+                        auto it = nodes.find(in_tensor_name);
+                        if (it != nodes.end())
+                        {
+                            inputs_vector.push_back(it->second);
+                            inputs_names.push_back(in_tensor_name);
+                        }
+                        else
+                        {
+                            // return empty map when not all inputs exist. It usually means that
+                            // these nodes are not used because model inputs were overwritten
+                            return named_outputs;
+                        }
+                    }
                 }
-                catch (...)
+
+                auto node = std::make_shared<ngraph::frontend::PDPDFrameworkNode>(
+                    DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+
+                return node->return_named_outputs();
+            }
+
+            bool
+                normalize_framework_node(const std::shared_ptr<PDPDFrameworkNode>& node,
+                                         const std::map<std::string, CreatorFunction>& CREATORS_MAP)
+            {
+                auto type = node->get_op_type();
+                auto creator_it = CREATORS_MAP.find(type);
+                FRONT_END_OP_CONVERSION_CHECK(
+                    creator_it != CREATORS_MAP.end(), "No creator found for ", type, " node.");
+
+                auto new_node_outputs =
+                    creator_it->second(NodeContext(node->get_decoder(), node->get_named_inputs()));
+                auto new_node = new_node_outputs.begin()->second[0].get_node_shared_ptr();
+                new_node->set_friendly_name(node->get_friendly_name());
+                auto node_outputs = node->return_named_outputs();
+
+                auto new_ports = new_node_outputs.begin();
+                auto old_ports = node_outputs.begin();
+                for (; new_ports != new_node_outputs.end() && old_ports != node_outputs.end();
+                     ++new_ports, ++old_ports)
                 {
-                    // TODO: define exception types
-                    // In case of partial conversion we need to create generic ngraph op here
-                    return NamedOutputs();
+                    FRONT_END_OP_CONVERSION_CHECK(new_ports->first == old_ports->first,
+                                                  "Node outputs inconsistent after normalization: ",
+                                                  node->get_friendly_name());
+                    auto new_output = new_ports->second.begin();
+                    auto old_output = old_ports->second.begin();
+                    for (; new_output != new_ports->second.end() &&
+                           old_output != old_ports->second.end();
+                         ++old_output, ++new_output)
+                    {
+                        old_output->replace(*new_output);
+                    }
                 }
+                return true;
             }
 
             std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant,
                                                 std::ifstream& ext_stream)
             {
-                if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variant))
+                if (is_type<VariantWrapper<std::istream*>>(variant))
                 {
-                    auto m_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variant)->get();
-                    return m_stream.get();
+                    return as_type_ptr<VariantWrapper<std::istream*>>(variant)->get();
                 }
                 else if (is_type<VariantWrapper<std::string>>(variant))
                 {
@@ -104,16 +159,16 @@ namespace ngraph
 
         } // namespace pdpd
 
-        std::shared_ptr<Function>
-            FrontEndPDPD::convert_model(const std::shared_ptr<InputModelPDPD>& model)
+        std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
+            const std::shared_ptr<InputModelPDPD>& model,
+            std::function<std::map<std::string, OutputVector>(
+                const std::map<std::string, Output<Node>>&, const std::shared_ptr<OpPlacePDPD>&)>
+                func)
         {
-            // std::cout << "Convert Model Start" << std::endl;
-
-            std::map<pdpd::TensorName, Output<Node>> nodes_dict(model->getTensorValues());
+            auto nodes_dict(model->getTensorValues());
             ParameterVector parameter_nodes;
             ResultVector result_nodes;
 
-            std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
             for (const auto& _inp_place : model->get_inputs())
             {
                 const auto& inp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_inp_place);
@@ -130,45 +185,44 @@ namespace ngraph
             const auto& op_places = model->getOpPlaces();
             for (const auto& op_place : op_places)
             {
-                const auto& op_type = op_place->get_desc().type();
-                if (op_type == "feed" || op_type == "fetch")
+                const auto& op_desc = op_place->get_desc();
+                if (op_desc.type() == "feed" || op_desc.type() == "fetch")
                 {
                     // inputs and outputs are stored in the model already
                     continue;
                 }
                 else
                 {
-                    const auto& named_outputs =
-                        pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                    pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
-                    // set layer name by the name of first output var
                     if (!named_outputs.empty())
                     {
-                        const auto& first_output_var = op_place->get_output_ports()
-                                                           .begin()
-                                                           ->second.at(0)
-                                                           ->get_target_tensor_pdpd()
-                                                           ->get_desc();
+                        // set layer name by the name of first output var
+                        const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
                         auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                        node->set_friendly_name(first_output_var.name());
-                    }
+                        node->set_friendly_name(tensor_name);
 
-                    const auto& out_ports = op_place->get_output_ports();
-                    for (const auto& name_to_outputs : named_outputs)
-                    {
-                        const auto& ports = out_ports.at(name_to_outputs.first);
-                        FRONT_END_OP_CONVERSION_CHECK(
-                            ports.size() == name_to_outputs.second.size(),
-                            "The number of output tensors must be equal to "
-                            "the number of outputs of the ngraph node.");
-                        for (size_t idx = 0; idx < ports.size(); ++idx)
+                        const auto& out_ports = op_desc.outputs();
+                        for (const auto& port : out_ports)
                         {
-                            const auto& var = ports[idx]->get_target_tensor_pdpd()->get_desc();
-                            name_to_outputs.second[idx].get_tensor().set_names({var.name()});
-                            // if nodes_dict already has node mapped to this tensor name it usually
-                            // means that it was overwritten using setTensorValue
-                            if (!nodes_dict.count(var.name()))
-                                nodes_dict[var.name()] = name_to_outputs.second[idx];
+                            // TODO: figure a way to safely handle unused outputs
+                            if (named_outputs.count(port.parameter()))
+                            {
+                                const auto& ng_outputs = named_outputs.at(port.parameter());
+                                FRONT_END_OP_CONVERSION_CHECK(
+                                    ng_outputs.size() == port.arguments_size(),
+                                    "The number of output tensors must be equal to "
+                                    "the number of outputs of the ngraph node.");
+                                for (size_t idx = 0; idx < ng_outputs.size(); ++idx)
+                                {
+                                    const auto& var_name = port.arguments()[idx];
+                                    ng_outputs[idx].get_tensor().set_names({var_name});
+                                    // if nodes_dict already has node mapped to this tensor name it
+                                    // usually means that it was overwritten using setTensorValue
+                                    if (!nodes_dict.count(var_name))
+                                        nodes_dict[var_name] = ng_outputs[idx];
+                                }
+                            }
                         }
                     }
                 }
@@ -225,13 +279,13 @@ namespace ngraph
                 return model_str && model_str.is_open();
             }
 #endif
-            else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+            else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
             {
                 // Validating first stream, it must contain a model
-                std::shared_ptr<std::istream> p_model_stream =
-                    as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])->get();
+                auto p_model_stream =
+                    as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                 paddle::framework::proto::ProgramDesc fw;
-                return fw.ParseFromIstream(p_model_stream.get());
+                return fw.ParseFromIstream(p_model_stream);
             }
             return false;
         }
@@ -258,13 +312,12 @@ namespace ngraph
 #endif
                 // The case with only model stream provided and no weights. This means model has
                 // no learnable weights
-                else if (is_type<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0]))
+                else if (is_type<VariantWrapper<std::istream*>>(variants[0]))
                 {
-                    std::shared_ptr<std::istream> p_model_stream =
-                        as_type_ptr<VariantWrapper<std::shared_ptr<std::istream>>>(variants[0])
-                            ->get();
+                    auto p_model_stream =
+                        as_type_ptr<VariantWrapper<std::istream*>>(variants[0])->get();
                     return std::make_shared<InputModelPDPD>(
-                        std::vector<std::istream*>{p_model_stream.get()});
+                        std::vector<std::istream*>{p_model_stream});
                 }
             }
             else if (variants.size() == 2)
@@ -288,10 +341,63 @@ namespace ngraph
         std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) const
         {
             auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
-            auto f = convert_model(pdpd_model);
+            std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
+            auto f =
+                convert_each_node(pdpd_model,
+                                  [&](const std::map<std::string, Output<Node>>& nodes_dict,
+                                      const std::shared_ptr<OpPlacePDPD>& op_place) {
+                                      return pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                                  });
             return f;
         }
 
+        void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const
+        {
+            for (const auto& node : partiallyConverted->get_ordered_ops())
+            {
+                if (is_type<PDPDFrameworkNode>(node))
+                {
+                    pdpd::normalize_framework_node(
+                        std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
+                        pdpd::get_supported_ops());
+                }
+            }
+            for (auto result : partiallyConverted->get_results())
+            {
+                result->validate_and_infer_types();
+            }
+        }
+
+        std::shared_ptr<ngraph::Function>
+            FrontEndPDPD::convert_partially(InputModel::Ptr model) const
+        {
+            auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+            std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
+            auto f = convert_each_node(
+                pdpd_model,
+                [&](const std::map<std::string, Output<Node>>& nodes_dict,
+                    const std::shared_ptr<OpPlacePDPD>& op_place) {
+                    pdpd::NamedOutputs named_outputs;
+                    try
+                    {
+                        named_outputs = pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
+                    }
+                    catch (const OpConversionFailure&)
+                    {
+                        named_outputs = pdpd::make_framework_node(nodes_dict, op_place);
+                    }
+                    return named_outputs;
+                });
+            return f;
+        }
+
+        std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) const
+        {
+            auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
+            std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
+            auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
+            return f;
+        }
     } // namespace frontend
 } // namespace ngraph
 
@@ -303,7 +409,7 @@ extern "C" PDPD_API FrontEndVersion GetAPIVersion()
 extern "C" PDPD_API void* GetFrontEndData()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
-    res->m_name = "pdpd";
+    res->m_name = "paddle";
     res->m_creator = []() { return std::make_shared<FrontEndPDPD>(); };
     return res;
 }
