@@ -94,7 +94,37 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
 
         'Shape': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
+
+        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through(node, rc),
     }
+
+    @staticmethod
+    def pass_rc_through(node: Node, reverse_channels: Node):
+        r"""
+        BEFORE                          AFTER
+
+          previous_op
+              |
+        ReverseChannels  previous_op     previous_op  previous_op
+                     \     /                      \     /
+                       Node                         Node
+                                                     |
+                                              ReverseChannels
+
+        returns boolean value whatever we should continue propagating current ReverseChannels operation down or not
+        """
+        # detaching reverse_channels node from the graph
+        if reverse_channels.is_in_port_connected(0) and reverse_channels.is_out_port_connected(0)\
+                and node.is_out_port_connected(0):
+            reverse_channels.out_port(0).get_connection().set_source(
+                reverse_channels.in_port(0).get_connection().get_source())
+            reverse_channels.in_port(0).disconnect()
+
+            node.out_port(0).get_connection().set_source(reverse_channels.out_port(0))
+            node.out_port(0).disconnect()
+            node.out_port(0).connect(reverse_channels.in_port(0))
+            return True
+        return False
 
     @staticmethod
     def pass_rc_through_conv(node, reverse_channels):
@@ -265,7 +295,38 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+
+        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
     }
+
+    @staticmethod
+    def lift_up_through(node: Node, reverse_channels: Node):
+        r"""
+        BEFORE                       AFTER
+
+                                     previous_op
+                                          \
+        previous_op  previous_op       ReverseChannels  previous_op
+                 \     /                           \     /
+                   Node                             Node
+                    |                                |
+              ReverseChannels                      next_op
+                    |
+                 next_op
+
+        returns boolean value whatever we should continue propagating current ReverseChannels operation up or not
+        """
+        if node.is_in_port_connected(0):
+            node_input_port_0 = node.in_port(0)
+            reverse_channels_out_npde = reverse_channels.out_port(0).get_connection().get_destination().node
+            reverse_channels.out_port(0).disconnect()
+
+            src = node_input_port_0.get_connection().get_source()
+            node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
+            src.connect(reverse_channels.in_port(0))
+            node.out_port(0).get_connection().set_destination(reverse_channels_out_npde.in_port(0))
+            return True
+        return False
 
     @staticmethod
     def lift_up_through_eltwise(node: Node, reverse_channels: Node):

@@ -68,10 +68,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
 endif()
 
-link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PUBLIC frontend_manager
-                                     PRIVATE ngraph::builder)
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+                                     PRIVATE ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
