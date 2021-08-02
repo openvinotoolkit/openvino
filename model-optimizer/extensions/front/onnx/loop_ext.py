@@ -147,25 +147,6 @@ class LoopExtractor(FrontExtractorOp):
                             raise Error(
                                 'Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
                                 'model is not consistent. Protobuf fragment: {}', inp, pb_node)
-                    #                    elif inp in main_graph.graph['tensor_mapping']:
-                    #    log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
-                    #    if main_graph.graph['tensor_mapping'][inp] not in additional_params:
-                    #        # create new Parameter body node and connect the body node with the outer graph using it
-                    #        param_id = str(inp)
-                    #        body_graph.add_node(param_id, kind='op', op='Parameter', name=param_id, pb=None, shape=None)
-                    #        parameter_node = Node(body_graph, param_id)
-                    #        # need to manually update necessary attrs for the node because extractor will not be called
-                    #        # for it because the node does not have .pb attribute
-                    #       Parameter.update_node_stat(parameter_node, {})
-                    #        external_edges.append((main_graph.graph['tensor_mapping'][inp], parameter_node, inp))
-                    #        src_id, src_port = param_id, 0
-                    #        additional_params[main_graph.graph['tensor_mapping'][inp]] = parameter_node
-                    #    else:
-                    #        src_id, src_port = additional_params[main_graph.graph['tensor_mapping'][inp]].id, 0
-                    #else:
-                    #    raise Error('Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
-                    #                'model is not consistent. Protobuf fragment: {}', inp, pb_node)
-
                 else:
                     src_id, src_port = data_nodes_map[inp]
                     assert (body_graph.has_node(src_id))
@@ -223,7 +204,6 @@ class LoopExtractor(FrontExtractorOp):
         #   1 .. loop_carried_dependencies_count - loop carried dependencies
         #   loop_carried_dependencies_count + 1 .. - scan outputs
 
-        # body_graph.stage = 'front'
         # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
         next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
