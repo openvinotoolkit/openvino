@@ -128,7 +128,7 @@ namespace LayerTestsDefinitions {
         auto func_copy = ngraph::clone_function(*function);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-        manager.run_passes(func_copy);
+        manager.run_passes(function);
 
         const auto &outInfo = executableNetwork.GetOutputsInfo();
         HostTensorVector outputTensors(outInfo.size());
