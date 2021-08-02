@@ -8,9 +8,9 @@
 #include <fstream>
 #include <string>
 #include "backend.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
-#include "common_test_utils/file_utils.hpp"
 
 // Helper functions
 namespace FrontEndTestUtils
