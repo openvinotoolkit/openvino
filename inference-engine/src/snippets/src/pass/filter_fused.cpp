@@ -21,6 +21,14 @@ bool hasFusedParent(std::shared_ptr<Node> node) {
     }
     return false;
 }
+bool hasIgnoredParent(std::shared_ptr<Node> node) {
+    for (const auto& input : node->inputs()) {
+        const auto parent = input.get_source_output().get_node_shared_ptr();
+        if (GetSnippetsNodeType(parent) == SnippetsNodeType::Ignored)
+            return true;
+    }
+    return false;
+}
 bool hasParameterParent(std::shared_ptr<Node> node) {
     for (const auto& input : node->inputs()) {
         const auto parent = input.get_source_output().get_node_shared_ptr();
@@ -139,9 +147,7 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             SetSnippetsNodeType(node, SnippetsNodeType::Fused);
             continue;
         }
-        // todo: enable u8 support in Snippetst
-        // Ignore eltwise chains starting at Parameter node, since it could be u8
-        if (hasFusedParent(node) || hasParameterParent(node)) {
+        if (hasFusedParent(node)) {
             if (isSutableChildForFusingSimple(node)) {
                 // This feature is disabled to emulate FusingSimple->FusingActivationAndSum->FusingSimple
                 // todo: clean all the commented code after benchmark and analysis
@@ -163,7 +169,15 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
                 }
             }
         }
-        if (AppropriateForSubgraph(node) && (GetSnippetsNodeType(node) != SnippetsNodeType::Fused)) {
+        if (AppropriateForSubgraph(node)) {
+            // todo: enable u8 support in Snippetst
+            // Ignore eltwise chains starting at Parameter node, since it could be u8
+            if (hasIgnoredParent(node) || hasParameterParent(node)) {
+                SetSnippetsNodeType(node, SnippetsNodeType::Ignored);
+                continue;
+            }
+            if (GetSnippetsNodeType(node) == SnippetsNodeType::Fused)
+                continue;
             if (hasParentInStartedSubgraph (node))
                 SetSnippetsNodeType(node, SnippetsNodeType::SubgraphBody);
             else
