@@ -53,3 +53,6 @@
 [submodule "thirdparty/gflags/gflags"]
 	path = thirdparty/gflags/gflags
 	url = https://github.com/gflags/gflags.git
+[submodule "thirdparty/gtest/gtest"]
+	path = thirdparty/gtest/gtest
+	url = https://github.com/openvinotoolkit/googletest.git
