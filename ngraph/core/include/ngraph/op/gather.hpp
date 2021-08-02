@@ -64,7 +64,9 @@ namespace ngraph
 
         namespace v8
         {
-            /// \brief Gather slices from axis of params according to indices
+            /// \brief Gather slices from axis of params according to indices. In contrast to
+            /// previous versions negative indices are also supported. Negative indices
+            /// indicate reverse indexing from the end.
             class NGRAPH_API Gather : public op::util::GatherBase
             {
             public:

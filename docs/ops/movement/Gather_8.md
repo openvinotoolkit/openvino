@@ -6,7 +6,8 @@
 
 **Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
  specified with the second input tensor and axis from the third input. Semantics of this operation is identical to
-TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation.
+TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation but also includes
+support of negative indices.
 
 **Detailed description**
 

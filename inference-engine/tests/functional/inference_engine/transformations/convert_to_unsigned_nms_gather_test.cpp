@@ -28,7 +28,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
         auto strides = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto ss_node = make_shared<opset8::StridedSlice>(nms->output(0), begin, end, strides, vector<int64_t>{1, 0}, vector<int64_t>{1, 0});
 
-        // squeeze can be present as reshape
+        // squeeze can be represented as reshape
         auto squeeze_node = make_shared<opset8::Reshape>(ss_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         // usually input to gather data goes after reshape NMS scores
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
@@ -53,7 +53,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
         auto strides = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto ss_node = make_shared<opset8::StridedSlice>(nms->output(0), begin, end, strides, vector<int64_t>{1, 0}, vector<int64_t>{1, 0});
 
-        // squeeze can be present as reshape
+        // squeeze can be represented as reshape
         auto squeeze_node = make_shared<opset8::Reshape>(ss_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto convert = make_shared<opset8::Convert>(squeeze_node, element::Type_t::u64);
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
@@ -79,7 +79,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
         auto strides = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto ss_node = make_shared<opset8::StridedSlice>(nms->output(0), begin, end, strides, vector<int64_t>{1, 0}, vector<int64_t>{1, 0});
 
-        // squeeze can be present as reshape
+        // squeeze can be represented as reshape
         auto squeeze_node = make_shared<opset8::Reshape>(ss_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto convert = make_shared<opset8::Convert>(squeeze_node, element::Type_t::i32);
         // usually input to gather data goes after reshape NMS scores
@@ -105,7 +105,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
         auto strides = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto ss_node = make_shared<opset8::StridedSlice>(nms->output(0), begin, end, strides, vector<int64_t>{1, 0}, vector<int64_t>{1, 0});
 
-        // squeeze can be present as reshape
+        // squeeze can be represented as reshape
         auto squeeze_node = make_shared<opset8::Reshape>(ss_node, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
         auto convert = make_shared<opset8::Convert>(squeeze_node, element::Type_t::u32);
         auto reshape_node = make_shared<opset8::Reshape>(scores, opset8::Constant::create(element::i32, Shape{1}, {-1}), true);
@@ -119,13 +119,13 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
 }
 
 TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
-    // if Gather goes right after NMS no converts should be inserted
+    // if NMS output goes not into Gather indices no converts should be inserted
     auto boxes = make_shared<opset8::Parameter>(element::f32, Shape{1, 1000, 4});
     auto scores = make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 1000});
     auto nms = make_shared<opset8::NonMaxSuppression>(boxes, scores);
 
     auto gather = make_shared<opset8::Gather>(nms->output(0), opset8::Constant::create(element::i32, Shape{1}, {2}),
-                                              opset8::Constant::create(element::i32, Shape{1}, {1}));
+                                              opset8::Constant::create(element::i32, Shape{1}, {0}));
 
     shared_ptr<Function> f = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
 
