@@ -184,9 +184,14 @@ DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
 DECL_PASS(FuseMultipleIdentities);
 
 /**
-* @brief Brodcast data in Const layer
+* @brief Broadcast data in Const layer
 */
 DECL_PASS(BroadcastConst);
+
+/**
+* @brief Broadcast non const scalar inputs of Eltwise layer
+*/
+DECL_PASS(BroadcastEltwiseScalarInput);
 
 /**
 * @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs

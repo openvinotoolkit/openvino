@@ -756,6 +756,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         passes->registerPass<BroadcastConstPass>();
+        passes->registerPass<BroadcastEltwiseScalarInputPass>();
 
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 

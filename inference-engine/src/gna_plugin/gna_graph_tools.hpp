@@ -634,13 +634,13 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
  * @param idx
  */
 template <class T>
-std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr origin, const T &acceptanceCriteria, int idx = -1) {
+std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr origin, const T &acceptanceCriteria, int idx = -1, bool recursion = true) {
     std::vector<std::pair<CNNLayerPtr, int> > prevLayers;
     for (int i = idx == -1 ? 0 : idx; CNNNetHasPrevLayer(origin.get(), i) && (idx == -1 || i == idx); i++) {
         auto prevLayer = CNNNetPrevLayer(origin, i);
         if (acceptanceCriteria(prevLayer)) {
             prevLayers.push_back({prevLayer, CNNLayerFindOutDataIdx(origin, i)});
-        } else {
+        } else if (recursion) {
             // if for some input we need to look in upper layers - original index not used here intentionally
             auto prevPrevLayers = CNNNetGetPrevLayersSkip(prevLayer, acceptanceCriteria);
             prevLayers.insert(prevLayers.end(), prevPrevLayers.begin(), prevPrevLayers.end());

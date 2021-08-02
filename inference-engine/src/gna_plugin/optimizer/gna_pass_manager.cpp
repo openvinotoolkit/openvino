@@ -1555,6 +1555,52 @@ void SubstituteScaleShiftBroadCastPass::run() {
     }
 }
 
+void BroadcastEltwiseScalarInputPass::run() {
+    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BroadcastEltwiseScalarInputPass");
+    for (auto eltwiseLayer : *pLayers) {
+        if (!LayerInfo(eltwiseLayer).isEltwise()) {
+            continue;
+        }
+
+        auto scalarCheck = [] (InferenceEngine::CNNLayerPtr &layer) {
+            auto layerDims = layer->outData.front()->getTensorDesc().getDims();
+            auto layerElements = product(layerDims.begin(), layerDims.end());
+            if (layerDims.size() == 0 || layer->type == std::string{"Const"}) {
+                return false;
+            }
+            if (layerElements != 1) {
+                return false;
+            }
+
+            return true;
+        };
+
+        auto broadcastScalarParameter = [] (InferenceEngine::CNNLayerPtr &scalarLayer,
+                                            const InferenceEngine::SizeVector &newDims,
+                                            const InferenceEngine::Layout &newLayout) {
+            auto elements = product(newDims.begin(), newDims.end());
+            InferenceEngine::SizeVector elementsDim {elements};
+            if (scalarLayer->outData.front()->getDims().size() > 1) {
+                scalarLayer->outData.front()->reshape(SizeVector {1}, Layout::C);
+            }
+            scalarLayer->outData.front()->setDims(elementsDim);
+            scalarLayer->outData.front()->reshape(newDims, newLayout);
+        };
+
+        auto scalarInputs = CNNNetGetPrevLayersSkip(eltwiseLayer, scalarCheck, -1, false);
+
+        if (scalarInputs.empty()) {
+            continue;
+        }
+
+        for (auto &scalarInput : scalarInputs) {
+            broadcastScalarParameter(scalarInput.first,
+                                     eltwiseLayer->outData.front()->getTensorDesc().getDims(),
+                                     eltwiseLayer->outData.front()->getTensorDesc().getLayout());
+        }
+    }
+}
+
 void BroadcastConstPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "BroadcastConstPass");
     for (auto constLayer : *pLayers) {

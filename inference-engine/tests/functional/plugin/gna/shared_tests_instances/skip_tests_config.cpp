@@ -19,9 +19,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
-        // TODO: Issue 32542
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue 32923
