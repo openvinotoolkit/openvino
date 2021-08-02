@@ -27,7 +27,7 @@ struct AtanhParams {
             output.push_back(static_cast<double>(element));
 
         std::transform(output.begin(), output.end(), output.begin(), [](double input) -> double {
-            return std::atanh(std::max(std::min(input, 1.0), -1.0));
+            return std::atanh(input);
         });
 
         if (std::is_integral<IT>()) {

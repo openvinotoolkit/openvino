@@ -20,8 +20,7 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::atanh(
-                        std::min(std::max(arg[i], static_cast<T>(-1.0)), static_cast<T>(1.0)));
+                    out[i] = std::atanh(arg[i]);
                 }
             }
 
@@ -31,8 +30,7 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = std::roundl(std::atanh(
-                        std::min(std::max(arg[i], static_cast<T>(-1)), static_cast<T>(1))));
+                    out[i] = std::roundl(std::atanh(arg[i]));
                 }
             }
         } // namespace reference
