@@ -97,13 +97,21 @@ endif()
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
 
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    else()
+        message(ERROR "Cannot load pre-production TBB from the internal server! Pls set the THIRDPARTY_SERVER_PATH")
+    endif()
+
     if(WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.3.0-win-workers-migration-improvement.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+                SHA256 "467f92ce1b421c117029c2a3575a7c5b30df4fb3086e0d30415dd92e3ca5d9c9")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
                 ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
@@ -143,7 +151,7 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+    update_deps_cache(TBB_DIR "${TBB}/lib/cmake/tbb" "Path to TBB cmake folder")
 
     update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
 
