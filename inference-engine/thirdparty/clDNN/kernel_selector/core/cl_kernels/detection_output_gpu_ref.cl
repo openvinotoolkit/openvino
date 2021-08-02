@@ -15,7 +15,7 @@ typedef struct {
     int batchId;
     int classId;
     int boxId;
-    UNIT_TYPE score;
+    INPUT1_TYPE score;
 } FUNC(Scores);
 
 #define SCORES_INFO FUNC(Scores)
@@ -29,7 +29,7 @@ inline void FUNC(swap_scores_info)(__global SCORES_INFO* a, __global SCORES_INFO
 
 inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp)
 {
-    UNIT_TYPE pivotScore = arr[h].score;
+    INPUT1_TYPE pivotScore = arr[h].score;
     int pivotBoxId = arr[h].boxId;
     int i = (l - 1);
     for (int j = l; j <= h - 1; j++) {
@@ -144,41 +144,41 @@ inline int FUNC(get_final_detections)(__global int* buffer2)
     return final_detections;
 }
 
-inline UNIT_TYPE FUNC(jaccardOverlap)(UNIT_TYPE* bbox1, UNIT_TYPE* bbox2)
+inline INPUT0_TYPE FUNC(jaccardOverlap)(INPUT0_TYPE* bbox1, INPUT0_TYPE* bbox2)
 {
-    UNIT_TYPE overlap = 0.0;
+    INPUT0_TYPE overlap = 0.0;
     bool intersecting = (bbox1[0] < bbox2[2]) & (bbox2[0] < bbox1[2]) & (bbox1[1] < bbox2[3]) & (bbox2[1] < bbox1[3]);
 
     if (intersecting)
     {
-        const UNIT_TYPE intersect_width = min(bbox1[2], bbox2[2]) - max(bbox1[0], bbox2[0]);
-        const UNIT_TYPE intersect_height = min(bbox1[3], bbox2[3]) - max(bbox1[1], bbox2[1]);
+        const INPUT0_TYPE intersect_width = min(bbox1[2], bbox2[2]) - max(bbox1[0], bbox2[0]);
+        const INPUT0_TYPE intersect_height = min(bbox1[3], bbox2[3]) - max(bbox1[1], bbox2[1]);
         if (intersect_width > 0 && intersect_height > 0) {
-            const UNIT_TYPE intersect_size = intersect_width * intersect_height;
-            const UNIT_TYPE bbox1_size = (bbox1[2] - bbox1[0]) * (bbox1[3]- bbox1[1]);
-            const UNIT_TYPE bbox2_size = (bbox2[2] - bbox2[0]) * (bbox2[3]- bbox2[1]);
+            const INPUT0_TYPE intersect_size = intersect_width * intersect_height;
+            const INPUT0_TYPE bbox1_size = (bbox1[2] - bbox1[0]) * (bbox1[3]- bbox1[1]);
+            const INPUT0_TYPE bbox2_size = (bbox2[2] - bbox2[0]) * (bbox2[3]- bbox2[1]);
             overlap = intersect_size / (bbox1_size + bbox2_size - intersect_size);
         }
     }
     return overlap;
 }
 
-UNIT_TYPE FUNC(get_confidence_offset)(const uint idx_prior, const uint idx_class, const uint idx_image)
+inline uint FUNC(get_confidence_offset)(const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     return (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) * CONF_XY_SIZE_PRODUCT + CONF_PADDING;
 }
 
-UNIT_TYPE FUNC(get_largest_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_image)
+inline uint FUNC(get_largest_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_image)
 {
     const uint idx_start = (BACKGROUND_LABEL_ID == 0 ? 1 : 0);
     uint offset = FUNC_CALL(get_confidence_offset)(idx_prior, idx_start, idx_image);
-    UNIT_TYPE max_score = input_confidence[offset];
-    int idx = idx_start;
+    INPUT1_TYPE max_score = input_confidence[offset];
+    uint idx = idx_start;
 
     for (uint j = idx_start; j < NUM_CLASSES; j++)
     {
         offset = FUNC_CALL(get_confidence_offset)(idx_prior, j, idx_image);
-        UNIT_TYPE score = input_confidence[offset];
+        INPUT1_TYPE score = input_confidence[offset];
         if (score > max_score) {
             max_score = score;
             idx = j;
@@ -189,11 +189,11 @@ UNIT_TYPE FUNC(get_largest_score)(__global UNIT_TYPE* input_confidence, const ui
 
 #ifdef DO_STAGE_0_CAFFE_OPT
 KERNEL (detection_output_ref_stage_0_caffe_opt)(
-    __global UNIT_TYPE* input_confidence,
+    __global INPUT1_TYPE* input_confidence,
     __global uchar *buffer0,
     __global int *buffer2)
 {
-    const int classId = get_global_id(0) * NUM_CLASSES_PER_ITEM;
+    const int classId = (int)get_global_id(0) * NUM_CLASSES_PER_ITEM;
     const int box_gid = get_global_id(1);
     const int batchId = get_global_id(2);
 
@@ -252,7 +252,7 @@ KERNEL (detection_output_ref_stage_0_caffe_opt)(
                 char bitset = 1 << bi;
                 if (all((bit_mask[mask_id] & bitset) == (char4)(0, 0, 0, 0)))
                     continue;
-                UNIT_TYPE4 score4 = FUNC_CALL(get_score4)(input_confidence, (i + bi), classId, batchId);
+                INPUT_TYPE4 score4 = FUNC_CALL(get_score4)(input_confidence, (i + bi), classId, batchId);
                 for (int c = 0; c < n_classes_this_item; c++) {
                     if ((bit_mask[mask_id][c] & bitset) == 0) continue;
                     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId + c) * BUFFER_STRIDE];
@@ -273,7 +273,7 @@ KERNEL (detection_output_ref_stage_0_caffe_opt)(
 
 #ifdef DO_STAGE_0_CAFFE
 KERNEL (detection_output_ref_stage_0_caffe)(
-    __global UNIT_TYPE* input_confidence,
+    __global INPUT1_TYPE* input_confidence,
     __global uchar *buffer0,
     __global int *buffer2)
 {
@@ -296,7 +296,7 @@ KERNEL (detection_output_ref_stage_0_caffe)(
             unroll_for (int bi = 0; bi < 8; bi++) {
                 if ((i + bi) >= NUM_OF_PRIORS)
                     break;
-                UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                INPUT1_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
                 int valid = (score < 0) ? 0 : 1;
                 bit_mask[mask_id] |= (valid << bi);
                 block_num[box_gid] += valid;
@@ -328,7 +328,7 @@ KERNEL (detection_output_ref_stage_0_caffe)(
             for (int bi = 0; bi < 8; bi++) {
                 char bitset = 1 << bi;
                 if ((bit_mask[mask_id] & bitset) && ((i + bi) < NUM_OF_PRIORS)) {
-                    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
+                    INPUT1_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
                     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
                     SCORES_INFO score_info;
                     score_info.batchId = batchId;
@@ -347,7 +347,7 @@ KERNEL (detection_output_ref_stage_0_caffe)(
 
 #ifdef DO_STAGE_0_MXNET
 KERNEL (detection_output_ref_stage_0_mxnet)(
-    __global UNIT_TYPE* input_confidence,
+    __global INPUT1_TYPE* input_confidence,
     __global uchar *buffer0,
     volatile __global int *buffer2)
 {
@@ -364,7 +364,7 @@ KERNEL (detection_output_ref_stage_0_mxnet)(
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     int idx_max_score = FUNC_CALL(get_largest_score)(input_confidence, priorId, batchId);
-    UNIT_TYPE score = FUNC_CALL(get_score)(input_confidence, priorId, idx_max_score, batchId);
+    INPUT1_TYPE score = FUNC_CALL(get_score)(input_confidence, priorId, idx_max_score, batchId);
     SCORES_INFO score_info;
     score_info.batchId = batchId;
     score_info.classId = idx_max_score;
@@ -492,8 +492,8 @@ KERNEL (detection_output_ref_stage_1_mxnet)(
 
 #ifdef DO_STAGE_2_CAFFE
 KERNEL (detection_output_ref_stage_2_caffe)(
-    __global UNIT_TYPE* input_location,
-    __global UNIT_TYPE* input_prior_box,
+    __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box,
     __global uchar *buffer0,
     __global uchar *buffer1,
     __global int *buffer2)
@@ -516,11 +516,11 @@ KERNEL (detection_output_ref_stage_2_caffe)(
         for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
         {
             int kept_idx = selectedScoresList[idx_indice].boxId;
-            UNIT_TYPE decoded_bbox1[4];
+            INPUT0_TYPE decoded_bbox1[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, batchId);
-            UNIT_TYPE decoded_bbox2[4];
+            INPUT0_TYPE decoded_bbox2[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox2, input_location, input_prior_box, kept_idx, loc_label, batchId);
-            UNIT_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
+            INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
             if (overlap > NMS_THRESHOLD)
             {
                 keep = false;
@@ -544,8 +544,8 @@ KERNEL (detection_output_ref_stage_2_caffe)(
 
 #ifdef DO_STAGE_2_CAFFE_OPT
 KERNEL (detection_output_ref_stage_2_caffe)(
-    __global UNIT_TYPE* input_location,
-    __global UNIT_TYPE* input_prior_box,
+    __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box,
     __global uchar *buffer0,
     __global uchar *buffer1,
     __global int *buffer2)
@@ -554,7 +554,7 @@ KERNEL (detection_output_ref_stage_2_caffe)(
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
     const int scoresInfoIdx = batchId * NUM_CLASSES_ACC + classId;
-    UNIT_TYPE decoded_bboxes[TOP_K * 4];
+    INPUT0_TYPE decoded_bboxes[TOP_K * 4];
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
@@ -566,17 +566,17 @@ KERNEL (detection_output_ref_stage_2_caffe)(
     {
         bool keep = true;
         int idx = scoresList[idx_score].boxId;
-        UNIT_TYPE decoded_bbox_cur[4];
+        INPUT0_TYPE decoded_bbox_cur[4];
         FUNC_CALL(get_decoded_bbox)(decoded_bbox_cur, input_location, input_prior_box, idx, loc_label, batchId);
 
         for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
         {
-            UNIT_TYPE decoded_bbox_kept[4] = { decoded_bboxes[4 * idx_indice],
+            INPUT0_TYPE decoded_bbox_kept[4] = { decoded_bboxes[4 * idx_indice],
                                            decoded_bboxes[4 * idx_indice + 1],
                                            decoded_bboxes[4 * idx_indice + 2],
                                            decoded_bboxes[4 * idx_indice + 3] };
 
-            UNIT_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox_cur, decoded_bbox_kept);
+            INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox_cur, decoded_bbox_kept);
             if (overlap > NMS_THRESHOLD)
             {
                 keep = false;
@@ -605,8 +605,8 @@ KERNEL (detection_output_ref_stage_2_caffe)(
 
 #ifdef DO_STAGE_2_MXNET
 KERNEL (detection_output_ref_stage_2_mxnet)(
-    __global UNIT_TYPE* input_location,
-    __global UNIT_TYPE* input_prior_box,
+    __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box,
     __global uchar *buffer0,
     __global uchar *buffer1,
     __global int *buffer2)
@@ -635,11 +635,11 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
         for (uint idx_indice = 0; idx_indice < cur_num_indice; idx_indice++)
         {
             int kept_idx = selectedScoresList[indice_offset + idx_indice].boxId;
-            UNIT_TYPE decoded_bbox1[4];
+            INPUT0_TYPE decoded_bbox1[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, batchId);
-            UNIT_TYPE decoded_bbox2[4];
+            INPUT0_TYPE decoded_bbox2[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox2, input_location, input_prior_box, kept_idx, loc_label, batchId);
-            UNIT_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
+            INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
             if (overlap > NMS_THRESHOLD)
             {
                 keep = false;
@@ -664,9 +664,9 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
 
 #ifdef DO_STAGE_3_CAFFE
 KERNEL (detection_output_ref_stage_final_caffe)(
-    __global UNIT_TYPE* input_location,
-    __global UNIT_TYPE* input_prior_box,
-    __global UNIT_TYPE* output,
+    __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box,
+    __global OUTPUT_TYPE* output,
     __global uchar *buffer0,
     __global uchar *buffer1,
     __global int *buffer2)
@@ -727,23 +727,23 @@ KERNEL (detection_output_ref_stage_final_caffe)(
             score_info = selectedScoresList[scores_offset + idx_score];
             const int idx = startIdx + outputIdx;
 
-            output[idx * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(score_info.batchId);
-            output[idx * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
-            output[idx * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(score_info.score);
-            UNIT_TYPE decoded_bbox[4];
+            output[idx * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(score_info.batchId);
+            output[idx * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+            output[idx * OUTPUT_ROW_SIZE + 2] = TO_OUTPUT_TYPE(score_info.score);
+            INPUT0_TYPE decoded_bbox[4];
             const uint loc_label = ((SHARE_LOCATION)? 0 : score_info.classId);
             FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, score_info.batchId);
-            UNIT_TYPE xmin = decoded_bbox[0];
-            UNIT_TYPE ymin = decoded_bbox[1];
-            UNIT_TYPE xmax = decoded_bbox[2];
-            UNIT_TYPE ymax = decoded_bbox[3];
+            INPUT0_TYPE xmin = decoded_bbox[0];
+            INPUT0_TYPE ymin = decoded_bbox[1];
+            INPUT0_TYPE xmax = decoded_bbox[2];
+            INPUT0_TYPE ymax = decoded_bbox[3];
             if (CLIP_AFTER_NMS) {
-                xmin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmin));
-                ymin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymin));
-                xmax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmax));
-                ymax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymax));
+                xmin = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), xmin));
+                ymin = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), ymin));
+                xmax = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), xmax));
+                ymax = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), ymax));
             }
-            vstore4((UNIT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + idx * OUTPUT_ROW_SIZE + 3);
+            vstore4((OUTPUT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + idx * OUTPUT_ROW_SIZE + 3);
             outputIdx++;
         }
     }
@@ -755,8 +755,8 @@ KERNEL (detection_output_ref_stage_final_caffe)(
         unroll_for (uint i = final_detections; i < NUM_OF_IMAGES * KEEP_TOP_K; i++)
         {
             output[i * OUTPUT_ROW_SIZE] = (i == final_detections ? -1.0 : 0.0);
-            vstore4((UNIT_TYPE4)(0.0, 0.0, 0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 1);
-            vstore2((UNIT_TYPE2)(0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 5);
+            vstore4((OUTPUT_TYPE4)(0.0, 0.0, 0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 1);
+            vstore2((OUTPUT_TYPE2)(0.0, 0.0), 0, output + i * OUTPUT_ROW_SIZE + 5);
         }
     }
 }
@@ -764,9 +764,9 @@ KERNEL (detection_output_ref_stage_final_caffe)(
 
 #ifdef DO_STAGE_3_MXNET
 KERNEL (detection_output_ref_stage_final_mxnet)(
-    __global UNIT_TYPE* input_location,
-    __global UNIT_TYPE* input_prior_box,
-    __global UNIT_TYPE* output,
+    __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box,
+    __global OUTPUT_TYPE* output,
     __global uchar *buffer0,
     __global uchar *buffer1,
     __global int *buffer2)
@@ -825,23 +825,23 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
             {
                 SCORES_INFO score_info;
                 score_info = selectedScoresList[scores_offset + idx_score];
-                output[count * OUTPUT_ROW_SIZE] = TO_UNIT_TYPE(score_info.batchId);
-                output[count * OUTPUT_ROW_SIZE + 1] = TO_UNIT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
-                output[count * OUTPUT_ROW_SIZE + 2] = TO_UNIT_TYPE(score_info.score);
-                UNIT_TYPE decoded_bbox[4];
+                output[count * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(score_info.batchId);
+                output[count * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+                output[count * OUTPUT_ROW_SIZE + 2] = TO_OUTPUT_TYPE(score_info.score);
+                INPUT0_TYPE decoded_bbox[4];
                 FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, idx_image);
-                UNIT_TYPE xmin = decoded_bbox[0];
-                UNIT_TYPE ymin = decoded_bbox[1];
-                UNIT_TYPE xmax = decoded_bbox[2];
-                UNIT_TYPE ymax = decoded_bbox[3];
+                INPUT0_TYPE xmin = decoded_bbox[0];
+                INPUT0_TYPE ymin = decoded_bbox[1];
+                INPUT0_TYPE xmax = decoded_bbox[2];
+                INPUT0_TYPE ymax = decoded_bbox[3];
 
                 if (CLIP_AFTER_NMS) {
-                    xmin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmin));
-                    ymin = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymin));
-                    xmax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), xmax));
-                    ymax = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), ymax));
+                    xmin = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), xmin));
+                    ymin = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), ymin));
+                    xmax = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), xmax));
+                    ymax = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), ymax));
                 }
-                vstore4((UNIT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + count * OUTPUT_ROW_SIZE + 3);
+                vstore4((OUTPUT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + count * OUTPUT_ROW_SIZE + 3);
                 ++count;
             }
         }

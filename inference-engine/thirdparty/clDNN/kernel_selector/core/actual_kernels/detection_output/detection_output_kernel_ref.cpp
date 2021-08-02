@@ -5,6 +5,8 @@
 #include "detection_output_kernel_ref.h"
 #include "kernel_selector_utils.h"
 
+#include <algorithm>
+
 namespace kernel_selector {
 
 ParamsKey DetectionOutputKernelRef::GetSupportedKey() const {
@@ -25,13 +27,14 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& detectOutParams = params.detectOutParams;
+    auto num_prior_boxes = params.inputs[1].Feature().v / detectOutParams.num_classes;
 
     jit.AddConstants({
         MakeJitConstant("NUM_IMAGES", detectOutParams.num_images),
         MakeJitConstant("NUM_CLASSES", detectOutParams.num_classes),
         MakeJitConstant("NUM_CLASSES_PER_ITEM", 4),
         MakeJitConstant("KEEP_TOP_K", detectOutParams.keep_top_k),
-        MakeJitConstant("TOP_K", detectOutParams.top_k),
+        MakeJitConstant("TOP_K", std::min(detectOutParams.top_k, (int32_t)num_prior_boxes)),
         MakeJitConstant("BACKGROUND_LABEL_ID", detectOutParams.background_label_id),
         MakeJitConstant("CODE_TYPE", detectOutParams.code_type),
         MakeJitConstant("CONF_SIZE_X", detectOutParams.conf_size_x),
@@ -81,23 +84,20 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     DetectionOutputKernelRef::DispatchData dispatchData;
     const auto& input = params.inputs[0];
     const auto& detectOutParams = params.detectOutParams;
-    constexpr size_t prior_box_size = 4;
-    auto loc_feature_num = params.inputs[0].Feature().v;
     auto num_classes = detectOutParams.num_classes;
-    auto num_loc_classes = (detectOutParams.share_location) ? 1 : num_classes;
-    auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
+    auto num_prior_boxes = params.inputs[1].Feature().v / num_classes;
 
     if (idx == 0) {
         if (detectOutParams.decrease_label_id) {
             dispatchData.gws = {input.Batch().v, num_prior_boxes, 1};
-            dispatchData.lws = {1, 1, 1};
+            dispatchData.lws = {input.Batch().v, 1, 1};
         } else {
             if (detectOutParams.conf_padding_x || detectOutParams.conf_padding_y) {
-                dispatchData.gws = {num_classes, 256, input.Batch().v};
+                dispatchData.gws = {num_classes, params.engineInfo.maxWorkGroupSize, input.Batch().v};
             } else {
-                dispatchData.gws = {CeilDiv(num_classes, 4), 256, input.Batch().v};
+                dispatchData.gws = {CeilDiv(num_classes, 4), params.engineInfo.maxWorkGroupSize, input.Batch().v};
             }
-            dispatchData.lws = {1, 256, 1};
+            dispatchData.lws = {1, dispatchData.gws[1], 1};
         }
     } else if (idx == 1) {
         const size_t kSplitNum = 16;

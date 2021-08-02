@@ -41,16 +41,19 @@
 #define NUM_OF_IMAGE_BBOXES (INPUT_BBOXES_LENGTH / NUM_IMAGES)
 #define NUM_OF_ITEMS_SORT ((NUM_CLASSES_IN / 256) + 1)
 
-#if UNIT_TYPE_SIZE == 2
+#define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT1_TYPE, 4)
+#define OUTPUT_TYPE2 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2)
+#define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#if INPUT1_TYPE_SIZE == 2
 #define CMP_TYPE4 short4
-#elif UNIT_TYPE_SIZE == 4
+#elif INPUT1_TYPE_SIZE == 4
 #define CMP_TYPE4 int4
 #endif
 
 // Number of bboxes to keep in output
 #define KEEP_BBOXES_NUM ((KEEP_TOP_K < NUM_OF_IMAGE_BBOXES)? KEEP_TOP_K : NUM_OF_IMAGE_BBOXES)
 
-inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* input_location, __global UNIT_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TYPE* input_location, __global INPUT2_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint prior_box_offset = ((PRIOR_BATCH_SIZE == 1)? 0 : idx_image) * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
     const uint prior_offset = prior_box_offset + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
@@ -60,7 +63,7 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
         LOC_XY_SIZE_PRODUCT +
         LOCATION_PADDING;
 
-    UNIT_TYPE prior_bboxes[4] = {
+    INPUT2_TYPE prior_bboxes[4] = {
         input_prior_box[prior_offset],
         input_prior_box[prior_offset + 1],
         input_prior_box[prior_offset + 2],
@@ -104,16 +107,16 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
     }
     else if (CODE_TYPE == CODE_TYPE_CENTER_SIZE)
     {
-        const UNIT_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
-        const UNIT_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
-        const UNIT_TYPE prior_center_x = (prior_bboxes[0] + prior_bboxes[2]) / 2;
-        const UNIT_TYPE prior_center_y = (prior_bboxes[1] + prior_bboxes[3]) / 2;
-        const UNIT_TYPE bbox_xmin = input_location[location_offset];
-        const UNIT_TYPE bbox_ymin = input_location[location_offset + LOC_XY_SIZE_PRODUCT];
-        const UNIT_TYPE bbox_xmax = input_location[location_offset + 2 * LOC_XY_SIZE_PRODUCT];
-        const UNIT_TYPE bbox_ymax = input_location[location_offset + 3 * LOC_XY_SIZE_PRODUCT];
-        UNIT_TYPE decode_bbox_center_x, decode_bbox_center_y;
-        UNIT_TYPE decode_bbox_width, decode_bbox_height;
+        const INPUT2_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
+        const INPUT2_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
+        const INPUT2_TYPE prior_center_x = (prior_bboxes[0] + prior_bboxes[2]) / 2;
+        const INPUT2_TYPE prior_center_y = (prior_bboxes[1] + prior_bboxes[3]) / 2;
+        const INPUT0_TYPE bbox_xmin = input_location[location_offset];
+        const INPUT0_TYPE bbox_ymin = input_location[location_offset + LOC_XY_SIZE_PRODUCT];
+        const INPUT0_TYPE bbox_xmax = input_location[location_offset + 2 * LOC_XY_SIZE_PRODUCT];
+        const INPUT0_TYPE bbox_ymax = input_location[location_offset + 3 * LOC_XY_SIZE_PRODUCT];
+        INPUT0_TYPE decode_bbox_center_x, decode_bbox_center_y;
+        INPUT0_TYPE decode_bbox_width, decode_bbox_height;
 
         if (VARIANCE_ENCODED_IN_TARGET)
         {
@@ -139,12 +142,12 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
     }
     else
     {
-        const UNIT_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
-        const UNIT_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
-        const UNIT_TYPE bbox_xmin = input_location[location_offset];
-        const UNIT_TYPE bbox_ymin = input_location[location_offset + LOC_XY_SIZE_PRODUCT];
-        const UNIT_TYPE bbox_xmax = input_location[location_offset + 2 * LOC_XY_SIZE_PRODUCT];
-        const UNIT_TYPE bbox_ymax = input_location[location_offset + 3 * LOC_XY_SIZE_PRODUCT];
+        const INPUT2_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
+        const INPUT2_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
+        const INPUT0_TYPE bbox_xmin = input_location[location_offset];
+        const INPUT0_TYPE bbox_ymin = input_location[location_offset + LOC_XY_SIZE_PRODUCT];
+        const INPUT0_TYPE bbox_xmax = input_location[location_offset + 2 * LOC_XY_SIZE_PRODUCT];
+        const INPUT0_TYPE bbox_ymax = input_location[location_offset + 3 * LOC_XY_SIZE_PRODUCT];
 
         if (VARIANCE_ENCODED_IN_TARGET)
         {
@@ -165,14 +168,14 @@ inline void FUNC(get_decoded_bbox)(UNIT_TYPE* decoded_bbox, __global UNIT_TYPE* 
     }
     if (CLIP_BEFORE_NMS)
     {
-        decoded_bbox[0] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[0]));
-        decoded_bbox[1] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[1]));
-        decoded_bbox[2] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[2]));
-        decoded_bbox[3] = max(TO_UNIT_TYPE(0.0), min(TO_UNIT_TYPE(1.0), decoded_bbox[3]));
+        decoded_bbox[0] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[0]));
+        decoded_bbox[1] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[1]));
+        decoded_bbox[2] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[2]));
+        decoded_bbox[3] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[3]));
     }
 }
 
-inline UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline INPUT1_TYPE FUNC(get_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
@@ -182,24 +185,24 @@ inline UNIT_TYPE FUNC(get_score)(__global UNIT_TYPE* input_confidence, const uin
     return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : -1;
 }
 
-inline UNIT_TYPE4 FUNC(get_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline INPUT_TYPE4 FUNC(get_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
-    UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
-    CMP_TYPE4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
-    return select((UNIT_TYPE4)(-1, -1, -1, -1), scores, compare);
+    INPUT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
+    CMP_TYPE4 compare = isgreater(scores, (INPUT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    return select((INPUT_TYPE4)(-1, -1, -1, -1), scores, compare);
 }
 
-inline CMP_TYPE4 FUNC(filter_score4)(__global UNIT_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
+inline CMP_TYPE4 FUNC(filter_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
 {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
             CONF_PADDING;
-    UNIT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
-    CMP_TYPE4 compare = isgreater(scores, (UNIT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
+    INPUT_TYPE4 scores = vload4(0, input_confidence + confidence_offset);
+    CMP_TYPE4 compare = isgreater(scores, (INPUT_TYPE4)(CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD, CONFIDENCE_THRESHOLD));
     return select((CMP_TYPE4)(0, 0, 0, 0), (CMP_TYPE4)(1, 1, 1, 1), compare);
 }
