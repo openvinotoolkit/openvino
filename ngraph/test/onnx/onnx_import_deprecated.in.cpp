@@ -36,7 +36,7 @@ using Outputs = std::vector<std::vector<float>>;
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_affine)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/affine.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/affine.onnx"));
 
     // input/output shape (1, 3)
     auto input = test::NDArray<float, 2>{{{0.f, 1.f, 2.f}}}.get_vector();
