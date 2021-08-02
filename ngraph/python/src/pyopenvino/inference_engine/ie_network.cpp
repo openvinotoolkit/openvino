@@ -79,8 +79,10 @@ void regclass_IENetwork(py::module m)
     }, py::arg("outputs"));
     cls.def("add_output", &InferenceEngine::CNNNetwork::addOutput,
             py::arg("layer_name"), py::arg("output_index")=0);
-    cls.def("serialize", &InferenceEngine::CNNNetwork::serialize,
-            py::arg("path_to_xml"), py::arg("path_to_bin")="");
+
+    cls.def("serialize", [](InferenceEngine::CNNNetwork& self, const std::string& path_to_xml, const std::string& path_to_bin) {
+        self.serialize(path_to_xml, path_to_bin);
+    }, py::arg("path_to_xml"), py::arg("path_to_bin")="");
 
     cls.def("get_function",
             [](InferenceEngine::CNNNetwork& self) {
