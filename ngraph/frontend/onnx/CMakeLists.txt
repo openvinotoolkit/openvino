@@ -4,3 +4,6 @@
 
 add_subdirectory(onnx_common)
 add_subdirectory(onnx_import)
+if (NGRAPH_ONNX_FRONTEND_ENABLE)
+    add_subdirectory(frontend)
+endif()
