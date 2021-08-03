@@ -41,10 +41,12 @@ namespace ngraph
                 void loop_cumsum(std::vector<T>& output_data,
                                  const bool exclusive,
                                  const bool reverse,
-                                 const size_t slices_count,
+                                 const Shape& shape,
                                  const T* data_ptr,
                                  const size_t axis_dim_size)
                 {
+                   const auto slices_count = shape_size(Shape(
+                        shape.begin(), shape.begin() + shape.size() - 1));
                     auto axis_dim_counter = 0;
                     for (auto i = 0; i < slices_count; ++i)
                     {
@@ -95,6 +97,28 @@ namespace ngraph
                                          transposed_axes.data(),
                                          transposed_shape);
                 }
+
+                template <typename T, typename P>
+                void transpose_to_original(T* arg,
+                                            T* out,
+                                            const P axis,
+                                            const Shape& tensor_shape,
+                                            Shape& transposed_shape)
+                {
+                    std::vector<int64_t> transposed_axes(tensor_shape.size());
+                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                    std::rotate(transposed_axes.begin() + axis,
+                                transposed_axes.end() - 1,
+                                transposed_axes.end());
+
+                    std::vector<T> transposed_output_data(shape_size(tensor_shape));
+                    reference::transpose(reinterpret_cast<char*>(arg),
+                                         reinterpret_cast<char*>(out),
+                                         transposed_shape,
+                                         sizeof(T),
+                                         transposed_axes.data(),
+                                         tensor_shape);
+                }
             } // namespace details
 
             template <typename T, typename P>
@@ -129,20 +153,8 @@ namespace ngraph
                     details::loop_cumsum(
                         output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
 
-                    std::vector<int64_t> transposed_axes(tensor_shape.size());
-                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
-                    std::rotate(transposed_axes.begin() + axis,
-                                transposed_axes.end() - 1,
-                                transposed_axes.end());
-
                     std::vector<T> transposed_output_data(shape_size(tensor_shape));
-                    reference::transpose(reinterpret_cast<char*>(output_data.data()),
-                                         reinterpret_cast<char*>(transposed_output_data.data()),
-                                         transposed_shape,
-                                         sizeof(T),
-                                         transposed_axes.data(),
-                                         tensor_shape);
-
+                    details::transpose_to_original(output_data.data(), transposed_output_data.data(), axis, tensor_shape, transposed_shape);
                     std::copy(begin(transposed_output_data), end(transposed_output_data), out);
                 }
             }
