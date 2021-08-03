@@ -16,7 +16,7 @@ jobs:
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
-    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    INSTALL_DIR: $(WORK_DIR)/install_pkg/openvino
     BUILD_DIR: $(WORK_DIR)/build
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
@@ -29,6 +29,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -113,7 +114,6 @@ jobs:
 
   - script: |
       source $(INSTALL_DIR)/bin/setupvars.sh
-      echo "2021.2" > $(INSTALL_DIR)/deployment_tools/inference_engine/version.txt
       CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
     workingDirectory: $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Build ONNX Runtime'
