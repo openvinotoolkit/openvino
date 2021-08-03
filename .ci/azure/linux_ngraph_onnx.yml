@@ -68,6 +68,9 @@ jobs:
     submodules: recursive
     path: openvino
 
+  - script: sudo apt --assume-yes install git-lfs docker-ce docker-ce-cli
+    displayName: 'Install dependencies'
+
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
     displayName: 'Docker build $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
 
