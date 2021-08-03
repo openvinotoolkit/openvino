@@ -3,6 +3,7 @@
 
 import os
 from datetime import datetime
+from math import ceil
 import numpy as np
 
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
