@@ -21,7 +21,8 @@
 #include "mkldnn_eltwise_node.h"
 #include <limits>
 #include "common/cpu_memcpy.h"
-#include "common/tensor_desc_creator.h"
+#include "common/blocked_desc_creator.h"
+#include <cpu_memory_desc_utils.h>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -61,19 +62,19 @@ MKLDNNConcatNode::MKLDNNConcatNode(const std::shared_ptr<ngraph::Node>& op, cons
 }
 
 void MKLDNNConcatNode::getSupportedDescriptors() {
-    auto& firstParentDims = getParentEdgeAt(0)->getDims();
+    auto& firstParentDims = getParentEdgeAt(0)->getShape().getStaticDims();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
-        auto& dims = getParentEdgeAt(i)->getDims();
+        auto& dims = getParentEdgeAt(i)->getShape().getStaticDims();
         bool incorrectDims = false;
-        for (size_t j = 0; j < firstParentDims.ndims(); j++) {
+        for (size_t j = 0; j < firstParentDims.size(); j++) {
             if (j == axis)
                 continue;
-            if (dims.ndims() != firstParentDims.ndims() || firstParentDims[j] != dims[j]) {
+            if (dims.size() != firstParentDims.size() || firstParentDims[j] != dims[j]) {
                 incorrectDims = true;
                 break;
             }
         }
-        if (incorrectDims || firstParentDims.ndims() == 0) {
+        if (incorrectDims || firstParentDims.size() == 0) {
             IE_THROW() << "Incorrect input dimensions for concat node " << getName();
         }
     }
@@ -100,19 +101,19 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     // Concat supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
 
-    auto& dstDims = getChildEdgeAt(0)->getDims();
-    std::vector<TensorDescCreatorTypes> tdCreatorTypes = {TensorDescCreatorTypes::ncsp, TensorDescCreatorTypes::nspc};
+    auto& dstDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    std::vector<LayoutType> tdCreatorTypes = {LayoutType::ncsp, LayoutType::nspc};
 
     // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation
-    if (dstDims.ndims() > channelAxis) {
-        for (auto item : { std::make_pair(8lu, TensorDescCreatorTypes::nCsp8c), std::make_pair(16lu, TensorDescCreatorTypes::nCsp16c)}) {
-            SizeVector blkDims = dstDims.ToSizeVector();
+    if (dstDims.size() > channelAxis) {
+        for (auto item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+            SizeVector blkDims = dstDims;
             if (blkDims[channelAxis] % item.first)
                 continue;
 
             bool blocked = true;
             for (size_t i = 0; i < getParentEdges().size(); i++) {
-                auto& srcDims = getParentEdgeAt(i)->getDims();
+                auto& srcDims = getParentEdgeAt(i)->getShape().getStaticDims();
                 if (srcDims[channelAxis] % item.first) {
                     blocked = false;
                     break;
@@ -126,28 +127,27 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 
     std::vector<size_t> pdIndexesToReuse;
 
-    auto& creatorsMap = TensorDescCreator::getCommonCreators();
-    auto itrRange = TensorDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstDims.ndims()), tdCreatorTypes);
+    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    auto itrRange = BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstDims.size()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
-        InferenceEngine::LayerConfig config;
+        NodeConfig config;
 
         config.dynBatchSupport = true;
         config.outConfs.resize(1);
         config.outConfs[0].inPlace = -1;
         config.outConfs[0].constant = false;
-        config.outConfs[0].desc = itr->second->createDesc(outputPrecision, dstDims.ToSizeVector());
-        memory::format_tag outFmt = MKLDNNMemoryDesc(config.outConfs[0].desc).getFormat();
+        config.outConfs[0].desc = itr->second->createUniqueDesc(outputPrecision, dstDims);
 
         config.inConfs.resize(getParentEdges().size());
 
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             config.inConfs[i].inPlace = -1;
             config.inConfs[i].constant = false;
-            config.inConfs[i].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                    itr->second->createDesc(inputPrecision, getParentEdgeAt(i)->getDims().ToSizeVector()));
+            config.inConfs[i].desc = MemoryDescUtils::applyUndefinedOffset(
+                    itr->second->createDesc(inputPrecision, getParentEdgeAt(i)->getShape().getStaticDims()));
         }
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, outFmt);
-        if (itr->first != TensorDescCreatorTypes::nspc) {
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
+        if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
         }
     }
@@ -161,8 +161,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         const auto& refConfig = supportedPrimitiveDescriptors[refPdIndex].getConfig();
         auto config = refConfig;
 
-        const auto& order = refConfig.outConfs[0].desc.getBlockingDesc().getOrder();
-        const auto& blkDims = refConfig.outConfs[0].desc.getBlockingDesc().getBlockDims();
+        const auto &order = refConfig.outConfs[0].desc->as<BlockedMemoryDesc>()->getOrder();
+        const auto &blkDims = refConfig.outConfs[0].desc->as<BlockedMemoryDesc>()->getBlockDims();
         auto numOfDim = blkDims.size();
 
         SizeVector offsets(numOfDim, 0lu);
@@ -178,17 +178,16 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        config.outConfs[0].desc = TensorDesc(outputPrecision, dstDims.ToSizeVector(), {blkDims, order, offset, offsets, strides});
-        memory::format_tag outFmt = MKLDNNMemoryDesc(config.outConfs[0].desc).getFormat();
+        config.outConfs[0].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(outputPrecision, dstDims, blkDims, order, offset, offsets, strides);
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            const auto& srcBlkDims = refConfig.inConfs[i].desc.getBlockingDesc().getBlockDims();
-            const auto& dims = refConfig.inConfs[i].desc.getDims();
+            const auto& srcBlkDims = refConfig.inConfs[i].desc->as<BlockedMemoryDesc>()->getBlockDims();
+            const auto& dims = refConfig.inConfs[i].desc->getShape().getStaticDims();
 
             config.inConfs[i].inPlace = 0;
-            config.inConfs[i].desc = TensorDesc(inputPrecision, dims, {srcBlkDims, order, offset, offsets, strides});
+            config.inConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inputPrecision, dims, srcBlkDims, order, offset, offsets, strides);
         }
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFmt);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
 }
 
@@ -210,7 +209,9 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         canOptimize = false;
     }
 
-    std::map<PartialBlkDesc, size_t> formatFrequency;
+    std::map<LayoutType, size_t> formatFrequency;
+    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
+
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -224,10 +225,11 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         if (outputIndex < 0 || outputIndex >= parent_config.outConfs.size())
             IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = parent_config.outConfs[outputIndex].desc;
-        if (port_desc.getLayout() == Layout::ANY)
-            continue;
-        auto partial_format_desc = PartialBlkDesc::extractFrom(port_desc);
-        formatFrequency[partial_format_desc] += 1;
+        for (auto& item : supportedLayouts) {
+            if (port_desc->hasLayoutType(item)) {
+                formatFrequency[item] += 1;
+            }
+        }
     }
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
@@ -241,37 +243,47 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         if (inputIndex < 0 || inputIndex >= config.inConfs.size())
             IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = config.inConfs[inputIndex].desc;
-        if (port_desc.getLayout() == Layout::ANY)
-            continue;
-        auto partial_format_desc = PartialBlkDesc::extractFrom(port_desc);
-        formatFrequency[partial_format_desc] += 1;
+        for (auto& item : supportedLayouts) {
+            if (port_desc->hasLayoutType(item)) {
+                formatFrequency[item] += 1;
+            }
+        }
     }
 
     size_t maxCount = 0;
-    auto outDims = getChildEdgeAt(0)->getDims().ToSizeVector();
-    auto convertTo = PartialBlkDesc::makePlain(outDims);
+    auto outDims = getChildEdgeAt(0)->getShape().getStaticDims();
+    LayoutType convertTo = LayoutType::ncsp;
     for (auto &it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (isInQuantizedGraph && it.first == PartialBlkDesc::makeTailC(outDims)) {
+            if (isInQuantizedGraph && it.first == LayoutType::nspc) {
                 convertTo = it.first;
-            } else if (it.first == PartialBlkDesc::makeCBlocked(outDims, 8) || it.first == PartialBlkDesc::makeCBlocked(outDims, 16)) {
+            } else if (it.first == LayoutType::nCsp8c || it.first == LayoutType::nCsp16c) {
                 convertTo = it.first;
             }
         }
     }
 
-    if (convertTo.isAutoExtendedWith(outDims))
-        convertTo = PartialBlkDesc::makePlain(outDims);
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (convertTo.isAutoExtendedWith(getParentEdgeAt(i)->getDims().ToSizeVector()))
-            convertTo = PartialBlkDesc::makePlain(outDims);
+    for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
+        if (convertTo == item.second) {
+            if (outDims[1] % item.first != 0) {
+                convertTo = LayoutType::ncsp;
+                break;
+            }
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                auto& inpDims = getParentEdgeAt(i)->getShape().getStaticDims();
+                if (inpDims[1] % item.first != 0) {
+                    convertTo = LayoutType::ncsp;
+                    break;
+                }
+            }
+        }
     }
 
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
-        if (PartialBlkDesc::extractFrom(supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc) == convertTo) {
+        if (supportedPrimitiveDescriptors[i].getConfig().outConfs[0].desc->hasLayoutType(convertTo)) {
             if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown, canOptimize)) {
                 canSelectPrimitive.push_back(i);
             }
@@ -283,7 +295,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         return;
     }
 
-    // if there are more then one PD with similar data layouts - select the optimized one
+    // if there are more than one PD with similar data layouts - select the optimized one
     for (auto indx : canSelectPrimitive) {
         if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
@@ -321,7 +333,7 @@ void MKLDNNConcatNode::createPrimitive() {
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
     //check if selected Tensor descriptor has nspc layout and concat axis is C
-    if (axis == channelAxis && getChildEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
+    if (axis == channelAxis && getChildEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
         canOptimizeNspc = true;
         return;
     }
@@ -337,8 +349,8 @@ void MKLDNNConcatNode::createPrimitive() {
         }
 
         auto desc = srcMemPtr->GetDescriptor();
-        auto dims = getParentEdgeAt(i)->getDims();
-        for (size_t j = 0; j < dims.ndims(); j++) {
+        auto& dims = getParentEdgeAt(i)->getShape().getStaticDims();
+        for (size_t j = 0; j < dims.size(); j++) {
             desc.data.dims[j] = dims[j];
         }
 
@@ -346,8 +358,8 @@ void MKLDNNConcatNode::createPrimitive() {
     }
 
     auto desc = getChildEdgeAt(0)->getMemory().GetDescriptor();
-    auto dims = getChildEdgeAt(0)->getDims();
-    for (size_t i = 0; i < dims.ndims(); i++) {
+    auto& dims = getChildEdgeAt(0)->getShape().getStaticDims();
+    for (size_t i = 0; i < dims.size(); i++) {
         desc.data.dims[i] = dims[i];
         desc.data.padded_dims[i] = dims[i];
     }
@@ -370,79 +382,77 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
 
-    if (!isOptimized()) {
+   if (!isOptimized()) {
+       MKLDNNNode::initOptimalPrimitiveDescriptor();
         auto config = selected_pd->getConfig();
-        if (!isInitConfig(config)) {
+        if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
-                config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+                config.inConfs[i].desc = getDefinedInputDesc(config, i);
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].desc.setPrecision(inputPrecision);
+                config.inConfs[i].desc->setPrecision(inputPrecision);
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
-                config.outConfs[i].desc.setPrecision(outputPrecision);
+                config.outConfs[i].desc = getDefinedOutputDesc(config, i);
+                config.outConfs[i].desc->setPrecision(outputPrecision);
             }
 
             initDescriptor(config);
         }
-
-        return;
     }
 
     auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
+    if (isConfigDefined(config))
         return;
 
     for (size_t i = 0; i < config.outConfs.size(); i++) {
-        if (!isUninitTensorDesc(config.outConfs[i].desc))
+        if (config.outConfs[i].desc->isDefined())
             continue;
 
         int num = getChildEdgeAt(i)->getOutputNum();
         if (num >= 0) {
             auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-            childConf.desc.setPrecision(config.outConfs[i].desc.getPrecision());
+            childConf.desc->setPrecision(config.outConfs[i].desc->getPrecision());
 
             if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-                if (isUninitTensorDesc(childConf.desc) && childConf.inPlace >= 0)
+                if (!childConf.desc->isDefined() && childConf.inPlace >= 0)
                     getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
-                if (!isUninitTensorDesc(childConf.desc) &&
-                        MKLDNNExtensionUtils::initTensorsAreEqual(childConf.desc, config.outConfs[i].desc)) {
-                    config.outConfs[i].desc = childConf.desc;
+                if (childConf.desc->isDefined() && childConf.desc->isCompatible(*config.outConfs[i].desc)) {
+                    config.outConfs[i].desc = childConf.desc->clone();
                     continue;
                 }
             }
         }
-        config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
-                                                              config.outConfs[i].desc.getDims(), {
-                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
-                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder()
-                                                              });
+
+        // reset undefined offsets
+        config.outConfs[i].desc = MemoryDescUtils::resetOffset(config.outConfs[i].desc.get());
     }
+    auto firstOutBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.outConfs[0].desc);
     size_t offset = 0;
     for (size_t i = 0; i < config.inConfs.size(); i++) {
-        config.inConfs[i].desc = InferenceEngine::TensorDesc(config.inConfs[i].desc.getPrecision(),
-                                                             config.inConfs[i].desc.getDims(), {
-                                                                  config.inConfs[i].desc.getBlockingDesc().getBlockDims(),
-                                                                  config.inConfs[i].desc.getBlockingDesc().getOrder(),
-                                                                  config.outConfs[0].desc.getBlockingDesc().getOffsetPadding() + offset,
-                                                                  config.outConfs[0].desc.getBlockingDesc().getOffsetPaddingToData(),
-                                                                  config.outConfs[0].desc.getBlockingDesc().getStrides()
-                                                             });
+        auto inpBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[i].desc);
+        config.inConfs[i].desc = MKLDNNPlugin::make_unique<BlockedMemoryDesc>(inpBlockingDesc.getPrecision(),
+                                                                inpBlockingDesc.getShape().getStaticDims(),
+                                                                inpBlockingDesc.getBlockDims(),
+                                                                inpBlockingDesc.getOrder(),
+                                                                firstOutBlockingDesc.getOffsetPadding() + offset,
+                                                                firstOutBlockingDesc.getOffsetPaddingToData(),
+                                                                firstOutBlockingDesc.getStrides());
         size_t axisSize = 1;
 
-        if (config.inConfs[0].desc.getLayout() == Layout::NHWC) {
-            // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for nchw8c
-            size_t realAxis = inverseOrder(config.inConfs[0].desc.getBlockingDesc().getOrder(), axis);
-            for (size_t j = realAxis; j < config.inConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
-                size_t jj = config.inConfs[0].desc.getBlockingDesc().getOrder()[j];
-                axisSize *= config.inConfs[i].desc.getBlockingDesc().getBlockDims()[jj];
+        auto firstInpBlockingDesc = MemoryDescUtils::convertToBlockedDescriptor(*config.inConfs[0].desc);
+        if (firstInpBlockingDesc.hasLayoutType(LayoutType::nspc)) {
+            // This is more general and works for any "direct" Layout (such as nchw or nhwc), but it doesn't work for blocked
+            size_t realAxis = inverseOrder(firstInpBlockingDesc.getOrder(), axis);
+            for (size_t j = realAxis; j < inpBlockingDesc.getBlockDims().size(); j++) {
+                size_t jj = firstInpBlockingDesc.getOrder()[j];
+                axisSize *= inpBlockingDesc.getBlockDims()[jj];
             }
         } else {
             // This works for nchw and nchw8c/nchw16c
-            for (size_t j = axis; j < config.inConfs[i].desc.getBlockingDesc().getBlockDims().size(); j++) {
-                axisSize *= config.inConfs[i].desc.getBlockingDesc().getBlockDims()[j];
+            for (size_t j = axis; j < inpBlockingDesc.getBlockDims().size(); j++) {
+                axisSize *= inpBlockingDesc.getBlockDims()[j];
             }
         }
         offset += axisSize;
@@ -470,7 +480,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
 }
 
 InferenceEngine::Precision MKLDNNConcatNode::getRuntimePrecision() const {
-    return MKLDNNExtensionUtils::getMaxPrecision(getInputPrecisions());
+    return getMaxPrecision(getInputPrecisions());
 }
 
 void MKLDNNConcatNode::execNspcSpecCase() {

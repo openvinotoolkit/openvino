@@ -1,6 +1,7 @@
 # Converting TensorFlow* Object Detection API Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models}
 
 > **NOTES**:
+> * Starting with the 2022.1 release, the Model Optimizer can convert the TensorFlow\* Object Detection API Faster and Mask RCNNs topologies differently. By default, the Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the pre-processing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info" and moreover, for some models the produced inference results are closer to the original TensorFlow\* model. In order to trigger new behaviour the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
 > * Starting with the 2021.1 release, the Model Optimizer converts the TensorFlow\* Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the Inference Engine using dedicated reshape API. Refer to [Using Shape Inference](../../../../IE_DG/ShapeInference.md) for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
 > * To generate IRs for SSD topologies, the Model Optimizer creates a number of `PriorBoxClustered` layers instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the Inference Engine using dedicated Inference Engine API. The reshaping is supported for all SSD topologies except FPNs which contain hardcoded shapes for some operations preventing from changing topology input shape.  
 
@@ -29,14 +30,16 @@ To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/d
     * `faster_rcnn_support_api_v1.13.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.X
     * `faster_rcnn_support_api_v1.14.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
     * `faster_rcnn_support_api_v1.15.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
-    * `faster_rcnn_support_api_v2.0.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
+    * `faster_rcnn_support_api_v2.0.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 up to 2.3.X inclusively
+    * `faster_rcnn_support_api_v2.4.json` --- for Faster R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.4 or higher
     * `mask_rcnn_support.json` --- for Mask R-CNN topologies from the TF 1.X models zoo trained with TensorFlow\* version 1.9.0 or lower.
     * `mask_rcnn_support_api_v1.7.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.7.0 up to 1.9.X inclusively
     * `mask_rcnn_support_api_v1.11.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.11.0 up to 1.12.X inclusively
     * `mask_rcnn_support_api_v1.13.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.13.0 up to 1.13.X inclusively
     * `mask_rcnn_support_api_v1.14.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.14.0 up to 1.14.X inclusively
     * `mask_rcnn_support_api_v1.15.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 1.15.0 up to 2.0
-    * `mask_rcnn_support_api_v2.0.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 or higher
+    * `mask_rcnn_support_api_v2.0.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.0 up to 2.3.X inclusively
+    * `mask_rcnn_support_api_v2.4.json` --- for Mask R-CNN topologies trained using the TensorFlow\* Object Detection API version 2.4 or higher
     * `rfcn_support.json` --- for RFCN topology from the models zoo trained with TensorFlow\* version up to 1.9.X inclusively
     * `rfcn_support_api_v1.10.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.10.0 up to 1.12.X inclusively
     * `rfcn_support_api_v1.13.json` --- for RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X

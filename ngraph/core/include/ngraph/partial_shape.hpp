@@ -54,7 +54,7 @@ namespace ngraph
 
         /// \brief Constructs a PartialShape with static rank from a vector of Dimension.
         /// \param dimensions The Dimension values for the constructed shape.
-        PartialShape(const std::vector<Dimension>& dimensions);
+        PartialShape(std::vector<Dimension> dimensions);
 
         /// \brief Constructs a PartialShape with static rank from a vector of dimensions values.
         /// \param dimensions The Dimension values for the constructed shape.
@@ -269,7 +269,7 @@ namespace ngraph
 
     private:
         // Private constructor for PartialShape::dynamic().
-        PartialShape(bool rank_is_static, const std::vector<Dimension>& dimensions);
+        PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);
 
         // True if the shape's rank is static.
         bool m_rank_is_static;
