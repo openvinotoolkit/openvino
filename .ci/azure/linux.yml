@@ -16,7 +16,7 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_F16S_WU2
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
@@ -43,6 +43,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -74,15 +75,12 @@ jobs:
     submodules: recursive
     path: openvino_contrib
 
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
-
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      # For opencv-python: setuptools and upgrade
-      sudo apt-get install python3-setuptools patchelf
+      set -e
+      $(REPO_DIR)/install_build_dependencies.sh
+      # Move jdk into contrib
+      sudo apt --assume-yes install openjdk-11-jdk
+      # For opencv-python: python3-setuptools and pip upgrade
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
@@ -103,6 +101,11 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - checkout: testdata
+    clean: true
+    lfs: true
+    path: testdata
+
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
@@ -111,7 +114,7 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
         -DNGRAPH_ONNX_IMPORT_ENABLE=ON
@@ -141,8 +144,10 @@ jobs:
     displayName: 'List install files'
 
   - script: |
+      set -e
       mkdir $(INSTALL_DIR)/opencv/
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu18/opencv/* $(INSTALL_DIR)/opencv/
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
+      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -163,7 +168,7 @@ jobs:
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.6 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
@@ -222,10 +227,9 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      . $(SETUPVARS) -pyver 3.6 && pytest pytest --junitxml=TEST-PythonAPI.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
-    enabled: false
 
   - task: PublishTestResults@2
     condition: always()
