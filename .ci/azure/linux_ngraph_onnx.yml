@@ -70,7 +70,7 @@ jobs:
 
   - script: |
       set -e
-      sudo apt --assume-yes install git-lfs
+      sudo apt --assume-yes install git-lfs uidmap
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
       dockerd-rootless-setuptool.sh install
