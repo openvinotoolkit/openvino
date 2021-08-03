@@ -8,7 +8,7 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
 endif()
 
-if(ENABLE_PYTHON)
+if(ENABLE_PYTHON OR NGRAPH_PYTHON_BUILD_ENABLE)
     find_package(PythonInterp 3 REQUIRED)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
