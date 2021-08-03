@@ -129,8 +129,9 @@ namespace ngraph
                         const bool exclusive,
                         const bool reverse)
             {
-                const auto axis = axis_tensor[0];
-                const bool is_last_axis = axis == tensor_shape.size() - 1;
+                const auto rank = tensor_shape.size();
+                const auto axis = axis_tensor[0] >= 0 ? axis_tensor[0] : rank + axis_tensor[0];
+                const bool is_last_axis = axis == rank - 1;
                 if (is_last_axis)
                 {
                     std::vector<T> output_data(shape_size(tensor_shape), 0);
