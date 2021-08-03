@@ -137,7 +137,7 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // Code block below tries to detect such cases and reinterpret data planar formats (e.g. nchw)
         // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
         if (src_blocked->GetDesc().hasLayoutType(LayoutType::ncsp) &&
-            src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
+            src_blocked->GetDims().size() != dst_blocked->GetDims().size()) {
             const auto newDims = dst_blocked->GetDims();
             const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());
 
