@@ -16,6 +16,42 @@ from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.shape import node_to_get_shape_value_of_indices, new_shape_node_from_shape_nodes
 
 
+class FuseTransposeBToMatMul(BackReplacementPattern):
+    """
+        Fuses Transpose to MatMul if transpose_b = False
+    """
+    enabled = True
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('const', dict(type='Const')),
+                ('const_d', dict()),
+                ('transpose', dict(type='Transpose')),
+                ('transpose_d', dict()),
+                ('matmul', dict(type='MatMul')),
+            ],
+            edges=[
+                ('const', 'const_d'),
+                ('const_d', 'transpose', {'in': 1}),
+                ('transpose', 'transpose_d'),
+                ('transpose_d', 'matmul', {'in': 1})
+            ]
+        )
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        matmul = match['matmul']
+        transpose = match['transpose']
+
+        if matmul.has_and_set('transpose_b'):
+            return
+
+        if np.array_equal(int64_array(transpose.in_port(1).data.get_value()), [1, 0]):
+            matmul['transpose_b'] = True
+            matmul.in_port(1).disconnect()
+            transpose.in_port(0).get_connection().set_destination(matmul.in_port(1))
+
+
 class MatMulConstTransposesExtraction(BackReplacementPattern):
     """
     Resolves transpose_a(b) key from MatMul operation if corresponding input is constant by inserting Transpose,
@@ -24,6 +60,9 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
 
     enabled = True
     force_clean_up = True
+
+    def run_after(self):
+        return [FuseTransposeBToMatMul]
 
     @staticmethod
     def pattern():

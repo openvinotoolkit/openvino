@@ -11,6 +11,7 @@ from extensions.ops.select import Select
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
+from extensions.back.MatMulNormalizer import PullTransposeThroughFQUp
 from mo.ops.const import Const
 
 
@@ -102,6 +103,9 @@ class CompressQuantizeWeights(BackReplacementPattern):
                 ('const_d', 'fake_quantize', {'in': 0}),
             ]
         )
+
+    def run_after(self):
+        return [PullTransposeThroughFQUp]
 
     @staticmethod
     def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
