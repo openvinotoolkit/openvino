@@ -31,6 +31,6 @@ add_subdirectory(core)
 add_subdirectory(frontend)
 add_subdirectory(test)
 
-if(ENABLE_PYTHON)
+if(NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)
 endif()
