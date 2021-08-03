@@ -174,7 +174,7 @@ function(build_docs)
     # Preprocess docs
     add_custom_command(TARGET doxygen_xml
                        PRE_BUILD
-                       # COMMAND ${PYTHON_EXECUTABLE} -mpip install -r ${DOCS_SOURCE_DIR}/requirements.txt
+                       COMMAND ${CMAKE_COMMAND} -E remove_directory ${XML_OUTPUT}
                        ${commands}
                        WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                        COMMENT "Pre-process docs"
