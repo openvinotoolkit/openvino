@@ -72,6 +72,29 @@ namespace ngraph
                         axis_dim_counter += axis_dim_size;
                     }
                 }
+
+                template <typename T, typename P>
+                void transpose_to_last_axis(const T* arg,
+                                            T* out,
+                                            const P axis,
+                                            const Shape& tensor_shape,
+                                            Shape& transposed_shape)
+                {
+                    std::vector<int64_t> transposed_axes(tensor_shape.size());
+                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                    std::rotate(transposed_axes.begin() + axis,
+                                transposed_axes.begin() + axis + 1,
+                                transposed_axes.end());
+                    std::rotate(transposed_shape.begin() + axis,
+                                transposed_shape.begin() + axis + 1,
+                                transposed_shape.end());
+                    reference::transpose(reinterpret_cast<const char*>(arg),
+                                         reinterpret_cast<char*>(out),
+                                         tensor_shape,
+                                         sizeof(T),
+                                         transposed_axes.data(),
+                                         transposed_shape);
+                }
             } // namespace details
 
             template <typename T, typename P>
@@ -95,35 +118,24 @@ namespace ngraph
                 }
                 else
                 {
-                    std::vector<int64_t> transposed_axes(tensor_shape.size());
-                    std::vector<size_t> transposed_shape(tensor_shape);
+                    Shape transposed_shape(tensor_shape);
+                    details::transpose_to_last_axis(arg, out, axis, tensor_shape, transposed_shape);
 
-                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
-                    std::rotate(transposed_axes.begin() + axis,
-                                transposed_axes.begin() + axis + 1,
-                                transposed_axes.end());
-                    std::rotate(transposed_shape.begin() + axis,
-                                transposed_shape.begin() + axis + 1,
-                                transposed_shape.end());
-                    reference::transpose(reinterpret_cast<const char*>(arg),
-                                         reinterpret_cast<char*>(out),
-                                         tensor_shape,
-                                         sizeof(T),
-                                         transposed_axes.data(),
-                                         transposed_shape);
-                    std::vector<T> transposed_output_data(shape_size(tensor_shape));
-
-                    std::vector<T> output_data(shape_size(tensor_shape), 0);
                     const auto slices_count =
                         shape_size(Shape(transposed_shape.begin(),
                                          transposed_shape.begin() + transposed_shape.size() - 1));
+
+                    std::vector<T> output_data(shape_size(tensor_shape), 0);
                     details::loop_cumsum(
                         output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
 
+                    std::vector<int64_t> transposed_axes(tensor_shape.size());
                     std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
                     std::rotate(transposed_axes.begin() + axis,
                                 transposed_axes.end() - 1,
                                 transposed_axes.end());
+
+                    std::vector<T> transposed_output_data(shape_size(tensor_shape));
                     reference::transpose(reinterpret_cast<char*>(output_data.data()),
                                          reinterpret_cast<char*>(transposed_output_data.data()),
                                          transposed_shape,
