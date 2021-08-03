@@ -15,6 +15,8 @@
 #include "cldnn/primitives/generic_primitive.hpp"
 #include "cldnn/primitives/reorder.hpp"
 
+using namespace InferenceEngine;
+
 namespace CLDNNPlugin {
 
 template<typename T>
@@ -251,13 +253,36 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CLDNNCu
     p.primitiveIDs[genericLayerName] = prevLayerName;
 }
 
+TensorDesc IETensorFromClnnLayout(const cldnn::layout &layout) {
+    auto dataType = layout.data_type;
+    Precision p;
+    switch(dataType) {
+        case cldnn::data_types::u8: p = Precision::U8; break;
+        case cldnn::data_types::i8: p = Precision::I8; break;
+        case cldnn::data_types::i32: p = Precision::I32; break;
+        case cldnn::data_types::i64: p = Precision::I64; break;
+        case cldnn::data_types::f16: p = Precision::FP16; break;
+        case cldnn::data_types::f32: p = Precision::FP32; break;
+        default:
+            IE_THROW() << "The plugin does not support input " << cldnn::data_type_traits::name(dataType) << " precision";
+    }
+
+    auto const & tensor = layout.size;
+    return TensorDesc{
+        InferenceEngine::Precision::U8,
+        {tensor.batch[0], tensor.feature[0], tensor.spatial[0], tensor.spatial[1] },
+        Layout::NCHW // TODO: this is determined by what?
+    };
+}
+
 void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& op,
                               InferenceEngine::ILayerExecImpl::Ptr impl) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string genericLayerName = layer_type_name_ID(op);
+    auto context = p.GetContextPtr();
 
     // TODO: Handle reordering input/output dims... Requires a way to describe input/output layout
-    cldnn::generic_primitive::execute_function f = [genericLayerName, impl](
+    cldnn::generic_primitive::execute_function f = [genericLayerName, impl, context](
             const std::vector<cldnn::event::ptr>& dependent_events,
             const std::vector<cldnn::memory::ptr>& inputs,
             const std::vector<cldnn::memory::ptr>& outputs) {
@@ -271,11 +296,29 @@ void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& o
         // TODO: how do we have the user return an event?
         cldnn::event::ptr ev = stream.create_user_event(false);
 
-        // TODO: Wrap input buffers into RemoteBlobs
         std::vector<InferenceEngine::Blob::Ptr> inputBlobs(inputs.size());
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            auto& input = inputs[i];
+            // Construct a TensorDesc from memory information:
+            auto tensor = input->get_layout().size;
+            TensorDesc desc = IETensorFromClnnLayout(input->get_layout());
 
-        // TODO: Wrap output buffer(s) into RemoteBlob(s)
+            auto params = input->get_internal_params();
+            assert(params.mem_type == cldnn::shared_mem_type::shared_mem_buffer);
+
+            inputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+        }
+
         std::vector<InferenceEngine::Blob::Ptr> outputBlobs(outputs.size());
+        for (size_t i = 0; i < outputBlobs.size(); ++i) {
+            auto& output = outputs[i];
+            TensorDesc desc = IETensorFromClnnLayout(output->get_layout());
+
+            auto params = output->get_internal_params();
+            assert(params.mem_type == cldnn::shared_mem_type::shared_mem_buffer);
+
+            outputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+        }
 
         InferenceEngine::ResponseDesc resp;
         InferenceEngine::StatusCode rc = impl->execute(inputBlobs, outputBlobs, &resp);

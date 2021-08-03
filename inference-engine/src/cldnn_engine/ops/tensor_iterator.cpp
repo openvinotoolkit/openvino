@@ -60,7 +60,7 @@ void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &o
 
     // get body topology from ngraph function
     InferenceEngine::CNNNetwork body_network(op->get_body());
-    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), nullptr, true);
+    Program body_program(body_network, p.GetEnginePtr(), nullptr, p.GetConfig(), nullptr, true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges

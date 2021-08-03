@@ -49,7 +49,7 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network,
     , m_config(config)
     , m_extensionManager(extensionManager)
     , m_stream_id(stream_id) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config, m_extensionManager);
+    m_program = std::make_shared<Program>(network, GetEngine(), m_context, m_config, m_extensionManager);
     Build();
 }
 

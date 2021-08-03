@@ -95,11 +95,13 @@ bool Program::CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops,
 
 Program::Program(InferenceEngine::CNNNetwork& network,
                  std::shared_ptr<cldnn::engine> engine,
+                 InferenceEngine::gpu::ClContext::Ptr context,
                  const Config& config,
 				 GPUExtensionManager::Ptr extensionManager,
 				 bool createTopologyOnly)
     : m_config(config)
     , m_engine(engine)
+    , m_context(context)
     , m_curBatch(-1)
 	, queryMode(false)
     , m_extensionManager(extensionManager) {

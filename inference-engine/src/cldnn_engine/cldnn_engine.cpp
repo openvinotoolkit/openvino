@@ -622,7 +622,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
             std::const_pointer_cast<InferenceEngine::IInferencePlugin>(shared_from_this()),
             ParamMap(), conf));
     }
-    Program prog(m_defaultContext->getImpl()->GetEngine(), conf);
+    Program prog(m_defaultContext->getImpl()->GetEngine(), nullptr, conf);
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CNNetworkImpl representation is not supported anymore";

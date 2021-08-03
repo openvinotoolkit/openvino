@@ -18,6 +18,7 @@
 
 #include <cldnn/runtime/engine.hpp>
 #include <cldnn/graph/topology.hpp>
+#include <gpu/gpu_context_api_ocl.hpp>
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -71,13 +72,17 @@ public:
 class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network,
-	        std::shared_ptr<cldnn::engine> engine,
+            std::shared_ptr<cldnn::engine> engine,
+            InferenceEngine::gpu::ClContext::Ptr context,
 			const Config& config,
 	        GPUExtensionManager::Ptr extensionManager,
 			bool createTopologyOnly = false);
-    Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
-            m_curBatch(-1), queryMode(false), m_max_batch(1) {}
-    Program() : m_config({}), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
+    Program(std::shared_ptr<cldnn::engine> engine,
+            InferenceEngine::gpu::ClContext::Ptr context,
+            const Config &config)
+            : m_config(config), m_engine(engine), m_context(context),
+              m_curBatch(-1), queryMode(false), m_max_batch(1) {}
+    Program() : m_config({}), m_engine(nullptr), m_context(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
 
     static const cldnn::primitive_id m_preProcessTag;
     static const cldnn::primitive_id m_meanValuesTag;
@@ -109,6 +114,8 @@ public:
     GPUExtensionManager::Ptr m_extensionManager;
     cldnn::engine& GetEngine() const { return *m_engine; }
     std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
+    InferenceEngine::gpu::ClContext& GetContext() const { return *m_context; }
+    InferenceEngine::gpu::ClContext::Ptr GetContextPtr() const { return m_context; }
     const Config& GetConfig() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
@@ -158,6 +165,8 @@ private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
     std::shared_ptr<cldnn::engine> m_engine;
+    InferenceEngine::gpu::ClContext::Ptr m_context;
+
     Config m_config;
 
     std::shared_ptr<cldnn::topology> m_topology;
