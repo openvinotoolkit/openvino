@@ -171,7 +171,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     auto num_loc_classes = (detectOutParams.detectOutParams.share_location) ? 1 : num_classes;
     auto num_prior_boxes = (loc_feature_num / (num_loc_classes * prior_box_size));
 
-    constexpr size_t buffer_bytes = 16;  // The size of struct Scores in detection_output_gpu_ref.cl
+    constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
     size_t num_scores_size = num_of_images * (num_classes + 1) * sizeof(int);

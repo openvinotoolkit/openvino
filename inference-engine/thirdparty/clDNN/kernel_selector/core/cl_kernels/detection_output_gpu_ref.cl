@@ -11,9 +11,8 @@
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 #define NUM_CLASSES_ACC (NUM_CLASSES + 1)
 
-typedef struct {
-    int batchId;
-    int classId;
+typedef struct __attribute__((__packed__)) {
+    short classId;
     int boxId;
     INPUT1_TYPE score;
 } FUNC(Scores);
@@ -257,8 +256,7 @@ KERNEL (detection_output_ref_stage_0_caffe_opt)(
                     if ((bit_mask[mask_id][c] & bitset) == 0) continue;
                     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId + c) * BUFFER_STRIDE];
                     SCORES_INFO score_info;
-                    score_info.batchId = batchId;
-                    score_info.classId = classId + c;
+                    score_info.classId = (short)(classId + c);
                     score_info.boxId = i + bi;
                     score_info.score = score4[c];
                     scoresList[write_offsets[c]] = score_info;
@@ -331,8 +329,7 @@ KERNEL (detection_output_ref_stage_0_caffe)(
                     INPUT1_TYPE score = FUNC_CALL(get_score)(input_confidence, (i + bi), classId, batchId);
                     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
                     SCORES_INFO score_info;
-                    score_info.batchId = batchId;
-                    score_info.classId = classId;
+                    score_info.classId = (short)classId;
                     score_info.boxId = i + bi;
                     score_info.score = score;
                     scoresList[write_offset] = score_info;
@@ -366,8 +363,7 @@ KERNEL (detection_output_ref_stage_0_mxnet)(
     int idx_max_score = FUNC_CALL(get_largest_score)(input_confidence, priorId, batchId);
     INPUT1_TYPE score = FUNC_CALL(get_score)(input_confidence, priorId, idx_max_score, batchId);
     SCORES_INFO score_info;
-    score_info.batchId = batchId;
-    score_info.classId = idx_max_score;
+    score_info.classId = (short)idx_max_score;
     score_info.boxId = priorId;
     score_info.score = score;
     scoresList[priorId] = score_info;
@@ -530,7 +526,6 @@ KERNEL (detection_output_ref_stage_2_caffe)(
         if (keep)
         {
             SCORES_INFO score_info;
-            score_info.batchId = scoresList[idx_score].batchId;
             score_info.classId = scoresList[idx_score].classId;
             score_info.boxId = scoresList[idx_score].boxId;
             score_info.score = scoresList[idx_score].score;
@@ -586,7 +581,6 @@ KERNEL (detection_output_ref_stage_2_caffe)(
         if (keep)
         {
             SCORES_INFO score_info;
-            score_info.batchId = scoresList[idx_score].batchId;
             score_info.classId = scoresList[idx_score].classId;
             score_info.boxId = scoresList[idx_score].boxId;
             score_info.score = scoresList[idx_score].score;
@@ -627,7 +621,7 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
     {
         bool keep = true;
         int idx = scoresList[idx_score].boxId;
-        int cls = scoresList[idx_score].classId;
+        int cls = (int)scoresList[idx_score].classId;
         int loc_label = ((SHARE_LOCATION)? 0 : cls);
         int indice_offset = cls * NUM_OF_PRIORS;
         int scores_size_offset = batchId * NUM_CLASSES_ACC + cls;
@@ -649,7 +643,6 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
         if (keep)
         {
             SCORES_INFO score_info;
-            score_info.batchId = scoresList[idx_score].batchId;
             score_info.classId = scoresList[idx_score].classId;
             score_info.boxId = scoresList[idx_score].boxId;
             score_info.score = scoresList[idx_score].score;
@@ -674,7 +667,6 @@ KERNEL (detection_output_ref_stage_final_caffe)(
     const int batchId = get_global_id(0);
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[batchId * NUM_CLASSES * BUFFER_STRIDE];
-    __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[0];
 
     const int total_det = FUNC_CALL(get_accumulated_detections)(buffer2, batchId);
     buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = total_det;
@@ -687,13 +679,11 @@ KERNEL (detection_output_ref_stage_final_caffe)(
         {
             int scores_size_offset = batchId * NUM_CLASSES_ACC + idx_class;
             const int acc_num = buffer2[scores_size_offset];
-            int scores_offset = (batchId * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
+            __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
 
             for (uint idx_score = 0; idx_score < acc_num; idx_score++)
             {
-                SCORES_INFO score_info;
-                score_info = selectedScoresList[scores_offset + idx_score];
-                scoresList[num_det + idx_score] = score_info;
+                scoresList[num_det + idx_score] = selectedScoresList[idx_score];
             }
             num_det += acc_num;
             buffer2[scores_size_offset] = 0;
@@ -703,12 +693,10 @@ KERNEL (detection_output_ref_stage_final_caffe)(
 
         for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++)
         {
-            SCORES_INFO score_info;
-            score_info = scoresList[idx_num_det];
-            int scores_size_offset = batchId * NUM_CLASSES_ACC + score_info.classId;
+            int scores_size_offset = batchId * NUM_CLASSES_ACC + (int)scoresList[idx_num_det].classId;
             int acc_num = buffer2[scores_size_offset];
-            int scores_offset = (batchId * NUM_CLASSES * NUM_OF_PRIORS) + score_info.classId * NUM_OF_PRIORS + acc_num;
-            selectedScoresList[scores_offset] = score_info;
+            __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + (int)scoresList[idx_num_det].classId) * BUFFER_STRIDE];
+            selectedScoresList[acc_num] = scoresList[idx_num_det];
             buffer2[scores_size_offset] = (acc_num + 1);
         }
     }
@@ -720,19 +708,19 @@ KERNEL (detection_output_ref_stage_final_caffe)(
     {
         int scores_size_offset = batchId * NUM_CLASSES_ACC + idx_class;
         const int acc_num = buffer2[scores_size_offset];
-        int scores_offset = (batchId * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
+        __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(batchId * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
         for (uint idx_score = 0; idx_score < acc_num; idx_score++)
         {
             SCORES_INFO score_info;
-            score_info = selectedScoresList[scores_offset + idx_score];
+            score_info = selectedScoresList[idx_score];
             const int idx = startIdx + outputIdx;
 
-            output[idx * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(score_info.batchId);
-            output[idx * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+            output[idx * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(batchId);
+            output[idx * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? (int)score_info.classId - 1 : (int)score_info.classId);
             output[idx * OUTPUT_ROW_SIZE + 2] = TO_OUTPUT_TYPE(score_info.score);
             INPUT0_TYPE decoded_bbox[4];
-            const uint loc_label = ((SHARE_LOCATION)? 0 : score_info.classId);
-            FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, score_info.batchId);
+            const uint loc_label = ((SHARE_LOCATION)? 0 : (int)score_info.classId);
+            FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, batchId);
             INPUT0_TYPE xmin = decoded_bbox[0];
             INPUT0_TYPE ymin = decoded_bbox[1];
             INPUT0_TYPE xmax = decoded_bbox[2];
@@ -771,11 +759,9 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
     __global uchar *buffer1,
     __global int *buffer2)
 {
-    __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[0];
-    __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[0];
-
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
+        __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[idx_image * BUFFER_STRIDE];
         const int total_det = buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES];
 
         if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K)
@@ -785,28 +771,23 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
             {
                 int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
                 const int acc_num = buffer2[scores_size_offset];
-                int selected_scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
-                int scores_offset = idx_image * NUM_OF_PRIORS + num_det;
+                __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
 
                 for (uint idx_score = 0; idx_score < acc_num; idx_score++)
                 {
-                    SCORES_INFO score_info;
-                    score_info = selectedScoresList[selected_scores_offset + idx_score];
-                    scoresList[scores_offset + idx_score] = score_info;
+                    scoresList[num_det + idx_score] = selectedScoresList[idx_score];
                 }
                 num_det += acc_num;
                 buffer2[scores_size_offset] = 0;
             }
-            FUNC_CALL(quickSortIterative)(&scoresList[idx_image * NUM_OF_PRIORS], 0, num_det - 1, true);
+            FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, true);
 
             for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++)
             {
-                SCORES_INFO score_info;
-                score_info = scoresList[idx_image * NUM_OF_PRIORS + idx_num_det];
-                int scores_size_offset = idx_image * NUM_CLASSES_ACC + score_info.classId;
+                int scores_size_offset = idx_image * NUM_CLASSES_ACC + (int)scoresList[idx_num_det].classId;
                 int acc_num = buffer2[scores_size_offset];
-                int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + score_info.classId * NUM_OF_PRIORS + acc_num;
-                selectedScoresList[scores_offset] = score_info;
+                __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + (int)scoresList[idx_num_det].classId) * BUFFER_STRIDE];
+                selectedScoresList[acc_num] = scoresList[idx_num_det];
                 buffer2[scores_size_offset] = (acc_num + 1);
             }
         }
@@ -819,14 +800,14 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
         {
             int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
             int acc_num = buffer2[scores_size_offset];
-            int scores_offset = (idx_image * NUM_CLASSES * NUM_OF_PRIORS) + idx_class * NUM_OF_PRIORS;
+            __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
             int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
             for (uint idx_score = 0; idx_score < acc_num; idx_score++)
             {
                 SCORES_INFO score_info;
-                score_info = selectedScoresList[scores_offset + idx_score];
-                output[count * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(score_info.batchId);
-                output[count * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
+                score_info = selectedScoresList[idx_score];
+                output[count * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(idx_image);
+                output[count * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? (int)score_info.classId - 1 : (int)score_info.classId);
                 output[count * OUTPUT_ROW_SIZE + 2] = TO_OUTPUT_TYPE(score_info.score);
                 INPUT0_TYPE decoded_bbox[4];
                 FUNC_CALL(get_decoded_bbox)(decoded_bbox, input_location, input_prior_box, score_info.boxId, loc_label, idx_image);
