@@ -30,9 +30,9 @@ class LoopExtractor(FrontExtractorOp):
         # create a Graph object for the body and take graph attributes from the main graph
         body_graph = Graph()
         main_graph_attrs_copy = {}
-        for attr_key in main_graph.graph.keys():
+        for attr_key, attr_value in main_graph.graph.items():
             if attr_key not in ['tensor_mapping', 'parent_node']:
-                main_graph_attrs_copy[attr_key] = copy.deepcopy(main_graph.graph[attr_key])
+                main_graph_attrs_copy[attr_key] = copy.deepcopy(attr_value)
         body_graph.graph.update(main_graph_attrs_copy)
         loop_node['body'] = body_graph
         # save parent node for nested loops to know which node contains body (and which graph is on upper level)
