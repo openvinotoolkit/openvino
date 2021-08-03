@@ -87,6 +87,7 @@ namespace ngraph
                     std::rotate(transposed_axes.begin() + axis,
                                 transposed_axes.begin() + axis + 1,
                                 transposed_axes.end());
+
                     std::rotate(transposed_shape.begin() + axis,
                                 transposed_shape.begin() + axis + 1,
                                 transposed_shape.end());
@@ -104,7 +105,7 @@ namespace ngraph
                                            T* out,
                                            const P axis,
                                            const Shape& tensor_shape,
-                                           Shape& transposed_shape)
+                                           const Shape& transposed_shape)
                 {
                     std::vector<int64_t> transposed_axes(tensor_shape.size());
                     std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
