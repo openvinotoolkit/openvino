@@ -193,7 +193,13 @@ private:
 class FakeBroadcastEmitter : public jit_emitter {
 public:
     FakeBroadcastEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ngraph::Node>& n)
-    : jit_emitter(h, isa, n), use_broadcast(*n->get_input_shape(0).rbegin() != *n->get_output_shape(0).rbegin()) {
+    : jit_emitter(h, isa, n) {
+        if (n->get_input_shape(0).empty())
+            use_broadcast = true;
+        else if (*n->get_input_shape(0).rbegin() != *n->get_output_shape(0).rbegin())
+            use_broadcast = true;
+        else
+            use_broadcast = false;
     }
     size_t get_inputs_num() const override {return 1;}
 
