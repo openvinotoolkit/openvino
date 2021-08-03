@@ -32,6 +32,7 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
+            cmake \
             curl \
             wget \
             libssl-dev \
@@ -47,7 +48,11 @@ if [ -f /etc/lsb-release ]; then
             libtool \
             autoconf \
             shellcheck \
-            python \
+            patchelf \
+            libenchant1c2a \
+            python3-pip \
+            python3-enchant \
+            python3-setuptools \
             libcairo2-dev \
             libpango1.0-dev \
             libglib2.0-dev \
