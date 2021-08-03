@@ -20,13 +20,12 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_ONNX_WU2
+    name: LIN_VMSS_VENV_ONNX_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mount/cinfsshare/onnxtestdata
@@ -43,6 +42,7 @@ jobs:
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
