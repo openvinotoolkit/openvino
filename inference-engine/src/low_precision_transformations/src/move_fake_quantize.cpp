@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/max_pool.hpp"
+#include "low_precision/move_fake_quatize.hpp"
+
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
@@ -11,51 +14,72 @@
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
-namespace pass {
-namespace low_precision {
+    namespace pass {
+        namespace low_precision {
 
-MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
-}
+            MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
+                auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
 
-void MaxPoolTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::FakeQuatize>({ make_op_label<opset1::Concat>() }));
-}
+                ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+                    auto op = m.get_match_root();
+                    if (transformation_callback(op)) {
+                        return false;
+                    }
 
-bool MaxPoolTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformed(context, op)) {
-        return false;
-    }
+                    return transform(*context, m);
+                };
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
-    if (dequantization.empty()) {
-        return false;
-    }
+                auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MoveFakeQuantize");
+                this->register_matcher(m, callback);
+            }
 
-    const std::vector<float> scales = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
-        return false;
-    }
+            bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+                auto fq = m.get_match_root();
+                auto result = *fq->output(0).get_target_inputs().begin();
+                auto operation = fq->get_input_node_shared_ptr(0);
+                auto type = operation->get_type_name();
+                std::shared_ptr<ngraph::Node> concat, fq1input, fq2input;
+                if (strcmp(type, "Concat") == 0) {
+                    concat = operation;
+                    fq1input = operation->get_input_node_shared_ptr(0);
+                    fq2input = operation->get_input_node_shared_ptr(1);
+                }
+                else {
+                    concat = operation->get_input_node_shared_ptr(0);
+                    auto input1 = concat->get_input_node_shared_ptr(0);
+                    auto input2 = concat->get_input_node_shared_ptr(1);
+                    if (strcmp(type, "Relu") == 0) {
+                        fq1input = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
+                        fq2input = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+                    }
+                }
+                auto fq1 = std::make_shared<opset1::FakeQuantize>(fq1input,
+                    fq->get_input_node_shared_ptr(1),
+                    fq->get_input_node_shared_ptr(2),
+                    fq->get_input_node_shared_ptr(3),
+                    fq->get_input_node_shared_ptr(4),
+                    as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
+                auto fq2 = std::make_shared<opset1::FakeQuantize>(fq2input,
+                    fq->get_input_node_shared_ptr(1),
+                    fq->get_input_node_shared_ptr(2),
+                    fq->get_input_node_shared_ptr(3),
+                    fq->get_input_node_shared_ptr(4),
+                    as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
 
-    return true;
-}
+                auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
+                auto& rtInfo = new_concat->get_rt_info();
+                new_concat->set_friendly_name("output");
+                rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
 
-bool MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    if (!canBeTransformed(context, m.get_match_root())) {
-        return false;
-    }
+                replace_node(concat, new_concat);
+                replace_node(fq, new_concat);
+                return true;
+            }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
-    return true;
-}
+            bool MoveFakeQuantize::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+                return true;
+            }
 
-bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    return true;
-}
-
-} // namespace low_precision
-} // namespace pass
+        } // namespace low_precision
+    } // namespace pass
 } // namespace ngraph
