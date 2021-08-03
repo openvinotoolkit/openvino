@@ -6,39 +6,40 @@
 
 **Short description**: *LogicalAnd* performs element-wise logical AND operation with two given tensors applying multi-directional broadcast rules.
 
+**Detailed description**: Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+
+After broadcasting *LogicalAnd* does the following with the input tensors *a* and *b*:
+
+\f[
+o_{i} = a_{i} \wedge b_{i}
+\f]
+
 **Attributes**:
 
 * *auto_broadcast*
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match,
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
-* **2**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical AND operation. A tensor of type boolean.
+* **1**: The result of element-wise *LogicalAnd* operation. A tensor of type boolean.
 
 **Types**
 
 * *T*: boolean type.
 
-**Detailed description**
-Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *LogicalAnd* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} and b_{i}
-\f]
 
 **Examples**
 

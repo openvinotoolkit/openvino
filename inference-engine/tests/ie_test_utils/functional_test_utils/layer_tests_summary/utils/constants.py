@@ -57,6 +57,7 @@ VERIFIED_OP_REFERENCES = [
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
+    'LogicalAnd-1'
     'LogSoftmax-5',
     'Loop-5',
     'MVN-1',
