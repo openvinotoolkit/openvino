@@ -680,26 +680,24 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
     }
 }
 
-inline std::vector<InferenceEngine::Blob::Ptr> makeVectorBlobs(const InferenceEngine::TensorDesc& td) {
-    const size_t subBlobsNum = td.getDims()[0];
-    InferenceEngine::TensorDesc subBlobDesc = td;
-    subBlobDesc.getDims()[0] = 1;
-    std::vector<InferenceEngine::Blob::Ptr> subBlobs;
-    for (size_t i = 0; i < subBlobsNum; i++) {
-        subBlobs.push_back(createAndFillBlob(subBlobDesc));
-    }
-    return subBlobs;
-}
-
-// ocl + remote
 inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType BlobType) {
     switch (BlobType) {
     case BlobType::Memory:
         return createAndFillBlob(td);
     case BlobType::Batched:
-        return InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(makeVectorBlobs(td));
-    case BlobType::Compound:
-        return InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(makeVectorBlobs(td));
+    case BlobType::Compound: {
+        auto dims = td.getDims();
+        const size_t subBlobsNum = dims.front();
+        dims[0] = 1;
+        std::vector<InferenceEngine::Blob::Ptr> subBlobs;
+        InferenceEngine::TensorDesc subBlobDesc(td.getPrecision(), dims, td.getLayout());
+        for (size_t i = 0; i < subBlobsNum; i++) {
+            subBlobs.push_back(createAndFillBlob(subBlobDesc));
+        }
+        return BlobType == BlobType::Batched ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs) :
+                InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
+    }
+// TODO: ocl + remote
 //    case BlobType::Remote:
 //        return  InferenceEngine::as<InferenceEngine::RemoteBlob>(createAndFillBlob(td));
     case BlobType::I420: {

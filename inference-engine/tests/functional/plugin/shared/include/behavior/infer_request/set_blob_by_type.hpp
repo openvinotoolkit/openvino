@@ -13,9 +13,9 @@ namespace BehaviorTestsDefinitions {
 using namespace CommonTestUtils;
 
 using InferRequestSetBlobByTypeParams = std::tuple<
-        FuncTestUtils::BlobType,
-        std::string,                         // Device name
-        std::map<std::string, std::string> //config
+        FuncTestUtils::BlobType,           // Blob type
+        std::string,                       // Device name
+        std::map<std::string, std::string> // Device config
 >;
 
 class InferRequestSetBlobByType : public testing::WithParamInterface<InferRequestSetBlobByTypeParams>,
