@@ -298,7 +298,7 @@ install(EXPORT InferenceEngineTargets
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core_dev)
 
-set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
+set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
@@ -308,7 +308,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
                                PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include")
-set(IE_NGRAPH_DIR "../ngraph/cmake")
+set(IE_NGRAPH_DIR "../src/core/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 
