@@ -66,8 +66,8 @@ namespace ngraph
                                                  output_tmp_data.begin(),
                                                  exclusive);
                         }
-                        std::copy(begin(output_tmp_data),
-                                  end(output_tmp_data),
+                        std::move(output_tmp_data.begin(),
+                                  output_tmp_data.end(),
                                   output_data.begin() + axis_dim_counter);
 
                         data_ptr += axis_dim_size;
@@ -138,7 +138,7 @@ namespace ngraph
                 {
                     details::loop_cumsum(
                         output_data, exclusive, reverse, tensor_shape, arg, tensor_shape[axis]);
-                    std::copy(begin(output_data), end(output_data), out);
+                    std::move(output_data.begin(), output_data.end(), out);
                 }
                 else
                 {
