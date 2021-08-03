@@ -82,77 +82,56 @@ namespace ngraph
                         const bool exclusive,
                         const bool reverse)
             {
-                if (tensor_shape.size() == 1)
+                const auto axis = axis_tensor[0];
+                const bool is_last_axis = axis == tensor_shape.size() - 1;
+                if (is_last_axis)
                 {
-                    std::vector<T> input_data(arg, arg + shape_size(tensor_shape));
                     std::vector<T> output_data(shape_size(tensor_shape), 0);
-                    if (reverse)
-                    {
-                        details::flat_cumsum(input_data.rbegin(),
-                                             input_data.rend(),
-                                             output_data.rbegin(),
-                                             exclusive);
-                    }
-                    else
-                    {
-                        details::flat_cumsum(
-                            input_data.begin(), input_data.end(), output_data.begin(), exclusive);
-                    }
+                    const auto slices_count = shape_size(Shape(
+                        tensor_shape.begin(), tensor_shape.begin() + tensor_shape.size() - 1));
+                    details::loop_cumsum(
+                        output_data, exclusive, reverse, slices_count, arg, tensor_shape[axis]);
                     std::copy(begin(output_data), end(output_data), out);
                 }
                 else
                 {
-                    const auto axis = axis_tensor[0];
-                    const bool is_last_axis = axis == tensor_shape.size() - 1;
-                    if (is_last_axis)
-                    {
-                        std::vector<T> output_data(shape_size(tensor_shape), 0);
-                        const auto slices_count = shape_size(Shape(
-                            tensor_shape.begin(), tensor_shape.begin() + tensor_shape.size() - 1));
-                        details::loop_cumsum(
-                            output_data, exclusive, reverse, slices_count, arg, tensor_shape[axis]);
-                        std::copy(begin(output_data), end(output_data), out);
-                    }
-                    else
-                    {
-                        std::vector<int64_t> transposed_axes(tensor_shape.size());
-                        std::vector<size_t> transposed_shape(tensor_shape);
+                    std::vector<int64_t> transposed_axes(tensor_shape.size());
+                    std::vector<size_t> transposed_shape(tensor_shape);
 
-                        std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
-                        std::rotate(transposed_axes.begin() + axis,
-                                    transposed_axes.begin() + axis + 1,
-                                    transposed_axes.end());
-                        std::rotate(transposed_shape.begin() + axis,
-                                    transposed_shape.begin() + axis + 1,
-                                    transposed_shape.end());
-                        reference::transpose(reinterpret_cast<const char*>(arg),
-                                             reinterpret_cast<char*>(out),
-                                             tensor_shape,
-                                             sizeof(T),
-                                             transposed_axes.data(),
-                                             transposed_shape);
-                        std::vector<T> transposed_output_data(shape_size(tensor_shape));
+                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                    std::rotate(transposed_axes.begin() + axis,
+                                transposed_axes.begin() + axis + 1,
+                                transposed_axes.end());
+                    std::rotate(transposed_shape.begin() + axis,
+                                transposed_shape.begin() + axis + 1,
+                                transposed_shape.end());
+                    reference::transpose(reinterpret_cast<const char*>(arg),
+                                         reinterpret_cast<char*>(out),
+                                         tensor_shape,
+                                         sizeof(T),
+                                         transposed_axes.data(),
+                                         transposed_shape);
+                    std::vector<T> transposed_output_data(shape_size(tensor_shape));
 
-                        std::vector<T> output_data(shape_size(tensor_shape), 0);
-                        const auto slices_count = shape_size(
-                            Shape(transposed_shape.begin(),
-                                  transposed_shape.begin() + transposed_shape.size() - 1));
-                        details::loop_cumsum(
-                            output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
+                    std::vector<T> output_data(shape_size(tensor_shape), 0);
+                    const auto slices_count =
+                        shape_size(Shape(transposed_shape.begin(),
+                                         transposed_shape.begin() + transposed_shape.size() - 1));
+                    details::loop_cumsum(
+                        output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
 
-                        std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
-                        std::rotate(transposed_axes.begin() + axis,
-                                    transposed_axes.end() - 1,
-                                    transposed_axes.end());
-                        reference::transpose(reinterpret_cast<char*>(output_data.data()),
-                                             reinterpret_cast<char*>(transposed_output_data.data()),
-                                             transposed_shape,
-                                             sizeof(T),
-                                             transposed_axes.data(),
-                                             tensor_shape);
+                    std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                    std::rotate(transposed_axes.begin() + axis,
+                                transposed_axes.end() - 1,
+                                transposed_axes.end());
+                    reference::transpose(reinterpret_cast<char*>(output_data.data()),
+                                         reinterpret_cast<char*>(transposed_output_data.data()),
+                                         transposed_shape,
+                                         sizeof(T),
+                                         transposed_axes.data(),
+                                         tensor_shape);
 
-                        std::copy(begin(transposed_output_data), end(transposed_output_data), out);
-                    }
+                    std::copy(begin(transposed_output_data), end(transposed_output_data), out);
                 }
             }
         } // namespace reference
