@@ -122,9 +122,10 @@ void op::v8::If::validate_and_infer_types()
     if (const auto& cond_value = get_constant_from_source(if_condition))
     {
         auto val = cond_value->cast_vector<bool>();
-        NODE_VALIDATION_CHECK(this,
-                              val.size() == 1,
-                              "The number of values in the If condition constant is greater than 1");
+        NODE_VALIDATION_CHECK(
+            this,
+            val.size() == 1,
+            "The number of values in the If condition constant is greater than 1");
 
         auto cond_index = val[0] ? then_body_index : else_body_index;
         auto body = m_bodies[cond_index];
@@ -147,15 +148,15 @@ void op::v8::If::validate_and_infer_types()
         validate_and_infer_type_body(get_else_body(), m_input_descriptions[else_body_index]);
         auto output_nodes = outputs();
 
-        auto then_outputs_map = 
+        auto then_outputs_map =
             get_mapping_outputs_on_body_description(m_output_descriptions[then_body_index]);
         auto else_outputs_map =
             get_mapping_outputs_on_body_description(m_output_descriptions[else_body_index]);
-        
-        for (size_t output_index = 0; output_index < output_nodes.size(); ++output_index) {
-           
+
+        for (size_t output_index = 0; output_index < output_nodes.size(); ++output_index)
+        {
             NODE_VALIDATION_CHECK(this,
-                                  then_outputs_map.count(output_index)!=0,
+                                  then_outputs_map.count(output_index) != 0,
                                   "Incorrect associating in then_body! Output ",
                                   output_index,
                                   " is not associated with results in then_body!");
@@ -164,7 +165,7 @@ void op::v8::If::validate_and_infer_types()
                                   "Incorrect associating in else_body! Output ",
                                   output_index,
                                   " is not associated with results in else_body!");
-          
+
             auto then_desc = then_outputs_map.at(output_index);
             auto else_desc = else_outputs_map.at(output_index);
 
@@ -207,7 +208,7 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
 }
 
 op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
-        const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors)
+    const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors)
 {
     OutputMap outputs_map = OutputMap();
     std::unordered_set<int64_t> checked_results_in_body;
@@ -232,14 +233,16 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
     return outputs_map;
 }
 void op::v8::If::clone_to(op::v8::If& dst, const OutputVector& new_args) const
-    {
+{
     dst.set_arguments(new_args);
     dst.set_output_size(m_output_descriptions[0].size());
     dst.set_then_body(clone_function(*get_then_body()));
     dst.set_else_body(clone_function(*get_else_body()));
-    
-    for (auto body_index = 0; body_index < 2; ++body_index) {
-        for (const auto& m_input_descr : m_input_descriptions[body_index]) {
+
+    for (auto body_index = 0; body_index < 2; ++body_index)
+    {
+        for (const auto& m_input_descr : m_input_descriptions[body_index])
+        {
             dst.m_input_descriptions[body_index].push_back(m_input_descr->copy());
         }
         for (const auto& m_output_descr : m_output_descriptions[body_index])
@@ -249,7 +252,6 @@ void op::v8::If::clone_to(op::v8::If& dst, const OutputVector& new_args) const
     }
     dst.validate_and_infer_types();
 }
-
 
 bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
@@ -266,10 +268,12 @@ void op::v8::If::set_input(const Output<Node>& value,
     auto then_param_index = m_bodies[then_body_index]->get_parameter_index(then_parameter);
     auto else_param_index = m_bodies[else_body_index]->get_parameter_index(else_parameter);
     NGRAPH_CHECK(then_parameter == nullptr || then_param_index != -1,
-                 "Missing parameter ", then_parameter->get_friendly_name(), " for \'then_body\'!");
+                 "Missing parameter ",
+                 then_parameter->get_friendly_name(),
+                 " for \'then_body\'!");
     NGRAPH_CHECK(else_parameter == nullptr || else_param_index != -1,
                  "Missing parameter ",
-                  else_parameter->get_friendly_name(),
+                 else_parameter->get_friendly_name(),
                  " for \'else_body\'!");
     set_invariant_inputs(value, {then_parameter, else_parameter});
 }
@@ -285,10 +289,12 @@ Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
     auto else_result_id = m_bodies[else_body_index]->get_result_index(else_result);
 
     NGRAPH_CHECK(then_result_id != -1,
-                 "Missing result ", then_result->get_friendly_name(), "in \'then_body\'!");
+                 "Missing result ",
+                 then_result->get_friendly_name(),
+                 "in \'then_body\'!");
     NGRAPH_CHECK(else_result_id != -1,
                  "Missing result ",
-                  else_result->get_friendly_name(),
+                 else_result->get_friendly_name(),
                  "in \'then_body\'!");
 
     return set_body_outputs({then_result, else_result});

@@ -94,7 +94,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
             private:
-                using OutputMap = 
+                using OutputMap =
                     std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
                 void validate_and_infer_type_body(
                     const std::shared_ptr<Function>& body,
@@ -102,8 +102,8 @@ namespace ngraph
                 void clone_to(If& dst, const OutputVector& new_args) const;
 
                 OutputMap get_mapping_outputs_on_body_description(
-                        const ngraph::op::util::MultiSubgraphOutputDescriptionVector&
-                            output_descriptors);
+                    const ngraph::op::util::MultiSubgraphOutputDescriptionVector&
+                        output_descriptors);
             };
         } // namespace v8
     }     // namespace op
