@@ -13,6 +13,8 @@
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
+#include <transformations/preprocessing/scale_inputs.hpp>
+#include <transformations/preprocessing/subtract_mean_inputs.hpp>
 
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
@@ -60,3 +62,54 @@ void InferenceEnginePython::CheckAPI() {
     assert(std::dynamic_pointer_cast<ngraph::opset6::Parameter>(reshape->input_value(0).get_node_shared_ptr()));
     assert(std::dynamic_pointer_cast<ngraph::opset6::Constant>(reshape->input_value(1).get_node_shared_ptr()));
 }
+
+InferenceEnginePython::ConstantInfoPtr InferenceEnginePython::CreateConstantInfo(const std::vector<float>& data_, int axis_, int shape_size_) {
+    return std::make_shared<InferenceEnginePython::ConstantInfo>(data_, axis_, shape_size_);
+}
+
+InferenceEnginePython::ConstantInfoPtr InferenceEnginePython::CreateEmptyConstantInfo() {
+    return std::make_shared<InferenceEnginePython::ConstantInfo>();
+}
+
+void InferenceEnginePython::ApplyScaleInputs(InferenceEnginePython::IENetwork network,
+                                             const std::map<std::string, ConstantInfoPtr>& values) {
+    using namespace ngraph::pass;
+    Manager m;
+    ScaleInputs::ScaleMap map;
+
+    for (const auto& item : values) {
+        const auto& name = item.first;
+        const auto& info = *item.second.get();
+
+        std::vector<size_t> shape((size_t)info.shape_size, 1);
+        shape[info.axis] = info.data.size();
+        auto c = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                  ngraph::Shape(shape),
+                                                  info.data);
+        map.insert({name, c});
+    }
+    m.register_pass<ngraph::pass::ScaleInputs>(map);
+    m.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::ApplySubtractMeanInputs(InferenceEnginePython::IENetwork network,
+                                                    const std::map<std::string, ConstantInfoPtr>& values) {
+    using namespace ngraph::pass;
+    Manager m;
+    SubtractMeanInputs::MeanMap map;
+
+    for (const auto& item : values) {
+        const auto& name = item.first;
+        const auto& info = *item.second.get();
+
+        std::vector<size_t> shape((size_t)info.shape_size, 1);
+        shape[info.axis] = info.data.size();
+        auto c = ngraph::opset1::Constant::create(ngraph::element::f32,
+                                                  ngraph::Shape(shape),
+                                                  info.data);
+        map.insert({name, c});
+    }
+    m.register_pass<ngraph::pass::SubtractMeanInputs>(map);
+    m.run_passes(network.actual->getFunction());
+}
+
