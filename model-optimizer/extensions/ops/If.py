@@ -95,7 +95,7 @@ class If(Op):
                           .format(node.name, node.data_type))
 
     @staticmethod
-    def updated_body_parameters_shape(if_node: Node, condition: bool):
+    def update_body_parameters_shape(if_node: Node, condition: bool):
         """
         Update shape for If body parameters.
 
@@ -108,7 +108,7 @@ class If(Op):
             if node.has('input_id'):
                 assert node.soft_get('type') == 'Parameter'
                 input_port_id = node['input_id']
-                input_shape = if_node.in_port(input_port_id).get_connection().get_source().data.get_shape()
+                input_shape = if_node.in_port(input_port_id).data.get_shape()
                 if node.soft_get('shape', None) is None:
                     node['shape'] = None
                 node.shape = input_shape.copy()
@@ -116,7 +116,7 @@ class If(Op):
                           .format(node.soft_get('name', node.soft_get('id')), node.shape))
 
     @staticmethod
-    def updated_if_output_ports_shape(if_node: Node):
+    def update_if_output_ports_shape(if_node: Node):
         """
         Update shape and values for If output ports.
 
@@ -130,7 +130,8 @@ class If(Op):
         outputs_number = len(if_node.out_ports())
 
         if outputs_number == 0 and len(if_node.out_ports(True)) != 0:
-            # shape inference for asserts
+            # Some models have if with control flow outputs.
+            # These shape inference for such models
             for node in if_node.out_nodes(True).values():
                 node.shape = int64_array([])
             return
@@ -139,48 +140,55 @@ class If(Op):
             outputs_mapping[port_id] = {}
         port_ids = outputs_mapping.keys()
 
-        then_contains_fake_outputs=False
-        else_contains_fake_outputs=False
+        # variable then_contains_fake_outputs/else_contains_fake_outputs contains True value
+        # if all outputs from then_body/else_body have shape [0]. It means then_body/else_body does not return data
+        # and further shape_inference for this branch is not possible.
+
+        then_contains_fake_outputs = False
+        else_contains_fake_outputs = False
 
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
             port_id = then_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
-                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
+                                        'Can\'t find port with ID {1} in If operation.' \
                 .format(then_output_node.name, port_id)
             outputs_mapping[port_id]['then_graph'] = then_output_node
             then_shape = then_output_node.in_port(0).data.get_shape()
 
-            then_contains_fake_outputs = then_contains_fake_outputs or (len(then_shape)==1 and then_shape[0]==0)
+            then_contains_fake_outputs = then_contains_fake_outputs or (len(then_shape) == 1 and then_shape[0] == 0)
 
         for else_output_node in else_outputs:
             assert else_output_node.soft_get('type') == 'Result'
             port_id = else_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
-                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
+                                        'Can\'t find port with ID {1} in If operation.' \
                 .format(else_output_node.name, port_id)
             outputs_mapping[port_id]['else_graph'] = else_output_node
             else_shape = else_output_node.in_port(0).data.get_shape()
-            else_contains_fake_outputs = else_contains_fake_outputs or (len(else_shape)==1 and else_shape[0]==0)
+            else_contains_fake_outputs = else_contains_fake_outputs or (len(else_shape) == 1 and else_shape[0] == 0)
 
+        # use_then_shape is True when else_body or when both bodies do not return data. If use_then_shape is True If's
+        # outputs will have the same shapes as then_body results
         use_then_shape = else_contains_fake_outputs or not then_contains_fake_outputs
+
         for port_id in outputs_mapping:
             then_else_nodes = outputs_mapping[port_id]
             assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
-                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, if_node.name)
             assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
-                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, if_node.name)
 
-            then_shape = then_else_nodes['then_graph'].in_port(0).get_connection().data.get_shape()
-            else_shape = then_else_nodes['else_graph'].in_port(0).get_connection().data.get_shape()
-            comparison = then_shape == else_shape
-            if not comparison.all():
-                log.debug("\'If\' node {0} has dynamic output [{1}] because output shape from then_graph is {2} and "
+            then_shape = then_else_nodes['then_graph'].in_port(0).data.get_shape()
+            else_shape = then_else_nodes['else_graph'].in_port(0).data.get_shape()
+
+            if not (then_shape == else_shape).all():
+                log.debug("If node {0} has dynamic output [{1}] because output shape from then_graph is {2} and "
                           "else_graph {3}".format(if_node.name, port_id, then_shape, else_shape))
             if_node.out_port(port_id).data.set_shape(then_shape if use_then_shape else else_shape)
 
     @staticmethod
-    def updated_if_output_ports_type(if_node: Node):
+    def update_if_output_ports_type(if_node: Node):
         """
         Update shape and values for If output ports.
 
@@ -191,11 +199,11 @@ class If(Op):
         else_outputs = [node for node in if_node.else_graph.get_op_nodes() if node.has('output_id')]
         outputs_mapping = {}
         outputs_number = len(if_node.out_ports())
-        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of \'If\' with"' \
-                                                    'name \"{0}\"! then_graph must has {1} outputs' \
+        assert outputs_number == len(then_outputs), 'Incorrect number outputs in then_graph of If with"' \
+                                                    'name {0}! then_graph must has {1} outputs' \
             .format(if_node.name, outputs_number)
-        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of \'If\' with"' \
-                                                    'name \"{0}\"! else_graph must has {1} outputs' \
+        assert outputs_number == len(else_outputs), 'Incorrect number outputs in else_graph of If with"' \
+                                                    'name {0}! else_graph must has {1} outputs' \
             .format(if_node.name, outputs_number)
         for port_id in if_node.out_ports().keys():
             outputs_mapping[port_id] = {}
@@ -203,25 +211,25 @@ class If(Op):
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
             port_id = then_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
-                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
+                                        'Can\'t find port with ID {1} in If operation.' \
                 .format(then_output_node.name, port_id)
             outputs_mapping[port_id]['then_graph'] = then_output_node
 
         for else_output_node in else_outputs:
             assert else_output_node.soft_get('type') == 'Result'
             port_id = else_output_node['output_id']
-            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with \"{0}\" outputs! ' \
-                                        'Can\'t find port with ID \"{1}\" in \'If\' operation.' \
+            assert port_id in port_ids, 'Incorrect mapping then_graph outputs with {0} outputs! ' \
+                                        'Can\'t find port with ID {1} in If operation.' \
                 .format(else_output_node.name, port_id)
             outputs_mapping[port_id]['else_graph'] = else_output_node
 
         for port_id in outputs_mapping:
             then_else_nodes = outputs_mapping[port_id]
             assert 'then_graph' in then_else_nodes.keys(), 'then_graph does not connect with If.out_port[{0}] ' \
-                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, if_node.name)
             assert 'else_graph' in then_else_nodes.keys(), 'else_graph does not connect with If.out_port[{0}] ' \
-                                                           'in \"{1}\" node!'.format(port_id, if_node.name)
+                                                           'in {1} node!'.format(port_id, if_node.name)
             then_type = then_else_nodes['then_graph'].in_port(0).get_data_type()
             else_type = then_else_nodes['else_graph'].in_port(0).get_data_type()
             assert then_type == else_type, 'Cannot get type for if.out_port[{0}]! ' \
@@ -303,11 +311,11 @@ class If(Op):
 
     @staticmethod
     def infer(if_node: Node):
-        If.updated_body_parameters_shape(if_node, True)
-        If.updated_body_parameters_shape(if_node, False)
+        If.update_body_parameters_shape(if_node, True)
+        If.update_body_parameters_shape(if_node, False)
         partial_infer(if_node.then_graph)
         partial_infer(if_node.else_graph)
-        If.updated_if_output_ports_shape(if_node)
+        If.update_if_output_ports_shape(if_node)
 
     @staticmethod
     def type_infer(if_node: Node):
@@ -316,4 +324,4 @@ class If(Op):
         If.update_body_parameters_type(if_node, False)
         type_infer(if_node.then_graph)
         type_infer(if_node.else_graph)
-        If.updated_if_output_ports_type(if_node)
+        If.update_if_output_ports_type(if_node)

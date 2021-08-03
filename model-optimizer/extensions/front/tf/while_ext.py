@@ -1,17 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import copy
-
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import extract_node_attrs, FrontExtractorOp
 from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
-from mo.front.tf.extractors.subgraph_utils import *
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
+    get_graph_proto, create_internal_graph
 from mo.graph.graph import add_opoutput, Graph, Node
-from mo.ops.op import PermuteAttrs
 
 
 class WhileExtractor(FrontExtractorOp):
@@ -32,8 +29,8 @@ class WhileExtractor(FrontExtractorOp):
         body_graph_proto = get_graph_proto(main_graph, 'body', loop_node)
         cond_graph_proto = get_graph_proto(main_graph, 'cond', loop_node)
 
-        create_internal_graph(main_graph, loop_node, 'body')
-        body_graph = loop_node['body']
+        body_graph = create_internal_graph(main_graph)
+        loop_node['body'] = body_graph
         # create Parameter nodes for the body graph
         body_parameters, body_parameter_names = convert_graph_inputs_to_parameters(body_graph, body_graph_proto)
 

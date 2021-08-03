@@ -61,6 +61,8 @@ def update_body_graph(body_graph: Graph, subgraph_proto: dict,
             src_id)
         body_results.append(Node(body_graph, add_opoutput(body_graph, src_id, src_port, False)))
 
+    return True
+
 
 def get_graph_proto(external_graph: Graph, graph_id: str, node_with_graph: Node):
     graph_name = node_with_graph.pb.attr[graph_id].func.name
@@ -77,7 +79,7 @@ def get_graph_proto(external_graph: Graph, graph_id: str, node_with_graph: Node)
     return library_graph[graph_name]
 
 
-def create_internal_graph(external_graph: Graph, node_with_internal_graph: Node, internal_graph_name: str):
+def create_internal_graph(external_graph: Graph):
     internal_graph = Graph()
     # fill the body graph
     for attr_key in external_graph.graph.keys():
@@ -86,7 +88,7 @@ def create_internal_graph(external_graph: Graph, node_with_internal_graph: Node,
         else:
             # it is sufficient to have a link to the library
             internal_graph.graph['library'] = external_graph.graph['library']
-    node_with_internal_graph[internal_graph_name] = internal_graph
+    return internal_graph
 
 
 def convert_graph_inputs_to_parameters(internal_graph, internal_graph_proto):

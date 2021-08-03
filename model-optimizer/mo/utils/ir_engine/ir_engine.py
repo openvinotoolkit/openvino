@@ -418,7 +418,7 @@ class IREngine(object):
     def __read_if(self, layer, layer_attrs):
         xml_then_body_child = list(layer.iterfind('then_body'))
         xml_else_body_child = list(layer.iterfind('else_body'))
-        assert len(xml_then_body_child) == 1 or len(xml_else_body_child) == 1
+        assert len(xml_then_body_child) == 1 and len(xml_else_body_child) == 1
 
         then_body_ir = IREngine(path_to_xml=None,
                                 path_to_bin=self.path_to_bin,
@@ -434,14 +434,14 @@ class IREngine(object):
 
         xml_then_port_map = list(layer.iterfind('then_port_map'))
         if not len(xml_then_port_map) == 1:
-            log.warning("\'If\' then_body won\'t be compared due to missing then_port_map section in node \"{0}\"! "\
+            log.warning("If then_body won\'t be compared due to missing then_port_map section in node {0}! "\
                         .format(layer_attrs['name']))
             return layer_attrs
         xml_then_port_map = xml_then_port_map[0]
 
         xml_else_port_map = list(layer.iterfind('else_port_map'))
         if not len(xml_else_port_map) == 1:
-            log.warning("\'If\'  else_body won\'t be compared due to missing else_port_map section in node \"{0}\"!"\
+            log.warning("If  else_body won\'t be compared due to missing else_port_map section in node {0}!"\
                         .format(layer_attrs['name']))
             return layer_attrs
         xml_else_port_map = xml_else_port_map[0]
