@@ -19,8 +19,8 @@ from distutils.command.build import build as _build
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 NGRAPH_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, ".."))
-OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../.."))
-# Change current working dircectory to ngraph/python
+OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../../.."))
+# Change current working dircectory to src/core/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
 NGRAPH_LIBS = ["ngraph", "onnx_importer"]
@@ -182,7 +182,7 @@ class InstallCMakeLibs(install_lib):
 
         root_dir = os.path.join(OPENVINO_ROOT_DIR, "bin")
         if os.environ.get("ngraph_DIR") is not None:
-            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / ".."
+            root_dir = pathlib.Path(os.environ["ngraph_DIR"]) / "../.."
 
         lib_ext = ""
         if "linux" in sys.platform:

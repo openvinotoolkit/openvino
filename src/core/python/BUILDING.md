@@ -71,17 +71,17 @@ variable. For example:
 
 You can build the Python wheel running the following command:
 
-    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
+    cd "${OPENVINO_BASEDIR}/openvino/src/core/python"
     python3 setup.py bdist_wheel
 
 Once completed, the wheel package should be located under the following path:
 
-    $ ls "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    $ ls "${OPENVINO_BASEDIR}/openvino/src/core/python/dist/"
     ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
 
 You can now install the wheel in your Python environment:
 
-    cd "${OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    cd "${OPENVINO_BASEDIR}/openvino/src/core/python/dist/"
     pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
 
 ## Windows* 10
@@ -142,7 +142,7 @@ Set up the OpenVINO™ environment in order to add a module path to `PYTHONPATH`
 
 Build the Python wheel package:
 
-    cd "%OPENVINO_BASEDIR%/openvino/ngraph/python"
+    cd "%OPENVINO_BASEDIR%/openvino/src/core/python"
     python setup.py bdist_wheel
 
 The final wheel should be located in the `ngraph\python\dist` directory.
@@ -162,7 +162,7 @@ You may wish to use a virutualenv for your installation.
 
 ### Install the nGraph Wheel and Other Requirements
 
-    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/ngraph/python"
+    (venv) $ cd "${OPENVINO_BASEDIR}/openvino/src/core/python"
     (venv) $ pip3 install -r requirements.txt
     (venv) $ pip3 install -r requirements_test.txt
     (venv) $ pip3 install dist/ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl

@@ -308,7 +308,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
                                PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include")
-set(IE_NGRAPH_DIR "../src/core/cmake")
+set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
 

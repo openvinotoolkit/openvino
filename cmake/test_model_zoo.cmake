@@ -3,7 +3,7 @@
 #
 
 function(ov_model_convert SRC DST OUT)
-    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/ngraph/test/models/onnx/onnx_prototxt_converter.py)
+    set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/src/core/test/models/onnx/onnx_prototxt_converter.py)
 
     file(GLOB_RECURSE prototxt_models RELATIVE "${SRC}" "${SRC}/*.prototxt")
     file(GLOB_RECURSE xml_models RELATIVE "${SRC}" "${SRC}/*.xml")
@@ -58,7 +58,7 @@ function(ov_model_convert SRC DST OUT)
     set(${OUT} ${files} PARENT_SCOPE)
 endfunction()
 
-ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
+ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/src/core/test"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
                   onnx_out_files)
 

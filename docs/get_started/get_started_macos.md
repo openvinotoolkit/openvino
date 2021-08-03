@@ -47,7 +47,7 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share/`        | CMake configuration files for linking with Inference Engine.|
 | `~intel_models/` | Symbolic link to the `intel_models` subfolder of the `open_model_zoo` folder.|
 | `model_optimizer/`                      | Model Optimizer directory. Contains configuration scripts, scripts to run the Model Optimizer and other files. See the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).|
-| `ngraph/`                               | nGraph directory. Includes the nGraph header and library files. |
+| `src/core/`                               | nGraph directory. Includes the nGraph header and library files. |
 | `open_model_zoo/`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_group_intel) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`demos/`        | Demo applications for inference scenarios. Also includes documentation and build scripts.| 
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`intel_models/` | Pre-trained OpenVINO models and associated documentation. See the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_group_intel).|
