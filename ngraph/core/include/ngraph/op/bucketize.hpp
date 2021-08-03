@@ -16,8 +16,8 @@ namespace ngraph
             class NGRAPH_API Bucketize : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Bucketize", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Bucketize() = default;
                 /// \brief Constructs a Bucketize node
 
@@ -32,7 +32,7 @@ namespace ngraph
                           const bool with_right_bound = true);
 
                 virtual void validate_and_infer_types() override;
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& inputs) const override;

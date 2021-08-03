@@ -8,7 +8,7 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     add_executable(${TARGET_NAME} ${SOURCES})
 
     # TODO: enable some day and fix all warnings
-#    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+#    if(CMAKE_COMPILER_IS_GNUCXX)
 #        target_compile_options(${TARGET_NAME}
 #            PRIVATE
 #                "-Wall")

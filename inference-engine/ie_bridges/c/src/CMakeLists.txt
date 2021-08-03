@@ -14,7 +14,7 @@ add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<INSTALL_INTERFACE:runtime/include>
+    $<INSTALL_INTERFACE:runtime/include/ie>
     $<BUILD_INTERFACE:${InferenceEngine_C_API_SOURCE_DIR}/include>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -40,5 +40,5 @@ install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core_c)
 
 install(DIRECTORY ${InferenceEngine_C_API_SOURCE_DIR}/include/
-        DESTINATION runtime/include
+        DESTINATION runtime/include/ie
         COMPONENT core_c_dev)
