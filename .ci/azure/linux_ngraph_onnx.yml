@@ -73,20 +73,18 @@ jobs:
       sudo apt --assume-yes install git-lfs uidmap
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
-      dockerd-rootless-setuptool.sh install
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
-  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
+  - script: sudo docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
     displayName: 'Docker build $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
 
   - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o -s "$(ONNX_MODEL_ZOO_SHA)"
     displayName: 'Get models'
     condition: ne(variables['BUILD_TYPE'], 'Debug')
 
-  - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+  - script: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
-  - script: |
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
+  - script: sudo docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo/onnx_model_zoo_$(ONNX_MODEL_ZOO_SHA):/root/.onnx/model_zoo/onnx_model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image /bin/bash -c "$(TOX_COMMAND)"
     displayName: 'Docker run $(BUILD_TYPE) protobuf-lite: $(PROTOBUF_LITE)'
