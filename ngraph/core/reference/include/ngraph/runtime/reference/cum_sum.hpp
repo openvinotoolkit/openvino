@@ -5,11 +5,14 @@
 #pragma once
 
 #include <cmath>
+#include <iterator>
 #include <map>
+#include <numeric>
 #include <utility>
 #include <vector>
 
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
@@ -19,6 +22,58 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace details
+            {
+                template <typename InputIterator, typename OutputIterator>
+                void flat_cumsum(InputIterator it_input_begin,
+                                 InputIterator it_input_end,
+                                 OutputIterator it_output_begin,
+                                 const bool exclusive)
+                {
+                    if (exclusive)
+                    {
+                        --it_input_end;
+                        ++it_output_begin;
+                    }
+                    std::partial_sum(it_input_begin, it_input_end, it_output_begin);
+                }
+                template <typename T>
+                void loop_cumsum(std::vector<T>& output_data,
+                                 const bool exclusive,
+                                 const bool reverse,
+                                 const size_t slices_count,
+                                 const T* data_ptr,
+                                 const size_t axis_dim_size)
+                {
+                    auto axis_dim_counter = 0;
+                    for (auto i = 0; i < slices_count; ++i)
+                    {
+                        std::vector<T> input_data(data_ptr, data_ptr + axis_dim_size);
+                        std::vector<T> output_tmp_data(axis_dim_size, 0);
+                        if (reverse)
+                        {
+                            details::flat_cumsum(input_data.rbegin(),
+                                                 input_data.rend(),
+                                                 output_tmp_data.rbegin(),
+                                                 exclusive);
+                        }
+                        else
+                        {
+                            details::flat_cumsum(input_data.begin(),
+                                                 input_data.end(),
+                                                 output_tmp_data.begin(),
+                                                 exclusive);
+                        }
+                        std::copy(begin(output_tmp_data),
+                                  end(output_tmp_data),
+                                  output_data.begin() + axis_dim_counter);
+
+                        data_ptr += axis_dim_size;
+                        axis_dim_counter += axis_dim_size;
+                    }
+                }
+            } // namespace details
+
             template <typename T, typename P>
             void cumsum(const T* arg,
                         const P* axis_tensor,
@@ -27,107 +82,78 @@ namespace ngraph
                         const bool exclusive,
                         const bool reverse)
             {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                CoordinateTransform temp_transform(tensor_shape);
-                for (const Coordinate& output_coord : temp_transform)
+                if (tensor_shape.size() == 1)
                 {
-                    out[temp_transform.index(output_coord)] = 0;
-                }
-
-                P axis = axis_tensor[0];
-                P rank = tensor_shape.size();
-
-                if (axis < -rank || axis > rank)
-                {
-                    throw ngraph_error("axis must be in the range [-rank, rank]");
-                }
-                axis = axis < 0 ? rank + axis : axis;
-
-                auto get_key = [&, axis](const Coordinate& coord) -> Coordinate {
-                    Coordinate result(coord.size(), 0);
-                    result[axis] = coord[axis];
-
-                    for (size_t i = 0; i < coord.size(); i++)
+                    std::vector<T> input_data(arg, arg + shape_size(tensor_shape));
+                    std::vector<T> output_data(shape_size(tensor_shape), 0);
+                    if (reverse)
                     {
-                        result[i] = coord[i] - result[i];
-                    }
-                    return result;
-                };
-
-                auto update_output_buffer =
-                    [&](size_t input_index,
-                        size_t output_index,
-                        T& prev,
-                        std::vector<std::pair<size_t, T>>& tensor_vec) -> void {
-                    tensor_vec[input_index].second = prev + tensor_vec[input_index].second;
-                    out[tensor_vec[output_index].first] = tensor_vec[input_index].second;
-
-                    // update prev to hold the last result value to compute ruuning sum for
-                    // subsequent iter
-                    prev = out[tensor_vec[output_index].first];
-                };
-
-                auto cum_sum =
-                    [&, exclusive, reverse](std::vector<std::pair<size_t, T>>& tensor_vec) {
-                        if (!reverse)
-                        {
-                            T prev = 0;
-                            for (size_t i = 0; i < tensor_vec.size(); i++)
-                            {
-                                if (exclusive && i == 0)
-                                {
-                                    out[tensor_vec[i].first] = prev;
-                                    continue;
-                                }
-                                // we will compute running sum of j-1 elements if exlusive=1 or else
-                                // for j elements if exclusive = 0
-                                size_t arg_index = exclusive == 1 ? i - 1 : i;
-                                update_output_buffer(arg_index, i, prev, tensor_vec);
-                            }
-                        }
-                        else // reverse == true
-                        {
-                            T prev = 0;
-                            for (size_t i = tensor_vec.size(); i-- > 0;)
-                            {
-                                if (exclusive && i == tensor_vec.size() - 1)
-                                {
-                                    out[tensor_vec[i].first] = prev;
-                                    continue;
-                                }
-                                // we will compute running sum of j-1 elements if exlusive=1 or else
-                                // for j elements if exclusive = 0
-                                size_t arg_index = exclusive == 1 ? i + 1 : i;
-                                update_output_buffer(arg_index, i, prev, tensor_vec);
-                            }
-                        }
-                    };
-
-                // Map to collect tensor elements belonging to the same axis
-                std::map<Coordinate, std::vector<std::pair<size_t, T>>> map_cooord_to_val;
-                CoordinateTransform input_transform(tensor_shape);
-                for (const Coordinate& input_coord : input_transform)
-                {
-                    // points to the current element in the input tensor
-                    T current = arg[input_transform.index(input_coord)];
-                    auto key = get_key(input_coord);
-                    auto index = input_transform.index(input_coord);
-                    if (map_cooord_to_val.find(key) != map_cooord_to_val.end())
-                    {
-                        map_cooord_to_val[key].push_back(std::make_pair(index, current));
+                        details::flat_cumsum(input_data.rbegin(),
+                                             input_data.rend(),
+                                             output_data.rbegin(),
+                                             exclusive);
                     }
                     else
                     {
-                        map_cooord_to_val.insert({key, std::vector<std::pair<size_t, T>>()});
-                        map_cooord_to_val[key].push_back(std::make_pair(index, current));
+                        details::flat_cumsum(
+                            input_data.begin(), input_data.end(), output_data.begin(), exclusive);
+                    }
+                    std::copy(begin(output_data), end(output_data), out);
+                }
+                else
+                {
+                    const auto axis = axis_tensor[0];
+                    const bool is_last_axis = axis == tensor_shape.size() - 1;
+                    if (is_last_axis)
+                    {
+                        std::vector<T> output_data(shape_size(tensor_shape), 0);
+                        const auto slices_count = shape_size(Shape(
+                            tensor_shape.begin(), tensor_shape.begin() + tensor_shape.size() - 1));
+                        details::loop_cumsum(
+                            output_data, exclusive, reverse, slices_count, arg, tensor_shape[axis]);
+                        std::copy(begin(output_data), end(output_data), out);
+                    }
+                    else
+                    {
+                        std::vector<int64_t> transposed_axes(tensor_shape.size());
+                        std::vector<size_t> transposed_shape(tensor_shape);
+
+                        std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                        std::rotate(transposed_axes.begin() + axis,
+                                    transposed_axes.begin() + axis + 1,
+                                    transposed_axes.end());
+                        std::rotate(transposed_shape.begin() + axis,
+                                    transposed_shape.begin() + axis + 1,
+                                    transposed_shape.end());
+                        reference::transpose(reinterpret_cast<const char*>(arg),
+                                             reinterpret_cast<char*>(out),
+                                             tensor_shape,
+                                             sizeof(T),
+                                             transposed_axes.data(),
+                                             transposed_shape);
+                        std::vector<T> transposed_output_data(shape_size(tensor_shape));
+
+                        std::vector<T> output_data(shape_size(tensor_shape), 0);
+                        const auto slices_count = shape_size(
+                            Shape(transposed_shape.begin(),
+                                  transposed_shape.begin() + transposed_shape.size() - 1));
+                        details::loop_cumsum(
+                            output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
+
+                        std::iota(transposed_axes.begin(), transposed_axes.end(), 0);
+                        std::rotate(transposed_axes.begin() + axis,
+                                    transposed_axes.end() - 1,
+                                    transposed_axes.end());
+                        reference::transpose(reinterpret_cast<char*>(output_data.data()),
+                                             reinterpret_cast<char*>(transposed_output_data.data()),
+                                             transposed_shape,
+                                             sizeof(T),
+                                             transposed_axes.data(),
+                                             tensor_shape);
+
+                        std::copy(begin(transposed_output_data), end(transposed_output_data), out);
                     }
                 }
-                // iterate the map and perform cumulative sum over the give axis
-                for (auto& it : map_cooord_to_val)
-                {
-                    cum_sum(it.second);
-                }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime
