@@ -644,6 +644,8 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+    elseif(APPLE)
+        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
     endif()
 endif()
 
