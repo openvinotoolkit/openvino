@@ -940,25 +940,42 @@ pass::Serialize::Serialize(const std::string& xmlPath,
 
 ngraph::pass::StreamSerialize::StreamSerialize(std::ostream & stream,
                                                std::map<std::string, ngraph::OpSet> && custom_opsets,
+                                               const std::function<void(std::ostream &)> & custom_data_serializer,
                                                Serialize::Version version)
     : m_stream(stream)
-    , m_custom_opsets(std::move(custom_opsets)) {
+    , m_custom_opsets(std::move(custom_opsets))
+    , m_custom_data_serializer(custom_data_serializer) {
     if (version != Serialize::Version::IR_V10) {
         throw ngraph_error("Unsupported version");
     }
 }
 
 bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    /*
+        Format:
+        [ DataHeader  ]
+        [ Custom data ]
+        [    Blobs    ]
+        [     IR      ]
+    */
     DataHeader hdr = {};
 
     auto writeHeader = [this](const DataHeader & hdr) {
         m_stream.write((const char*)&hdr, sizeof hdr);
     };
 
+    // Header
     const size_t header_offset = m_stream.tellp();
-
     writeHeader(hdr);
 
+    // Custom data
+    hdr.custom_data_offset = m_stream.tellp();
+    if (m_custom_data_serializer) {
+        m_custom_data_serializer(m_stream);
+    }
+
+    // Blobs
+    hdr.consts_offset = m_stream.tellp();
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
@@ -966,14 +983,14 @@ bool ngraph::pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Func
     XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler);
     visitor.on_attribute(name, f);
 
-    hdr.consts_offset = header_offset + sizeof hdr;
+    // IR
     hdr.model_offset = m_stream.tellp();
-
     xml_doc.save(m_stream);
     m_stream.flush();
 
     const size_t file_size = m_stream.tellp();
 
+    hdr.custom_data_size = hdr.consts_offset - hdr.custom_data_offset;
     hdr.consts_size = hdr.model_offset - hdr.consts_offset;
     hdr.model_size = file_size - hdr.model_offset;
 

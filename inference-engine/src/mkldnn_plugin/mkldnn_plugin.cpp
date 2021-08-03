@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_serialize.h"
 
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -705,33 +706,15 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                             const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::MKLDNN_LT, "ImportNetwork", "ReadFromFile");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::MKLDNN_LT, "ImportNetwork");
 
-    using namespace ngraph::pass;
+    CNNNetworkDeserializer deserializer(networkModel,
+        [this](const std::string& model, const Blob::CPtr& weights) {
+            return GetCore()->ReadNetwork(model, weights);
+        });
 
-    std::string xmlString;
-    InferenceEngine::Blob::Ptr dataBlob;
-
-    StreamSerialize::DataHeader hdr = {};
-    networkModel.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
-
-    // read blob content
-    networkModel.seekg(hdr.consts_offset);
-    if (hdr.consts_size) {
-        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C));
-        dataBlob->allocate();
-        networkModel.read(dataBlob->buffer(), hdr.consts_size);
-    }
-
-    // read XML content
-    networkModel.seekg(hdr.model_offset);
-    xmlString.resize(hdr.model_size);
-    networkModel.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
-
-    OV_ITT_SCOPE_SKIP(FIRST_INFERENCE, taskChain);
-
-    CNNNetwork cnnnetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+    CNNNetwork cnnnetwork;
+    deserializer >> cnnnetwork;
 
     Config conf = engConfig;
     conf.readProperties(config);

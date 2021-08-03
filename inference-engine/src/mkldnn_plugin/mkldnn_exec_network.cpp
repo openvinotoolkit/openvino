@@ -10,6 +10,7 @@
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
+#include "mkldnn_serialize.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
@@ -25,7 +26,6 @@
 #include <fstream>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/serialize.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -301,20 +301,6 @@ std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
 IE_SUPPRESS_DEPRECATED_END
 
 void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
-    auto getCustomOpSets = [this]() {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-
-        if (extensionManager) {
-            auto extensions = extensionManager->Extensions();
-            for (const auto& extension : extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(begin(opset), end(opset));
-            }
-        }
-
-        return custom_opsets;
-    };
-
-    ngraph::pass::StreamSerialize serializer(modelStream, getCustomOpSets());
-    serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(_network.getFunction()));
+    CNNNetworkSerializer serializer(modelStream, extensionManager);
+    serializer <<_network;
 }

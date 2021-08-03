@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/pass.hpp"
@@ -63,6 +64,8 @@ public:
     NGRAPH_RTTI_DECLARATION;
 
     struct DataHeader {
+        size_t custom_data_offset;
+        size_t custom_data_size;
         size_t consts_offset;
         size_t consts_size;
         size_t model_offset;
@@ -73,9 +76,11 @@ public:
 
     StreamSerialize(std::ostream & stream,
                     std::map<std::string, ngraph::OpSet> && custom_opsets = {},
+                    const std::function<void(std::ostream &)> & custom_data_serializer = {},
                     Serialize::Version version = Serialize::Version::IR_V10);
 
 private:
     std::ostream & m_stream;
     std::map<std::string, ngraph::OpSet> m_custom_opsets;
+    std::function<void(std::ostream &)> m_custom_data_serializer;
 };
