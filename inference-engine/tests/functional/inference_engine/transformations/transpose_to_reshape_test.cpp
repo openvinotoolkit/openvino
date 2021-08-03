@@ -17,7 +17,6 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/common_optimizations/algebraic_simplification.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
