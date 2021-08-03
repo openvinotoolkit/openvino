@@ -134,10 +134,8 @@ namespace ngraph
                 if (is_last_axis)
                 {
                     std::vector<T> output_data(shape_size(tensor_shape), 0);
-                    const auto slices_count = shape_size(Shape(
-                        tensor_shape.begin(), tensor_shape.begin() + tensor_shape.size() - 1));
                     details::loop_cumsum(
-                        output_data, exclusive, reverse, slices_count, arg, tensor_shape[axis]);
+                        output_data, exclusive, reverse, tensor_shape, arg, tensor_shape[axis]);
                     std::copy(begin(output_data), end(output_data), out);
                 }
                 else
@@ -145,13 +143,9 @@ namespace ngraph
                     Shape transposed_shape(tensor_shape);
                     details::transpose_to_last_axis(arg, out, axis, tensor_shape, transposed_shape);
 
-                    const auto slices_count =
-                        shape_size(Shape(transposed_shape.begin(),
-                                         transposed_shape.begin() + transposed_shape.size() - 1));
-
                     std::vector<T> output_data(shape_size(tensor_shape), 0);
                     details::loop_cumsum(
-                        output_data, exclusive, reverse, slices_count, out, tensor_shape[axis]);
+                        output_data, exclusive, reverse, transposed_shape, out, tensor_shape[axis]);
 
                     std::vector<T> transposed_output_data(shape_size(tensor_shape));
                     details::transpose_to_original(output_data.data(), transposed_output_data.data(), axis, tensor_shape, transposed_shape);
