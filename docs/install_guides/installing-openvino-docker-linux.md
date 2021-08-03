@@ -57,13 +57,14 @@ docker run -it --rm <image_name>
 - In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 
-Before building a Docker* image on GPU, add the following commands to a Dockerfile:
+To build a OpenVINO Docker* image with access to GPU, add the following commands to a Dockerfile:
 
 **Ubuntu 18.04/20.04**:
 ```sh
 WORKDIR /tmp/opencl
 RUN useradd -ms /bin/bash -G video,users openvino && \
     chown openvino -R /home/openvino
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
     rm -rf /var/lib/apt/lists/* && \
@@ -76,6 +77,21 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
+
+or you can use an installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is a variable to store default version for Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    rm -rf /var/lib/apt/lists/*
+```
+
 **CentOS 7/RHEL 8**:
 ```sh
 WORKDIR /tmp/opencl
@@ -95,6 +111,23 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     rpm -ivh ${TEMP_DIR}/*.rpm && \
     ldconfig && \
     rm -rf ${TEMP_DIR} && \
+    yum remove -y epel-release
+```
+
+or you can use an installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is a variable to store default version for Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+RUN groupmod -g 44 video
+
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    yum clean all && rm -rf /var/cache/yum && \
     yum remove -y epel-release
 ```
 
@@ -261,17 +294,17 @@ docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 
 > **NOTES**:
 > 
-> - The device `/dev/ion` need to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+> - The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
-In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
+In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
 ```sh
-docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
+docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 ```
 > **NOTES**:
 > 
-> - When building docker images, create a user in the docker file that has the same UID and GID as the user which runs hddldaemon on the host.
-> - Run the application in the docker with this user.
+> - When building Docker images, create a user in the Dockerfile that has the same UID(User Identifier) and GID(Group Identifier) as the user which runs hddldaemon on the host.
+> - Run the application in the Docker with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
 ### Run Demos in the Docker* Image 
@@ -280,25 +313,25 @@ To run the Security Barrier Camera Demo on a specific inference device, run the 
 
 **CPU**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
 ```
 
 **GPU**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
 ```
 
 **MYRIAD**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
 ```
 
 **HDDL**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
 ```
 
