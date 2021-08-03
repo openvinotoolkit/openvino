@@ -11,8 +11,8 @@ import sys
 from inspect import getsourcefile
 from pathlib import Path
 
-# add ../lib to imports
-sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
+# add utils folder to imports
+sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "utils").resolve(strict=True)))
 
 import yaml
 import pytest
