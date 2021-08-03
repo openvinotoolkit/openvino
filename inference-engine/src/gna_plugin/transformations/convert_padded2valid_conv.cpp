@@ -14,70 +14,24 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
+#include "utils/transformation_helper.hpp"
 
 
 using namespace GNAPluginNS;
 
 NGRAPH_RTTI_DEFINITION(ConvertPadded2ValidConv, "ConvertPadded2ValidConv", 0);
 
-struct ConvData {
-    size_t input_height;
-    size_t input_width;
-    size_t input_channel_count;
-    size_t filter_count;
-    size_t pads_begin_width;
-    size_t pads_begin_height;
-    size_t pads_end_width;
-    size_t pads_end_height;
-    ngraph::op::PadType padding_type;
-    ngraph::element::Type element_type;
-};
-
-static bool VerifyAndGetConvParams(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
+static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
 
-    // We support only 2D conv batch 1
-    if (conv->get_dilations().size() != 2 ||
-        conv->get_strides().size() != 2 ||
-        input.get_shape()[0] != 1) {
+    // We support only batch 1
+    if (input.get_shape()[0] != 1) {
         return false;
     }
 
-    conv_data.padding_type = conv->get_auto_pad();
-    conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
-    conv_data.input_height = conv->input_value(0).get_shape()[2];
-    conv_data.input_width = conv->input_value(0).get_shape()[3];
-    conv_data.filter_count = conv->input_value(1).get_shape()[0];
-    conv_data.pads_begin_height = conv->get_pads_begin()[0];
-    conv_data.pads_begin_width = conv->get_pads_begin()[1];
-    conv_data.pads_end_height = conv->get_pads_end()[0];
-    conv_data.pads_end_width = conv->get_pads_end()[1];
-    conv_data.element_type = conv->get_element_type();
+    GetConvData(conv, conv_data);
 
     return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
-}
-
-static bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose, std::vector<size_t> order) {
-    if (!transpose)
-        return false;
-    const ngraph::Output<ngraph::Node>& transpose_order = transpose->input_value(1);
-    auto transpose_order_dim = transpose_order.get_shape().size();
-
-    if (transpose_order_dim != 1 || transpose_order.get_shape()[0] != order.size())
-        return false;
-
-    auto const_with_order_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(transpose_order.get_node_shared_ptr());
-    if (!const_with_order_values)
-        return false;
-
-    const auto data = const_with_order_values->cast_vector<size_t>();
-    if (data.empty())
-        return false;
-
-    if (!std::equal(order.begin(), order.end(), data.begin()))
-        return false;
-
-    return true;
 }
 
 static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& filter_count) {
@@ -89,16 +43,6 @@ static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& 
 
     // The add may be a normal add not convolution bias, then we just go further
     return (add_const && shape_size(add_const->get_shape()) == filter_count);
-}
-
-static std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size) {
-    return std::make_shared<ngraph::opset7::StridedSlice>(
-        input, // data
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset}), // begin sice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)0, offset + size}), // end slice index
-        ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {(size_t)1, (size_t)1}), // strides
-        std::vector<int64_t>{1, 0},  // begin mask
-        std::vector<int64_t>{1, 0}); // end mask
 }
 
 static void InsertPadding(ngraph::OutputVector& input_rows_to_concat, size_t size, const std::shared_ptr<ngraph::opset7::Convolution>& conv,
@@ -226,7 +170,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
 
     ConvData conv_data;
 
-    if (!VerifyAndGetConvParams(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
+    if (!VerifyAndGetConvData(std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data))
         return false;
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
@@ -246,7 +190,7 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     return true;
 }
 
-std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count, const ngraph::Dimension& expected_rank) {
+static std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(const size_t expected_count, const ngraph::Dimension& expected_rank) {
     return [=](ngraph::Output<ngraph::Node> output) -> bool {
         return ngraph::pattern::consumers_count(expected_count) && ngraph::pattern::rank_equals(expected_rank);
     };
@@ -287,10 +231,8 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto conv_output = conv->output(0).get_node_shared_ptr();
-        IE_ASSERT(conv_output != nullptr);
-
-        auto bias_node = std::dynamic_pointer_cast<ngraph::opset7::Add>(conv_output);
+        auto bias_it = pattern_map.find(bias);
+        auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
 
         return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
             pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node);
