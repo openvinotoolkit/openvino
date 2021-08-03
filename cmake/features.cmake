@@ -133,6 +133,7 @@ ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENAB
 ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" OFF)
+option(ENABLE_REQUIREMENTS_INSTALL "Dynamic dependencies install" ON)
 
 # WA for ngraph python build on Windows debug
 list(REMOVE_ITEM IE_OPTIONS NGRAPH_UNIT_TEST_ENABLE NGRAPH_UNIT_TEST_BACKENDS_ENABLE)

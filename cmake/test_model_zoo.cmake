@@ -78,8 +78,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
-    # Note: paddlepaddle==2.1.0 is not found for 32bits architecture
-    if(NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_ONNX_IMPORT_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
