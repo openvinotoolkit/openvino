@@ -11,9 +11,9 @@ std::vector<std::string> disabledTestPatterns() {
     return {
         // TODO: FIX BUG 31661
         // TODO: support InferRequest in GNAPlugin
-        ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
+        ".*InferRequestMultithreadingTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
         // TODO: FIX BUG 23741
-        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
+        ".*InferRequestMultithreadingTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
