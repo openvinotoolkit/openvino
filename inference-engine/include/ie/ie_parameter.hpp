@@ -21,12 +21,6 @@
 
 #include "ie_blob.h"
 
-namespace ngraph {
-
-class Variant;
-
-}  // namespace ngraph
-
 namespace InferenceEngine {
 
 /**
