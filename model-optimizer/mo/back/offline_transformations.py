@@ -5,7 +5,6 @@ import argparse
 
 from mo.utils.error import Error
 from mo.utils.cli_parser import parse_transform
-from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
 
 
 def get_available_transformations():
@@ -18,7 +17,8 @@ def get_available_transformations():
         return {}
 
 
-def apply_moc_transformations(net: IENetwork, transforms: list):
+# net should be openvino.inference_engine.IENetwork type, but IE Engine is still optional dependency
+def apply_moc_transformations(net: object, transforms: list):
     from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
     available_transformations = get_available_transformations()
 
