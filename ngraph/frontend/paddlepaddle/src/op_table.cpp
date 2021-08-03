@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "op_table.hpp"
 
 namespace ngraph
@@ -23,6 +22,7 @@ namespace ngraph
                 OP_CONVERTER(concat);
                 OP_CONVERTER(conv2d);
                 OP_CONVERTER(conv2d_transpose);
+                OP_CONVERTER(deformable_conv);
                 OP_CONVERTER(dropout);
                 OP_CONVERTER(elementwise_add);
                 OP_CONVERTER(elementwise_div);
@@ -43,6 +43,8 @@ namespace ngraph
                 OP_CONVERTER(log);
                 OP_CONVERTER(logical_not);
                 OP_CONVERTER(matmul);
+                OP_CONVERTER(matrix_nms);
+                OP_CONVERTER(multiclass_nms);
                 OP_CONVERTER(nearest_interp_v2);
                 OP_CONVERTER(rnn);
                 OP_CONVERTER(relu);
@@ -74,6 +76,8 @@ namespace ngraph
                     {"concat", op::concat},
                     {"conv2d", op::conv2d},
                     {"conv2d_transpose", op::conv2d_transpose},
+                    {"deformable_conv", op::deformable_conv},
+                    {"deformable_conv_v1", op::deformable_conv},
                     {"depthwise_conv2d", op::conv2d},
                     {"depthwise_conv2d_transpose", op::conv2d_transpose},
                     {"dropout", op::dropout},
@@ -96,6 +100,8 @@ namespace ngraph
                     {"log", op::log},
                     {"logical_not", op::logical_not},
                     {"matmul", op::matmul},
+                    {"matrix_nms", op::matrix_nms},
+                    {"multiclass_nms3", op::multiclass_nms},
                     {"nearest_interp_v2", op::nearest_interp_v2},
                     {"nearest_interp", op::nearest_interp_v2},
                     {"rnn", op::rnn},
