@@ -1,0 +1,1 @@
+# Integrate Inference Engine with Your Python Application {#openvino_docs_IE_DG_integrate_with_customer_application_python}
