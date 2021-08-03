@@ -5,10 +5,11 @@
 #include "behavior/infer_request/perf_counters.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
+namespace {
+
+using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-namespace {
 const std::vector<std::map<std::string, std::string>> configs = {
         {}
 };
@@ -30,4 +31,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPerfCountersTest
                          InferRequestPerfCountersTest::getTestCaseName);
 
 }  // namespace
-}  // namespace ConformanceTests

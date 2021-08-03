@@ -5,10 +5,10 @@
 #include "behavior/infer_request/cancellation.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
-using namespace BehaviorTestsDefinitions;
-
 namespace {
+using namespace BehaviorTestsDefinitions;
+using namespace ConformanceTests;
+
 const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
@@ -19,4 +19,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCancellationTests,
                                  ::testing::ValuesIn(configs)),
                          InferRequestCancellationTests::getTestCaseName);
 }  // namespace
-}  // namespace ConformanceTests

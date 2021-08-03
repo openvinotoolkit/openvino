@@ -6,10 +6,11 @@
 #include "common_test_utils/test_constants.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
+namespace {
+
+using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-namespace {
 const std::vector<FuncTestUtils::BlobType> BlobTypes = {
         FuncTestUtils::BlobType::Compound,
         FuncTestUtils::BlobType::Batched,
@@ -49,4 +50,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,
                                             ::testing::Values(heteroConfig)),
                          InferRequestSetBlobByType::getTestCaseName);
 } // namespace
-} // namespace ConformanceTests

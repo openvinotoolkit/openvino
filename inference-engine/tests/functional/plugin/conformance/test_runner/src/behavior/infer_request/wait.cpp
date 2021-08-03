@@ -8,10 +8,11 @@
 #include "ie_plugin_config.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
+namespace {
+
+using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-namespace {
 const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
@@ -43,4 +44,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                          InferRequestWaitTests::getTestCaseName);
 
 }  // namespace
-}  // namespace ConformanceTests

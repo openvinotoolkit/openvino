@@ -5,10 +5,10 @@
 #include "behavior/infer_request/callback.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
-using namespace BehaviorTestsDefinitions;
-
 namespace {
+using namespace BehaviorTestsDefinitions;
+using namespace ConformanceTests;
+
 const std::vector<std::map<std::string, std::string>> configs = {
         {},
 };
@@ -39,4 +39,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestCallbackTests,
                                  ::testing::ValuesIn(autoConfigs)),
                          InferRequestCallbackTests::getTestCaseName);
 }  // namespace
-}  // namespace ConformanceTests

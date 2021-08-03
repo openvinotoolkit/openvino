@@ -5,10 +5,11 @@
 #include "behavior/preprocessing/set_preprocess.hpp"
 #include "conformance.hpp"
 
-namespace ConformanceTests {
+namespace {
+
+using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -186,4 +187,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessDynamic
                     InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
-}  // namespace ConformanceTests
