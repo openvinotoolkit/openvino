@@ -42,7 +42,7 @@ ie_dependent_option (ENABLE_DOCS "Build docs using Doxygen" OFF "PYTHONINTERP_FO
 # Inference Engine specific options
 #
 
-ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
+ie_option (ENABLE_GNA "GNA support for inference engine" OFF)
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
