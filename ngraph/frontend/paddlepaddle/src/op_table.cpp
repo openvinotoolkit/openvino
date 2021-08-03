@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "op_table.hpp"
 
 namespace ngraph
@@ -22,6 +21,7 @@ namespace ngraph
                 OP_CONVERTER(concat);
                 OP_CONVERTER(conv2d);
                 OP_CONVERTER(conv2d_transpose);
+                OP_CONVERTER(deformable_conv);
                 OP_CONVERTER(dropout);
                 OP_CONVERTER(elementwise_add);
                 OP_CONVERTER(elementwise_div);
@@ -43,6 +43,8 @@ namespace ngraph
                 OP_CONVERTER(logical_not);
                 OP_CONVERTER(matmul);
                 OP_CONVERTER(mul);
+                OP_CONVERTER(matrix_nms);
+                OP_CONVERTER(multiclass_nms);
                 OP_CONVERTER(nearest_interp_v2);
                 OP_CONVERTER(pad3d);
                 OP_CONVERTER(pow);
@@ -86,6 +88,8 @@ namespace ngraph
                         {"concat", op::concat},
                         {"conv2d", op::conv2d},
                         {"conv2d_transpose", op::conv2d_transpose},
+                        {"deformable_conv", op::deformable_conv},
+                        {"deformable_conv_v1", op::deformable_conv},
                         {"depthwise_conv2d", op::conv2d},
                         {"depthwise_conv2d_transpose", op::conv2d_transpose},
                         {"dropout", op::dropout},
@@ -110,6 +114,8 @@ namespace ngraph
                         {"matmul", op::matmul},
                         {"max_pool2d_with_index", op::pool2d},
                         {"mul", op::mul},
+                        {"matrix_nms", op::matrix_nms},
+                        {"multiclass_nms3", op::multiclass_nms},
                         {"nearest_interp_v2", op::nearest_interp_v2},
                         {"nearest_interp", op::nearest_interp_v2},
                         {"pad3d", op::pad3d},
