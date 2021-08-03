@@ -134,25 +134,6 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
 }
 
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
-
-
-template<class SrcOpClass, class DstOpClass>
-bool replace_operation(ngraph::pattern::Matcher& m,
-                       const std::function<std::shared_ptr<DstOpClass>(const std::shared_ptr<SrcOpClass>&)> &dst_node_builder) {
-        auto src_node = std::dynamic_pointer_cast<SrcOpClass>(m.get_match_root());
-        if (!src_node)
-            return false;
-
-        auto dst_node = std::dynamic_pointer_cast<DstOpClass>(dst_node_builder(src_node));
-        if (!dst_node)
-            return false;
-
-        dst_node->set_friendly_name(src_node->get_friendly_name());
-        ngraph::copy_runtime_info(src_node, dst_node);
-        ngraph::replace_node(src_node, dst_node);
-        return true;
-}
-
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph
