@@ -132,14 +132,16 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
 }
 
 void MKLDNNDetectionOutputNode::createPrimitive() {
-    PermuteParams params;
-    params.src_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(priorsNum), static_cast<size_t>(classesNum)};
-    params.dst_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(classesNum), static_cast<size_t>(priorsNum)};
-    params.order = {0, 2, 1};
-    params.src_block_order = {0, 1, 2};
-    params.dst_block_order = {0, 1, 2};
-    params.data_size = sizeof(float);
-    permuteKernel_ = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    if (!isSparsityWorthwhile && !withAddBoxPred) {
+        PermuteParams params;
+        params.src_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(priorsNum), static_cast<size_t>(classesNum)};
+        params.dst_block_dims = {static_cast<size_t>(imgNum), static_cast<size_t>(classesNum), static_cast<size_t>(priorsNum)};
+        params.order = {0, 2, 1};
+        params.src_block_order = {0, 1, 2};
+        params.dst_block_order = {0, 1, 2};
+        params.data_size = sizeof(float);
+        permuteKernel_ = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
+    }
 }
 
 void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
@@ -174,9 +176,9 @@ void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
     const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());
     const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->GetPtr());
     const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->GetPtr());
-    const float *ARMConfData = inDims.size() > 3 ?
+    const float *ARMConfData = inputShapes.size() > 3 ?
             reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->GetPtr()) : nullptr;
-    const float *ARMLocData  = inDims.size() > 4 ?
+    const float *ARMLocData = inputShapes.size() > 4 ?
             reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->GetPtr()) : nullptr;
 
     float *reorderedConfData = reorderedConf.data();
@@ -637,14 +639,12 @@ inline void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
     if (!decodeType) {
         prNum = priorsNum;
     }
+    if (isSparsityWorthwhile && !isShareLoc && !decreaseClassId && confInfoH[priorsNum] == 0) {
+        return;
+    }
     parallel_for(prNum, [&](int p) {
-        if (isSparsityWorthwhile) {
-            if (isShareLoc && confInfoV[p] == -1) {
-                return;
-            }
-            if (!isShareLoc && !decreaseClassId && confInfoH[priorsNum] == 0) {
-                return;
-            }
+        if (isSparsityWorthwhile && isShareLoc && confInfoV[p] == -1) {
+            return;
         }
         float newXMin = 0.0f;
         float newYMin = 0.0f;
@@ -837,8 +837,8 @@ inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
 
 inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
     float* dstData) {
-    const int numResults = getChildEdgesAtPort(0)[0]->getDims()[2];
-    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getDims()[3];
+    const int numResults = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[2];
+    const int DETECTION_SIZE = getChildEdgesAtPort(0)[0]->getShape().getStaticDims()[3];
     if (DETECTION_SIZE != 7) {
         IE_THROW() << errorPrefix << NOT_IMPLEMENTED;
     }
@@ -851,7 +851,7 @@ inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, 
     else
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (dstDataSize > getChildEdgesAtPort(0)[0]->getBlob()->byteSize()) {
+    if (dstDataSize > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
         IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
     }
     memset(dstData, 0, dstDataSize);
