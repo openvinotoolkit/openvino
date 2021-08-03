@@ -68,7 +68,12 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - script: sudo apt --assume-yes install git-lfs docker-ce docker-ce-cli
+  - script: |
+      set -e
+      sudo apt --assume-yes install git-lfs
+      curl -fsSL https://get.docker.com -o get-docker.sh
+      sudo sh get-docker.sh
+    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile --build-arg BUILD_TYPE=$(BUILD_TYPE) --build-arg PROTOBUF_LITE=$(PROTOBUF_LITE) .
