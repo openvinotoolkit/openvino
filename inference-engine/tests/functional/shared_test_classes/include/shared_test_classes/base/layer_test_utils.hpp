@@ -92,10 +92,6 @@ public:
             if (absoluteDifference <= threshold) {
                 continue;
             }
-            if (std::isnan(static_cast<float>(res)) &&
-                std::isnan(static_cast<float>(ref))) {
-                continue;
-            }
             double max;
             if (sizeof(T_IE) < sizeof(T_NGRAPH)) {
                 max = std::max(CommonTestUtils::ie_abs(T_NGRAPH(res)), CommonTestUtils::ie_abs(ref));
@@ -104,7 +100,7 @@ public:
             }
             double diff = static_cast<float>(absoluteDifference) / max;
             if (max == 0 || (diff > static_cast<float>(threshold)) ||
-                std::isnan(static_cast<float>(res)) || std::isnan(static_cast<float>(ref))) {
+                (std::isnan(static_cast<float>(res)) ^ std::isnan(static_cast<float>(ref)))) {
                 IE_THROW() << "Relative comparison of values expected: " << std::to_string(ref) << " and actual: " << std::to_string(res)
                            << " at index " << i << " with threshold " << threshold
                            << " failed";
