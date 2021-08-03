@@ -27,6 +27,29 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
+
+
+NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default_1D)
+{
+    Shape shape{6};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto axis = make_shared<op::Parameter>(element::i32, Shape{});
+    auto f = make_shared<Function>(make_shared<op::CumSum>(A, axis), ParameterVector{A, axis});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
+    auto axis_tensor = backend->create_tensor(axis->get_element_type(), axis->get_shape());
+    copy_data(axis_tensor, vector<int32_t>{0});
+    auto result = backend->create_tensor(element::f32, shape);
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, axis_tensor});
+    EXPECT_TRUE(test::all_close_f((vector<float>{1, 3, 6, 10, 15, 21}), read_vector<float>(result)));
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, cum_sum_default)
 {
     Shape shape{1, 4};
@@ -187,12 +210,27 @@ NGRAPH_TEST(${BACKEND_NAME}, cum_sum_2dim_allmodes)
             EXPECT_TRUE(test::all_close_f((vector<float>{4, 6, 8, 10, 4, 5, 6, 7}),
                                           read_vector<float>(result)));
         }
+        else if (axis_val == 1 && exclusive == 0 && reverse == 0)
+        {
+            EXPECT_TRUE(test::all_close_f((vector<float>{0, 1, 3, 6, 4, 9, 15, 22}),
+                                          read_vector<float>(result)));
+        }
+        else if (axis_val == 0 && exclusive == 1 && reverse == 0)
+        {
+            EXPECT_TRUE(test::all_close_f((vector<float>{0, 0, 0, 0, 0, 1, 2, 3}),
+                                          read_vector<float>(result)));
+        }
     };
 
     test_cum_sum_allmodes(1, 1, 0);
-    test_cum_sum_allmodes(-1, 0, 1);
-    test_cum_sum_allmodes(-1, 1, 1);
+    test_cum_sum_allmodes(1, 0, 1);
+    test_cum_sum_allmodes(1, 1, 1);
     test_cum_sum_allmodes(0, 0, 0);
     test_cum_sum_allmodes(0, 1, 1);
     test_cum_sum_allmodes(0, 0, 1);
+    test_cum_sum_allmodes(0, 0, 0);
+    test_cum_sum_allmodes(0, 1, 1);
+    test_cum_sum_allmodes(0, 0, 1);
+    test_cum_sum_allmodes(1, 0, 0);
+    test_cum_sum_allmodes(0, 1, 0);
 }
