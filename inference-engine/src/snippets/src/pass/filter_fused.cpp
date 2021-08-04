@@ -7,6 +7,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/register_info.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include "legacy/ngraph_ops/fully_connected.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -91,11 +92,13 @@ bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
         return false;
 }
 bool isSutableParentForFusingSimple(std::shared_ptr<Node> node) {
-    const bool is_suitable_node = (!!as_type_ptr<ngraph::op::v1::Convolution>(node) ||
+    const bool is_suitable_node = !!as_type_ptr<ngraph::op::v1::Convolution>(node) ||
                                  !!as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
                                  !!as_type_ptr<ngraph::op::v1::BinaryConvolution>(node) ||
                                  !!as_type_ptr<ngraph::op::v0::MVN>(node) ||
-                                 !!as_type_ptr<ngraph::op::v0::NormalizeL2>(node));
+                                 !!as_type_ptr<ngraph::op::v0::NormalizeL2>(node) ||
+                                 (!!as_type_ptr<ngraph::op::FullyConnected>(node) &&
+                                 node->input_value(0).get_shape().size() != 3);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
