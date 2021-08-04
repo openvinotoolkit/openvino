@@ -226,9 +226,11 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
                 return false;
             }
 
-            if (!!ov::as_type_ptr<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
-                return false;
-            }
+//            Todo: Remove the comment after benchmark run
+//          Why subgraph is not allowed before result?
+//            if (!!as_type_ptr<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
+//                return false;
+//            }
         }
     }
 

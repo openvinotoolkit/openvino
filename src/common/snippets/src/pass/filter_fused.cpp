@@ -94,10 +94,11 @@ bool isSutableParentForFusingSimple(std::shared_ptr<Node> node) {
     const bool is_convolution = (!!as_type_ptr<ngraph::op::v1::Convolution>(node) ||
                                  !!as_type_ptr<ngraph::op::v1::GroupConvolution>(node) ||
                                  !!as_type_ptr<ngraph::op::v1::BinaryConvolution>(node));
+    const bool is_MVN = (!!as_type_ptr<ngraph::op::v0::MVN>(node));
     // has a single output, connected to a single child
     auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
-    return is_convolution && has_only_child;
+    return (is_convolution || is_MVN) && has_only_child;
 }
 
 bool isSutableChildForFusingSimple(std::shared_ptr<Node> node) {
