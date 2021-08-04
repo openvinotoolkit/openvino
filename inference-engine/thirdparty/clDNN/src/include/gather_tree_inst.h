@@ -16,7 +16,7 @@ private:
     using parent = typed_program_node_base<gather_tree>;
 public:
     using parent::parent;
-    typed_program_node(const std::shared_ptr<gather_tree> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<gather_tree> prim, program& prog) : parent(prim, prog) {
     }
     program_node& input() const { return get_dependency(0); }
 };
@@ -30,7 +30,7 @@ class typed_primitive_inst<gather_tree> : public typed_primitive_inst_base<gathe
 public:
     static layout calc_output_layout(gather_tree_node const& node);
     static std::string to_string(gather_tree_node const& node);
-    typed_primitive_inst(network_impl& network, gather_tree_node const& node);
+    typed_primitive_inst(network& network, gather_tree_node const& node);
 };
 
 using gather_tree_inst = typed_primitive_inst<gather_tree>;

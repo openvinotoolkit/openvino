@@ -42,7 +42,7 @@ public:
     static std::string to_string(gather_elements_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, gather_elements_node const& desc);
+    typed_primitive_inst(network& network, gather_elements_node const& desc);
 };
 
 using gather_elements_inst = typed_primitive_inst<gather_elements>;

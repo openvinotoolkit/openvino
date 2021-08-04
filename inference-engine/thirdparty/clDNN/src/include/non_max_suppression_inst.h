@@ -17,7 +17,7 @@ struct typed_program_node<non_max_suppression> : public typed_program_node_base<
     using parent = typed_program_node_base<non_max_suppression>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog)
     {}
 
@@ -87,7 +87,7 @@ class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_ba
     using parent = typed_primitive_inst_base<non_max_suppression>;
 
 public:
-    typed_primitive_inst(network_impl& network, non_max_suppression_node const& node)
+    typed_primitive_inst(network& network, non_max_suppression_node const& node)
         : parent(network, node)
     {}
 

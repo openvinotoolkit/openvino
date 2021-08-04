@@ -29,7 +29,7 @@ std::string gather_tree_inst::to_string(gather_tree_node const& node) {
     return primitive_description.str();
 }
 
-gather_tree_inst::typed_primitive_inst(network_impl& network, gather_tree_node const& node) : parent(network, node) {
+gather_tree_inst::typed_primitive_inst(network& network, gather_tree_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
     const auto input_format = input_layout.format;

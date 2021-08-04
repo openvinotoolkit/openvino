@@ -53,7 +53,7 @@ std::string lstm_dynamic_inst::to_string(lstm_dynamic_node const& node) {
     return primitive_description.str();
 }
 
-lstm_dynamic_inst::typed_primitive_inst(network_impl& network, lstm_dynamic_node const& node) : parent(network, node) {
+lstm_dynamic_inst::typed_primitive_inst(network& network, lstm_dynamic_node const& node) : parent(network, node) {
     CLDNN_ERROR_MESSAGE(node.id(),
                         std::string("This primitive_inst should never be created. It should be repalced by ")
                         .append("lstm_dynamic_input + lstm_dyamic_timeloop combinations."));

@@ -16,7 +16,7 @@ template <>
 struct typed_program_node<mutable_data> : public typed_program_node_base<mutable_data> {
     using parent = typed_program_node_base<mutable_data>;
 
-    typed_program_node(const std::shared_ptr<mutable_data> prim, program_impl& prog);
+    typed_program_node(const std::shared_ptr<mutable_data> prim, program& prog);
 
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }
@@ -38,7 +38,7 @@ public:
     static layout calc_output_layout(mutable_data_node const& node) { return node.get_attached_memory().get_layout(); }
     static std::string to_string(mutable_data_node const& node);
 
-    typed_primitive_inst(network_impl& network, mutable_data_node const& node);
+    typed_primitive_inst(network& network, mutable_data_node const& node);
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

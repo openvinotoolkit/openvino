@@ -7,10 +7,10 @@
 
 #include <thread>
 #include "primitive_inst.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "cldnn/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "register.hpp"
 #include <vector>
 #include <list>

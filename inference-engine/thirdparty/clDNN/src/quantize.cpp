@@ -60,6 +60,6 @@ std::string quantize_inst::to_string(quantize_node const& node) {
     return primitive_description.str();
 }
 
-quantize_inst::typed_primitive_inst(network_impl& network, quantize_node const& node) : parent(network, node) {}
+quantize_inst::typed_primitive_inst(network& network, quantize_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

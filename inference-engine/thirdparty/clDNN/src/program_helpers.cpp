@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "program_helpers.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include <algorithm>
 #include <utility>

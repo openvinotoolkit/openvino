@@ -4,7 +4,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "loop_inst.h"
-#include "network_impl.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
