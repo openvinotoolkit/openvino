@@ -11,12 +11,14 @@
  */
 #pragma once
 
-#include <va/va.h>
-
 #include <memory>
 #include <string>
 
 #include "gpu/gpu_context_api_ocl.hpp"
+
+// clang-format off
+#include <va/va.h>
+// clang-format on
 
 namespace InferenceEngine {
 

@@ -339,8 +339,8 @@ public:
     }
 
     /**
-     * @brief Returns the size of the current Blob in bytes calculated as `size()
-     * * element_size()`.
+     * @brief Returns the size of the current Blob in bytes calculated as
+     * `size() * element_size()`.
      * @return Blob's size in bytes
      */
     size_t byteSize() const noexcept override {
