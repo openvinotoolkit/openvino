@@ -48,8 +48,6 @@ namespace ngraph
     class AttributeVisitor;
     class Node;
 
-    class Function;
-
     namespace runtime
     {
         class HostTensor;

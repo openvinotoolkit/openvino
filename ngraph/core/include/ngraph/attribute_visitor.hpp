@@ -12,13 +12,16 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
+namespace ov
+{
+    class Function;
+}
 namespace ngraph
 {
     template <typename T>
     class ValueAccessor;
     class VisitorAdapter;
     class Node;
-    class Function;
 
     /// \brief Visits the attributes of a node, primarily for serialization-like tasks.
     ///
@@ -109,7 +112,7 @@ namespace ngraph
         /// \param name attribute name
         /// \param adapter reference to a Function ValueAccessor<VAT>
         virtual void on_adapter(const std::string& name,
-                                ValueAccessor<std::shared_ptr<Function>>& adapter);
+                                ValueAccessor<std::shared_ptr<ov::Function>>& adapter);
 
         /// The generic visitor. There must be a definition of AttributeAdapter<T> that can convert
         /// to a ValueAccessor<U> for one of the on_adpater methods.

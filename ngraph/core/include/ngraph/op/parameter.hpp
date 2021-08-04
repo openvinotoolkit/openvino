@@ -8,7 +8,6 @@
 
 namespace ngraph
 {
-    class Function;
     namespace op
     {
         namespace v0

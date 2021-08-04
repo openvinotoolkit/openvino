@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/attribute_visitor.hpp"
+#include <ngraph/function.hpp>
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/node.hpp"
 

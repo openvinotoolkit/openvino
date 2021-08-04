@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "core/graph_cache.hpp"
+#include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/core/operator_set.hpp"

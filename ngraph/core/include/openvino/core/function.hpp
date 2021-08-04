@@ -20,70 +20,70 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
-namespace ngraph
+namespace ov
 {
     /// A user-defined function.
     class NGRAPH_API Function
     {
     public:
-        static constexpr DiscreteTypeInfo type_info{"Function", 0};
-        const DiscreteTypeInfo& get_type_info() const { return type_info; }
-        Function(const NodeVector& results,
-                 const ParameterVector& parameters,
+        static constexpr ngraph::DiscreteTypeInfo type_info{"Function", 0};
+        const ngraph::DiscreteTypeInfo& get_type_info() const { return type_info; }
+        Function(const ngraph::NodeVector& results,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const OutputVector& results,
-                 const ParameterVector& parameters,
+        Function(const ngraph::OutputVector& results,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const std::shared_ptr<Node>& result,
-                 const ParameterVector& parameters,
+        Function(const std::shared_ptr<ngraph::Node>& result,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const ResultVector& results,
-                 const ParameterVector& parameters,
+        Function(const ngraph::ResultVector& results,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const ResultVector& results,
-                 const SinkVector& sinks,
-                 const ParameterVector& parameters,
+        Function(const ngraph::ResultVector& results,
+                 const ngraph::SinkVector& sinks,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const OutputVector& results,
-                 const SinkVector& sinks,
-                 const ParameterVector& parameters,
+        Function(const ngraph::OutputVector& results,
+                 const ngraph::SinkVector& sinks,
+                 const ngraph::ParameterVector& parameters,
                  const std::string& name = "");
 
-        Function(const ResultVector& results,
-                 const SinkVector& sinks,
-                 const ParameterVector& parameters,
-                 const VariableVector& variables,
+        Function(const ngraph::ResultVector& results,
+                 const ngraph::SinkVector& sinks,
+                 const ngraph::ParameterVector& parameters,
+                 const ngraph::VariableVector& variables,
                  const std::string& name = "");
 
-        Function(const OutputVector& results,
-                 const SinkVector& sinks,
-                 const ParameterVector& parameters,
-                 const VariableVector& variables,
+        Function(const ngraph::OutputVector& results,
+                 const ngraph::SinkVector& sinks,
+                 const ngraph::ParameterVector& parameters,
+                 const ngraph::VariableVector& variables,
                  const std::string& name = "");
 
-        Function(const ResultVector& results,
-                 const ParameterVector& parameters,
-                 const VariableVector& variables,
+        Function(const ngraph::ResultVector& results,
+                 const ngraph::ParameterVector& parameters,
+                 const ngraph::VariableVector& variables,
                  const std::string& name = "");
 
-        Function(const OutputVector& results,
-                 const ParameterVector& parameters,
-                 const VariableVector& variables,
+        Function(const ngraph::OutputVector& results,
+                 const ngraph::ParameterVector& parameters,
+                 const ngraph::VariableVector& variables,
                  const std::string& name = "");
 
         /// Constructs a Function. Lists of parameters and variables will be generated automatically
         /// based on traversing the graph from the results.
-        explicit Function(const OutputVector& results, const std::string& name = "");
+        explicit Function(const ngraph::OutputVector& results, const std::string& name = "");
 
         /// Constructs a Function. Lists of parameters and variables will be generated automatically
         /// based on traversing the graph from the results and the sinks.
-        Function(const OutputVector& results,
-                 const SinkVector& sinks,
+        Function(const ngraph::OutputVector& results,
+                 const ngraph::SinkVector& sinks,
                  const std::string& name = "");
 
         virtual ~Function() = default;
@@ -91,21 +91,21 @@ namespace ngraph
         size_t get_output_size() const;
 
         /// Return the op that generates output i
-        std::shared_ptr<Node> get_output_op(size_t i) const;
+        std::shared_ptr<ngraph::Node> get_output_op(size_t i) const;
 
-        Output<Node> output(size_t i) const;
+        ngraph::Output<ngraph::Node> output(size_t i) const;
 
         /// Return the element type of output i
-        const element::Type& get_output_element_type(size_t i) const;
+        const ngraph::element::Type& get_output_element_type(size_t i) const;
 
         /// Return the shape of element i
-        const Shape& get_output_shape(size_t i) const;
+        const ngraph::Shape& get_output_shape(size_t i) const;
 
         /// Return the partial shape of element i
-        const PartialShape& get_output_partial_shape(size_t i) const;
+        const ngraph::PartialShape& get_output_partial_shape(size_t i) const;
 
         /// Check that there is a single result and return it.
-        std::shared_ptr<Node> get_result() const;
+        std::shared_ptr<ngraph::Node> get_result() const;
 
         /// \brief Get the unique name of the function.
         /// \returns A const reference to the function's unique name.
@@ -122,13 +122,13 @@ namespace ngraph
         /// \returns A const reference to the function's friendly name.
         const std::string& get_friendly_name() const;
 
-        std::vector<std::shared_ptr<Node>> get_ops() const;
-        std::vector<std::shared_ptr<Node>> get_ordered_ops() const;
-        void map_unordered_ops(std::function<void(Node*)> f) const;
+        std::vector<std::shared_ptr<ngraph::Node>> get_ops() const;
+        std::vector<std::shared_ptr<ngraph::Node>> get_ordered_ops() const;
+        void map_unordered_ops(std::function<void(ngraph::Node*)> f) const;
 
         friend std::ostream& operator<<(std::ostream&, const Function&);
         // updates graph and m_results list
-        void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
+        void replace_node(std::shared_ptr<ngraph::Node> old, std::shared_ptr<ngraph::Node> repl);
 
         void validate_nodes_and_infer_types() const;
 
@@ -148,53 +148,54 @@ namespace ngraph
         /// \param parameter_index The index of the parameter to replace.
         /// \param parameter The parameter to substitute for the `parameter_index`th parameter.
         void replace_parameter(size_t parameter_index,
-                               const std::shared_ptr<op::Parameter>& parameter);
+                               const std::shared_ptr<ngraph::op::Parameter>& parameter);
 
-        using topological_sort_t = std::function<std::vector<std::shared_ptr<Node>>(
-            const std::vector<std::shared_ptr<Node>>& root_nodes)>;
+        using topological_sort_t = std::function<std::vector<std::shared_ptr<ngraph::Node>>(
+            const std::vector<std::shared_ptr<ngraph::Node>>& root_nodes)>;
         void set_topological_sort(topological_sort_t);
 
-        virtual bool visit_attributes(AttributeVisitor& visitor);
+        virtual bool visit_attributes(ngraph::AttributeVisitor& visitor);
 
         /// Return the function parameters
-        const ParameterVector& get_parameters() const { return m_parameters; };
+        const ngraph::ParameterVector& get_parameters() const { return m_parameters; };
         /// Return a list of function's outputs
-        const ResultVector& get_results() const { return m_results; };
+        const ngraph::ResultVector& get_results() const { return m_results; };
         /// Index for parameter, or -1
-        int64_t get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const;
+        int64_t get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const;
 
         /// Index for value or result referencing it, or -1
-        int64_t get_result_index(const Output<Node>& value) const;
+        int64_t get_result_index(const ngraph::Output<ngraph::Node>& value) const;
 
         /// \brief Evaluate the function on inputs, putting results in outputs.
         /// \param output_tensors Tensors for the outputs to compute. One for each result
         /// \param input_tensors Tensors for the inputs. One for each inputs.
         /// \param evaluation_context Storage of additional settings and attributes that can be used
         /// when evaluating the function. This additional information can be shared across nodes.
-        bool evaluate(const HostTensorVector& output_tensors,
-                      const HostTensorVector& input_tensors,
-                      EvaluationContext evaluation_context = EvaluationContext()) const;
+        bool evaluate(
+            const ngraph::HostTensorVector& output_tensors,
+            const ngraph::HostTensorVector& input_tensors,
+            ngraph::EvaluationContext evaluation_context = ngraph::EvaluationContext()) const;
 
         /// \brief Return a list of function's sinks.
-        const SinkVector& get_sinks() const { return m_sinks; }
+        const ngraph::SinkVector& get_sinks() const { return m_sinks; }
         /// \brief Add new sink nodes to the list. Method doesn't validate graph, it should be done
         /// manually after all changes.
         /// \param sinks new sink nodes
-        void add_sinks(const SinkVector& sinks);
+        void add_sinks(const ngraph::SinkVector& sinks);
 
         /// \brief Delete sink node from the list of sinks. Method doesn't delete node from graph.
         /// \param sink Sink to delete
-        void remove_sink(const std::shared_ptr<op::Sink>& sink);
+        void remove_sink(const std::shared_ptr<ngraph::op::Sink>& sink);
 
         /// \brief Add new Result nodes to the list. Method doesn't validate graph, it should be
         /// done manually after all changes.
         /// \param results new Result nodes
-        void add_results(const ResultVector& results);
+        void add_results(const ngraph::ResultVector& results);
 
         /// \brief Delete Result node from the list of results. Method will not delete node from
         /// graph.
         /// \param result Result node to delete
-        void remove_result(const std::shared_ptr<op::Result>& result);
+        void remove_result(const std::shared_ptr<ngraph::op::Result>& result);
 
         /// \brief Add new Parameter nodes to the list.
         ///
@@ -206,7 +207,7 @@ namespace ngraph
         /// * call graph validation to check correctness of changes
         ///
         /// \param params new Parameter nodes
-        void add_parameters(const ParameterVector& params);
+        void add_parameters(const ngraph::ParameterVector& params);
 
         /// \brief Delete Parameter node from the list of parameters. Method will not delete node
         /// from graph. You need to replace Parameter with other operation manually.
@@ -221,23 +222,23 @@ namespace ngraph
         /// * call graph validation to check all changes
         ///
         /// \param param Parameter node to delete
-        void remove_parameter(const std::shared_ptr<op::Parameter>& param);
+        void remove_parameter(const std::shared_ptr<ngraph::op::Parameter>& param);
 
         /// \brief Add new variables to the list. Method doesn't validate graph, it should be done
         /// manually after all changes.
         /// \param variables new variables to add
-        void add_variables(const VariableVector& variables);
+        void add_variables(const ngraph::VariableVector& variables);
 
         /// \brief Delete variable from the list of variables.
         /// Method doesn't delete nodes that used this variable from the graph.
         /// \param variable Variable to delete
-        void remove_variable(const VariablePtr& variable);
+        void remove_variable(const ngraph::VariablePtr& variable);
 
         /// \brief Return a list of function's variables.
-        const VariableVector& get_variables() const { return m_variables; }
+        const ngraph::VariableVector& get_variables() const { return m_variables; }
 
         /// \brief Return a variable by specified variable_id.
-        VariablePtr get_variable_by_id(const std::string& variable_id) const;
+        ngraph::VariablePtr get_variable_by_id(const std::string& variable_id) const;
 
     private:
         Function(const Function&) = delete;
@@ -259,21 +260,24 @@ namespace ngraph
         size_t m_placement{0};
         topological_sort_t m_topological_sorter;
 
-        ResultVector m_results;
+        ngraph::ResultVector m_results;
         // List of the nodes with side effect in graph.
         // These nodes are not outputs of graph but should not be removed even if have no children.
-        SinkVector m_sinks;
-        ParameterVector m_parameters;
-        VariableVector m_variables;
+        ngraph::SinkVector m_sinks;
+        ngraph::ParameterVector m_parameters;
+        ngraph::VariableVector m_variables;
     };
 
+} // namespace ov
+namespace ngraph
+{
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>>
-        : public DirectValueAccessor<std::shared_ptr<Function>>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<ov::Function>>
+        : public DirectValueAccessor<std::shared_ptr<ov::Function>>
     {
     public:
-        AttributeAdapter(std::shared_ptr<Function>& value)
-            : DirectValueAccessor<std::shared_ptr<Function>>(value)
+        AttributeAdapter(std::shared_ptr<ov::Function>& value)
+            : DirectValueAccessor<std::shared_ptr<ov::Function>>(value)
         {
         }
 
