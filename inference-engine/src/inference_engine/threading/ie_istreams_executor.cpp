@@ -123,11 +123,11 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
             break;
         }
     } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
-        return {_streams};
+        return {std::to_string(_streams)};
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
-        return {_threads};
+        return {std::to_string(_threads)};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
-        return {_threadsPerStream};
+        return {std::to_string(_threadsPerStream)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }

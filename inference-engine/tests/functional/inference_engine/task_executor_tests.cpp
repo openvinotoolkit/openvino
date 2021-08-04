@@ -186,6 +186,18 @@ TEST_P(ASyncTaskExecutorTests, runAndWaitDoesNotOwnTasks) {
     ASSERT_EQ(1, useCount);
 }
 
+class StreamsExecutorConfigTest : public ::testing::Test {};
+
+TEST_F(StreamsExecutorConfigTest, streamsExecutorConfigReturnStrings) {
+    auto streams = getNumberOfCPUCores();
+    auto threads = parallel_get_max_threads();
+    auto config = IStreamsExecutor::Config::MakeDefaultMultiThreaded({"TestCPUStreamsExecutor",
+                                            streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
+    for (auto&& key : config.SupportedKeys()) {
+        ASSERT_NO_THROW(config.GetConfig(key).as<std::string>());
+    }
+}
+
 static auto Executors = ::testing::Values(
     [] {
         auto streams = getNumberOfCPUCores();
@@ -210,4 +222,6 @@ static auto AsyncExecutors = ::testing::Values(
 );
 
 INSTANTIATE_TEST_SUITE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
+
+
 
