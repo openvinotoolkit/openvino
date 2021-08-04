@@ -38,7 +38,8 @@ namespace ngraph
 
                     auto out_names = node.get_output_names();
                     PDPD_ASSERT(out_names.size() == 3 || out_names.size() == 2,
-                                "Unexpected number of outputs of MatrixNMS: " + out_names.size());
+                                "Unexpected number of outputs of MatrixNMS: " +
+                                    std::to_string(out_names.size()));
 
                     element::Type type_num = i32;
                     bool return_rois_num = true;
