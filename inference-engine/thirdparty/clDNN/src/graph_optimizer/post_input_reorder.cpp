@@ -18,14 +18,14 @@ If not than required reorder is added to the network.
 /*
 Add a reorder in between node and usr with reorder_layout as layout
 */
-program_node& post_input_reorder::add_reorder(program_impl& p,
+program_node& post_input_reorder::add_reorder(program& p,
                                               program_node* node,
                                               program_node* usr,
                                               const layout& reorder_layout) {
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
-    // ToDo: add a method to program_impl class which adds an intermediate node given a node and its user
+    // ToDo: add a method to program class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
     if (it == usr->get_dependencies().end()) {
         throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
@@ -38,7 +38,7 @@ program_node& post_input_reorder::add_reorder(program_impl& p,
     return new_reorder_node;
 }
 
-void post_input_reorder::run(program_impl& p) {
+void post_input_reorder::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = *node_itr++;

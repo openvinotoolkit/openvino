@@ -4,15 +4,32 @@
 
 #pragma once
 
+#include <frontend_manager/frontend_manager.hpp>
 #include <fstream>
 #include <string>
 #include "backend.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
 
 // Helper functions
 namespace FrontEndTestUtils
 {
+    int run_tests(int argc, char** argv);
+
+    std::string get_current_executable_path();
+
+    inline std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>
+        load_from_file(ngraph::frontend::FrontEndManager& fem,
+                       const std::string& frontend_name,
+                       const std::string& model_file)
+    {
+        auto frontend = fem.load_by_framework(frontend_name);
+        auto inputModel = frontend->load(model_file);
+        return std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>{
+            frontend, inputModel};
+    }
+
     inline std::string fileToTestName(const std::string& fileName)
     {
         // TODO: GCC 4.8 has limited support of regex
@@ -57,16 +74,6 @@ namespace FrontEndTestUtils
 
     inline std::string make_model_path(const std::string& modelsRelativePath)
     {
-        // First try build path
-        auto res = std::string(TEST_MODEL_BUILD_DIR) + "/" + modelsRelativePath;
-        if (exists(res))
-        {
-            return res;
-        }
-        else
-        {
-            // Install case: if model file does not exist, use base path from env variable
-            return std::string(ngraph::getenv_string("FE_TEST_MODELS")) + "/" + modelsRelativePath;
-        }
+        return CommonTestUtils::getModelFromTestModelZoo(modelsRelativePath);
     }
 } // namespace FrontEndTestUtils
