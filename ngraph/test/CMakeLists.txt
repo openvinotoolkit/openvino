@@ -558,31 +558,10 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
 endif()
 
 # SOURCE FOR FRONTEND TESTING
-
 file(GLOB FRONTEND_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/frontend_manager.cpp)
 set(SRC ${FRONTEND_TESTS_SRC} ${SRC})
 
-file(GLOB FRONTEND_SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/src/*.cpp)
-file(GLOB FRONTEND_SHARED_TESTS_HDR ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include/*.hpp)
-set(SRC ${FRONTEND_SHARED_TESTS_SRC} ${SRC})
-
-add_definitions("-DTEST_MODEL_BUILD_DIR=\"${CMAKE_CURRENT_BINARY_DIR}\"")
-
-# ---- PaddlePaddle FrontEnd testing ------
-if (NGRAPH_PDPD_FRONTEND_ENABLE)
-    ie_check_pip_package(paddlepaddle WARNING)
-
-    if(paddlepaddle_FOUND)
-        file(GLOB FRONTEND_PDPD_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/frontend/paddlepaddle/*.cpp)
-        set(SRC ${FRONTEND_PDPD_TESTS_SRC} ${SRC})
-        set(PADDLE_TEST_MODELS_DIRNAME paddle_test_models)
-        set(TEST_PADDLE_MODELS ${CMAKE_CURRENT_BINARY_DIR}/${PADDLE_TEST_MODELS_DIRNAME}/)
-        add_definitions("-DTEST_PADDLE_MODELS_DIRNAME=\"${PADDLE_TEST_MODELS_DIRNAME}/\"")
-    endif()
-endif()
-# ---- End PaddlePaddle FrontEnd testing ------
-
-add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC} ${FRONTEND_SHARED_TESTS_HDR})
+add_clang_format_target(unit-test_clang FOR_SOURCES ${SRC} ${MULTI_TEST_SRC})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -603,7 +582,6 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend/shared/include)
 
 add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
 add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
@@ -618,7 +596,8 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ie_backend
                                         interpreter_backend
                                         Threads::Threads
-                                        openvino::conditional_compilation)
+                                        openvino::conditional_compilation
+                                        frontend_manager)
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
@@ -655,39 +634,7 @@ install(TARGETS unit-test
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
-############ FRONTEND ############
-target_include_directories(unit-test PRIVATE ${FRONTEND_INCLUDE_PATH} frontend/shared/include)
-target_link_libraries(unit-test PRIVATE frontend_manager cnpy commonTestUtils)
-
 add_subdirectory(frontend)
-### END FRONTEND ###
-
-#PaddlePaddle - test models generator
-if (NGRAPH_PDPD_FRONTEND_ENABLE AND paddlepaddle_FOUND)
-    file(GLOB_RECURSE PDPD_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_scripts/generate_*.py)
-    set(OUT_FILES "")
-    foreach(GEN_SCRIPT ${PDPD_GEN_SCRIPTS})
-        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
-        set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
-        add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
-                        ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
-                        ${GEN_SCRIPT}
-                        ${TEST_PADDLE_MODELS}
-                        ${OUT_DONE_FILE}
-                DEPENDS ${GEN_SCRIPT} ${CMAKE_CURRENT_SOURCE_DIR}/files/paddlepaddle/gen_wrapper.py
-                )
-    endforeach()
-    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
-    add_dependencies(unit-test paddlepaddle_test_models)
-    add_dependencies(unit-test paddlepaddle_ngraph_frontend)
-
-    install(DIRECTORY ${TEST_PADDLE_MODELS}
-            DESTINATION tests/${PADDLE_TEST_MODELS_DIRNAME}
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-endif()
 
 # process models
 add_dependencies(unit-test test_model_zoo)
