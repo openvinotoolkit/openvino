@@ -21,8 +21,7 @@ TEST(FrontEndIncorrectCutModelTest, test_incorrect_cut)
     ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(
-        std::string(TEST_PADDLE_MODELS_DIRNAME) +
-        std::string("2in_2out/2in_2out.pdmodel"));
+        std::string(TEST_PADDLE_MODELS_DIRNAME) + std::string("2in_2out/2in_2out.pdmodel"));
     ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
 

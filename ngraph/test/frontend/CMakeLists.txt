@@ -1,6 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+add_subdirectory(shared)
+
+if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    add_subdirectory(paddlepaddle)
+endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
 add_library(mock1_ngraph_frontend SHARED ${SRC})
