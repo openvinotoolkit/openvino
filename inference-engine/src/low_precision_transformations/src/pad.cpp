@@ -6,25 +6,36 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-PadTransformation::PadTransformation(const Params& params) : LayerTransformation(params) {}
+NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PadTransformation, "PadTransformation", 0);
 
-void PadTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    addPattern(pass,
-               context,
-               make_op_pattern<opset1::Pad>({
-                   make_op_label<opset1::Multiply>(),
-                   make_op_label<opset1::Constant>(),
-                   make_op_label<opset1::Constant>(),
-                   make_op_label<opset1::Constant>()}));
+PadTransformation::PadTransformation(const Params& params) : LayerTransformation(params) {
+    auto mul = pattern::wrap_type<opset1::Multiply>();
+    auto padsBegin = pattern::wrap_type<opset1::Constant>();
+    auto padsEnd = pattern::wrap_type<opset1::Constant>();
+    auto padsValue = pattern::wrap_type<opset1::Constant>();
+    auto matcher = pattern::wrap_type<opset1::Pad>({ mul, padsBegin, padsEnd, padsValue });
+
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        auto op = m.get_match_root();
+        if (transformation_callback(op)) {
+            return false;
+        }
+        return transform(*context, m);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "PadTransformation");
+    this->register_matcher(m, callback);
 }
 
-bool PadTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
+bool PadTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
