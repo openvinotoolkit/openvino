@@ -29,7 +29,8 @@ target_link_libraries(${TARGET_NAME} PUBLIC ngraph
                                      PRIVATE ngraph_reference)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
