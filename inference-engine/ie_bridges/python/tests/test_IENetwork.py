@@ -12,58 +12,10 @@ from conftest import model_path
 test_net_xml, test_net_bin = model_path()
 
 
-def test_create_ie_network_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        net = IENetwork(model=test_net_xml, weights=test_net_bin)
-        assert isinstance(net, IENetwork)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "Reading network using constructor is deprecated. " \
-               "Please, use IECore.read_network() method instead" in str(w[0].message)
-
-
-def test_incorrect_xml_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with pytest.raises(Exception) as e:
-            IENetwork(model="./model.xml", weights=test_net_bin)
-        assert "Path to the model ./model.xml doesn't exist or it's a directory" in str(e.value)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "Reading network using constructor is deprecated. " \
-               "Please, use IECore.read_network() method instead" in str(w[0].message)
-
-
-def test_incorrect_bin_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with pytest.raises(Exception) as e:
-            IENetwork(model=test_net_xml, weights="./model.bin")
-        assert "Path to the weights ./model.bin doesn't exist or it's a directory" in str(e.value)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "Reading network using constructor is deprecated. " \
-               "Please, use IECore.read_network() method instead" in str(w[0].message)
-
-
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.name == "test_model"
-
-
-def test_inputs_deprecated():
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    with warnings.catch_warnings(record=True) as w:
-        inp = net.inputs
-        assert isinstance(inp['data'], DataPtr)
-        assert inp['data'].layout == "NCHW"
-        assert inp['data'].precision == "FP32"
-        assert inp['data'].shape == [1, 3, 32, 32]
-    assert len(w) == 1
-    assert "'inputs' property of IENetwork class is deprecated. " \
-               "To access DataPtrs user need to use 'input_data' property " \
-               "of InputInfoPtr objects which " \
-               "can be accessed by 'input_info' property." in str(w[-1].message)
 
 
 def test_input_info():
@@ -208,21 +160,7 @@ def test_reshape():
     net.reshape({"data": (2, 3, 32, 32)})
 
 
-def test_read_net_from_buffer_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with open(test_net_bin, 'rb') as f:
-            bin = f.read()
-        with open(test_net_xml, 'rb') as f:
-            xml = f.read()
-        net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
-        assert isinstance(net, IENetwork)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "Reading network using constructor is deprecated. " \
-               "Please, use IECore.read_network() method instead" in str(w[0].message)
-
-
-def test_net_from_buffer_valid_deprecated():
+def test_net_from_buffer_valid():
     ie = IECore()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
