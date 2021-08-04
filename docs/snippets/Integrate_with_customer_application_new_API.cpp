@@ -5,12 +5,10 @@ const std::string output_name = "output_name";
 const std::string input_name = "input_name";
 //! [part0]
 InferenceEngine::Core core;
-InferenceEngine::CNNNetwork network;
-InferenceEngine::ExecutableNetwork executable_network;
 //! [part0]
 
 //! [part1]
-network = core.ReadNetwork("Model.xml");
+auto network  = core.ReadNetwork("Model.xml");
 //! [part1]
 
 //! [part2]
@@ -43,6 +41,7 @@ for (auto &item : output_info) {
 
 //! [part5]
 executable_network = core.LoadNetwork(network, "CPU");
+
 //! [part5]
 
 //! [part6]

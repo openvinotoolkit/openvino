@@ -120,7 +120,9 @@ The screen example below indicates you are missing two dependencies:
 8. Click **Finish** to close the installation wizard. A new browser window opens to the next section of the installation guide to set the environment variables. You are in the same document. The new window opens in case you ran the installation without first opening this installation guide. 
 9. If the installation indicated you must install dependencies, install them first. If there are no missing dependencies, you can go ahead and <a href="#set-the-environment-variables">set the environment variables</a>.  
 
-### Set the Environment Variables <a name="set-the-environment-variables"></a>
+### Set the Environment Variables
+
+<a name="set-the-environment-variables"></a>
 
 > **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software.
 
