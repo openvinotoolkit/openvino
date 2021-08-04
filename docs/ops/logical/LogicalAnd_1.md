@@ -25,7 +25,7 @@
 
 **Outputs**
 
-* **1**: The result of element-wise logical AND operation. A tensor of type boolean.
+* **1**: The result of element-wise logical AND operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
@@ -42,7 +42,7 @@ o_{i} = a_{i} and b_{i}
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="LogicalAnd">
@@ -65,7 +65,7 @@ o_{i} = a_{i} and b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="LogicalAnd">
     <input>
