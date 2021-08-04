@@ -166,5 +166,5 @@ std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     return primitive_description.str();
 }
 
-arg_max_min_inst::typed_primitive_inst(network_impl& network, arg_max_min_node const& node) : parent(network, node) {}
+arg_max_min_inst::typed_primitive_inst(network& network, arg_max_min_node const& node) : parent(network, node) {}
 }  // namespace cldnn

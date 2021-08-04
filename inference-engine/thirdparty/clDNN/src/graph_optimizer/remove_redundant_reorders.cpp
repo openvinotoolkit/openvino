@@ -22,7 +22,7 @@ remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, b
     : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
     remove_output_reorders(remove_output_reorders) {}
 
-void remove_redundant_reorders::run(program_impl& p) {
+void remove_redundant_reorders::run(program& p) {
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
