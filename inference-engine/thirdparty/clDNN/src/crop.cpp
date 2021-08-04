@@ -68,7 +68,7 @@ std::string crop_inst::to_string(crop_node const& node) {
     return primitive_description.str();
 }
 
-crop_inst::typed_primitive_inst(network_impl& network, crop_node const& node) : parent(network, node) {
+crop_inst::typed_primitive_inst(network& network, crop_node const& node) : parent(network, node) {
     const auto& ref_in_sizes = argument.reference_input;
     const auto in_layout = node.input().get_output_layout();
     const auto& in_sizes = in_layout.size;
