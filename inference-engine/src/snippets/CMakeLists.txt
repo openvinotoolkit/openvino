@@ -30,11 +30,12 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PUBLIC ngraph inference_engine_transformations inference_engine_legacy
                                      PRIVATE ngraph_reference)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
-                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+                                          PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
