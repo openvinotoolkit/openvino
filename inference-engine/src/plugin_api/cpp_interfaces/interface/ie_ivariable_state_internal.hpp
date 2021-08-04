@@ -5,8 +5,8 @@
 #pragma once
 
 #include <ie_blob.h>
-#include <details/ie_so_pointer.hpp>
 
+#include <details/ie_so_pointer.hpp>
 #include <memory>
 #include <string>
 
@@ -17,7 +17,7 @@ namespace InferenceEngine {
  * @brief Minimal interface for variable state implementation
  * @ingroup ie_dev_api_variable_state_api
  */
-class INFERENCE_ENGINE_API_CLASS(IVariableStateInternal) : public std::enable_shared_from_this<IVariableStateInternal> {
+class INFERENCE_ENGINE_API_CLASS(IVariableStateInternal): public std::enable_shared_from_this<IVariableStateInternal> {
 public:
     /**
      * @brief A shared pointer to a IVariableStateInternal interface
@@ -33,8 +33,8 @@ public:
     virtual std::string GetName() const;
 
     /**
-     * @brief Reset internal variable state for relevant infer request, to a value specified as
-     * default for according `ReadValue` node
+     * @brief Reset internal variable state for relevant infer request, to a value
+     * specified as default for according `ReadValue` node
      */
     virtual void Reset();
 

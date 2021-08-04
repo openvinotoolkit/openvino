@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief Defines Description buffer to conviniently works with StatusCode and ResponseDesc
+ * @brief Defines Description buffer to conviniently works with StatusCode and
+ * ResponseDesc
  * @file description_buffer.hpp
  */
 
@@ -79,7 +80,8 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      */
     template <class T>
     DescriptionBuffer& operator<<(const T& obj) {
-        if (!stream) return *this;
+        if (!stream)
+            return *this;
         (*stream.get()) << obj;
 
         return *this;
@@ -90,7 +92,8 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @return     A StatusCode value
      */
     operator StatusCode() const {
-        if (stream) stream->flush();
+        if (stream)
+            stream->flush();
         return err;
     }
 
@@ -99,7 +102,8 @@ private:
     StatusCode err = GENERAL_ERROR;
 
     void init(ResponseDesc* desc) {
-        if (desc == nullptr) return;
+        if (desc == nullptr)
+            return;
         init(desc->msg, sizeof(desc->msg) / sizeof(desc->msg[0]));
     }
 

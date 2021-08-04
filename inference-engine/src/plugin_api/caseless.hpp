@@ -21,17 +21,16 @@ namespace details {
 
 /**
  * @brief Provides caseless comparison for STL algorithms
- * 
+ *
  * @tparam Key type, usually std::string
  */
 template <class Key>
-class CaselessLess  {
+class CaselessLess {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
-        return std::lexicographical_compare(std::begin(a), std::end(a), std::begin(b), std::end(b),
-                                            [](const char& cha, const char& chb) {
-                                                return std::tolower(cha) < std::tolower(chb);
-                                            });
+        return std::lexicographical_compare(std::begin(a), std::end(a), std::begin(b), std::end(b), [](const char& cha, const char& chb) {
+            return std::tolower(cha) < std::tolower(chb);
+        });
     }
 };
 
@@ -43,8 +42,7 @@ template <class Key>
 class CaselessEq {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
-        return a.size() == b.size() &&
-               std::equal(std::begin(a), std::end(a), std::begin(b), [](const char& cha, const char& chb) {
+        return a.size() == b.size() && std::equal(std::begin(a), std::end(a), std::begin(b), [](const char& cha, const char& chb) {
                    return std::tolower(cha) == std::tolower(chb);
                });
     }

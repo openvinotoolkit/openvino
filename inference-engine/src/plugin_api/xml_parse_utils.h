@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief Basic functions to safely extract values from `pugi::xml_node` and open `pugi::xml_document`
+ * @brief Basic functions to safely extract values from `pugi::xml_node` and
+ * open `pugi::xml_document`
  * @file xml_parse_utils.h
  */
 
@@ -12,20 +13,20 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
+#include <pugixml.hpp>
 #include <sstream>
 #include <string>
 #include <utility>
 
-#include <pugixml.hpp>
-
-#include "ie_api.h"
-#include "ie_precision.hpp"
-#include "ie_common.h"
 #include "file_utils.h"
+#include "ie_api.h"
+#include "ie_common.h"
+#include "ie_precision.hpp"
 
 /**
  * @ingroup    ie_dev_api_xml
- * @brief      Defines convinient for-each based cycle to iterate over node children
+ * @brief      Defines convinient for-each based cycle to iterate over node
+ * children
  *
  * @param      c     Child node name
  * @param      p     Parent node name
@@ -47,7 +48,8 @@ namespace XMLParseUtils {
  * @param[in]  str   The string
  * @return     An integer value
  */
-INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(int)
+GetIntAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -57,7 +59,8 @@ INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char*
  * @param[in]  defVal  The default value
  * @return     An integer value
  */
-INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char* str, int defVal);
+INFERENCE_ENGINE_API_CPP(int)
+GetIntAttr(const pugi::xml_node& node, const char* str, int defVal);
 
 /**
  * @brief      Gets the `int64_t` attribute from `pugi::xml_node`
@@ -67,7 +70,8 @@ INFERENCE_ENGINE_API_CPP(int) GetIntAttr(const pugi::xml_node& node, const char*
  * @param[in]  str   The string identifying value name
  * @return     An `int64_t` value
  */
-INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(int64_t)
+GetInt64Attr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the `int64_t` attribute from `pugi::xml_node`
@@ -78,7 +82,8 @@ INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const
  * @param[in]  defVal  The default value
  * @return     An `int64_t` value
  */
-INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const char* str, int64_t defVal);
+INFERENCE_ENGINE_API_CPP(int64_t)
+GetInt64Attr(const pugi::xml_node& node, const char* str, int64_t defVal);
 
 /**
  * @brief      Gets the `uint64_t` attribute from `pugi::xml_node`
@@ -88,7 +93,8 @@ INFERENCE_ENGINE_API_CPP(int64_t) GetInt64Attr(const pugi::xml_node& node, const
  * @param[in]  str   The string identifying value name
  * @return     An `uint64_t` value
  */
-INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(uint64_t)
+GetUInt64Attr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the `uint64_t` attribute from `pugi::xml_node`
@@ -99,7 +105,8 @@ INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, con
  * @param[in]  defVal  The default value
  * @return     An `uint64_t` value
  */
-INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, const char* str, uint64_t defVal);
+INFERENCE_ENGINE_API_CPP(uint64_t)
+GetUInt64Attr(const pugi::xml_node& node, const char* str, uint64_t defVal);
 
 /**
  * @brief      Gets the unsigned integer attribute from `pugi::xml_node`
@@ -109,7 +116,8 @@ INFERENCE_ENGINE_API_CPP(uint64_t) GetUInt64Attr(const pugi::xml_node& node, con
  * @param[in]  str   The string identifying value name
  * @return     An unsigned integer value
  */
-INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(unsigned int)
+GetUIntAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the unsigned integer attribute from `pugi::xml_node`
@@ -120,7 +128,8 @@ INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, c
  * @param[in]  defVal  The default value
  * @return     An unsigned integer value
  */
-INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, const char* str, unsigned int defVal);
+INFERENCE_ENGINE_API_CPP(unsigned int)
+GetUIntAttr(const pugi::xml_node& node, const char* str, unsigned int defVal);
 
 /**
  * @brief      Gets the string attribute from `pugi::xml_node`
@@ -130,7 +139,8 @@ INFERENCE_ENGINE_API_CPP(unsigned int) GetUIntAttr(const pugi::xml_node& node, c
  * @param[in]  str   The string identifying value name
  * @return     A string value
  */
-INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(std::string)
+GetStrAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the string attribute from `pugi::xml_node`
@@ -141,7 +151,8 @@ INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, con
  * @param[in]  def   The default value
  * @return     A string value
  */
-INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, const char* str, const char* def);
+INFERENCE_ENGINE_API_CPP(std::string)
+GetStrAttr(const pugi::xml_node& node, const char* str, const char* def);
 
 /**
  * @brief      Gets the bool attribute from `pugi::xml_node`
@@ -151,7 +162,8 @@ INFERENCE_ENGINE_API_CPP(std::string) GetStrAttr(const pugi::xml_node& node, con
  * @param[in]  str   The string identifying value name
  * @return     A boolean value
  */
-INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(bool)
+GetBoolAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the bool attribute from `pugi::xml_node`
@@ -162,7 +174,8 @@ INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const cha
  * @param[in]  def   The default value
  * @return     A boolean value
  */
-INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const char* str, const bool def);
+INFERENCE_ENGINE_API_CPP(bool)
+GetBoolAttr(const pugi::xml_node& node, const char* str, const bool def);
 
 /**
  * @brief      Gets the float attribute from `pugi::xml_node`
@@ -172,7 +185,8 @@ INFERENCE_ENGINE_API_CPP(bool) GetBoolAttr(const pugi::xml_node& node, const cha
  * @param[in]  str   The string identifying value name
  * @return     A single-precision floating point value
  */
-INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(float)
+GetFloatAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the float attribute from `pugi::xml_node`
@@ -183,7 +197,8 @@ INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const c
  * @param[in]  defVal  The default value
  * @return     A single-precision floating point value
  */
-INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const char* str, float defVal);
+INFERENCE_ENGINE_API_CPP(float)
+GetFloatAttr(const pugi::xml_node& node, const char* str, float defVal);
 
 /**
  * @brief      Gets the Precision attribute from `pugi::xml_node`
@@ -193,7 +208,8 @@ INFERENCE_ENGINE_API_CPP(float) GetFloatAttr(const pugi::xml_node& node, const c
  * @param[in]  str   The string identifying value name
  * @return     A Precision value
  */
-INFERENCE_ENGINE_API_CPP(InferenceEngine::Precision) GetPrecisionAttr(const pugi::xml_node& node, const char* str);
+INFERENCE_ENGINE_API_CPP(InferenceEngine::Precision)
+GetPrecisionAttr(const pugi::xml_node& node, const char* str);
 
 /**
  * @brief      Gets the Precision attribute from `pugi::xml_node`
@@ -216,33 +232,35 @@ GetPrecisionAttr(const pugi::xml_node& node, const char* str, InferenceEngine::P
  * @param[in]  defVal  The default value
  * @return     An ingeter value located in a child node, @p devVal otherwise.
  */
-INFERENCE_ENGINE_API_CPP(int) GetIntChild(const pugi::xml_node& node, const char* str, int defVal);
+INFERENCE_ENGINE_API_CPP(int)
+GetIntChild(const pugi::xml_node& node, const char* str, int defVal);
 
 }  // namespace XMLParseUtils
 
 /**
- * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.
+ * @brief      A XML parse result structure with an error message and the
+ * `pugi::xml_document` document.
  * @ingroup    ie_dev_api_xml
  */
 struct parse_result {
     /**
-     * @brief      Constructs parse_result with `pugi::xml_document` and an error message
+     * @brief      Constructs parse_result with `pugi::xml_document` and an error
+     * message
      *
      * @param      xml        The `pugi::xml_document`
      * @param[in]  error_msg  The error message
      */
-    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
-        : xml(std::move(xml)), error_msg(std::move(error_msg)) {}
+    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg): xml(std::move(xml)), error_msg(std::move(error_msg)) {}
 
     /**
-     * @brief A XML document. 
+     * @brief A XML document.
      */
     std::unique_ptr<pugi::xml_document> xml;
 
     /**
      * @brief An error message
      */
-    std::string error_msg {};
+    std::string error_msg{};
 };
 
 /**
@@ -262,14 +280,15 @@ inline parse_result ParseXml(const char* file_path) {
 #endif
 
     try {
-        auto xml = std::unique_ptr<pugi::xml_document> {new pugi::xml_document {}};
+        auto xml = std::unique_ptr<pugi::xml_document>{new pugi::xml_document{}};
         const auto load_result = xml->load_file(resolvedFilepath);
 
         const auto error_msg = [&]() -> std::string {
-            if (load_result.status == pugi::status_ok) return {};
+            if (load_result.status == pugi::status_ok)
+                return {};
 
             std::ifstream file_stream(file_path);
-            const auto file = std::string(std::istreambuf_iterator<char> {file_stream}, std::istreambuf_iterator<char> {});
+            const auto file = std::string(std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{});
 
             const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
             const auto line_begin = std::find(error_offset, file.rend(), '\n');
@@ -282,7 +301,7 @@ inline parse_result ParseXml(const char* file_path) {
         }();
 
         return {std::move(xml), error_msg};
-    } catch(std::exception& e) {
+    } catch (std::exception& e) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }
