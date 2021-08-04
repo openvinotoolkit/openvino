@@ -50,6 +50,8 @@ docker run -it --rm <image_name>
 ## Use a Docker* Image for GPU
 ### Build a Docker* Image for GPU
 
+> **NOTE**: Only Intel® integrated graphics are supported.
+
 **Prerequisites:**
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
@@ -78,13 +80,14 @@ RUN apt-get update && \
     rm /tmp/opencl
 ```
 
-or you can use an installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is a variable to store default version for Intel® Graphics Compute Runtime for OpenCL™ Driver:
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
 
 ```sh
 WORKDIR /tmp/opencl
 RUN useradd -ms /bin/bash -G video,users openvino && \
     chown openvino -R /home/openvino
 
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
 ARG INTEL_OPENCL=19.41.14441
 
 WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
@@ -114,7 +117,7 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
-or you can use an installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is a variable to store default version for Intel® Graphics Compute Runtime for OpenCL™ Driver:
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
 
 
 ```sh
@@ -123,6 +126,7 @@ RUN useradd -ms /bin/bash -G video,users openvino && \
     chown openvino -R /home/openvino
 RUN groupmod -g 44 video
 
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
 ARG INTEL_OPENCL=19.41.14441
 
 WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
