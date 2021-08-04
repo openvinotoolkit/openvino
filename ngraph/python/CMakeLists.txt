@@ -104,5 +104,9 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             COMPONENT pyngraph_${PYTHON_VERSION}
             USE_SOURCE_PERMISSIONS)
 
+    install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/tests
+            DESTINATION tests/${PROJECT_NAME}
+            COMPONENT tests EXCLUDE_FROM_ALL)
+
     ie_cpack(pyngraph_${PYTHON_VERSION})
 endif()
