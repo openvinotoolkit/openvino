@@ -32,6 +32,8 @@ public:
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 
+    void SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) override;
+
     void SetBatch(int batch = -1) override;
 
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
@@ -53,6 +55,8 @@ private:
     void PullStates();
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
+
+    void createInputBlob(const std::string &name);
 
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;

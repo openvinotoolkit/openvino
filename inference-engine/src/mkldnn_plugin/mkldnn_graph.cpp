@@ -522,6 +522,9 @@ static edge_clusters_t findEdgeClusters(const std::vector<MKLDNNEdgePtr> & graph
     edge_cluster_idx_map_t edge_cluster_indices;
 
     for (auto &edge : graphEdges) {
+        if (!edge->canProvideMaxSize())
+            continue;
+
         auto edge_it = edge_cluster_indices.find(edge);
 
         if (edge_it != edge_cluster_indices.end())
@@ -603,7 +606,6 @@ void MKLDNNGraph::AllocateWithReuse() {
             int e_finish = edge->getChild()->execIndex;
 
             int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
-            //TODO [DS]: phase 2: remove this restriction
             if (e_size == MemoryDesc::UNDEFINED_SIZE) {
                 IE_THROW() << "Can not allocate memory since the size is undefined.";
             }
@@ -683,6 +685,9 @@ void MKLDNNGraph::Allocate() {
     // Resolve all other edges with status NotAllocated or in-place
     for (auto& node : graphNodes) node->resolveNotAllocatedEdges();
 
+    // Create dummy memory with undefined desc
+    for (auto& edge : graphEdges) edge->allocate();
+
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
 }
@@ -738,7 +743,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
         // TODO [DS]: phase 2: remove this blob allocation when possible, i.e. when dynamic ie blob representation becomes available
         if (out.find(name) == out.end()) {
-            out[name] = MemoryDescUtils::interpretAsBlob(intr_blob);
+            out[name] = MemoryDescUtils::createBlob(intr_blob.GetDesc());
         }
 
         // TODO [DS]: is it sill true for the new paradigm?
@@ -750,7 +755,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             // TODO [DS]: phase 2: rewrite when dynamic ie blob representation becomes available
 //            IE_THROW() << "Output blob number of elements is not equal network output number of elements ("
 //                       << ext_blob->size() << "!=" << intr_blob.GetElementsCount() << ").";
-            out[name] = MemoryDescUtils::interpretAsBlob(intr_blob);
+            out[name] = MemoryDescUtils::createBlob(intr_blob.GetDesc());
         }
 
         auto ext_blob = out.at(name);
@@ -769,14 +774,19 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
         int MB = intr_blob.GetDims()[0];
-        int MB_to_process = node->batchToProcess();
+        int MB_to_process = MB;
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
-        if (config.batchLimit)
-            MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
+        if (config.batchLimit) {
+            if (node->isDynamicNode()) {
+                IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
+            }
+            MB_to_process = node->batchToProcess();
+        }
+
         size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
 
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getDesc());
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(node->getParentEdgeAt(0)->getMemory().GetDesc());
         const auto expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
@@ -829,7 +839,11 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
         ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
         OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);
-        node->execute(stream);
+        if (node->isDynamicNode()) {
+            node->executeDynamic(stream);
+        } else {
+            node->execute(stream);
+        }
 
         ENABLE_CPU_DEBUG_CAP(nd.dumpOutputBlobs(node));
     }

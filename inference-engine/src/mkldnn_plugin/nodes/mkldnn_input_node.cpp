@@ -242,7 +242,7 @@ MKLDNNInputNode::MKLDNNInputNode(const std::shared_ptr<ngraph::Node>& op, const 
     if (constOp) {
         constant = ConstantType::Const;
         cloneBlobIfRequired();
-     }
+    }
 }
 
 void MKLDNNInputNode::cloneBlobIfRequired() {

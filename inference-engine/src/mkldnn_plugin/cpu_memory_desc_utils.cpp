@@ -263,6 +263,16 @@ MemoryDescPtr MemoryDescUtils::resetOffset(const MemoryDesc* desc) {
     }
 }
 
+InferenceEngine::Blob::Ptr MemoryDescUtils::createBlob(const MemoryDesc &memDesc) {
+    // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
+    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
+
+    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc);
+    blob->allocate();
+    return blob;
+}
+
 InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.GetDesc();

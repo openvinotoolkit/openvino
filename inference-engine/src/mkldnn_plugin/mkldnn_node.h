@@ -34,6 +34,7 @@
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
+using MKLDNNNodeConstPtr = std::shared_ptr<const MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
 Type TypeFromName(const std::string type);
@@ -490,7 +491,10 @@ public:
     virtual void setDynamicBatchLim(int lim);
 
     void resolveNotAllocatedEdges();
+
     virtual void execute(mkldnn::stream strm);
+    void executeDynamic(mkldnn::stream strm);
+
     virtual void initSupportedPrimitiveDescriptors();
 
     /**
@@ -513,6 +517,9 @@ public:
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {
         return created();
     }
+
+    virtual void resetOutputShape();
+    virtual void resetOutputShape(const std::vector<std::vector<size_t>> &newShapes);
 
     /**
      * @brief Performs Node initialization based on graph context.
@@ -669,7 +676,30 @@ public:
 
     bool canBePerformedAsScaleShift(const MKLDNNNode *parentNode = nullptr) const;
 
+    bool isDynamicNode() const {
+        return isDynamic;
+    }
+
+    Shape getInputShapeAtPort(size_t port) const {
+        if (inputShapes.size() <= port) {
+            IE_THROW() << "Incorrect input port number for node " << getName();
+        }
+        return inputShapes[port];
+    }
+
+    Shape getOutputShapeAtPort(size_t port) const {
+        if (outputShapes.size() <= port) {
+            IE_THROW() << "Incorrect output port number for node " << getName();
+        }
+        return outputShapes[port];
+    }
+
 protected:
+    virtual std::vector<std::vector<size_t>> shapeInfer() const {
+        IE_THROW() << "MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
+    }
+    virtual void executeDynamicImpl(mkldnn::stream strm);
+
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
     // TODO [mandrono]: place outside of the node API
     void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
@@ -804,6 +834,10 @@ protected:
     }
 
 private:
+    void redefineOutputMemory(const std::vector<std::vector<size_t>> &newShapes);
+
+    bool isDynamic = false;
+
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 

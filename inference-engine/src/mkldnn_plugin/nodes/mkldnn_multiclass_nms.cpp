@@ -135,7 +135,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
-    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().GetDesc().getShape().getStaticDims();
+    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
 
     if (max_output_boxes_per_class == 0)
         return;
@@ -232,7 +232,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         });
     }
 
-    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().GetDesc().getShape().getStaticDims()[0];
+    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().getStaticDims()[0];
     const size_t validOutputs = std::min(startOffset, selectedBoxesNum);
 
     std::vector<size_t> m_selected_num;

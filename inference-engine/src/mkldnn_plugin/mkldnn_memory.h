@@ -241,6 +241,10 @@ public:
     //TODO [DS]: phase 2: move to reorder
     static void reorderData(const MKLDNNMemory& input, const MKLDNNMemory& output, size_t size = 0);
 
+    const std::vector<size_t>& getStaticDims() const {
+        return GetDesc().getShape().getStaticDims();
+    }
+
 private:
     void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
                 const void* data = nullptr);

@@ -67,9 +67,9 @@ void MKLDNNBroadcastNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
-    size_t shape_size = (getParentEdgeAt(BROADCAST_SHAPE)->getMemory().GetDesc().getShape().getStaticDims())[0];
-    SizeVector dst_dims = getChildEdgeAt(0)->getMemory().GetDesc().getShape().getStaticDims();
-    SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDesc().getShape().getStaticDims();
+    size_t shape_size = (getParentEdgeAt(BROADCAST_SHAPE)->getMemory().getStaticDims())[0];
+    SizeVector dst_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
+    SizeVector src_dims = getParentEdgeAt(BROADCAST_INPUT)->getMemory().getStaticDims();
 
     auto srcDesc = getParentEdgeAt(BROADCAST_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     SizeVector srcStrides = srcDesc.getStrides();

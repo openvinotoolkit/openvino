@@ -958,13 +958,27 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
     }},
 };
 
+bool MKLDNNEltwiseNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+    try {
+        if (initializers.find(op->get_type_info()) == initializers.end()) {
+            errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
+            return false;
+        }
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(op, eng, cache) {
-    if (initializers.find(op->get_type_info()) != initializers.end()) {
-        initializers[op->get_type_info()](op, *this);
-    } else {
-        IE_THROW(NotImplemented)
-            << "CPU Eltwise node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
     }
 }
 

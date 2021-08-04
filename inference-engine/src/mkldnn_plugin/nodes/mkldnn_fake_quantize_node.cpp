@@ -1295,8 +1295,8 @@ void MKLDNNFakeQuantizeNode::executeReference() {
 
     auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
 
-    auto srcDims = srcMemory->GetDesc().getShape().getStaticDims();
-    auto dstDims = dstMemory->GetDesc().getShape().getStaticDims();
+    auto srcDims = srcMemory->getStaticDims();
+    auto dstDims = dstMemory->getStaticDims();
 
     auto s_str = jqp.s_str;
     auto d_str = jqp.d_str;
@@ -1416,7 +1416,7 @@ void MKLDNNFakeQuantizeNode::executeBinarization() {
     auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
     auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
 
-    auto src_dims = srcMemory->GetDesc().getShape().getStaticDims();
+    auto src_dims = srcMemory->getStaticDims();
 
     std::vector<size_t> s_str = jqp.s_str;
     size_t tmp = s_str[s_str.size() - 1];
