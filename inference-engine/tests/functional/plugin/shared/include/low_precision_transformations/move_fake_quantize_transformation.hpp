@@ -17,21 +17,21 @@
 
 namespace LayerTestsDefinitions {
 
-    class MoveFakeQuantizeTransformationParam {
-    public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
-        ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
-        ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
-        std::string operation;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
-        ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-        std::string layerName;
-        std::string expectedKernelType;
-    };
+class MoveFakeQuantizeTransformationParam {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
+    std::string operation;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    std::string layerName;
+    std::string expectedKernelType;
+};
 
 typedef std::tuple <
     ngraph::element::Type,
