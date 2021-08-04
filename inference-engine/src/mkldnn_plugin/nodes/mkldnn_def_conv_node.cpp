@@ -966,11 +966,12 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
-    if (group != 1 && (((getParentEdgeAt(0)->getShape().getStaticDims()[0] / group) % simd_w != 0)
-    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
-        enforceRef = true;
-    }
+//    const int simd_w = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+//    if (group != 1 && (((getParentEdgeAt(0)->getShape().getStaticDims()[0] / group) % simd_w != 0)
+//    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
+//        enforceRef = true;
+//    }
+    enforceRef = true;
 
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
@@ -1079,7 +1080,6 @@ void MKLDNNDeformableConvolutionNode::createPrimitive() {
     jcp.oh = dstDims[2];
     jcp.ow = dstDims[3];
 
-//    bool with_groups = group > 1;
     jcp.kh = weiDims[2];
     jcp.kw = weiDims[3];
 
