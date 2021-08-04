@@ -526,11 +526,10 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             pytest.skip("Can't run on ARM plugin")
 
     layout = ["C", "HW", "CHW", "NCHW"]
-    np_data_type = {"FP32": np.float32, "FP16": np.float16, "I32": np.int32}
 
-    from openvino.inference_engine import TensorDesc, Blob
+    from openvino.inference_engine import TensorDesc, Blob, format_map
 
-    net = ie.IENetwork(create_function_with_memory(input_shape, np_data_type[data_type]))
+    net = ie.IENetwork(create_function_with_memory(input_shape, format_map[data_type]))
     ie_core = ie.IECore()
     exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
     request = exec_net.requests[0]
@@ -546,23 +545,23 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         if mode == "set_init_memory_state":
             # create initial value
             const_init = 5
-            init_array = np.full(input_shape, const_init, dtype=np_data_type[mem_state.state.tensor_desc.precision])
+            init_array = np.full(input_shape, const_init, dtype=format_map[mem_state.state.tensor_desc.precision])
             tensor_desc = TensorDesc(mem_state.state.tensor_desc.precision, input_shape, layout[len(input_shape) - 1])
             blob = Blob(tensor_desc, init_array)
             mem_state.state = blob
 
-            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
-            expected_res = np.full(input_shape, 1 + const_init, dtype=np_data_type[data_type])
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=format_map[data_type])
         elif mode == "reset_memory_state":
             # reset initial state of ReadValue to zero
             mem_state.reset()
-            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
 
             # always ones
-            expected_res = np.full(input_shape, 1, dtype=np_data_type[data_type])
+            expected_res = np.full(input_shape, 1, dtype=format_map[data_type])
         else:
-            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=np_data_type[data_type])})
-            expected_res = np.full(input_shape, i, dtype=np_data_type[data_type])
+            res = exec_net.infer({"input_data": np.full(input_shape, 1, dtype=format_map[data_type])})
+            expected_res = np.full(input_shape, i, dtype=format_map[data_type])
 
         assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
