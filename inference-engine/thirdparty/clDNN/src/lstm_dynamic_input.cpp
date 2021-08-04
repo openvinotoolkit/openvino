@@ -50,7 +50,7 @@ std::string lstm_dynamic_input_inst::to_string(lstm_dynamic_input_node const& no
     return primitive_description.str();
 }
 
-lstm_dynamic_input_inst::typed_primitive_inst(network_impl& network, lstm_dynamic_input_node const& node)
+lstm_dynamic_input_inst::typed_primitive_inst(network& network, lstm_dynamic_input_node const& node)
     : parent(network, node) {
     // Check input
     auto input_layout = node.input().get_output_layout();

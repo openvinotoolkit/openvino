@@ -31,7 +31,7 @@ public:
     static std::string to_string(reverse_sequence_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reverse_sequence_node const& desc);
+    typed_primitive_inst(network& network, reverse_sequence_node const& desc);
 };
 
 using reverse_sequence_inst = typed_primitive_inst<reverse_sequence>;

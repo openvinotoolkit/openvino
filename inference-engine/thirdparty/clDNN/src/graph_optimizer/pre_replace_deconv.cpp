@@ -18,7 +18,7 @@
 #include <utility>
 #include "cldnn/runtime/error_handler.hpp"
 
-void pre_replace_deconv::run(program_impl& p) {
+void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;
 
     auto& stream = p.get_stream();

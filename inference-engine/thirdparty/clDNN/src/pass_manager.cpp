@@ -4,7 +4,7 @@
 
 #include "pass_manager.h"
 #include "program_dump_graph.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -13,7 +13,7 @@
 #include <iostream>
 #include <string>
 
-pass_manager::pass_manager(program_impl& p) {
+pass_manager::pass_manager(program& p) {
     pass_count = 0;
     auto path = get_dir_path(p.get_options());
     if (!path.empty()) {
@@ -44,7 +44,7 @@ pass_manager::pass_manager(program_impl& p) {
     }
 }
 
-void pass_manager::run(program_impl& p, base_pass& pass) {
+void pass_manager::run(program& p, base_pass& pass) {
     using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
     using Time = std::chrono::high_resolution_clock;
 

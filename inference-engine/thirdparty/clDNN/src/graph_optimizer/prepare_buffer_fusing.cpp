@@ -240,7 +240,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 // ToDo remove friendship relation from  program_node
-void prepare_buffer_fusing::run(program_impl& p) {
+void prepare_buffer_fusing::run(program& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.

@@ -82,7 +82,7 @@ public:
     static std::string to_string(strided_slice_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, strided_slice_node const& desc);
+    typed_primitive_inst(network& network, strided_slice_node const& desc);
 };
 
 using strided_slice_inst = typed_primitive_inst<strided_slice>;

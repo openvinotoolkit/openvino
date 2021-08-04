@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cldnn/graph/program.hpp"
+
 #include "kernel_selector_helper.h"
 #include "kernel_selector_params.h"
 #include "to_string_utils.h"
-
-
 #include "program_node.h"
-#include "program_impl.h"
 
 #include <string>
 #include <vector>
@@ -764,7 +763,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     }
 }
 
-void set_optional_params(const program_impl& program, kernel_selector::optional_params& params) {
+void set_optional_params(const program& program, kernel_selector::optional_params& params) {
     params.meaningfulKernelsNames = false;
     params.allowStaticInputReordering = program.get_options().get<build_option_type::optimize_data>()->enabled() ||
                                         program.get_options().get<build_option_type::allow_static_input_reorder>()->enabled();

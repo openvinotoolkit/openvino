@@ -99,7 +99,7 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     build_options build_opts(
         build_option::optimize_data(true)
     );
-    auto net = network(engine, topo, build_opts);
+    cldnn::network net(engine, topo, build_opts);
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -142,7 +142,7 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
     build_options build_opts(
         build_option::optimize_data(true)
     );
-    auto net = network(engine, topo, build_opts);
+    cldnn::network net(engine, topo, build_opts);
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -188,7 +188,7 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
     build_options build_opts(
         build_option::optimize_data(true)
     );
-    auto net = network(engine, topo, build_opts);
+    cldnn::network net(engine, topo, build_opts);
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -237,7 +237,7 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
     build_options build_opts(
         build_option::optimize_data(true)
     );
-    auto net = network(engine, topo, build_opts);
+    cldnn::network net(engine, topo, build_opts);
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -289,7 +289,7 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
     build_options build_opts(
         build_option::optimize_data(true)
     );
-    auto net = network(engine, topo, build_opts);
+    cldnn::network net(engine, topo, build_opts);
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);

@@ -338,11 +338,11 @@ public:
         return add_node(id, reference_tensor_typed<T, 4>(output_data), {input, weights, bias});
     }
 
-    cldnn::network build_network(cldnn::build_options opts) {
+    cldnn::network::ptr build_network(cldnn::build_options opts) {
         opts.set_option(cldnn::build_option::force_implementations(forced_impls));
-        auto net = cldnn::network(eng, topo, opts);
+        auto net = cldnn::network::build_network(eng, topo, opts);
         for (auto& in_data : inputs) {
-            net.set_input_data(in_data.first, in_data.second);
+            net->set_input_data(in_data.first, in_data.second);
         }
         return net;
     }
@@ -351,14 +351,14 @@ public:
         auto net = build_network(opts);
         std::stringstream network_info;
         network_info << "Executed kernels: " << std::endl;
-        for (auto info : net.get_primitives_info()) {
+        for (auto info : net->get_primitives_info()) {
             if (info.kernel_id == "")
                 continue;
             network_info << "  " << info.original_id << " " << info.kernel_id << std::endl;
         }
         SCOPED_TRACE("\n" + network_info.str());
 
-        auto result = net.execute();
+        auto result = net->execute();
         for (auto out : result) {
             auto out_id = out.first;
             bool tested = false;

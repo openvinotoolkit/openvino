@@ -36,7 +36,7 @@ public:
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, ctc_greedy_decoder_node const& node);
+    typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node);
 };
 
 using ctc_greedy_decoder_inst = typed_primitive_inst<ctc_greedy_decoder>;

@@ -73,7 +73,7 @@ std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     return primitive_description.str();
 }
 
-depth_to_space_inst::typed_primitive_inst(network_impl& network, depth_to_space_node const& node)
+depth_to_space_inst::typed_primitive_inst(network& network, depth_to_space_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

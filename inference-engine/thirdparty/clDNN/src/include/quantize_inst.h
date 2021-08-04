@@ -114,7 +114,7 @@ public:
     static std::string to_string(quantize_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, quantize_node const& desc);
+    typed_primitive_inst(network& network, quantize_node const& desc);
 };
 
 using quantize_inst = typed_primitive_inst<quantize>;

@@ -2,60 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
-#include "cldnn/runtime/compounds.hpp"
 #include "cldnn/primitives/primitive.hpp"
+#include "cldnn/primitives/input_layout.hpp"
 
-#include <cstdint>
-#include <vector>
+#include <map>
 #include <memory>
+#include <vector>
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
+typedef std::map<primitive_id, std::shared_ptr<primitive>> topology_map;
 
-/// @defgroup cpp_topology Network Topology
-/// @{
-
-struct topology_impl;
-
-/// @brief Network topology to be defined by user.
 struct topology {
-    /// @brief Constructs empty network topology.
-    topology();
+public:
+    using ptr = std::shared_ptr<topology>;
+    explicit topology(const topology_map& map) : _primitives(map) {}
+    topology() : _primitives({}) {}
 
     /// @brief Constructs topology containing primitives provided in argument(s).
     template <class... Args>
     explicit topology(const Args&... args) : topology() {
         add<Args...>(args...);
     }
-
-    /// @brief Copy construction.
-    topology(const topology& other) : _impl(other._impl) { }
-
-    /// @brief Copy assignment.
-    topology& operator=(const topology& other) {
-        if (_impl == other._impl)
-            return *this;
-        _impl = other._impl;
-        return *this;
-    }
-
-    /// Construct C++ topology based on C API @p cldnn_topology
-    explicit topology(std::shared_ptr<topology_impl> other) : _impl(other) {
-        if (_impl == nullptr)
-            throw std::invalid_argument("implementation pointer should not be null");
-    }
-
-    /// @brief Releases wrapped C API @ref cldnn_topology.
-    ~topology() { }
-
-    friend bool operator==(const topology& lhs, const topology& rhs) { return lhs._impl == rhs._impl; }
-    friend bool operator!=(const topology& lhs, const topology& rhs) { return !(lhs == rhs); }
 
     void add_primitive(std::shared_ptr<primitive> desc);
 
@@ -72,22 +42,15 @@ struct topology {
         add<Args...>(args...);
     }
 
-    /// @brief Returns wrapped implementation pointer.
-    std::shared_ptr<topology_impl> get() const { return _impl; }
+    const std::shared_ptr<primitive>& at(primitive_id id) const;
 
-    const std::vector<primitive_id> get_primitive_ids() const;
+    void change_input_layout(const primitive_id& id, const layout& new_layout);
 
-    void change_input_layout(primitive_id id, const layout& new_layout);
+    const topology_map& get_primitives() const { return _primitives; }
 
-    const std::shared_ptr<primitive>& at(const primitive_id& id) const;
+    const std::vector<primitive_id> get_primitives_ids() const;
 
 private:
-    friend class engine;
-    friend struct network;
-    std::shared_ptr<topology_impl> _impl;
+    topology_map _primitives;
 };
-
-CLDNN_API_CLASS(topology)
-/// @}
-/// @}
 }  // namespace cldnn

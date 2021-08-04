@@ -279,12 +279,18 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
     bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
+    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+        dump_sources = true;
+        dump_sources_dir = debug_config->dump_sources;
+    }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
-        current_dump_file_name = _engine.configuration().sources_dumps_dir;
+        current_dump_file_name = dump_sources_dir;
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 

@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>
@@ -69,7 +69,7 @@ protected:
 
 }  // namespace
 
-void oooq_memory_dependencies::run(program_impl& p) {
+void oooq_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::OooqMemoryDependencies");
     // For oooq memory dependencies nodes A and B can't share memory if
     // processing_num(A) < processing_num(B) and there is no path from A to B.

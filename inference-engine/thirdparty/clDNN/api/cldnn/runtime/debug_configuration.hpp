@@ -28,6 +28,7 @@ public:
     int print_multi_kernel_perf;    // Print execution time of each kernel in multi-kernel primitimive
     int disable_usm;                // Disable usm usage
     std::string dump_graphs;        // Dump optimized graph
+    std::string dump_sources;       // Dump opencl sources
     std::string dump_layers_path;   // Enable dumping intermediate buffers and set the dest path
     std::string dump_layers;        // Dump intermediate buffers of specified layers only, separated by space
     int dump_layers_dst_only;       // Dump only output of layers

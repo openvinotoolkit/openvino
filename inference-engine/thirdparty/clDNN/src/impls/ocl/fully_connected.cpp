@@ -11,7 +11,6 @@
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
 
-#include "network_impl.h"
 #include "cldnn/runtime/error_handler.hpp"
 #include "kernel_runner.h"
 

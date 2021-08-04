@@ -15,8 +15,8 @@
 #include <cldnn/primitives/softmax.hpp>
 #include <cldnn/primitives/activation.hpp>
 #include <cldnn/primitives/concatenation.hpp>
+#include <cldnn/graph/topology.hpp>
 
-#include <include/topology_impl.h>
 
 #include <iostream>
 #include <deque>

@@ -99,6 +99,7 @@ debug_configuration::debug_configuration()
         , print_multi_kernel_perf(0)
         , disable_usm(0)
         , dump_graphs(std::string())
+        , dump_sources(std::string())
         , dump_layers_path(std::string())
         , dump_layers(std::string())
         , dump_layers_dst_only(0) {
@@ -107,6 +108,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
     get_gpu_debug_env_var("DisableUsm", disable_usm);
     get_gpu_debug_env_var("DumpGraphs", dump_graphs);
+    get_gpu_debug_env_var("DumpSources", dump_sources);
     get_gpu_debug_env_var("DumpLayersPath", dump_layers_path);
     get_gpu_debug_env_var("DumpLayers", dump_layers);
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);

@@ -31,7 +31,7 @@ public:
     static std::string to_string(shuffle_channels_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, shuffle_channels_node const& desc);
+    typed_primitive_inst(network& network, shuffle_channels_node const& desc);
 };
 
 using shuffle_channels_inst = typed_primitive_inst<shuffle_channels>;

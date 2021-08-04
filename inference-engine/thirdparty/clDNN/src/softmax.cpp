@@ -30,7 +30,7 @@ std::string softmax_inst::to_string(softmax_node const& node) {
     return primitive_description.str();
 }
 
-softmax_inst::typed_primitive_inst(network_impl& network, softmax_node const& node) : parent(network, node) {
+softmax_inst::typed_primitive_inst(network& network, softmax_node const& node) : parent(network, node) {
     //    auto& input_offset  = arg.input_offset;
     //    auto& output_offset = arg.output_offset;
     //    auto& output_size   = arg.output_size;

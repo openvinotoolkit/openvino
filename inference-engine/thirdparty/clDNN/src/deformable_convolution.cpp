@@ -54,7 +54,7 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
     return primitive_description.str();
 }
 
-deformable_conv_inst::typed_primitive_inst(network_impl& network, deformable_conv_node const& node) : parent(network, node) {
+deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node) : parent(network, node) {
 }
 
 primitive_type_id deformable_interp::type_id() {
@@ -107,7 +107,7 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     return primitive_description.str();
 }
 
-deformable_interp_inst::typed_primitive_inst(network_impl& network, deformable_interp_node const& node) : parent(network, node) {
+deformable_interp_inst::typed_primitive_inst(network& network, deformable_interp_node const& node) : parent(network, node) {
 }
 
 }  // namespace cldnn

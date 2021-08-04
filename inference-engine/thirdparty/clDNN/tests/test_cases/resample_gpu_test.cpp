@@ -701,7 +701,7 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         auto build_opts = build_options(
             build_option::force_implementations({ {"resample", {params.out_format, ""}} })
         );
-        auto net = network(engine, topo, build_opts);
+        cldnn::network net(engine, topo, build_opts);
 
         auto in_mem = engine.allocate_memory(in_layout);
         fill_random(in_mem);
@@ -874,7 +874,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         build_opts.set_option(build_option::outputs({"resample"}));
         build_opts.set_option(build_option::force_implementations({ {"resample", {params.in_format, "resample_ref"}} }));
 
-        auto net = network(engine, topo, build_opts);
+        cldnn::network net(engine, topo, build_opts);
         net.set_input_data("in", in_mem);
 
         auto result = net.execute();
@@ -893,7 +893,7 @@ struct caffe_resample_random_test : testing::TestWithParam<caffe_resample_random
         build_opts_opt.set_option(build_option::outputs({"resample_opt"}));
         build_opts.set_option(build_option::force_implementations({ {"resample_opt", {params.in_format, "resample_opt"}} }));
 
-        auto net_opt = network(engine, topo_opt, build_opts_opt);
+        cldnn::network net_opt(engine, topo_opt, build_opts_opt);
 
         // Use in_mem from ref network
         net_opt.set_input_data("in", in_mem);

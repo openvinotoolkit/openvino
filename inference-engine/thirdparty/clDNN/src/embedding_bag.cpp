@@ -53,6 +53,6 @@ std::string embedding_bag_inst::to_string(embedding_bag_node const& node) {
     return primitive_description.str();
 }
 
-embedding_bag_inst::typed_primitive_inst(network_impl& network, embedding_bag_node const& node)
+embedding_bag_inst::typed_primitive_inst(network& network, embedding_bag_node const& node)
     : parent(network, node) {}
 }  // namespace cldnn

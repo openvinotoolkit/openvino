@@ -37,7 +37,7 @@ std::string cum_sum_inst::to_string(cum_sum_node const& node) {
     return primitive_description.str();
 }
 
-cum_sum_inst::typed_primitive_inst(network_impl& network, cum_sum_node const& node)
+cum_sum_inst::typed_primitive_inst(network& network, cum_sum_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

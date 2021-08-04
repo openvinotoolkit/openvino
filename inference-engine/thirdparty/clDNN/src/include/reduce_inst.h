@@ -31,7 +31,7 @@ public:
     static std::string to_string(reduce_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reduce_node const& desc);
+    typed_primitive_inst(network& network, reduce_node const& desc);
 };
 
 using reduce_inst = typed_primitive_inst<reduce>;

@@ -1013,7 +1013,7 @@ TEST(depth_concatenate_f32_gpu, basic_bfwzyx_along_w) {
 //////////////////////////////////////////////////////////////////////////////
 
 //TODO: this should be done using TEST_P or some equivallent construct
-static network setup_depth_concatatenate_network(const std::vector<data_types> dts, const std::vector<tensor> ts, const std::vector<cldnn::format> fmt) {
+static network::ptr setup_depth_concatatenate_network(const std::vector<data_types> dts, const std::vector<tensor> ts, const std::vector<cldnn::format> fmt) {
     assert(dts.size() == ts.size());
     const size_t sz = ts.size();
 
@@ -1034,7 +1034,7 @@ static network setup_depth_concatatenate_network(const std::vector<data_types> d
     //TODO: ask Uzi if something tests cases where there's missing input_names (nodes not present in the topology, etc.)
     topology.add(concatenation("depth_concat_node", input_names, concatenation::along_f));
 
-    return network(engine, topology);
+    return network::build_network(engine, topology);
 }
 
 TEST(NegativeDepthConcatenateTest, DISABLED_TestAll) {

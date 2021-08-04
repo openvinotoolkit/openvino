@@ -13,7 +13,7 @@
 
 using namespace cldnn;
 
-void prepare_padding::run(program_impl& p) {
+void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
         for (const auto& node : p.get_processing_order()) {

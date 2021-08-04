@@ -20,7 +20,7 @@
 
 namespace cldnn {
 
-struct program_impl;
+struct program;
 struct primitive_impl;
 class reorder_inputs;
 class graph_initializations;
@@ -56,7 +56,7 @@ struct fused_primitive_desc {
     to API level where all primitives store only ids of related ones.
 */
 struct program_node {
-    friend struct program_impl;                     // to be removed when possible
+    friend struct program;                     // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
@@ -70,7 +70,7 @@ struct program_node {
     template <class PType>
     friend struct typed_program_node;
 
-    program_node(std::shared_ptr<primitive> prim, program_impl& prog);
+    program_node(std::shared_ptr<primitive> prim, program& prog);
 
     program_node(program_node const&) = delete;
 
@@ -89,8 +89,8 @@ public:
         return type() == PType::type_id();
     }
 
-    program_impl& get_program() { return myprog; }
-    program_impl& get_program() const { return myprog; }
+    program& get_program() { return myprog; }
+    program& get_program() const { return myprog; }
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);
@@ -316,7 +316,7 @@ protected:
     std::string unique_id;
 
     std::shared_ptr<primitive> desc;
-    program_impl& myprog;
+    program& myprog;
 
     std::unique_ptr<primitive_impl> selected_impl;
 
@@ -373,7 +373,7 @@ struct typed_program_node_base : public program_node {
     friend class cldnn::graph_initializations;
     friend class cldnn::pre_replace_deconv;
     friend class cldnn::prepare_quantization;
-    friend struct cldnn::program_impl;
+    friend struct cldnn::program;
     friend class cldnn::reorder_inputs;
 
 public:

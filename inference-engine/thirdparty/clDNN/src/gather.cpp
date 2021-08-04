@@ -49,6 +49,6 @@ std::string gather_inst::to_string(gather_node const& node) {
     return primitive_description.str();
 }
 
-gather_inst::typed_primitive_inst(network_impl& network, gather_node const& node) : parent(network, node) {}
+gather_inst::typed_primitive_inst(network& network, gather_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

@@ -5,7 +5,6 @@
 #include "proposal_inst.h"
 #include "cldnn/runtime/engine.hpp"
 #include "impls/implementation_map.hpp"
-#include "network_impl.h"
 #include "cldnn/runtime/error_handler.hpp"
 #include "register.hpp"
 

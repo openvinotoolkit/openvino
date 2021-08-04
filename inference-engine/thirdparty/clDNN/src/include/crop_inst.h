@@ -20,7 +20,7 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<crop> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<crop> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
@@ -35,7 +35,7 @@ class typed_primitive_inst<crop> : public typed_primitive_inst_base<crop> {
 public:
     static layout calc_output_layout(crop_node const& node);
     static std::string to_string(crop_node const& node);
-    typed_primitive_inst(network_impl& network, crop_node const& node);
+    typed_primitive_inst(network& network, crop_node const& node);
 
 private:
     void on_execute() override;

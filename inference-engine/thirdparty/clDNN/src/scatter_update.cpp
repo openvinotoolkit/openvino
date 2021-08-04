@@ -91,6 +91,6 @@ std::string scatter_update_inst::to_string(scatter_update_node const& node) {
     return primitive_description.str();
 }
 
-scatter_update_inst::typed_primitive_inst(network_impl& network, scatter_update_node const& node) : parent(network, node) {}
+scatter_update_inst::typed_primitive_inst(network& network, scatter_update_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

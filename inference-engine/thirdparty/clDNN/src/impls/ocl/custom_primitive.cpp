@@ -6,7 +6,6 @@
 #include "cldnn/runtime/engine.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-#include "network_impl.h"
 #include "jitter.h"
 #include "cldnn/runtime/error_handler.hpp"
 #include "register.hpp"

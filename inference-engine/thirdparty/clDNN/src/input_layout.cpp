@@ -18,12 +18,12 @@ primitive_type_id input_layout::type_id() {
     return &instance;
 }
 
-input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program_impl& prog)
+input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
     : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
-input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node const& node) : parent(network, node) {
+input_layout_inst::typed_primitive_inst(network& network, input_layout_node const& node) : parent(network, node) {
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 

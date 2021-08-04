@@ -16,7 +16,7 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
     using parent = typed_program_node_base<fully_connected>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {}
 
     program_node& input() const { return get_dependency(0); }
@@ -36,7 +36,7 @@ public:
     static std::string to_string(fully_connected_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, fully_connected_node const& node);
+    typed_primitive_inst(network& network, fully_connected_node const& node);
 
     memory::ptr weights_memory() const { return dep_memory_ptr(1); }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }

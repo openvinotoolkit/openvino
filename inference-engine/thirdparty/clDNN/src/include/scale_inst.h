@@ -21,7 +21,7 @@ private:
 public:
     using parent::parent;
 
-    typed_program_node(const std::shared_ptr<scale> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<scale> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
@@ -46,7 +46,7 @@ public:
     static std::string to_string(scale_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, scale_node const& desc);
+    typed_primitive_inst(network& network, scale_node const& desc);
 
     memory::ptr scale_memory() const { return dep_memory_ptr(1); }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }

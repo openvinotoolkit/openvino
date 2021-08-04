@@ -5,19 +5,34 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "cldnn/graph/topology.hpp"
-#include "topology_impl.h"
 #include <vector>
 #include <memory>
 
 namespace cldnn {
 
-topology::topology() : _impl(new topology_impl()) {}
+void topology::add_primitive(std::shared_ptr<primitive> desc) {
+    auto id = desc->id;
+    auto itr = _primitives.find(id);
+    if (itr != _primitives.end()) {
+        if (itr->second != desc)
+            throw std::runtime_error("different primitive with id '" + id + "' exists already");
 
-const std::vector<primitive_id> topology::get_primitive_ids() const {
-    return _impl->get_primitives_id();
+        // adding the same primitive more than once is not an error
+        return;
+    }
+
+    _primitives.insert({id, desc});
 }
 
-void topology::change_input_layout(primitive_id id, const layout& new_layout) {
+const std::shared_ptr<primitive>& topology::at(primitive_id id) const {
+    try {
+        return _primitives.at(id);
+    } catch (...) {
+        throw std::runtime_error("Topology doesn't contain primtive: " + id);
+    }
+}
+
+void topology::change_input_layout(const primitive_id& id, const layout& new_layout) {
     if (new_layout.format < format::any || new_layout.format >= format::format_num)
         throw std::invalid_argument("Unknown format of layout.");
 
@@ -27,15 +42,18 @@ void topology::change_input_layout(primitive_id id, const layout& new_layout) {
         new_layout.data_type != data_types::i64)
         throw std::invalid_argument("Unknown data_type of layout.");
 
-    _impl->change_input_layout(id, new_layout);
+    auto& inp_layout = this->at(id);
+    if (inp_layout->type != input_layout::type_id()) {
+        throw std::runtime_error("Primitive: " + id + " is not input_layout.");
+    }
+    auto inp_lay_prim = static_cast<input_layout*>(inp_layout.get());
+    inp_lay_prim->change_layout(new_layout);
 }
 
-void topology::add_primitive(std::shared_ptr<primitive> desc) {
-    _impl->add(desc);
-}
-
-const std::shared_ptr<primitive>& topology::at(const primitive_id& id) const {
-    return _impl->at(id);
+const std::vector<primitive_id> topology::get_primitives_ids() const {
+    std::vector<primitive_id> prim_ids;
+    for (const auto& prim : _primitives) prim_ids.push_back(prim.first);
+    return prim_ids;
 }
 
 }  // namespace cldnn

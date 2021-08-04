@@ -43,5 +43,5 @@ std::string ctc_greedy_decoder_inst::to_string(ctc_greedy_decoder_node const& no
     return primitive_description.str();
 }
 
-ctc_greedy_decoder_inst::typed_primitive_inst(network_impl& network, ctc_greedy_decoder_node const& node) : parent(network, node) {}
+ctc_greedy_decoder_inst::typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node) : parent(network, node) {}
 }  // namespace cldnn

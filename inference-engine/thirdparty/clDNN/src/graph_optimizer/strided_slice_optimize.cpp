@@ -15,7 +15,7 @@
 
 using namespace cldnn;
 
-void strided_slice_optimize::run(program_impl& p) {
+void strided_slice_optimize::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
