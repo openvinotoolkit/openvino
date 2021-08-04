@@ -35,7 +35,7 @@ o_{i} = a_{i} \oplus b_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise *logicalXor* operation. A tensor of type *T*.
+* **1**: The result of element-wise *logicalXor* operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
@@ -43,7 +43,7 @@ o_{i} = a_{i} \oplus b_{i}
 
 **Examples**
 
-*Example 1*
+*Example 1: no broadcast*
 
 ```xml
 <layer ... type="LogicalXor">
@@ -66,7 +66,7 @@ o_{i} = a_{i} \oplus b_{i}
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcast*
 ```xml
 <layer ... type="LogicalXor">
     <input>
