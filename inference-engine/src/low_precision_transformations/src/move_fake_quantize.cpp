@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/move_fake_quatize.hpp"
+#include "low_precision/move_fake_quantize.hpp"
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/opsets/opset1.hpp>
