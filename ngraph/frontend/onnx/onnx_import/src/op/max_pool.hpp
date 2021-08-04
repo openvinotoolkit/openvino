@@ -39,7 +39,7 @@ namespace ngraph
                 ///
                 OutputVector max_pool(const Node& node);
 
-            } // namespace set_1
+            } // namespace set_8
 
         } // namespace op
 
