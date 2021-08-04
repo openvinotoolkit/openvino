@@ -83,7 +83,7 @@ def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     if argv.mean_scale_values:
         params = ngraph_function.get_parameters()
         values = argv.mean_scale_values
-        # Add 'scale' fist right after inputs
+        # Add 'scale' first right after inputs
         apply_mean_scale(network=network,
                          input_nodes=params,
                          preprocessing_name='scale',
