@@ -6,14 +6,14 @@
 
 **Short description**: The *ExperimentalDetectronPriorGridGenerator* operation generates prior grids of specified sizes.
 
-**Detailed description**: The operation takes coordinates of centres of boxes and adds strides with offset `0.5` to them to 
+**Detailed description**: The operation takes coordinates of centres of boxes and adds strides with offset `0.5` to them to
 calculate coordinates of prior grids.
 
-Numbers of generated cells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes; otherwise, *h* and *w*, 
-respectively. Steps of generated grid are `image_height` / `layer_height` and `image_width` / `layer_width` if 
+Numbers of generated cells is `featmap_height` and `featmap_width` if *h* and *w* are zeroes; otherwise, *h* and *w*,
+respectively. Steps of generated grid are `image_height` / `layer_height` and `image_width` / `layer_width` if
 *stride_h* and *stride_w* are zeroes; otherwise, *stride_h* and *stride_w*, respectively.
 
-`featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third 
+`featmap_height`, `featmap_width`, `image_height` and `image_width` are spatial dimensions values from second and third
 inputs, respectively.
 
 **Attributes**:
@@ -35,7 +35,7 @@ inputs, respectively.
     * **Type**: int
     * **Default value**: 0
     * **Required**: *no*
-    
+
 * *w*
 
     * **Description**: The *w* attribute specifies number of cells of the generated grid with respect to width.
@@ -51,7 +51,7 @@ inputs, respectively.
     * **Type**: float
     * **Default value**: 0.0
     * **Required**: *no*
-    
+
 * *stride_y*
 
     * **Description**: The *stride_y* attribute specifies the step of generated grid with respect to y coordinate.
@@ -64,24 +64,24 @@ inputs, respectively.
 
 * **1**: A 2D tensor of type *T* with shape `[number_of_priors, 4]` contains priors. **Required.**
 
-* **2**: A 4D tensor of type *T* with input feature map `[1, number_of_channels, featmap_height, featmap_width]`. This 
+* **2**: A 4D tensor of type *T* with input feature map `[1, number_of_channels, featmap_height, featmap_width]`. This
 operation uses only sizes of this input tensor, not its data.**Required.**
 
-* **3**: A 4D tensor of type *T* with input image `[1, number_of_channels, image_height, image_width]`. The number of 
-channels of both feature map and input image tensors must match. This operation uses only sizes of this input tensor, 
+* **3**: A 4D tensor of type *T* with input image `[1, number_of_channels, image_height, image_width]`. The number of
+channels of both feature map and input image tensors must match. This operation uses only sizes of this input tensor,
 not its data. **Required.**
 
 **Outputs**
 
-* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]` 
+* **1**: A tensor of type *T* with priors grid with shape `[featmap_height * featmap_width * number_of_priors, 4]`
 if flatten is `true` or `[featmap_height, featmap_width, number_of_priors, 4]`, otherwise.
-If 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than 
-`featmap_height` * `featmap_width` * `number_of_priors` * 4 and the output tensor is filled with undefined values for 
+If 0 < *h* < `featmap_height` and/or 0 < *w* < `featmap_width` the output data size is less than
+`featmap_height` * `featmap_width` * `number_of_priors` * 4 and the output tensor is filled with undefined values for
 rest output tensor elements.
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 

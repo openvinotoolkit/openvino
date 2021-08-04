@@ -14,7 +14,7 @@
     public:                                                                                        \
         static constexpr VariantTypeInfo type_info{info, 0};                                       \
         const VariantTypeInfo& get_type_info() const override { return type_info; }                \
-        VariantWrapper(const value_type& value)                                                    \
+        VariantWrapper<TYPE>(const value_type& value)                                              \
             : VariantImpl<value_type>(value)                                                       \
         {                                                                                          \
         }                                                                                          \
@@ -53,6 +53,8 @@ namespace ngraph
                                   const VariantTypeInfo& type_info) const = 0;
 
                 virtual std::vector<OutPortName> get_output_names() const = 0;
+
+                virtual size_t get_output_size() const = 0;
 
                 /// \brief Get output port type
                 ///
@@ -139,6 +141,18 @@ namespace ngraph
                 OutputVector get_ng_inputs(const std::string& name) const
                 {
                     return name_map.at(name);
+                }
+
+                /// Returns all inputs in order they appear in map. This is used for FrameworkNode
+                /// creation
+                OutputVector get_all_ng_inputs() const
+                {
+                    OutputVector res;
+                    for (const auto& entry : name_map)
+                    {
+                        res.insert(res.end(), entry.second.begin(), entry.second.end());
+                    }
+                    return res;
                 }
 
                 std::vector<OutPortName> get_output_names() const

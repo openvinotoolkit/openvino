@@ -350,8 +350,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_2d_to_scalar_int8)
     EXPECT_EQ(std::vector<int8_t>{45}, read_vector<int8_t>(result));
 }
 
-#if NGRAPH_INTERPRETER_ENABLE
-
 #ifndef _WIN32
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_acc)
 {
@@ -417,8 +415,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_stable_simple_float)
     EXPECT_TRUE(
         test::all_close_f(ref_results.at(0), bk_results.at(0), DEFAULT_FLOAT_TOLERANCE_BITS - 1));
 }
-
-#endif
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_inf)
 {
@@ -782,8 +778,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_2d_to_scalar_int8)
     EXPECT_EQ(std::vector<int8_t>{45}, read_vector<int8_t>(result));
 }
 
-#if NGRAPH_INTERPRETER_ENABLE
-
 #ifndef _WIN32
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_acc)
 {
@@ -850,8 +844,6 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_stable_simple_float)
     EXPECT_TRUE(
         test::all_close_f(ref_results.at(0), bk_results.at(0), DEFAULT_FLOAT_TOLERANCE_BITS - 1));
 }
-
-#endif
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_sum_keep_inf)
 {

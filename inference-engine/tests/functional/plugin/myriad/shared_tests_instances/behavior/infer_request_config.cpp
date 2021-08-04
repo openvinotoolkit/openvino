@@ -37,7 +37,6 @@ namespace {
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_TRACE)}},
 
-            {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-1"}},
             {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "0"}},
             {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "1"}},
 

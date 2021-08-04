@@ -5,7 +5,7 @@
 set(TARGET_NAME IESharedTests)
 
 list(APPEND SHARED_LIBRARIES
-        ${NGRAPH_LIBRARIES}
+        ngraph
         commonTestUtils
         ngraphFunctions
         ieTestHelpers

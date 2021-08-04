@@ -25,8 +25,7 @@ where `a` corresponds to the input tensor.
   * **Description**: the destination type.
   * **Range of values**: one of the supported types *T*
   * **Type**: `string`
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Required**: *yes*
 
 **Inputs**
 

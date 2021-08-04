@@ -37,8 +37,8 @@ namespace ngraph
             class NGRAPH_API DetectionOutput : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"DetectionOutput", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 DetectionOutput() = default;
                 /// \brief Constructs a DetectionOutput operation
                 ///
@@ -72,7 +72,7 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const DetectionOutputAttrs& get_attrs() const { return m_attrs; }
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
                 DetectionOutputAttrs m_attrs;
