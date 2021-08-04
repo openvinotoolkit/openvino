@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API SimplifyShapeOfSubGraph;
 class TRANSFORMATIONS_API SharedShapeOf;
 class TRANSFORMATIONS_API GroupedGatherElimination;
 class TRANSFORMATIONS_API GatherNopElimination;
+class TRANSFORMATIONS_API SimplifyGatherShapeOf;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -68,4 +69,16 @@ class ngraph::pass::GatherNopElimination: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     GatherNopElimination();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SimplifyGatherShapeOf optimizes `gather->shapeof` into `shapeof->gather` for 0D indices.
+ * Other cases into Concat of shapeof/gather(data) + shapeof(indices) transformation optimizes out
+ * useless Gather operations
+ */
+class ngraph::pass::SimplifyGatherShapeOf: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SimplifyGatherShapeOf();
 };
