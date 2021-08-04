@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief A header file that defines a wrapper class for handling extension instantiation and releasing resources
+ * @brief A header file that defines a wrapper class for handling extension
+ * instantiation and releasing resources
  *
  * @file ie_extension.h
  */
@@ -11,19 +12,19 @@
 
 #include <map>
 #include <memory>
+#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset.hpp>
-#include "ie_iextension.h"
 #include "details/ie_so_pointer.hpp"
+#include "ie_iextension.h"
 
 namespace InferenceEngine {
 namespace details {
 
 /**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
- * creating IExtension object in DLL
+ * @brief The SOCreatorTrait class specialization for IExtension case, defines
+ * the name of the fabric method for creating IExtension object in DLL
  */
 template <>
 class SOCreatorTrait<IExtension> {
@@ -37,7 +38,8 @@ public:
 }  // namespace details
 
 /**
- * @brief This class is a C++ helper to work with objects created using extensions.
+ * @brief This class is a C++ helper to work with objects created using
+ * extensions.
  */
 class INFERENCE_ENGINE_API_CLASS(Extension) final : public IExtension {
 public:
@@ -46,8 +48,7 @@ public:
      *
      * @param name Full or relative path to extension library
      */
-    template <typename C,
-              typename = details::enableIfSupportedChar<C>>
+    template <typename C, typename = details::enableIfSupportedChar<C>>
     explicit Extension(const std::basic_string<C>& name): actual(name) {}
 
     /**
@@ -79,7 +80,8 @@ public:
      * @return vector of strings
      */
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (node == nullptr) IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+        if (node == nullptr)
+            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplTypes(node);
     }
 
@@ -90,7 +92,8 @@ public:
      * @return shared pointer to implementation
      */
     ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-        if (node == nullptr) IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+        if (node == nullptr)
+            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplementation(node, implType);
     }
 
@@ -107,7 +110,7 @@ protected:
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
@@ -120,7 +123,7 @@ inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);

@@ -11,24 +11,24 @@
 
 #include <map>
 #include <memory>
+#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <vector>
 
 #include "ie_api.h"
+#include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_layouts.h"
-#include "ie_blob.h"
 #include "ie_version.hpp"
-#include <ngraph/opsets/opset.hpp>
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
-#define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
+    #define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
 #else
-#define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
+    #define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
 #endif
 
 namespace InferenceEngine {
@@ -47,8 +47,8 @@ struct DataConfig {
      */
     int inPlace = -1;
     /**
-     * @brief Flag for determination of the constant memory. If layer contains all constant memory we can calculate it
-     * on the load stage.
+     * @brief Flag for determination of the constant memory. If layer contains all
+     * constant memory we can calculate it on the load stage.
      */
     bool constant = false;
 };
@@ -91,9 +91,10 @@ public:
 
 /**
  * @interface ILayerExecImpl
- * @brief This class provides interface for the implementation with the custom execution code
+ * @brief This class provides interface for the implementation with the custom
+ * execution code
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
+class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl): public ILayerImpl {
 public:
     /**
      * @brief A shared pointer to the ILayerExecImpl interface
@@ -131,14 +132,13 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
-    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                               ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc* resp) noexcept = 0;
 };
 
 /**
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
+class INFERENCE_ENGINE_API_CLASS(IExtension): public std::enable_shared_from_this<IExtension> {
 public:
     /**
      * @brief Returns operation sets
@@ -183,7 +183,8 @@ public:
     /**
      * @brief Implements deprecated API
      */
-    INFERENCE_ENGINE_DEPRECATED("Do not override or use this method. Use IE_DEFINE_EXTENSION_CREATE_FUNCTION to export extension")
+    INFERENCE_ENGINE_DEPRECATED("Do not override or use this method. Use "
+                                "IE_DEFINE_EXTENSION_CREATE_FUNCTION to export extension")
     virtual void Release() noexcept {
         delete this;
     }
@@ -209,7 +210,8 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @brief Creates the default instance of the extension
  * @param ext Extension interface
  * @param resp Responce
- * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
+ * @return InferenceEngine::OK if extension is constructed and
+ * InferenceEngine::GENERAL_ERROR otherwise
  */
 #if defined(_WIN32)
 INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
@@ -217,15 +219,18 @@ INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
 INFERENCE_EXTENSION_API(StatusCode)
-CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
+CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED("Use "
+                                                                                           "IE_DEFINE_EXTENSION_"
+                                                                                           "CREATE_FUNCTION macro");
 #endif
 
 /**
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                                                  \
-INFERENCE_EXTENSION_API(void) InferenceEngine::CreateExtensionShared(std::shared_ptr<InferenceEngine::IExtension>& ext) {   \
-    ext = std::make_shared<ExtensionType>();                                                                                    \
-}
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                      \
+    INFERENCE_EXTENSION_API(void)                                                               \
+    InferenceEngine::CreateExtensionShared(std::shared_ptr<InferenceEngine::IExtension>& ext) { \
+        ext = std::make_shared<ExtensionType>();                                                \
+    }
 }  // namespace InferenceEngine

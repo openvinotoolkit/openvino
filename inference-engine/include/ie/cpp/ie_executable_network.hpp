@@ -10,18 +10,18 @@
 
 #pragma once
 
-#include <ostream>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
-#include "ie_parameter.hpp"
-#include "ie_remote_context.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "details/ie_so_loader.h"
 #include "ie_iexecutable_network.hpp"
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
@@ -30,16 +30,16 @@ class IExecutableNetworkInternal;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    details::SharedObjectLoader                  _so;
-    std::shared_ptr<IExecutableNetworkInternal>  _impl;
+    details::SharedObjectLoader _so;
+    std::shared_ptr<IExecutableNetworkInternal> _impl;
 
     /**
      * @brief Constructs ExecutableNetwork from the initialized std::shared_ptr
-     * @param so Plugin to use. This is required to ensure that ExecutableNetwork can work properly even if plugin object is destroyed.
+     * @param so Plugin to use. This is required to ensure that ExecutableNetwork
+     * can work properly even if plugin object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const details::SharedObjectLoader&                   so,
-                      const std::shared_ptr<IExecutableNetworkInternal>&   impl);
+    ExecutableNetwork(const details::SharedObjectLoader& so, const std::shared_ptr<IExecutableNetworkInternal>& impl);
     friend class Core;
 
 public:
@@ -51,29 +51,35 @@ public:
     /**
      * @brief Gets the Executable network output Data node information.
      *
-     * The received info is stored in the given InferenceEngine::ConstOutputsDataMap node.
-     * This method need to be called to find output names for using them later
-     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
+     * The received info is stored in the given
+     * InferenceEngine::ConstOutputsDataMap node. This method need to be called to
+     * find output names for using them later when calling
+     * InferenceEngine::InferRequest::GetBlob or
+     * InferenceEngine::InferRequest::SetBlob
      *
-     * @return A collection that contains string as key, and const Data smart pointer as value
+     * @return A collection that contains string as key, and const Data smart
+     * pointer as value
      */
     ConstOutputsDataMap GetOutputsInfo() const;
 
     /**
      * @brief Gets the executable network input Data node information.
      *
-     * The received info is stored in the given InferenceEngine::ConstInputsDataMap object.
-     * This method need to be called to find out input names for using them later
-     * when calling InferenceEngine::InferRequest::SetBlob
+     * The received info is stored in the given
+     * InferenceEngine::ConstInputsDataMap object. This method need to be called
+     * to find out input names for using them later when calling
+     * InferenceEngine::InferRequest::SetBlob
      *
-     * @return A collection that contains string as key, and const InputInfo smart pointer as value
+     * @return A collection that contains string as key, and const InputInfo smart
+     * pointer as value
      */
     ConstInputsDataMap GetInputsInfo() const;
 
     /**
      * @brief Creates an inference request object used to infer the network.
      *
-     * The created request has allocated input and output blobs (that can be changed later).
+     * The created request has allocated input and output blobs (that can be
+     * changed later).
      *
      * @return InferRequest object
      */
@@ -115,10 +121,11 @@ public:
     /** @brief Gets configuration for current executable network.
      *
      * The method is responsible to extract information
-     * which affects executable network execution. The list of supported configuration values can be extracted via
-     * ExecutableNetwork::GetMetric with the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
-     * dynamically, e.g. DEVICE_ID cannot changed if an executable network has already been compiled for particular
-     * device.
+     * which affects executable network execution. The list of supported
+     * configuration values can be extracted via ExecutableNetwork::GetMetric with
+     * the SUPPORTED_CONFIG_KEYS key, but some of these keys cannot be changed
+     * dynamically, e.g. DEVICE_ID cannot changed if an executable network has
+     * already been compiled for particular device.
      *
      * @param name config key, can be found in ie_plugin_config.hpp
      * @return Configuration parameter value
@@ -129,7 +136,8 @@ public:
      * @brief Gets general runtime metric for an executable network.
      *
      * It can be network name, actual device ID on
-     * which executable network is running or all other properties which cannot be changed dynamically.
+     * which executable network is running or all other properties which cannot be
+     * changed dynamically.
      *
      * @param name metric name to request
      * @return Metric parameter value
@@ -145,13 +153,15 @@ public:
 
     /**
      * @brief Checks if current ExecutableNetwork object is not initialized
-     * @return true if current ExecutableNetwork object is not initialized, false - otherwise
+     * @return true if current ExecutableNetwork object is not initialized, false
+     * - otherwise
      */
     bool operator!() const noexcept;
 
     /**
      * @brief Checks if current ExecutableNetwork object is initialized
-     * @return true if current ExecutableNetwork object is initialized, false - otherwise
+     * @return true if current ExecutableNetwork object is initialized, false -
+     * otherwise
      */
     explicit operator bool() const noexcept;
 

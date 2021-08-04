@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief A header file that provides wrapper classes for infer requests and callbacks.
+ * @brief A header file that provides wrapper classes for infer requests and
+ * callbacks.
  *
  * @file ie_infer_request.hpp
  */
@@ -13,10 +14,10 @@
 #include <memory>
 #include <string>
 
-#include "ie_blob.h"
 #include "cpp/ie_memory_state.hpp"
-#include "ie_iinfer_request.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_blob.h"
+#include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
 
@@ -30,19 +31,20 @@ class ICompletionCallbackWrapper;
  * @copybrief IInferRequest
  *
  * Wraps IInferRequest
- * It can throw exceptions safely for the application, where it is properly handled.
+ * It can throw exceptions safely for the application, where it is properly
+ * handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    details::SharedObjectLoader                          _so;
-    std::shared_ptr<IInferRequestInternal>               _impl;
+    details::SharedObjectLoader _so;
+    std::shared_ptr<IInferRequestInternal> _impl;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
-     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
+     * @param so Plugin to use. This is required to ensure that InferRequest can
+     * work properly even if plugin object is destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const details::SharedObjectLoader&             so,
-                 const std::shared_ptr<IInferRequestInternal>&  impl);
+    InferRequest(const details::SharedObjectLoader& so, const std::shared_ptr<IInferRequestInternal>& impl);
     friend class ExecutableNetwork;
 
 public:
@@ -53,7 +55,8 @@ public:
     enum WaitMode : int64_t {
         /** Wait until inference result becomes available */
         RESULT_READY = -1,
-        /** IInferRequest doesn't block or interrupt current thread and immediately returns inference status */
+        /** IInferRequest doesn't block or interrupt current thread and immediately
+           returns inference status */
         STATUS_ONLY = 0,
     };
 
@@ -72,8 +75,8 @@ public:
      *
      * @note Memory allocation does not happen
      * @param name Name of input or output blob.
-     * @param data Reference to input or output blob. The type of a blob must match the network input precision and
-     * size.
+     * @param data Reference to input or output blob. The type of a blob must
+     * match the network input precision and size.
      */
     void SetBlob(const std::string& name, const Blob::Ptr& data);
 
@@ -82,7 +85,8 @@ public:
      *
      * @note Memory allocation does not happen
      * @param name A name of Blob to get
-     * @return A shared pointer to a Blob with a name @p name. If a blob is not found, an exception is thrown.
+     * @return A shared pointer to a Blob with a name @p name. If a blob is not
+     * found, an exception is thrown.
      */
     Blob::Ptr GetBlob(const std::string& name);
 
@@ -90,10 +94,11 @@ public:
      * @brief Sets blob with a pre-process information
      * @note Returns an error in case if data blob is output
      * @param name Name of input blob.
-     * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
+     * @param data A reference to input. The type of Blob must correspond to the
+     * network input precision and size.
      * @param info Preprocess info for blob.
      */
-    void SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info);
+    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
 
     /**
      * @brief Gets pre-process for input data
@@ -105,7 +110,8 @@ public:
     /**
      * @brief Infers specified input(s) in synchronous mode
      *
-     * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)
+     * @note blocks all methods of InferRequest while request is ongoing (running
+     * or waiting in queue)
      *
      */
     void Infer();
@@ -116,7 +122,8 @@ public:
     void Cancel();
 
     /**
-     * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
+     * @brief Queries performance measures per layer to get feedback of what is
+     * the most time consuming layer
      *
      * @note not all plugins provide meaningful data
      * @return Map of layer names to profiling information for that layer
@@ -128,7 +135,8 @@ public:
      *
      * @note Memory allocation doesn't happen
      * @param inputs A reference to a map of input blobs accessed by input names.
-     *        The type of Blob must correspond to the network input precision and size.
+     *        The type of Blob must correspond to the network input precision and
+     * size.
      */
     void SetInput(const BlobMap& inputs);
 
@@ -136,15 +144,18 @@ public:
      * @brief Sets data that will contain result of the inference
      *
      * @note Memory allocation doesn't happen
-     * @param results - a reference to a map of result blobs accessed by output names.
-     *        The type of Blob must correspond to the network output precision and size.
+     * @param results - a reference to a map of result blobs accessed by output
+     * names. The type of Blob must correspond to the network output precision and
+     * size.
      */
     void SetOutput(const BlobMap& results);
 
     /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
+     * @brief Sets new batch size when dynamic batching is enabled in executable
+     * network that created this request.
      *
-     * @param batch new batch size to be used by all the following inference calls for this request.
+     * @param batch new batch size to be used by all the following inference calls
+     * for this request.
      */
     void SetBatch(const int batch);
 
@@ -156,14 +167,17 @@ public:
     void StartAsync();
 
     /**
-     * @brief Waits for the result to become available. Blocks until specified millis_timeout has elapsed or the result
-     * becomes available, whichever comes first.
+     * @brief Waits for the result to become available. Blocks until specified
+     * millis_timeout has elapsed or the result becomes available, whichever comes
+     * first.
      *
      *
      * @param millis_timeout Maximum duration in milliseconds to block for
-     * @note There are special cases when millis_timeout is equal some value of the WaitMode enum:
-     * * STATUS_ONLY - immediately returns inference status (IInferRequest::RequestStatus). It does not block or
-     * interrupt current thread
+     * @note There are special cases when millis_timeout is equal some value of
+     * the WaitMode enum:
+     * * STATUS_ONLY - immediately returns inference status
+     * (IInferRequest::RequestStatus). It does not block or interrupt current
+     * thread
      * * RESULT_READY - waits until inference result becomes available
      * @return A status code of operation
      */
@@ -176,19 +190,23 @@ private:
     void SetCompletionCallbackImpl(IInferRequest::CompletionCallback);
     IE_SUPPRESS_DEPRECATED_END
 
-    template<typename T>
+    template <typename T>
     struct SetCallback {
-        void operator()(std::function<void()> f) {_this.SetCompletionCallbackImpl(std::move(f));}
+        void operator()(std::function<void()> f) {
+            _this.SetCompletionCallbackImpl(std::move(f));
+        }
         InferRequest& _this;
     };
 
 public:
     /**
-     * @brief Sets a callback function that will be called on success or failure of asynchronous request
+     * @brief Sets a callback function that will be called on success or failure
+     * of asynchronous request
      *
-     * @param callbackToSet callback object which will be called on when inference finish.
+     * @param callbackToSet callback object which will be called on when inference
+     * finish.
      */
-    template<typename F>
+    template <typename F>
     void SetCompletionCallback(F callbackToSet) {
         SetCallback<F>{*this}(std::move(callbackToSet));
     }
@@ -203,34 +221,39 @@ public:
 
     IE_SUPPRESS_DEPRECATED_START
     /**
-     * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
+     * @brief  IInferRequest pointer to be used directly in CreateInferRequest
+     * functions
      * @return A shared pointer to IInferRequest interface
      */
     INFERENCE_ENGINE_DEPRECATED("Will be removed")
-    operator std::shared_ptr<IInferRequest> ();
+    operator std::shared_ptr<IInferRequest>();
     IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Checks if current InferRequest object is not initialized
-     * @return true if current InferRequest object is not initialized, false - otherwise
+     * @return true if current InferRequest object is not initialized, false -
+     * otherwise
      */
     bool operator!() const noexcept;
 
     /**
      * @brief Checks if current InferRequest object is initialized
-     * @return true if current InferRequest object is initialized, false - otherwise
+     * @return true if current InferRequest object is initialized, false -
+     * otherwise
      */
     explicit operator bool() const noexcept;
 
     /**
      * @brief Compares whether this request wraps the same impl underneath
-     * @return true if current InferRequest object doesn't wrap the same impl as the operator's arg
+     * @return true if current InferRequest object doesn't wrap the same impl as
+     * the operator's arg
      */
     bool operator!=(const InferRequest&) const noexcept;
 
     /**
      * @brief Compares whether this request wraps the same impl underneath
-     * @return true if current InferRequest object wraps the same impl as the operator's arg
+     * @return true if current InferRequest object wraps the same impl as the
+     * operator's arg
      */
     bool operator==(const InferRequest&) const noexcept;
 };
@@ -238,7 +261,7 @@ public:
 /**
  * @private
  */
-template<>
+template <>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
         _this.SetCompletionCallbackImpl(std::move(f));
@@ -251,7 +274,7 @@ IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
-template<>
+template <>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {
         _this.SetCompletionCallbackImpl(std::move(f));

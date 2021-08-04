@@ -9,8 +9,9 @@
  */
 #pragma once
 
-#include "ie_api.h"
 #include <memory>
+
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
@@ -19,17 +20,19 @@ namespace InferenceEngine {
  */
 enum LockOp {
     LOCK_FOR_READ = 0,  //!< A flag to lock data for read
-    LOCK_FOR_WRITE  //!< A flag to lock data for write
+    LOCK_FOR_WRITE      //!< A flag to lock data for write
 };
 
 /**
  * @interface IAllocator
- * @brief Allocator concept to be used for memory management and is used as part of the Blob.
+ * @brief Allocator concept to be used for memory management and is used as part
+ * of the Blob.
  */
 class IAllocator : public std::enable_shared_from_this<IAllocator> {
 public:
     /**
-     * @brief Maps handle to heap memory accessible by any memory manipulation routines.
+     * @brief Maps handle to heap memory accessible by any memory manipulation
+     * routines.
      *
      * @param handle Handle to the allocated memory to be locked
      * @param op Operation to lock memory for
@@ -37,10 +40,11 @@ public:
      */
     virtual void* lock(void* handle, LockOp op = LOCK_FOR_WRITE) noexcept = 0;
     /**
-     * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
+     * @brief Unmaps memory by handle with multiple sequential mappings of the
+     * same handle.
      *
-     * The multiple sequential mappings of the same handle are suppose to get the same
-     * result while there isn't a ref counter supported.
+     * The multiple sequential mappings of the same handle are suppose to get the
+     * same result while there isn't a ref counter supported.
      *
      * @param handle Handle to the locked memory to unlock
      */
@@ -53,21 +57,24 @@ public:
      */
     virtual void* alloc(size_t size) noexcept = 0;
     /**
-     * @brief Releases the handle and all associated memory resources which invalidates the handle.
+     * @brief Releases the handle and all associated memory resources which
+     * invalidates the handle.
      * @param handle The handle to free
      * @return `false` if handle cannot be released, otherwise - `true`.
      */
     virtual bool free(void* handle) noexcept = 0;
 
 protected:
-     ~IAllocator() = default;
+    ~IAllocator() = default;
 };
 
 /**
- * @brief Creates the default implementation of the Inference Engine allocator per plugin.
+ * @brief Creates the default implementation of the Inference Engine allocator
+ * per plugin.
  *
  * @return The Inference Engine IAllocator* instance
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>) CreateDefaultAllocator() noexcept;
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::IAllocator>)
+CreateDefaultAllocator() noexcept;
 
 }  // namespace InferenceEngine

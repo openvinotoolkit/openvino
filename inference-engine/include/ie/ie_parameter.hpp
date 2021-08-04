@@ -59,9 +59,8 @@ public:
      * @tparam U Identity type-transformation
      * @param parameter object
      */
-    template <class T,
-              typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value &&
-                                                 !std::is_abstract<typename std::decay<T>::type>::value>::type>
+    template <class T, typename = typename std::enable_if<!std::is_same<typename std::decay<T>::type, Parameter>::value &&
+                                                          !std::is_abstract<typename std::decay<T>::type>::value>::type>
     Parameter(T&& parameter) {  // NOLINT
         static_assert(!std::is_same<typename std::decay<T>::type, Parameter>::value, "To prevent recursion");
         ptr = new RealData<typename std::decay<T>::type>(std::forward<T>(parameter));
@@ -89,7 +88,8 @@ public:
             return *this;
         }
         clear();
-        if (!parameter.empty()) ptr = parameter.ptr->copy();
+        if (!parameter.empty())
+            ptr = parameter.ptr->copy();
         return *this;
     }
 
@@ -279,7 +279,7 @@ private:
             return id == typeid(T);
         }
         Any* copy() const override {
-            return new RealData {get()};
+            return new RealData{get()};
         }
 
         T& get() & {
@@ -291,14 +291,12 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
-        equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
             IE_THROW() << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
-        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type
-        equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
             return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
         }
 
@@ -307,12 +305,10 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type
-        print(std::ostream& stream, const U& object) const {}
+        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream, const U& object) const {}
 
         template <class U>
-        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type
-        print(std::ostream& stream, const U& object) const {
+        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream, const U& object) const {
             stream << object;
         }
 
@@ -323,13 +319,15 @@ private:
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr)
+            IE_THROW() << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr)
+            IE_THROW() << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 
@@ -338,7 +336,7 @@ private:
 
 /**
  * @brief An std::map object containing parameters
-  */
+ */
 using ParamMap = std::map<std::string, Parameter>;
 
 #ifdef __ANDROID__
@@ -352,10 +350,8 @@ extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::Re
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<std::string>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<unsigned long>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(
-    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
 #endif
 
 }  // namespace InferenceEngine

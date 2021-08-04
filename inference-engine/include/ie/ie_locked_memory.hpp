@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief A header file for generic LockedMemory<> and different variations of locks
+ * @brief A header file for generic LockedMemory<> and different variations of
+ * locks
  *
  * @file ie_locked_memory.hpp
  */
@@ -50,8 +51,7 @@ public:
      *
      * @param that An rvalue reference for the other LockedMemoryBase instance
      */
-    LockedMemoryBase(LockedMemoryBase&& that) noexcept
-        : _allocator(that._allocator), _handle(that._handle), _lockFlag(that._lockFlag), _offset(that._offset) {
+    LockedMemoryBase(LockedMemoryBase&& that) noexcept: _allocator(that._allocator), _handle(that._handle), _lockFlag(that._lockFlag), _offset(that._offset) {
         that._locked = nullptr;
     }
 
@@ -69,7 +69,8 @@ protected:
      * @brief Compares referenced values
      *
      * @param pointer Pointer to the object to compare with
-     * @return True if all handlers are nullptr or referenced values are equal, false otherwise
+     * @return True if all handlers are nullptr or referenced values are equal,
+     * false otherwise
      */
     bool isEqualTo(const T* pointer) const {
         if (pointer == nullptr && (_allocator == nullptr || _handle == nullptr)) {
@@ -81,12 +82,14 @@ protected:
     /**
      * @brief Gets the locked object.
      *
-     * Locks the handler and casts memory to the object of the given template type.
+     * Locks the handler and casts memory to the object of the given template
+     * type.
      *
      * @return The pointer to the locked object, nullptr otherwise
      */
     virtual T* dereference() const {
-        if (_locked != nullptr) return _locked;
+        if (_locked != nullptr)
+            return _locked;
 
         if (_allocator == nullptr) {
             return nullptr;
@@ -118,8 +121,7 @@ public:
      * @param handle Handle provided by allocator
      * @param offsetInBytes Offset in originally locked region
      */
-    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes = 0)
-        : base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
+    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes = 0): base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
 
     /**
      * @brief A default copy constructor, accepting rvalue
@@ -226,8 +228,7 @@ public:
      * @param handle Handle provided by allocator
      * @param offsetInBytes Offset in originally locked region
      */
-    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes)
-        : base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
+    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes): base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
 
     /**
      * @brief A default copy constructor that accepts rvalue

@@ -3,6 +3,7 @@
 //
 
 #include <ie_ngraph_utils.hpp>
+
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
 

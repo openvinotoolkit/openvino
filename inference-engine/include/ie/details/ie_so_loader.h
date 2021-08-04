@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief A header file for definition of abstraction over platform specific shared objects
+ * @brief A header file for definition of abstraction over platform specific
+ * shared objects
  *
  * @file ie_so_loader.h
  */
@@ -41,7 +42,7 @@ public:
      * @brief Loads a library with the name specified.
      * @param pluginName Full or relative path to the plugin library
      */
-    explicit SharedObjectLoader(const char * pluginName);
+    explicit SharedObjectLoader(const char* pluginName);
 
     /**
      * @brief A destructor

@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp/ie_cnn_network.h>
+
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-
+#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <fstream>
+#include <ie_icore.hpp>
+#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <fstream>
-
-#include <ie_icore.hpp>
-#include <ie_parameter.hpp>
-#include <cpp/ie_cnn_network.h>
 
 namespace InferenceEngine {
 
@@ -90,8 +89,7 @@ std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(InputsDataMap networkInputs,
-                                                                                          OutputsDataMap networkOutputs) {
+std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(InputsDataMap networkInputs, OutputsDataMap networkOutputs) {
     IE_THROW(NotImplemented);
 }
 

@@ -3,18 +3,19 @@
 //
 
 #include "ie_network_reader.hpp"
-#include "ie_itt.hpp"
+
+#include <file_utils.h>
 
 #include <details/ie_so_pointer.hpp>
-#include <file_utils.h>
-#include <ie_reader.hpp>
-#include <ie_ir_version.hpp>
 #include <frontend_manager/frontend_manager.hpp>
-
 #include <fstream>
+#include <ie_ir_version.hpp>
+#include <ie_reader.hpp>
 #include <istream>
-#include <mutex>
 #include <map>
+#include <mutex>
+
+#include "ie_itt.hpp"
 
 namespace InferenceEngine {
 
@@ -37,21 +38,20 @@ public:
 /**
  * @brief This class is a wrapper for reader interfaces
  */
-class Reader: public IReader {
+class Reader : public IReader {
     InferenceEngine::details::SOPointer<IReader> ptr;
     std::once_flag readFlag;
     std::string name;
     std::string location;
 
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
-        std::call_once(readFlag, [&] () {
+        std::call_once(readFlag, [&]() {
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
             FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 IE_THROW() << "Please, make sure that Inference Engine ONNX reader library "
-                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
-                           << getIELibraryPath();
+                           << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in " << getIELibraryPath();
             }
             ptr = {readersLibraryPath};
         });
@@ -98,10 +98,11 @@ void registerReaders() {
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
-    if (initialized) return;
+    if (initialized)
+        return;
 
     // TODO: Read readers info from XML
-    auto create_if_exists = [] (const std::string name, const std::string library_name) {
+    auto create_if_exists = [](const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
         FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
@@ -130,23 +131,24 @@ void registerReaders() {
     initialized = true;
 }
 
-void assertIfIRv7LikeModel(std::istream & modelStream) {
+void assertIfIRv7LikeModel(std::istream& modelStream) {
     auto irVersion = details::GetIRVersion(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7)
         return;
 
-    for (auto && kvp : readers) {
+    for (auto&& kvp : readers) {
         Reader::Ptr reader = kvp.second;
         if (reader->getName() == "IRv7") {
             return;
         }
     }
 
-    IE_THROW() << "The support of IR v" << irVersion <<  " has been removed from the product. "
-                                                         "Please, convert the original model using the Model Optimizer which comes with this "
-                                                         "version of the OpenVINO to generate supported IR version.";
+    IE_THROW() << "The support of IR v" << irVersion
+               << " has been removed from the product. "
+                  "Please, convert the original model using the Model Optimizer which comes with this "
+                  "version of the OpenVINO to generate supported IR version.";
 }
 
 }  // namespace
@@ -183,7 +185,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             if (bPath.empty()) {
                 auto pathWoExt = modelPath;
                 auto pos = modelPath.rfind('.');
-                if (pos != std::string::npos) pathWoExt = modelPath.substr(0, pos);
+                if (pos != std::string::npos)
+                    pathWoExt = modelPath.substr(0, pos);
                 for (const auto& ext : reader->getDataFileExtensions()) {
                     bPath = pathWoExt + "." + ext;
                     if (!FileUtils::fileExist(bPath)) {
@@ -209,7 +212,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 size_t fileSize = binStream.tellg();
                 binStream.seekg(0, std::ios::beg);
 
-                Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
+                Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {fileSize}, C});
 
                 {
                     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "ReadNetworkWeights");
@@ -238,17 +241,19 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
         std::string weights_path = binPath;
 #endif
         FE = manager.load_by_model(model_path, weights_path);
-        if (FE) inputModel = FE->load(model_path, weights_path);
+        if (FE)
+            inputModel = FE->load(model_path, weights_path);
     } else {
         FE = manager.load_by_model(model_path);
-        if (FE) inputModel = FE->load(model_path);
+        if (FE)
+            inputModel = FE->load(model_path);
     }
     if (inputModel) {
         auto ngFunc = FE->convert(inputModel);
         return CNNNetwork(ngFunc);
     }
-    IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
-               ". Please check that reader library exists in your PATH.";
+    IE_THROW() << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath
+               << ". Please check that reader library exists in your PATH.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {

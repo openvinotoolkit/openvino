@@ -9,12 +9,13 @@
  */
 #pragma once
 
-#include <memory>
 #include <fstream>
-#include <string>
 #include <functional>
-#include "ie_api.h"
+#include <memory>
+#include <string>
+
 #include "file_utils.h"
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
@@ -89,7 +90,7 @@ public:
      * @brief Constructor
      *
      */
-    FileStorageCacheManager(std::string&& cachePath) : m_cachePath(std::move(cachePath)) {}
+    FileStorageCacheManager(std::string&& cachePath): m_cachePath(std::move(cachePath)) {}
 
     /**
      * @brief Destructor

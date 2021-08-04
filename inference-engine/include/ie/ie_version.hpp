@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief A header file that provides versioning information for the Inference Engine library
+ * @brief A header file that provides versioning information for the Inference
+ * Engine library
  *
  * @file ie_version.hpp
  */
@@ -33,20 +34,22 @@ namespace InferenceEngine {
 
 /**
  * @struct Version
- * @brief  Represents version information that describes plugins and the inference engine runtime library
+ * @brief  Represents version information that describes plugins and the
+ * inference engine runtime library
  */
 #pragma pack(push, 1)
 struct Version {
     IE_SUPPRESS_DEPRECATED_START
     /**
-     * @deprecated Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property
+     * @deprecated Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber
+     * property
      * @brief An API version reflects the set of supported features
      */
     struct ApiVersion {
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
-        int major; //!< A major version
+        int major;  //!< A major version
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
-        int minor; //!< A minor version
+        int minor;  //!< A minor version
 
         /**
          * @brief A default construtor
@@ -60,7 +63,7 @@ struct Version {
          * @brief A default construtor
          * @param v A version to copy
          */
-        ApiVersion(const ApiVersion & v) {
+        ApiVersion(const ApiVersion& v) {
             major = v.major;
             minor = v.minor;
         }

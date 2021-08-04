@@ -13,13 +13,12 @@
 #include <memory>
 #include <string>
 
-#include "ie_compound_blob.h"
-#include "ie_remote_context.hpp"
-#include "ie_core.hpp"
-
-#include "gpu/gpu_params.hpp"
-#include "gpu/gpu_ocl_wrapper.hpp"
 #include "gpu/details/gpu_context_helpers.hpp"
+#include "gpu/gpu_ocl_wrapper.hpp"
+#include "gpu/gpu_params.hpp"
+#include "ie_compound_blob.h"
+#include "ie_core.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
@@ -42,8 +41,8 @@ public:
      * @return `cl_context`
      */
     cl_context get() {
-        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(), GPU_PARAM_KEY(OCL_CONTEXT),
-            GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL), GPU_PARAM_VALUE(VA_SHARED));
+        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(), GPU_PARAM_KEY(OCL_CONTEXT), GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL),
+                                                            GPU_PARAM_VALUE(VA_SHARED));
     }
 
     /**
@@ -55,7 +54,8 @@ public:
     }
 
     /**
-     * @brief Standard Khronos cl::Context wrapper conversion operator for the ClContext object.
+     * @brief Standard Khronos cl::Context wrapper conversion operator for the
+     * ClContext object.
      * @return `cl::Context` object
      */
     operator cl::Context() {
@@ -65,7 +65,8 @@ public:
 
 /**
  * @brief The basic class for all GPU plugin remote blob objects.
- * The OpenCL memory object handle (cl_mem) can be obtained from this class object.
+ * The OpenCL memory object handle (cl_mem) can be obtained from this class
+ * object.
  */
 class ClBlob : public RemoteBlob {
 public:
@@ -78,13 +79,14 @@ public:
      * @brief Creates a ClBlob object with the specified dimensions and layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClBlob(const TensorDesc& tensorDesc) : RemoteBlob(tensorDesc) {}
+    explicit ClBlob(const TensorDesc& tensorDesc): RemoteBlob(tensorDesc) {}
 };
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
  * which can be shared with user-supplied OpenCL buffer.
- * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * The plugin object derived from this class can be obtained with CreateBlob()
+ * call.
  * @note User can obtain OpenCL buffer handle from this class.
  */
 class ClBufferBlob : public ClBlob, public details::param_map_obj_getter {
@@ -95,18 +97,19 @@ public:
     using Ptr = std::shared_ptr<ClBufferBlob>;
 
     /**
-     * @brief Creates a ClBufferBlob object with the specified dimensions and layout.
+     * @brief Creates a ClBufferBlob object with the specified dimensions and
+     * layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClBufferBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
+    explicit ClBufferBlob(const TensorDesc& tensorDesc): ClBlob(tensorDesc) {}
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
      * @return underlying OpenCL memory object handle
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
-            GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER), GPU_PARAM_VALUE(DX_BUFFER));
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER),
+                                                        GPU_PARAM_VALUE(DX_BUFFER));
     }
 
     /**
@@ -129,7 +132,8 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
  * which can be shared with user-supplied OpenCL 2D Image.
- * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * The plugin object derived from this class can be obtained with CreateBlob()
+ * call.
  * @note User can obtain OpenCL image handle from this class.
  */
 class ClImage2DBlob : public ClBlob, public details::param_map_obj_getter {
@@ -140,18 +144,19 @@ public:
     using Ptr = std::shared_ptr<ClImage2DBlob>;
 
     /**
-     * @brief Creates a ClImage2DBlob object with the specified dimensions and layout.
+     * @brief Creates a ClImage2DBlob object with the specified dimensions and
+     * layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClImage2DBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
+    explicit ClImage2DBlob(const TensorDesc& tensorDesc): ClBlob(tensorDesc) {}
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
      * @return `cl_mem`
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
-            GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D), GPU_PARAM_VALUE(VA_SURFACE));
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D),
+                                                        GPU_PARAM_VALUE(VA_SURFACE));
     }
 
     /**
@@ -163,7 +168,8 @@ public:
     }
 
     /**
-     * @brief Standard Khronos cl::Image2D wrapper conversion operator for the ClContext object.
+     * @brief Standard Khronos cl::Image2D wrapper conversion operator for the
+     * ClContext object.
      * @return `cl::Image2D` object
      */
     operator cl::Image2D() {
@@ -172,8 +178,9 @@ public:
 };
 
 /**
- * @brief This function is used to construct a NV12 compound blob object from two cl::Image2D wrapper objects.
- * The resulting compound contains two remote blobs for Y and UV planes of the surface.
+ * @brief This function is used to construct a NV12 compound blob object from
+ * two cl::Image2D wrapper objects. The resulting compound contains two remote
+ * blobs for Y and UV planes of the surface.
  * @param ctx RemoteContext plugin object derived from ClContext class.
  * @param nv12_image_plane_y cl::Image2D object containing Y plane data.
  * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
@@ -189,15 +196,13 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
     size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
 
     // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
+    TensorDesc ydesc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
 
-    ParamMap blobParams = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get()) }
-    };
+    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
     Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
 
-    TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
+    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
     blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
     Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
 
@@ -206,22 +211,21 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
 }
 
 /**
- * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
+ * @brief This function is used to obtain remote context object from
+ * user-supplied OpenCL context handle
  * @param core A reference to Inference Engine Core object
  * @param deviceName A name of device to create a remote context for
  * @param ctx A OpenCL context to be used to create shared remote context
  * @return A shared remote context instance
  */
 static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_context ctx) {
-    ParamMap contextParams = {
-        { GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL) },
-        { GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx) }
-    };
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)}, {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
     return core.CreateContext(deviceName, contextParams);
 }
 
 /**
- * @brief This function is used to create remote blob object within default GPU plugin OpenCL context
+ * @brief This function is used to create remote blob object within default GPU
+ * plugin OpenCL context
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob
  * @return A remote blob instance
@@ -231,7 +235,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr 
 }
 
 /**
- * @brief This function is used to obtain remote blob object from user-supplied cl::Buffer wrapper object
+ * @brief This function is used to obtain remote blob object from user-supplied
+ * cl::Buffer wrapper object
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob
  * @param buffer A cl::Buffer object wrapped by a remote blob
@@ -243,15 +248,13 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get()) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
 /**
- * @brief This function is used to obtain remote blob object from user-supplied OpenCL buffer handle
+ * @brief This function is used to obtain remote blob object from user-supplied
+ * OpenCL buffer handle
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob
  * @param buffer A cl_mem object wrapped by a remote blob
@@ -263,15 +266,13 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
 /**
- * @brief This function is used to obtain remote blob object from user-supplied cl::Image2D wrapper object
+ * @brief This function is used to obtain remote blob object from user-supplied
+ * cl::Image2D wrapper object
  * @param desc A tensor descriptor object representing remote blob configuration
  * @param ctx A remote context used to create remote blob
  * @param image A cl::Image2D object wrapped by a remote blob
@@ -283,10 +284,7 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get()) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 

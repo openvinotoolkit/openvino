@@ -11,14 +11,13 @@
 
 #include <map>
 #include <memory>
+#include <ngraph/function.hpp>
 #include <string>
 
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-
-#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 
@@ -57,15 +56,18 @@ public:
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
-     * @brief Gets the network output Data node information. The received info is stored in the given Data node.
+     * @brief Gets the network output Data node information. The received info is
+     * stored in the given Data node.
      *
      * For single and multiple outputs networks.
      *
-     * This method need to be called to find out OpenVINO output names for using them later
-     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
+     * This method need to be called to find out OpenVINO output names for using
+     * them later when calling InferenceEngine::InferRequest::GetBlob or
+     * InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
-     * method to map framework names to OpenVINO names
+     * If you want to use framework names, you can use
+     * InferenceEngine::ICNNNetwork::getOVNameForTensor method to map framework
+     * names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -74,15 +76,16 @@ public:
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
-     * @brief Gets the network input Data node information. The received info is stored in the given InputsDataMap
-     * object.
+     * @brief Gets the network input Data node information. The received info is
+     * stored in the given InputsDataMap object.
      *
      * For single and multiple inputs networks.
-     * This method need to be called to find out OpenVINO input names for using them later
-     * when calling InferenceEngine::InferRequest::SetBlob
+     * This method need to be called to find out OpenVINO input names for using
+     * them later when calling InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
-     * method to map framework names to OpenVINO names
+     * If you want to use framework names, you can use
+     * InferenceEngine::ICNNNetwork::getOVNameForTensor method to map framework
+     * names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -127,28 +130,32 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0,
-                                 ResponseDesc* resp = nullptr) noexcept = 0;
+    virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0, ResponseDesc* resp = nullptr) noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief Changes the inference batch size.
      *
-     * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call
-     * ICNNNetwork::reshape.
+     * @note There are several limitations and it's not recommended to use it. Set
+     * batch to the input shape and call ICNNNetwork::reshape.
      *
      * @param size Size of batch to set
-     * @param responseDesc Pointer to the response message that holds a description of an error if any occurred
+     * @param responseDesc Pointer to the response message that holds a
+     * description of an error if any occurred
      * @return Status code of the operation
-     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
-     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
-     * method works incorrectly. This limitation is resolved via shape inference feature by using
-     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
+     * @note Current implementation of the function sets batch size to the first
+     * dimension of all layers in the networks. Before calling it make sure that
+     * all your layers have batch in the first dimension, otherwise the method
+     * works incorrectly. This limitation is resolved via shape inference feature
+     * by using InferenceEngine::ICNNNetwork::reshape method. To read more refer
+     * to the Shape Inference section in documentation
      *
-     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
-     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
-     * method works incorrectly. This limitation is resolved via shape inference feature by using
-     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
+     * @note Current implementation of the function sets batch size to the first
+     * dimension of all layers in the networks. Before calling it make sure that
+     * all your layers have batch in the first dimension, otherwise the method
+     * works incorrectly. This limitation is resolved via shape inference feature
+     * by using InferenceEngine::ICNNNetwork::reshape method. To read more refer
+     * to the Shape Inference section in documentation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
     virtual StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept = 0;
@@ -172,8 +179,10 @@ public:
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
      * @brief Run shape inference with new input shapes for the network
      *
-     * @param inputShapes - map of pairs: name of corresponding data and its dimension.
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param inputShapes - map of pairs: name of corresponding data and its
+     * dimension.
+     * @param resp Pointer to the response message that holds a description of an
+     * error if any occurred
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
@@ -189,12 +198,12 @@ public:
      *
      * @param xmlPath Path to output IR file.
      * @param binPath Path to output weights file.
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param resp Pointer to the response message that holds a description of an
+     * error if any occurred
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
-        noexcept = 0;
+    virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -202,12 +211,12 @@ public:
      *
      * @param xmlStream A stream for xml content (.xml file)
      * @param binStream A stream for weights content (.bin file)
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param resp Pointer to the response message that holds a description of an
+     * error if any occurred
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(std::ostream& xmlStream, std::ostream& binStream, ResponseDesc* resp) const
-        noexcept = 0;
+    virtual StatusCode serialize(std::ostream& xmlStream, std::ostream& binStream, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -215,12 +224,12 @@ public:
      *
      * @param xmlStream A stream for xml content (.xml file)
      * @param binData A blob for weights content (.bin file)
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param resp Pointer to the response message that holds a description of an
+     * error if any occurred
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(std::ostream& xmlStream, Blob::Ptr& binData, ResponseDesc* resp) const
-        noexcept = 0;
+    virtual StatusCode serialize(std::ostream& xmlStream, Blob::Ptr& binData, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -228,15 +237,16 @@ public:
      *
      * @param ov_name OpenVINO name
      * @param orig_name Framework tensor name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     * @param resp Pointer to the response message that holds a description of an
+     * error if any occurred
      *
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
     virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-        (void) ov_name;
-        (void) orig_name;
-        (void) resp;
+        (void)ov_name;
+        (void)orig_name;
+        (void)resp;
         return NOT_IMPLEMENTED;
     }
 

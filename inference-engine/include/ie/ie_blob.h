@@ -19,20 +19,21 @@
 #include <utility>
 #include <vector>
 
+#include "details/ie_blob_iterator.hpp"
+#include "details/ie_pre_allocator.hpp"
 #include "ie_allocator.hpp"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_blob_iterator.hpp"
-#include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
 
 /**
  * @brief This class represents a universal container in the Inference Engine
  *
- * @note Each Blob implementation must be derived from this Blob class directly or indirectly
+ * @note Each Blob implementation must be derived from this Blob class directly
+ * or indirectly
  */
 class INFERENCE_ENGINE_API_CLASS(Blob) {
 public:
@@ -50,7 +51,8 @@ public:
      * @brief Creates a TBlob<> object from a Data node
      *
      * @param data A reference to a smart pointer of the Data node
-     * @return Smart pointer to TBlob<> with the relevant C type to the precision of the data node
+     * @return Smart pointer to TBlob<> with the relevant C type to the precision
+     * of the data node
      */
     static Ptr CreateFromData(const DataPtr& data);
 
@@ -63,10 +65,10 @@ public:
      * @brief Checks if the Blob object can be cast to the type T*
      *
      * @tparam T Type to be checked. Must represent a class derived from the Blob
-     * @return true if this object can be dynamically cast to the type T*. Otherwise, false
+     * @return true if this object can be dynamically cast to the type T*.
+     * Otherwise, false
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
         return dynamic_cast<T*>(this) != nullptr;
@@ -76,10 +78,10 @@ public:
      * @brief Checks if the Blob object can be cast to the type const T*
      *
      * @tparam T Type to be checked. Must represent a class derived from the Blob
-     * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
+     * @return true if this object can be dynamically cast to the type const T*.
+     * Otherwise, false
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
         return dynamic_cast<const T*>(this) != nullptr;
@@ -88,13 +90,13 @@ public:
     /**
      * @brief Casts this Blob object to the type T*.
      *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
+     * Use InferenceEngine::as() to operate with shared Blob objects instead of
+     * raw pointers
      *
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
@@ -103,20 +105,21 @@ public:
     /**
      * @brief Casts this Blob object to the type const T*.
      *
-     * Use InferenceEngine::as() to operate with shared Blob objects instead of raw pointers
+     * Use InferenceEngine::as() to operate with shared Blob objects instead of
+     * raw pointers
      *
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     const T* as() const noexcept {
         return dynamic_cast<const T*>(this);
     }
 
     /**
-     * @brief Constructor. Creates an empty Blob object with the specified precision.
+     * @brief Constructor. Creates an empty Blob object with the specified
+     * precision.
      *
      * @param tensorDesc Defines the layout and dims of the blob
      */
@@ -139,14 +142,16 @@ public:
     }
 
     /**
-     * @brief By default, returns the total number of elements (a product of all the dims or 1 for scalar)
+     * @brief By default, returns the total number of elements (a product of all
+     * the dims or 1 for scalar)
      *
      * Return value and its interpretation heavily depend on the blob type
      *
      * @return The total number of elements
      */
     virtual size_t size() const noexcept {
-        if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
         return product(tensorDesc.getDims());
     }
 
@@ -160,7 +165,8 @@ public:
 
     /**
      * @deprecated Cast to MemoryBlob and use its API instead.
-     * Blob class can represent compound blob, which do not refer to the only solid memory.
+     * Blob class can represent compound blob, which do not refer to the only
+     * solid memory.
      *
      * @brief Provides the number of bytes per element.
      *
@@ -188,7 +194,8 @@ public:
 
     /**
      * @deprecated Cast to MemoryBlob and use new wlock/rwlock API instead.
-     * Blob class can represent compound blob, which do not refer to the only solid memory.
+     * Blob class can represent compound blob, which do not refer to the only
+     * solid memory.
      * @brief Gets access to the allocated memory.
      *
      * Abstract method.
@@ -198,8 +205,9 @@ public:
     virtual LockedMemory<void> buffer() noexcept = 0;
 
     /**
-     * @deprecated Cast to MemoryBlob and use new MemoryBlob::rmap() function instead.
-     * Blob class can represent compound blob, which do not refer to the only solid memory.
+     * @deprecated Cast to MemoryBlob and use new MemoryBlob::rmap() function
+     * instead. Blob class can represent compound blob, which do not refer to the
+     * only solid memory.
      * @brief Gets read-only access to the allocated memory.
      *
      * Abstract method.
@@ -209,7 +217,8 @@ public:
     virtual LockedMemory<const void> cbuffer() const noexcept = 0;
 
     /**
-     * @brief Creates a blob describing given ROI object based on the current blob with memory sharing.
+     * @brief Creates a blob describing given ROI object based on the current blob
+     * with memory sharing.
      *
      * Note: default implementation throws "not implemented" exception.
      *
@@ -233,7 +242,8 @@ protected:
      * @return Result of multiplication
      */
     static size_t product(const SizeVector& dims) noexcept {
-        if (dims.empty()) return 0;
+        if (dims.empty())
+            return 0;
         return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     }
 
@@ -248,11 +258,10 @@ protected:
 /**
  * @brief Helper cast function to work with shared Blob objects
  * @param blob A blob to cast
- * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the object with the
- *         input Blob::Ptr
+ * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the
+ * object with the input Blob::Ptr
  */
-template <typename T,
-          typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
 std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
     return std::dynamic_pointer_cast<T>(blob);
@@ -261,22 +270,21 @@ std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
 /**
  * @brief Helper cast function to work with shared Blob objects
  * @param blob A blob to cast
- * @return shared_ptr to the type const T. Returned shared_ptr shares ownership of the object with
- *         the input Blob::Ptr
+ * @return shared_ptr to the type const T. Returned shared_ptr shares ownership
+ * of the object with the input Blob::Ptr
  */
-template <typename T,
-          typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
 std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
     return std::dynamic_pointer_cast<const T>(blob);
 }
 
 /**
- * @brief This class implements a container object that represents a tensor in memory (host and
- * remote/accelerated)
+ * @brief This class implements a container object that represents a tensor in
+ * memory (host and remote/accelerated)
  *
- * @note Any Blob implementation that represents a concept of a tensor in memory (for example,
- * TBlob) must be a subclass of MemoryBlob instead of Blob
+ * @note Any Blob implementation that represents a concept of a tensor in memory
+ * (for example, TBlob) must be a subclass of MemoryBlob instead of Blob
  */
 class INFERENCE_ENGINE_API_CLASS(MemoryBlob): public Blob {
 public:
@@ -296,7 +304,8 @@ public:
     virtual ~MemoryBlob();
 
     /**
-     * @brief Constructor. Creates an empty MemoryBlob object with the specified precision.
+     * @brief Constructor. Creates an empty MemoryBlob object with the specified
+     * precision.
      *
      * @param tensorDesc Defines the layout and dims of the blob
      */
@@ -319,16 +328,19 @@ public:
     }
 
     /**
-     * @brief Returns the total number of elements, which is a product of all the dimensions
+     * @brief Returns the total number of elements, which is a product of all the
+     * dimensions
      * @return The total number of elements
      */
     size_t size() const noexcept override {
-        if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
         return product(tensorDesc.getDims());
     }
 
     /**
-     * @brief Returns the size of the current Blob in bytes calculated as `size() * element_size()`.
+     * @brief Returns the size of the current Blob in bytes calculated as `size()
+     * * element_size()`.
      * @return Blob's size in bytes
      */
     size_t byteSize() const noexcept override {
@@ -375,20 +387,22 @@ public:
     LockedMemory<const void> cbuffer() const noexcept override = 0;
 
     /**
-     * @brief Gets read/write access to the memory in virtual space of the process.
-     * The function returns object which retains mapped memory.
-     * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
-     * This function maps remote memory to the memory in the virtual process space and after destruction
-     * of the LockedMemory will upload changed content to the accelerator.
+     * @brief Gets read/write access to the memory in virtual space of the
+     * process. The function returns object which retains mapped memory. The
+     * memory been addressed in the MemoryBlob in general case can be allocated on
+     * remote device. This function maps remote memory to the memory in the
+     * virtual process space and after destruction of the LockedMemory will upload
+     * changed content to the accelerator.
      *
      * To avoid extra copy of data, you can use rmap() and wmap() functions.
      *
-     * In case of memory originally allocated on the host, this function returns LockedMemory which will
-     * transparently refer to original memory address. No extra copy will happen
+     * In case of memory originally allocated on the host, this function returns
+     * LockedMemory which will transparently refer to original memory address. No
+     * extra copy will happen
      *
-     * In general case, pointer received from that LockedMemory becomes invalid just after
-     * destruction of LockedMemory instance. Keep Locked memory alive while you need to address memory
-     * in the process on the host.
+     * In general case, pointer received from that LockedMemory becomes invalid
+     * just after destruction of LockedMemory instance. Keep Locked memory alive
+     * while you need to address memory in the process on the host.
      *
      * Abstract method.
      *
@@ -400,19 +414,22 @@ public:
      * @brief Gets read only access to the memory in virtual space of the process.
      * The function returns object which retains mapped memory.
      *
-     * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
-     * This function copies remote memory to the memory in the virtual process space and after
-     * destruction of the LockedMemory it will not upload host memory back, because it is expected that
-     * content is not changed.
+     * The memory been addressed in the MemoryBlob in general case can be
+     * allocated on remote device. This function copies remote memory to the
+     * memory in the virtual process space and after destruction of the
+     * LockedMemory it will not upload host memory back, because it is expected
+     * that content is not changed.
      *
-     * To have an ability change content, you can use rwmap() and wmap() functions.
+     * To have an ability change content, you can use rwmap() and wmap()
+     * functions.
      *
-     * In case of memory originally allocated on the host, this function returns LockedMemory which will
-     * transparently refer to original memory address. No extra copy will happen
+     * In case of memory originally allocated on the host, this function returns
+     * LockedMemory which will transparently refer to original memory address. No
+     * extra copy will happen
      *
-     * In general case, pointer received from that LockedMemory becomes invalid just after destruction
-     * of LockedMemory instance. Keep Locked memory alive while you need to address memory in the
-     * process on the host.
+     * In general case, pointer received from that LockedMemory becomes invalid
+     * just after destruction of LockedMemory instance. Keep Locked memory alive
+     * while you need to address memory in the process on the host.
      *
      * Abstract method.
      *
@@ -421,25 +438,29 @@ public:
     virtual LockedMemory<const void> rmap() const noexcept = 0;
 
     /**
-     * @brief Gets "write only direction" access to the memory in virtual space of the process.
-     * The function returns object which retains memory to be uploaded on device.
+     * @brief Gets "write only direction" access to the memory in virtual space of
+     * the process. The function returns object which retains memory to be
+     * uploaded on device.
      *
-     * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
-     * This function does not copy of the content from the device to the memory in the virtual process
-     * space, the content of the memory just after calling of this function is not specified. After
+     * The memory been addressed in the MemoryBlob in general case can be
+     * allocated on remote device. This function does not copy of the content from
+     * the device to the memory in the virtual process space, the content of the
+     * memory just after calling of this function is not specified. After
      * destruction of the LockedMemory, content will be upload host memory.
-     * In the same time there is no abilities to restrict reading from the memory, you need to care of
-     * reading from memory got by wmap(), it might have sense in some cases like filling of content and
-     * before uploading to device
+     * In the same time there is no abilities to restrict reading from the memory,
+     * you need to care of reading from memory got by wmap(), it might have sense
+     * in some cases like filling of content and before uploading to device
      *
-     * To access data stored in the blob, you can use rwmap() and rmap() functions.
+     * To access data stored in the blob, you can use rwmap() and rmap()
+     * functions.
      *
-     * In case of memory originally allocated on the host, this function returns LockedMemory which will
-     * transparently refer to original memory address. No extra copy will happen
+     * In case of memory originally allocated on the host, this function returns
+     * LockedMemory which will transparently refer to original memory address. No
+     * extra copy will happen
      *
-     * In general case, pointer received from that LockedMemory becomes invalid just after destruction
-     * of LockedMemory instance. Keep Locked memory alive while you need to address memory in the
-     * process on the host.
+     * In general case, pointer received from that LockedMemory becomes invalid
+     * just after destruction of LockedMemory instance. Keep Locked memory alive
+     * while you need to address memory in the process on the host.
      *
      * Abstract method.
      *
@@ -451,14 +472,16 @@ protected:
     /**
      * @brief Gets the allocator for allocator-based blobs.
      *
-     * @return The allocator for allocator-based blobs or if there is none then a nullptr.
+     * @return The allocator for allocator-based blobs or if there is none then a
+     * nullptr.
      */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override = 0;
 
     /**
      * @brief Gets the handle to allocated memory.
      *
-     * @return The handle to allocated memory for allocator-based blobs or if there is none then a nullptr.
+     * @return The handle to allocated memory for allocator-based blobs or if
+     * there is none then a nullptr.
      */
     virtual void* getHandle() const noexcept = 0;
 
@@ -468,7 +491,8 @@ protected:
 };
 
 /**
- * @brief This is a convenient type for working with a map containing pairs(string, pointer to a Blob instance).
+ * @brief This is a convenient type for working with a map containing
+ * pairs(string, pointer to a Blob instance).
  */
 using BlobMap = std::map<std::string, Blob::Ptr>;
 
@@ -487,7 +511,8 @@ public:
     using Ptr = std::shared_ptr<TBlob<T>>;
 
     /**
-     * @brief Creates a TBlob object with the specified dimensions and layout but does not allocate the memory.
+     * @brief Creates a TBlob object with the specified dimensions and layout but
+     * does not allocate the memory.
      *
      * Use the allocate() method to allocate memory.
      *
@@ -496,15 +521,15 @@ public:
     explicit TBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
 
     /**
-     * @brief The constructor creates a TBlob object with the specified dimensions and layout
-     * on the pre-allocated memory.
+     * @brief The constructor creates a TBlob object with the specified dimensions
+     * and layout on the pre-allocated memory.
      *
      * The allocate() call is not required.
      *
      * @param tensorDesc Tensor description
      * @param ptr Pointer to the pre-allocated memory
-     * @param data_size Length of the pre-allocated array. If not set, size is assumed equal
-     * to the dot product of dims.
+     * @param data_size Length of the pre-allocated array. If not set, size is
+     * assumed equal to the dot product of dims.
      */
     TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0): MemoryBlob(tensorDesc) {
         if (data_size == 0) {
@@ -516,24 +541,26 @@ public:
         }
 
         _allocator = details::make_pre_allocator(ptr, data_size);
-        // blob on attached memory is always allocated, so we are not forcing the user to call allocate()
+        // blob on attached memory is always allocated, so we are not forcing the
+        // user to call allocate()
         allocate();
     }
 
     /**
-     * @brief Creates a TBlob object with the specified dimensions, layout and custom memory allocator but does not
-     * allocate the memory.
+     * @brief Creates a TBlob object with the specified dimensions, layout and
+     * custom memory allocator but does not allocate the memory.
      *
      * @param tensorDesc Tensor description
      * @param alloc An allocator
      */
-    TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
-        : MemoryBlob(tensorDesc), _allocator(alloc) {
-        if (_allocator == nullptr) IE_THROW() << "TBlob allocator was not initialized.";
+    TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc): MemoryBlob(tensorDesc), _allocator(alloc) {
+        if (_allocator == nullptr)
+            IE_THROW() << "TBlob allocator was not initialized.";
     }
 
     /**
-     * @brief The copy constructor data is reallocated and copied from the source to the target blob.
+     * @brief The copy constructor data is reallocated and copied from the source
+     * to the target blob.
      *
      * @param blob Source blob
      */
@@ -592,11 +619,9 @@ public:
             return;
         }
 
-        _handle.reset(
-            rawHandle,
-            [allocator](void* rawHandle) {
-                allocator->free(rawHandle);
-            });
+        _handle.reset(rawHandle, [allocator](void* rawHandle) {
+            allocator->free(rawHandle);
+        });
     }
 
     bool deallocate() noexcept override {
@@ -611,14 +636,14 @@ public:
         return std::move(lockme<const void>());
     }
 
-    LockedMemory<void> rwmap()noexcept override {
+    LockedMemory<void> rwmap() noexcept override {
         return std::move(lockme<void>());
     }
 
     LockedMemory<const void> rmap() const noexcept override {
         return std::move(lockme<const void>());
     }
-    LockedMemory<void> wmap()noexcept override {
+    LockedMemory<void> wmap() noexcept override {
         return std::move(lockme<void>());
     }
 
@@ -725,7 +750,7 @@ protected:
     template <class S>
     LockedMemory<S> lockme() const {
         return LockedMemory<S>(_allocator.get(), getHandle(), 0);
-         //   getTensorDesc().getBlockingDesc().getOffsetPadding());
+        //   getTensorDesc().getBlockingDesc().getOffsetPadding());
     }
 
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
@@ -746,11 +771,8 @@ protected:
      * @param origBlob An original blob
      * @param roi A ROI object
      */
-    TBlob(const TBlob& origBlob, const ROI& roi) :
-            MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
-            _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr)
-            << "Original Blob must be allocated before ROI creation";
+    TBlob(const TBlob& origBlob, const ROI& roi): MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)), _allocator(origBlob._allocator) {
+        IE_ASSERT(origBlob._handle != nullptr) << "Original Blob must be allocated before ROI creation";
 
         _handle = origBlob._handle;
     }
@@ -784,12 +806,13 @@ template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc);
 }
 
 /**
- * @brief Creates a blob with the given tensor descriptor from the pointer to the pre-allocated memory.
+ * @brief Creates a blob with the given tensor descriptor from the pointer to
+ * the pre-allocated memory.
  *
  * @tparam Type Type of the shared pointer to be created
  * @param tensorDesc TensorDesc for Blob creation
@@ -798,11 +821,10 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, Type* ptr,
-                                                                   size_t size = 0) {
+inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, Type* ptr, size_t size = 0) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, ptr, size);
 }
 
@@ -815,11 +837,10 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
-    const TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, alloc);
 }
 
@@ -847,12 +868,14 @@ std::shared_ptr<T> make_shared_blob(Args&&... args) {
 }
 
 /**
- * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
+ * @brief Creates a blob describing given ROI object based on the given blob
+ * with pre-allocated memory.
  *
  * @param inputBlob original blob with pre-allocated memory.
  * @param roi A ROI object inside of the original blob.
  * @return A shared pointer to the newly created blob.
  */
-INFERENCE_ENGINE_API_CPP(Blob::Ptr) make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi);
+INFERENCE_ENGINE_API_CPP(Blob::Ptr)
+make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi);
 
 }  // namespace InferenceEngine

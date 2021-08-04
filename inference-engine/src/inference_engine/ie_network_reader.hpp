@@ -5,8 +5,9 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
-#include <ie_iextension.h>
 #include <ie_blob.h>
+#include <ie_iextension.h>
+
 #include <string>
 
 namespace InferenceEngine {

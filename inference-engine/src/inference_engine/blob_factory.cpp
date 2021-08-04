@@ -14,8 +14,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::Tenso
     return make_blob_with_precision(desc.getPrecision(), desc, ptr);
 }
 
-InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
-                                                    const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+InferenceEngine::Blob::Ptr make_blob_with_precision(const InferenceEngine::TensorDesc& desc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     return make_blob_with_precision(desc.getPrecision(), desc, alloc);
 }
 

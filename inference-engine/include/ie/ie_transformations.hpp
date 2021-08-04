@@ -10,20 +10,23 @@
 
 #pragma once
 
-#include <ie_api.h>
 #include <cpp/ie_cnn_network.h>
+#include <ie_api.h>
 
 namespace InferenceEngine {
 
+// clang-format off
 /**
- * @deprecated Use InferenceEngine::lowLatency2 instead. This transformation will be removed in 2023.1.
- * @brief The transformation finds all TensorIterator layers in the network, processes all back
- * edges that describe a connection between Result and Parameter of the TensorIterator body,
- * and inserts ReadValue layer between Parameter and the next layers after this Parameter,
- * and Assign layer after the layers before the Result layer.
- * Supported platforms: CPU, GNA.
+ * @deprecated Use InferenceEngine::lowLatency2 instead. This transformation
+ * will be removed in 2023.1.
+ * @brief The transformation finds all TensorIterator layers in the network,
+ * processes all back edges that describe a connection between Result and
+ * Parameter of the TensorIterator body, and inserts ReadValue layer between
+ * Parameter and the next layers after this Parameter, and Assign layer after
+ * the layers before the Result layer. Supported platforms: CPU, GNA.
  *
- *  The example below describes the changes to the inner part (body, back edges) of the TensorIterator layer.
+ *  The example below describes the changes to the inner part (body, back edges)
+ * of the TensorIterator layer.
  *  [] - TensorIterator body
  *  () - new layer
  *
@@ -52,15 +55,19 @@ namespace InferenceEngine {
  *
  * @param network A network to apply LowLatency transformation
  */
+// clang-format on
 INFERENCE_ENGINE_DEPRECATED("This transformation will be removed in 2023.1. "
                             "Use InferenceEngine::lowLatency2 instead.")
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
 
-
+// clang-format off
 /**
- * @brief The transformation finds all TensorIterator/Loop layers in the network,
- * processes all back edges that describe a connection between Result and Parameter
- * of the TensorIterator/Loop bodies,and inserts ReadValue and Assign layers at the
+ * @brief The transformation finds all TensorIterator/Loop layers in the
+ network,
+ * processes all back edges that describe a connection between Result and
+ Parameter
+ * of the TensorIterator/Loop bodies,and inserts ReadValue and Assign layers at
+ the
  * input and output corresponding to this back edge.
  * Supported platforms: CPU, GNA.
  *
@@ -84,7 +91,8 @@ INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
           If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
  * Loop operation by a given number. Does not affect TensorIterators.
  */
-INFERENCE_ENGINE_API_CPP(void) lowLatency2(InferenceEngine::CNNNetwork& network,
-                                           bool use_const_initializer = true);
+// clang-format on
+INFERENCE_ENGINE_API_CPP(void)
+lowLatency2(InferenceEngine::CNNNetwork& network, bool use_const_initializer = true);
 
-} // namespace InferenceEngine
+}  // namespace InferenceEngine

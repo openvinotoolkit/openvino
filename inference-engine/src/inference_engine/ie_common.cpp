@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
-#include <vector>
-#include <tuple>
-#include <memory>
-#include <map>
-#include <cassert>
-
-#include <ie_common.h>
 #include <ie_blob.h>
-#include <ie_parameter.hpp>
-#include <ie_iextension.h>
+#include <ie_common.h>
 #include <ie_extension.h>
-#include <exec_graph_info.hpp>
+#include <ie_iextension.h>
 
+#include <cassert>
+#include <exec_graph_info.hpp>
+#include <ie_parameter.hpp>
+#include <map>
+#include <memory>
 #include <ngraph/opsets/opset.hpp>
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace ExecGraphInfoSerialization {
 //
@@ -57,21 +56,37 @@ namespace details {
 void Rethrow() {
     try {
         throw;
-    } catch (const GeneralError& e) {throw e;}
-      catch (const NotImplemented& e) {throw e;}
-      catch (const NetworkNotLoaded& e) {throw e;}
-      catch (const ParameterMismatch& e) {throw e;}
-      catch (const NotFound& e) {throw e;}
-      catch (const OutOfBounds& e) {throw e;}
-      catch (const Unexpected& e) {throw e;}
-      catch (const RequestBusy& e) {throw e;}
-      catch (const ResultNotReady& e) {throw e;}
-      catch (const NotAllocated& e) {throw e;}
-      catch (const InferNotStarted& e) {throw e;}
-      catch (const NetworkNotRead& e) {throw e;}
-      catch (const InferCancelled& e) {throw e;}
-      catch (const std::exception& e) {IE_THROW() << e.what();}
-      catch(...) {IE_THROW(Unexpected);}
+    } catch (const GeneralError& e) {
+        throw e;
+    } catch (const NotImplemented& e) {
+        throw e;
+    } catch (const NetworkNotLoaded& e) {
+        throw e;
+    } catch (const ParameterMismatch& e) {
+        throw e;
+    } catch (const NotFound& e) {
+        throw e;
+    } catch (const OutOfBounds& e) {
+        throw e;
+    } catch (const Unexpected& e) {
+        throw e;
+    } catch (const RequestBusy& e) {
+        throw e;
+    } catch (const ResultNotReady& e) {
+        throw e;
+    } catch (const NotAllocated& e) {
+        throw e;
+    } catch (const InferNotStarted& e) {
+        throw e;
+    } catch (const NetworkNotRead& e) {
+        throw e;
+    } catch (const InferCancelled& e) {
+        throw e;
+    } catch (const std::exception& e) {
+        IE_THROW() << e.what();
+    } catch (...) {
+        IE_THROW(Unexpected);
+    }
 }
 
 IE_SUPPRESS_DEPRECATED_START
@@ -104,7 +119,8 @@ StatusCode InferenceEngineException::getStatus() const {
     } else if (dynamic_cast<const InferCancelled*>(this) != nullptr) {
         return INFER_CANCELLED;
     } else {
-        assert(!"Unreachable"); return OK;
+        assert(!"Unreachable");
+        return OK;
     }
 }
 }  // namespace details

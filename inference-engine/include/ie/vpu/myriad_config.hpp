@@ -4,7 +4,8 @@
 
 /**
  * @brief A header that defines advanced related properties for Myriad plugin.
- * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
+ * These properties should be used in SetConfig() and LoadNetwork() methods of
+ * plugins
  *
  * @file myriad_config.hpp
  */
@@ -17,10 +18,9 @@ namespace InferenceEngine {
 
 /**
  * @brief The flag to reset stalled devices.
- * This is a plugin scope option and must be used with the plugin's SetConfig method
- * The only possible values are:
- *     CONFIG_VALUE(YES)
- *     CONFIG_VALUE(NO) (default value)
+ * This is a plugin scope option and must be used with the plugin's SetConfig
+ * method The only possible values are: CONFIG_VALUE(YES) CONFIG_VALUE(NO)
+ * (default value)
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 
@@ -51,8 +51,8 @@ DECLARE_VPU_CONFIG(MYRIAD_USB);
 
 /**
  * @brief Optimize vpu plugin execution to maximize throughput.
- * This option should be used with integer value which is the requested number of streams.
- * The only possible values are:
+ * This option should be used with integer value which is the requested number
+ * of streams. The only possible values are:
  *     1
  *     2
  *     3
@@ -60,7 +60,8 @@ DECLARE_VPU_CONFIG(MYRIAD_USB);
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
 
 /**
- * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS option.
+ * @brief Default key definition for InferenceEngine::MYRIAD_THROUGHPUT_STREAMS
+ * option.
  */
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS_AUTO);
 
