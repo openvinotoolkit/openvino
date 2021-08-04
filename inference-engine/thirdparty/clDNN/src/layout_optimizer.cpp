@@ -804,7 +804,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              layout const& output_or_weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
-    auto expected_data_type = current_layout.data_type;
+    auto expected_data_type = data_types::f32;
     auto expected_format = output_or_weights_layout.format;
 
     return layout(expected_data_type, expected_format, expected_tensor);

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #define PRIOR_BOX_SIZE 4 // Each prior-box consists of [xmin, ymin, xmax, ymax].
 #define OUTPUT_ROW_SIZE 7 // Each detection consists of [image_id, label, confidence, xmin, ymin, xmax, ymax].
 
@@ -28,8 +29,6 @@
 #define NUM_OF_IMAGE_CONF (INPUT0_LENGTH/NUM_OF_IMAGES/PRIOR_BOX_SIZE)
 
 #define SCORES_COUNT (((TOP_K != -1) && (TOP_K < NUM_OF_PRIORS))? TOP_K : NUM_OF_PRIORS)
-
-//#define OUTPUT_OFFSET (((NUM_OF_IMAGES + 15) / 16) * 16)
 #define SCORE_OFFSET 2
 
 #define INPUT_OFFSET (((NUM_IMAGES + 15) / 16) * 16)
@@ -53,8 +52,8 @@
 // Number of bboxes to keep in output
 #define KEEP_BBOXES_NUM ((KEEP_TOP_K < NUM_OF_IMAGE_BBOXES)? KEEP_TOP_K : NUM_OF_IMAGE_BBOXES)
 
-inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TYPE* input_location, __global INPUT2_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image)
-{
+inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TYPE* input_location,
+    __global INPUT2_TYPE* input_prior_box, const uint idx_prior, const uint idx_class, const uint idx_image) {
     const uint prior_box_offset = ((PRIOR_BATCH_SIZE == 1)? 0 : idx_image) * NUM_OF_PRIOR_COMPONENTS * (VARIANCE_ENCODED_IN_TARGET ? 1 : 2);
     const uint prior_offset = prior_box_offset + idx_prior * PRIOR_INFO_SIZE + PRIOR_COORD_OFFSET;
     const uint variance_offset = prior_box_offset + NUM_OF_PRIOR_COMPONENTS + (idx_prior * PRIOR_BOX_SIZE);
@@ -67,35 +66,29 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
         input_prior_box[prior_offset],
         input_prior_box[prior_offset + 1],
         input_prior_box[prior_offset + 2],
-        input_prior_box[prior_offset + 3]};
+        input_prior_box[prior_offset + 3]
+    };
 
-    if (!PRIOR_IS_NORMALIZED)
-    {
+    if (!PRIOR_IS_NORMALIZED) {
         prior_bboxes[0] /= IMAGE_WIDTH;
         prior_bboxes[1] /= IMAGE_HEIGH;
         prior_bboxes[2] /= IMAGE_WIDTH;
         prior_bboxes[3] /= IMAGE_HEIGH;
     }
 
-    if (CODE_TYPE == CODE_TYPE_CORNER)
-    {
-        if (VARIANCE_ENCODED_IN_TARGET)
-        {
+    if (CODE_TYPE == CODE_TYPE_CORNER) {
+        if (VARIANCE_ENCODED_IN_TARGET) {
             // variance is encoded in target, we simply need to add the offset predictions.
-            for(uint i = 0; i < PRIOR_BOX_SIZE; i++)
-            {
+            for(uint i = 0; i < PRIOR_BOX_SIZE; i++) {
                 decoded_bbox[i] =
                     prior_bboxes[i] +
                     input_location[location_offset];
 
                 location_offset += LOC_XY_SIZE_PRODUCT;
             }
-        }
-        else
-        {
+        } else {
             // variance is encoded in bbox, we need to scale the offset accordingly.
-            for(uint i = 0; i < PRIOR_BOX_SIZE; i++)
-            {
+            for(uint i = 0; i < PRIOR_BOX_SIZE; i++) {
                 decoded_bbox[i] =
                     prior_bboxes[i] +
                     input_prior_box[variance_offset + i] *
@@ -104,9 +97,7 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
                 location_offset += LOC_XY_SIZE_PRODUCT;
             }
         }
-    }
-    else if (CODE_TYPE == CODE_TYPE_CENTER_SIZE)
-    {
+    } else if (CODE_TYPE == CODE_TYPE_CENTER_SIZE) {
         const INPUT2_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
         const INPUT2_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
         const INPUT2_TYPE prior_center_x = (prior_bboxes[0] + prior_bboxes[2]) / 2;
@@ -118,16 +109,13 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
         INPUT0_TYPE decode_bbox_center_x, decode_bbox_center_y;
         INPUT0_TYPE decode_bbox_width, decode_bbox_height;
 
-        if (VARIANCE_ENCODED_IN_TARGET)
-        {
+        if (VARIANCE_ENCODED_IN_TARGET) {
             // variance is encoded in target, we simply need to restore the offset predictions.
             decode_bbox_center_x = bbox_xmin * prior_width + prior_center_x;
             decode_bbox_center_y = bbox_ymin * prior_height + prior_center_y;
             decode_bbox_width = (exp(bbox_xmax) * prior_width) / 2;
             decode_bbox_height = (exp(bbox_ymax) * prior_height) / 2;
-        }
-        else
-        {
+        } else {
             // variance is encoded in bbox, we need to scale the offset accordingly.
             decode_bbox_center_x = input_prior_box[variance_offset] * bbox_xmin * prior_width + prior_center_x;
             decode_bbox_center_y = input_prior_box[variance_offset + 1] * bbox_ymin * prior_height + prior_center_y;
@@ -139,9 +127,7 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
         decoded_bbox[1] = decode_bbox_center_y - decode_bbox_height;
         decoded_bbox[2] = decode_bbox_center_x + decode_bbox_width;
         decoded_bbox[3] = decode_bbox_center_y + decode_bbox_height;
-    }
-    else
-    {
+    } else {
         const INPUT2_TYPE prior_width = prior_bboxes[2] - prior_bboxes[0];
         const INPUT2_TYPE prior_height = prior_bboxes[3] - prior_bboxes[1];
         const INPUT0_TYPE bbox_xmin = input_location[location_offset];
@@ -149,16 +135,13 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
         const INPUT0_TYPE bbox_xmax = input_location[location_offset + 2 * LOC_XY_SIZE_PRODUCT];
         const INPUT0_TYPE bbox_ymax = input_location[location_offset + 3 * LOC_XY_SIZE_PRODUCT];
 
-        if (VARIANCE_ENCODED_IN_TARGET)
-        {
+        if (VARIANCE_ENCODED_IN_TARGET) {
             // variance is encoded in target, we simply need to add the offset predictions.
             decoded_bbox[0] = prior_bboxes[0] + bbox_xmin * prior_width;
             decoded_bbox[1] = prior_bboxes[1] + bbox_ymin * prior_height;
             decoded_bbox[2] = prior_bboxes[2] + bbox_xmax * prior_width;
             decoded_bbox[3] = prior_bboxes[3] + bbox_ymax * prior_height;
-        }
-        else
-        {
+        } else {
             // variance is encoded in bbox, we need to scale the offset accordingly.
             decoded_bbox[0] = prior_bboxes[0] + input_prior_box[variance_offset] * bbox_xmin * prior_width;
             decoded_bbox[1] = prior_bboxes[1] + input_prior_box[variance_offset + 1] * bbox_ymin * prior_height;
@@ -166,8 +149,7 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
             decoded_bbox[3] = prior_bboxes[3] + input_prior_box[variance_offset + 3] * bbox_ymax * prior_height;
         }
     }
-    if (CLIP_BEFORE_NMS)
-    {
+    if (CLIP_BEFORE_NMS) {
         decoded_bbox[0] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[0]));
         decoded_bbox[1] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[1]));
         decoded_bbox[2] = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), decoded_bbox[2]));
@@ -175,8 +157,7 @@ inline void FUNC(get_decoded_bbox)(INPUT0_TYPE* decoded_bbox, __global INPUT0_TY
     }
 }
 
-inline INPUT1_TYPE FUNC(get_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
-{
+inline INPUT1_TYPE FUNC(get_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image) {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
@@ -185,8 +166,7 @@ inline INPUT1_TYPE FUNC(get_score)(__global INPUT1_TYPE* input_confidence, const
     return (input_confidence[confidence_offset] > CONFIDENCE_THRESHOLD)? input_confidence[confidence_offset] : -1;
 }
 
-inline INPUT_TYPE4 FUNC(get_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
-{
+inline INPUT_TYPE4 FUNC(get_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image) {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +
@@ -196,8 +176,7 @@ inline INPUT_TYPE4 FUNC(get_score4)(__global INPUT1_TYPE* input_confidence, cons
     return select((INPUT_TYPE4)(-1, -1, -1, -1), scores, compare);
 }
 
-inline CMP_TYPE4 FUNC(filter_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image)
-{
+inline CMP_TYPE4 FUNC(filter_score4)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_class, const uint idx_image) {
     const uint confidence_offset =                    // offset in kernel input 'input_confidence'
             (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) *
             CONF_XY_SIZE_PRODUCT +

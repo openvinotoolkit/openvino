@@ -62,7 +62,6 @@ struct detection_output_optional_params : optional_params {
 class DetectionOutputKernelRef: public KernelBaseOpenCL {
 public:
     DetectionOutputKernelRef() : KernelBaseOpenCL("detection_output_gpu_ref") {}
-    virtual ~DetectionOutputKernelRef() {}
 
     using DispatchData = CommonDispatchData;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;

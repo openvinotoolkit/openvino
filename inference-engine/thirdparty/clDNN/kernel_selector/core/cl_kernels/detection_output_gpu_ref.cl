@@ -1,11 +1,60 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "include/data_types.cl"
-#include "include/fetch_data.cl"
 #include "include/common.cl"
-#include "include/unit_type.cl"
 #include "include/detection_output_common.cl"
+
+// DetectionOuput - performs non-maximuim suppression to generate the detection output
+//                  using information on location and confidence predictions.
+//
+// Below is a set of 4 kernels:
+//   - detection_output_stage_0_scores_(caffe/mxnet)
+//   - detection_output_stage_1_sort_(caffe/mxnet)
+//   - detection_output_stage_2_nms_(caffe/mxnet)
+//   - detection_output_stage_final_(caffe/mxnet)
+// that can perform detection output operation in two modes determined by decrease_label_id.
+//
+// Caffe-style NMS mode:
+//   In this mode _caffe kernels are used.
+//
+//   detection_output_stage_0_scores_caffe should be first enqueued, provided extra global memory
+//   on second and third input.
+//     This kernel will calculate detections whose confidences are larger than a threshold and
+//     the number of detections per each class for each work-groups and store it into global memory.
+//
+//   detection_output_stage_1_sort_caffe should be next enqueued in order to sort detections.
+//     This kernel expects on first and second input global memory from the result of previous kernel.
+//     In this kernel, detections for each class are sorted using iterative quick sort from each
+//     work-groups and store it into global memory. If the total of detections per each batch is
+//     greater than TOP_K, it is stored as TOP_K into global memory.
+//
+//   detection_output_stage_2_nms_caffe sould be next enqueued with provided buffers with outputs
+//   from previous kernel and inputs(location and prior_box).
+//     This kernel will select detections per each class using non-maximum suppresion for work-goups
+//     and store it into global memory. During NMS, box coordinates of detections are calculated
+//     from inputs(location and prior_box) using bounding box decoding.
+//
+//   Finally detection_output_stage_final_caffe should be enqueued with provided buffers with outputs
+//   from previous kernel and output using single work-group.
+//     This kernel will produce the results of the final detections form the result of previous kernel.
+//     If the total of detections per each batch is greater than KEEP_TOP_K, detections are sorted using
+//     iterative quick sort and it is stored as KEEP_TOP_K. Final detections contain information about 
+//     filetered detection described with 7 elements [batch_id, class_id, confidence, x_1, y_1, x_2, y_2].
+//
+// =================================================================================================================
+// Required jit constants:
+// -----------------------------------------------------------------------------------------------------------------
+// BUFFER_STRIDE         - buffer size per class
+// NUM_BIT_MASK          - bit mask size that can be processed per work-group
+// NUM_PRIORS_PER_ITEM   - number of prior boxes that can be processed per work-item
+// NUM_PRIOR_BLOCKS      - local memory size that can handle the number of detections accumulated per work-group
+// LOCAL_CLASS_NUM       - number of class that can be process per work-item
+// LOCAL_WORK_NUM        - number of work-items that can be processed simultaneously
+// PARTITION_STEP        - loop size that will perform partition to calculalte pivot and store it into local memory
+// LOCAL_BATCHES_NUM     - number of batch that can be process per work-group
+// =================================================================================================================
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 #define NUM_CLASSES_ACC (NUM_CLASSES + 1)
@@ -18,15 +67,13 @@ typedef struct __attribute__((__packed__)) {
 
 #define SCORES_INFO FUNC(Scores)
 
-inline void FUNC(swap_scores_info)(__global SCORES_INFO* a, __global SCORES_INFO* b)
-{
+inline void FUNC(swap_scores_info)(__global SCORES_INFO* a, __global SCORES_INFO* b) {
     SCORES_INFO temp = *a;
     *a = *b;
     *b = temp;
 }
 
-inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp)
-{
+inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp) {
     INPUT1_TYPE pivotScore = arr[h].score;
     int pivotBoxId = arr[h].boxId;
     int i = (l - 1);
@@ -47,8 +94,7 @@ inline int FUNC(partition)(__global SCORES_INFO* arr, int l, int h, bool use_cus
     return (i + 1);
 }
 
-inline void FUNC(bubbleSortIterative)(__global SCORES_INFO* arr, int l, int h)
-{
+inline void FUNC(bubbleSortIterative)(__global SCORES_INFO* arr, int l, int h) {
     for (int i = 0; i < h-l; i++) {
         bool swapped = false;
         for (int j = l; j < h-i; j++) {
@@ -63,8 +109,7 @@ inline void FUNC(bubbleSortIterative)(__global SCORES_INFO* arr, int l, int h)
     }
 }
 
-inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp)
-{
+inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bool use_custom_comp) {
     // Create an auxiliary stack
     const int kStackSize = 100;
     int stack[kStackSize];
@@ -110,8 +155,7 @@ inline void FUNC(quickSortIterative)(__global SCORES_INFO* arr, int l, int h, bo
     }
 }
 
-inline int FUNC(get_accumulated_detections)(__global int* size_buf, int batch_id)
-{
+inline int FUNC(get_accumulated_detections)(__global int* size_buf, int batch_id) {
     int acc_num = 0;
     for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
     {
@@ -120,8 +164,7 @@ inline int FUNC(get_accumulated_detections)(__global int* size_buf, int batch_id
     return acc_num;
 }
 
-inline int FUNC(get_start_idx)(__global int* size_buf, int batch_id)
-{
+inline int FUNC(get_start_idx)(__global int* size_buf, int batch_id) {
     int start_idx = 0;
     for (uint idx_batch = 0; idx_batch < batch_id; idx_batch++)
     {
@@ -131,8 +174,7 @@ inline int FUNC(get_start_idx)(__global int* size_buf, int batch_id)
     return start_idx;
 }
 
-inline int FUNC(get_final_detections)(__global int* size_buf)
-{
+inline int FUNC(get_final_detections)(__global int* size_buf) {
     int final_detections = 0;
     for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
     {
@@ -142,8 +184,7 @@ inline int FUNC(get_final_detections)(__global int* size_buf)
     return final_detections;
 }
 
-inline INPUT0_TYPE FUNC(jaccardOverlap)(INPUT0_TYPE* bbox1, INPUT0_TYPE* bbox2)
-{
+inline INPUT0_TYPE FUNC(jaccardOverlap)(INPUT0_TYPE* bbox1, INPUT0_TYPE* bbox2) {
     INPUT0_TYPE overlap = 0.0;
     bool intersecting = (bbox1[0] < bbox2[2]) & (bbox2[0] < bbox1[2]) & (bbox1[1] < bbox2[3]) & (bbox2[1] < bbox1[3]);
 
@@ -161,13 +202,11 @@ inline INPUT0_TYPE FUNC(jaccardOverlap)(INPUT0_TYPE* bbox1, INPUT0_TYPE* bbox2)
     return overlap;
 }
 
-inline uint FUNC(get_confidence_offset)(const uint idx_prior, const uint idx_class, const uint idx_image)
-{
+inline uint FUNC(get_confidence_offset)(const uint idx_prior, const uint idx_class, const uint idx_image) {
     return (idx_prior * NUM_CLASSES + idx_image * NUM_OF_PRIORS * NUM_CLASSES + idx_class) * CONF_XY_SIZE_PRODUCT + CONF_PADDING;
 }
 
-inline uint FUNC(get_largest_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_image)
-{
+inline uint FUNC(get_largest_score)(__global INPUT1_TYPE* input_confidence, const uint idx_prior, const uint idx_image) {
     const uint idx_start = (BACKGROUND_LABEL_ID == 0 ? 1 : 0);
     uint offset = FUNC_CALL(get_confidence_offset)(idx_prior, idx_start, idx_image);
     INPUT1_TYPE max_score = input_confidence[offset];
@@ -186,11 +225,9 @@ inline uint FUNC(get_largest_score)(__global INPUT1_TYPE* input_confidence, cons
 }
 
 #ifdef DO_STAGE_0_CAFFE_OPT
-KERNEL (detection_output_ref_stage_0_caffe_opt)(
-    __global INPUT1_TYPE* input_confidence,
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confidence,
+                                               __global uchar *buffer0,
+                                               __global int *buffer1) {
     const int classId = (int)get_global_id(0) * NUM_CLASSES_PER_ITEM;
     const int box_gid = get_global_id(1);
     const int batchId = get_global_id(2);
@@ -269,11 +306,9 @@ KERNEL (detection_output_ref_stage_0_caffe_opt)(
 #endif /* DO_STAGE_0_CAFFE_OPT */
 
 #ifdef DO_STAGE_0_CAFFE
-KERNEL (detection_output_ref_stage_0_caffe)(
-    __global INPUT1_TYPE* input_confidence,
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_0_scores_caffe)(__global INPUT1_TYPE* input_confidence,
+                                               __global uchar *buffer0,
+                                               __global int *buffer1) {
     const int classId = get_global_id(0);
     const int box_gid = get_global_id(1);
     const int batchId = get_global_id(2);
@@ -342,19 +377,16 @@ KERNEL (detection_output_ref_stage_0_caffe)(
 #endif /* DO_STAGE_0_CAFFE*/
 
 #ifdef DO_STAGE_0_MXNET
-KERNEL (detection_output_ref_stage_0_mxnet)(
-    __global INPUT1_TYPE* input_confidence,
-    __global uchar *buffer0,
-    volatile __global int *buffer2)
-{
+KERNEL (detection_output_stage_0_scores_mxnet)(__global INPUT1_TYPE* input_confidence,
+                                               __global uchar *buffer0,
+                                               volatile __global int *buffer2) {
     const int batchId = get_global_id(0);
     const int priorId = get_global_id(1);
 
     const int scores_size_offset = batchId * NUM_OF_PRIORS + priorId;
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[batchId * BUFFER_STRIDE];
 
-    if (priorId == 0)
-    {
+    if (priorId == 0) {
         buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = 0;
     }
     barrier(CLK_GLOBAL_MEM_FENCE);
@@ -371,10 +403,8 @@ KERNEL (detection_output_ref_stage_0_mxnet)(
 #endif /* DO_STAGE_0_MXNET */
 
 #ifdef DO_STAGE_1_CAFFE
-KERNEL (detection_output_ref_stage_1_caffe)(
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_1_sort_caffe)(__global uchar *buffer0,
+                                             __global int *buffer1) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
     const int workItemId = get_global_id(2);
@@ -430,10 +460,8 @@ KERNEL (detection_output_ref_stage_1_caffe)(
 #endif /* DO_STAGE_1_CAFFE */
 
 #ifdef DO_STAGE_1_MXNET
-KERNEL (detection_output_ref_stage_1_mxnet)(
-    __global uchar *buffer0,
-    __global int *buffer2)
-{
+KERNEL (detection_output_stage_1_sort_mxnet)(__global uchar *buffer0,
+                                             __global int *buffer2) {
     const int batchId = get_global_id(0);
     const int workItemId = get_global_id(2);
     __local int __range[LOCAL_WORK_NUM * 2];
@@ -486,12 +514,10 @@ KERNEL (detection_output_ref_stage_1_mxnet)(
 #endif /* DO_STAGE_1_MXNET */
 
 #ifdef DO_STAGE_2_CAFFE
-KERNEL (detection_output_ref_stage_2_caffe)(
-    __global INPUT0_TYPE* input_location,
-    __global INPUT2_TYPE* input_prior_box,
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_2_nms_caffe)(__global INPUT0_TYPE* input_location,
+                                            __global INPUT2_TYPE* input_prior_box,
+                                            __global uchar *buffer0,
+                                            __global int *buffer1) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
@@ -502,26 +528,22 @@ KERNEL (detection_output_ref_stage_2_caffe)(
     const int scoresInfoNum = buffer1[scoresInfoIdx];
 
     int selectedBoxNum = 0;
-    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++)
-    {
+    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++) {
         bool keep = true;
         int idx = scoresList[idx_score].boxId;
-        for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
-        {
+        for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++) {
             int kept_idx = scoresList[idx_indice].boxId;
             INPUT0_TYPE decoded_bbox1[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, batchId);
             INPUT0_TYPE decoded_bbox2[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox2, input_location, input_prior_box, kept_idx, loc_label, batchId);
             INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
-            if (overlap > NMS_THRESHOLD)
-            {
+            if (overlap > NMS_THRESHOLD) {
                 keep = false;
                 break;
             }
         }
-        if (keep)
-        {
+        if (keep) {
             scoresList[selectedBoxNum] = scoresList[idx_score];
             ++selectedBoxNum;
         }
@@ -531,12 +553,10 @@ KERNEL (detection_output_ref_stage_2_caffe)(
 #endif /* DO_STAGE_2_CAFFE */
 
 #ifdef DO_STAGE_2_CAFFE_OPT
-KERNEL (detection_output_ref_stage_2_caffe)(
-    __global INPUT0_TYPE* input_location,
-    __global INPUT2_TYPE* input_prior_box,
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_2_nms_caffe)(__global INPUT0_TYPE* input_location,
+                                            __global INPUT2_TYPE* input_prior_box,
+                                            __global uchar *buffer0,
+                                            __global int *buffer1) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
     const int loc_label = ((SHARE_LOCATION)? 0 : classId);
@@ -548,29 +568,25 @@ KERNEL (detection_output_ref_stage_2_caffe)(
     const int scoresInfoNum = buffer1[scoresInfoIdx];
 
     int selectedBoxNum = 0;
-    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++)
-    {
+    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++) {
         bool keep = true;
         int idx = scoresList[idx_score].boxId;
         INPUT0_TYPE decoded_bbox_cur[4];
         FUNC_CALL(get_decoded_bbox)(decoded_bbox_cur, input_location, input_prior_box, idx, loc_label, batchId);
 
-        for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++)
-        {
+        for (uint idx_indice = 0; idx_indice < selectedBoxNum; idx_indice++) {
             INPUT0_TYPE decoded_bbox_kept[4] = { decoded_bboxes[4 * idx_indice],
-                                           decoded_bboxes[4 * idx_indice + 1],
-                                           decoded_bboxes[4 * idx_indice + 2],
-                                           decoded_bboxes[4 * idx_indice + 3] };
+                                                 decoded_bboxes[4 * idx_indice + 1],
+                                                 decoded_bboxes[4 * idx_indice + 2],
+                                                 decoded_bboxes[4 * idx_indice + 3] };
 
             INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox_cur, decoded_bbox_kept);
-            if (overlap > NMS_THRESHOLD)
-            {
+            if (overlap > NMS_THRESHOLD) {
                 keep = false;
                 break;
             }
         }
-        if (keep)
-        {
+        if (keep) {
             scoresList[selectedBoxNum] = scoresList[idx_score];
             decoded_bboxes[4 * selectedBoxNum]     = decoded_bbox_cur[0];
             decoded_bboxes[4 * selectedBoxNum + 1] = decoded_bbox_cur[1];
@@ -579,33 +595,28 @@ KERNEL (detection_output_ref_stage_2_caffe)(
             ++selectedBoxNum;
         }
     }
-
     buffer1[scoresInfoIdx] = selectedBoxNum;
 }
 #endif /* DO_STAGE_2_CAFFE_OPT */
 
 #ifdef DO_STAGE_2_MXNET
-KERNEL (detection_output_ref_stage_2_mxnet)(
-    __global INPUT0_TYPE* input_location,
-    __global INPUT2_TYPE* input_prior_box,
-    __global uchar *buffer0,
-    __global uchar *buffer1,
-    __global int *buffer2)
-{
+KERNEL (detection_output_stage_2_nms_mxnet)(__global INPUT0_TYPE* input_location,
+                                            __global INPUT2_TYPE* input_prior_box,
+                                            __global uchar *buffer0,
+                                            __global uchar *buffer1,
+                                            __global int *buffer2) {
     const int batchId = get_global_id(0);
     const int scoresInfoNum = buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES];
 
     __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[batchId * BUFFER_STRIDE];
     __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[batchId * NUM_CLASSES * BUFFER_STRIDE];
 
-    for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
-    {
+    for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++) {
         buffer2[batchId * NUM_CLASSES_ACC + idx_class] = 0;
     }
 
     int selectedBoxNum = 0;
-    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++)
-    {
+    for (uint idx_score = 0; idx_score < scoresInfoNum; idx_score++) {
         bool keep = true;
         int idx = scoresList[idx_score].boxId;
         int cls = (int)scoresList[idx_score].classId;
@@ -613,22 +624,19 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
         int indice_offset = cls * NUM_OF_PRIORS;
         int scores_size_offset = batchId * NUM_CLASSES_ACC + cls;
         int cur_num_indice = buffer2[scores_size_offset];
-        for (uint idx_indice = 0; idx_indice < cur_num_indice; idx_indice++)
-        {
+        for (uint idx_indice = 0; idx_indice < cur_num_indice; idx_indice++) {
             int kept_idx = selectedScoresList[indice_offset + idx_indice].boxId;
             INPUT0_TYPE decoded_bbox1[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox1, input_location, input_prior_box, idx, loc_label, batchId);
             INPUT0_TYPE decoded_bbox2[4];
             FUNC_CALL(get_decoded_bbox)(decoded_bbox2, input_location, input_prior_box, kept_idx, loc_label, batchId);
             INPUT0_TYPE overlap = FUNC_CALL(jaccardOverlap)(decoded_bbox1, decoded_bbox2);
-            if (overlap > NMS_THRESHOLD)
-            {
+            if (overlap > NMS_THRESHOLD) {
                 keep = false;
                 break;
             }
         }
-        if (keep)
-        {
+        if (keep) {
             SCORES_INFO score_info;
             score_info.classId = scoresList[idx_score].classId;
             score_info.boxId = scoresList[idx_score].boxId;
@@ -641,20 +649,20 @@ KERNEL (detection_output_ref_stage_2_mxnet)(
     buffer2[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = selectedBoxNum;
 }
 #endif /* DO_STAGE_2_MXNET */
+
 #ifdef DO_STAGE_3_CAFFE
-KERNEL (detection_output_ref_stage_final_caffe)(
-    __global INPUT0_TYPE* input_location,
-    __global INPUT2_TYPE* input_prior_box,
-    __global OUTPUT_TYPE* output,
-    __global uchar *buffer0,
-    __global int *buffer1)
-{
+KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location,
+                                            __global INPUT2_TYPE* input_prior_box,
+                                            __global OUTPUT_TYPE* output,
+                                            __global uchar *buffer0,
+                                            __global int *buffer1) {
     const int batchId = get_global_id(0);
 
     __local int class_offset[LOCAL_BATCHES_NUM * NUM_CLASSES_ACC];
 
     const int total_det = FUNC_CALL(get_accumulated_detections)(buffer1, batchId);
     buffer1[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = total_det;
+
     if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K) {
         __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[0];
         int num_det = 0;
@@ -758,30 +766,24 @@ KERNEL (detection_output_ref_stage_final_caffe)(
 #endif  /* DO_STAGE_3_CAFFE */
 
 #ifdef DO_STAGE_3_MXNET
-KERNEL (detection_output_ref_stage_final_mxnet)(
-    __global INPUT0_TYPE* input_location,
-    __global INPUT2_TYPE* input_prior_box,
-    __global OUTPUT_TYPE* output,
-    __global uchar *buffer0,
-    __global uchar *buffer1,
-    __global int *buffer2)
-{
-    for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
-    {
+KERNEL (detection_output_stage_final_mxnet)(__global INPUT0_TYPE* input_location,
+                                            __global INPUT2_TYPE* input_prior_box,
+                                            __global OUTPUT_TYPE* output,
+                                            __global uchar *buffer0,
+                                            __global uchar *buffer1,
+                                            __global int *buffer2) {
+    for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++) {
         __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[idx_image * BUFFER_STRIDE];
         const int total_det = buffer2[idx_image * NUM_CLASSES_ACC + NUM_CLASSES];
 
-        if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K)
-        {
+        if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K) {
             int num_det = 0;
-            for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
-            {
+            for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++) {
                 int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
                 const int acc_num = buffer2[scores_size_offset];
                 __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
 
-                for (uint idx_score = 0; idx_score < acc_num; idx_score++)
-                {
+                for (uint idx_score = 0; idx_score < acc_num; idx_score++) {
                     scoresList[num_det + idx_score] = selectedScoresList[idx_score];
                 }
                 num_det += acc_num;
@@ -789,8 +791,7 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
             }
             FUNC_CALL(quickSortIterative)(scoresList, 0, num_det - 1, true);
 
-            for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++)
-            {
+            for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++) {
                 int scores_size_offset = idx_image * NUM_CLASSES_ACC + (int)scoresList[idx_num_det].classId;
                 int acc_num = buffer2[scores_size_offset];
                 __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + (int)scoresList[idx_num_det].classId) * BUFFER_STRIDE];
@@ -801,16 +802,13 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
     }
 
     int count = 0;
-    for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++)
-    {
-        for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++)
-        {
+    for (uint idx_image = 0; idx_image < NUM_OF_IMAGES; idx_image++) {
+        for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++) {
             int scores_size_offset = idx_image * NUM_CLASSES_ACC + idx_class;
             int acc_num = buffer2[scores_size_offset];
             __global SCORES_INFO *selectedScoresList = (__global SCORES_INFO*)&buffer1[(idx_image * NUM_CLASSES + idx_class) * BUFFER_STRIDE];
             int loc_label = ((SHARE_LOCATION)? 0 : idx_class);
-            for (uint idx_score = 0; idx_score < acc_num; idx_score++)
-            {
+            for (uint idx_score = 0; idx_score < acc_num; idx_score++) {
                 SCORES_INFO score_info;
                 score_info = selectedScoresList[idx_score];
                 output[count * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(idx_image);
@@ -835,8 +833,7 @@ KERNEL (detection_output_ref_stage_final_mxnet)(
         }
     }
 
-    if (count < NUM_OF_IMAGES * KEEP_TOP_K)
-    {
+    if (count < NUM_OF_IMAGES * KEEP_TOP_K) {
         output[count * OUTPUT_ROW_SIZE] = -1.0;
     }
 }

@@ -252,7 +252,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
-                                      MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
+                                       MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
             }
         }
 

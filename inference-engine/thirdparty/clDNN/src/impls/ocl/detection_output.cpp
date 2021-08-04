@@ -23,8 +23,8 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
     }
 
 private:
-    static void setDetectOutSpecificParams(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
-                                           const detection_output_node& arg) {
+    static void set_detection_output_specific_params(kernel_selector::detection_output_params::DedicatedParams& detectOutParams,
+                                                     const detection_output_node& arg) {
         auto primitive = arg.get_primitive();
         detectOutParams.keep_top_k = primitive->keep_top_k;
         detectOutParams.num_classes = primitive->num_classes;
@@ -58,7 +58,7 @@ public:
 
         detect_out_params.inputs.push_back(convert_data_tensor(arg.confidence().get_output_layout()));
         detect_out_params.inputs.push_back(convert_data_tensor(arg.prior_box().get_output_layout()));
-        setDetectOutSpecificParams(detect_out_params.detectOutParams, arg);
+        set_detection_output_specific_params(detect_out_params.detectOutParams, arg);
 
         auto& kernel_selector = kernel_selector::detection_output_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(detect_out_params, detect_out_optional_params);
