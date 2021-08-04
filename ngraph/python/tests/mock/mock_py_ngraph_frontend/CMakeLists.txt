@@ -18,3 +18,7 @@ target_include_directories(${TARGET_FE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(${TARGET_FE_NAME} PRIVATE ngraph::frontend_manager::static)
 
 add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
+
+install(TARGETS ${TARGET_FE_NAME}
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)
