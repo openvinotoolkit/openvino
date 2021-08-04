@@ -7,21 +7,21 @@
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/memory.hpp"
 #include "cldnn/runtime/device_query.hpp"
+#include "cldnn/graph/topology.hpp"
 #include "runtime/ocl/ocl_stream.hpp"
 #include "runtime/ocl/ocl_memory.hpp"
 #include "runtime/ocl/ocl_common.hpp"
 #include "runtime/ocl/ocl_base_event.hpp"
 
-#include "program_impl.h"
-#include "topology_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "reshape_inst.h"
 #include "pass_manager.h"
-#include "program_impl_wrapper.h"
+#include "program_wrapper.h"
 
 #include <memory>
 
