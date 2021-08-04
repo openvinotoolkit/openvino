@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     ngraph::op::PadMode,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,

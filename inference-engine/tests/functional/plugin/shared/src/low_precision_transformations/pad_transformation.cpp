@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::op::PadMode mode;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -29,7 +29,7 @@ std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransfo
 
 void PadTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     ngraph::op::PadMode mode;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     PadTransformationParam param;

@@ -135,8 +135,14 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
         if (ngraph::shape_size(deqShape) == 1ul) {
             return true;
         } else {
+            const auto padInputRank = pad->get_input_partial_shape(0).rank();
+            if (padInputRank.is_dynamic()) {
+                return false;
+            }
+
+            const size_t inputRankValue = padInputRank.get_length();
             // case when batch unspecified
-            if (deqShape.size() + 1ul == pad->get_input_shape(0).size()) {
+            if (deqShape.size() + 1ul == inputRankValue) {
                 deqShape.insert(deqShape.begin(), 1ul);
             }
 

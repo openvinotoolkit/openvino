@@ -53,7 +53,7 @@ std::shared_ptr<ngraph::Function> PadFunction::get(
 }
 
 std::shared_ptr<Function> PadFunction::get(
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const element::Type inputPrecision,
     const builder::subgraph::FakeQuantizeOnData& fakeQuantize,
     const std::vector<uint64_t>& padsBegin,

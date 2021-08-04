@@ -28,7 +28,7 @@ static std::shared_ptr<ngraph::Function> get(
     const builder::subgraph::DequantizationOperations& dequantizationAfter);
 
 static std::shared_ptr<Function> get(
-    const Shape& inputShape,
+    const PartialShape& inputShape,
     const element::Type inputPrecision,
     const builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<uint64_t>& padsBegin,
