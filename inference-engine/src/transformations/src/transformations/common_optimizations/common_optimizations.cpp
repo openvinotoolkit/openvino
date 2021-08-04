@@ -181,8 +181,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     conv_fusions->set_name("ngraph::pass::ConvFusions");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();
-    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+    manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();  // not plugins implemented gather8
+    manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();  // not plugins implemented gather7
     manager.register_pass<ngraph::pass::ConvertGather1ToGather7, false>();
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
