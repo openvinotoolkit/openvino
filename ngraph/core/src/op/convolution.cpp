@@ -44,12 +44,178 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+int64_t calculate_num_spatial_dims_and_update_attributes(op::v1::Convolution* node,
+                                                         PartialShape& input_shape,
+                                                         PartialShape& filters_shape,
+                                                         Strides& dilations,
+                                                         Strides& strides,
+                                                         CoordinateDiff& pad_begin,
+                                                         CoordinateDiff& pad_end,
+                                                         const op::PadType& auto_pad)
+{
+    int64_t num_spatial_dims = -1;
+    if (const auto& size = dilations.size())
+        num_spatial_dims = static_cast<int64_t>(size);
+    if (const auto& size = strides.size())
+        num_spatial_dims = static_cast<int64_t>(size);
+    if (const auto& size = pad_begin.size())
+        num_spatial_dims = static_cast<int64_t>(size);
+    if (const auto& size = pad_end.size())
+        num_spatial_dims = static_cast<int64_t>(size);
+    const auto& input_rank = input_shape.rank();
+    if (input_rank.is_static())
+        num_spatial_dims = input_rank.get_length() - 2;
+    const auto& filters_rank = filters_shape.rank();
+    if (filters_rank.is_static())
+        num_spatial_dims = filters_rank.get_length() - 2;
+
+    if (num_spatial_dims == -1)
+        return num_spatial_dims; // can not deduce output rank
+
+    if (strides.empty())
+    {
+        strides = Strides(num_spatial_dims, 1);
+        node->set_strides(strides);
+    }
+    if (dilations.empty())
+    {
+        dilations = Strides(num_spatial_dims, 1);
+        node->set_dilations(dilations);
+    }
+    if (pad_begin.empty() || auto_pad == op::PadType::VALID)
+    {
+        pad_begin = CoordinateDiff(num_spatial_dims, 0);
+        node->set_pads_begin(pad_begin);
+    }
+    if (pad_end.empty() || auto_pad == op::PadType::VALID)
+    {
+        pad_end = CoordinateDiff(num_spatial_dims, 0);
+        node->set_adding_above(pad_end);
+    }
+
+
+    NODE_VALIDATION_CHECK(node,
+                          strides.size() == num_spatial_dims,
+                          "Strides should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          dilations.size() == num_spatial_dims,
+                          "Dilations should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(node,
+                          pad_begin.size() == num_spatial_dims &&
+                              pad_end.size() == num_spatial_dims,
+                          "Pads should be defined for all and only spatial features.");
+    NODE_VALIDATION_CHECK(
+        node,
+        (input_rank.is_dynamic() || input_rank.get_length() == num_spatial_dims + 2) &&
+            (filters_rank.is_dynamic() || filters_rank.get_length() == num_spatial_dims + 2),
+        "Data batch and filters rank do not match (data batch shape: ",
+        input_shape,
+        ", filters shape: ",
+        filters_shape,
+        ").");
+
+    if (input_rank.is_dynamic())
+        input_shape = PartialShape::dynamic(num_spatial_dims + 2);
+    if (filters_rank.is_dynamic())
+        filters_shape = PartialShape::dynamic(num_spatial_dims + 2);
+
+    NODE_VALIDATION_CHECK(
+        node,
+        std::all_of(dilations.begin(), dilations.end(), [](const size_t& i) { return i > 0; }),
+        "Filter dilation (",
+        dilations,
+        ") has zero dimension.");
+    NODE_VALIDATION_CHECK(
+        node,
+        std::all_of(strides.begin(), strides.end(), [](const size_t& i) { return i > 0; }),
+        "Filter strides (",
+        strides,
+        ") has zero dimension.");
+    return num_spatial_dims;
+}
+
+void convolution_shape_infer(op::v1::Convolution* node,
+                             PartialShape& input_shape,
+                             PartialShape& filters_shape,
+                             PartialShape& output_shape)
+{
+    auto dilations = node->get_dilations();
+    auto strides = node->get_strides();
+    auto pad_begin = node->get_pads_begin(), pad_end = node->get_pads_end();
+    const auto& auto_pad = node->get_auto_pad();
+
+    int64_t num_spatial_dims = calculate_num_spatial_dims_and_update_attributes(
+        node, input_shape, filters_shape, dilations, strides, pad_begin, pad_end, auto_pad);
+    if (num_spatial_dims < 1)
+        return;
+    // ranks are originally static or aligned with num_spatial_dims, attributes are valid
+
+    output_shape = PartialShape::dynamic(num_spatial_dims + 2);
+    output_shape[0] = input_shape[0];
+    output_shape[1] = filters_shape[0];
+
+    NODE_VALIDATION_CHECK(node,
+                          input_shape[1].is_dynamic() || filters_shape.is_dynamic() ||
+                              input_shape[1] == filters_shape[1],
+                          "Data batch channel count (",
+                          input_shape[1],
+                          ") does not match filter input ",
+                          "channel count (",
+                          filters_shape[1],
+                          ").");
+
+    for (size_t i = 0; i < num_spatial_dims; ++i)
+    {
+        const auto& input_dim = input_shape[i + 2];
+        const auto& filters_dim = filters_shape[i + 2];
+        if (input_dim.is_static() && filters_dim.is_static())
+        {
+            const int64_t& window_dilated_dim = (filters_dim.get_length() - 1) * dilations[i] + 1;
+            NODE_VALIDATION_CHECK(node,
+                                  window_dilated_dim > 0,
+                                  "Window after dilation has dimension less than 1 (dim: ",
+                                  window_dilated_dim,
+                                  ") at axis ",
+                                  i,
+                                  ".");
+            if (auto_pad == op::PadType::SAME_UPPER || auto_pad == op::PadType::SAME_LOWER)
+            {
+                const int64_t& image_size = input_dim.get_length();
+                const int64_t& filter_stride = strides[i];
+                const int64_t& output_size = (image_size + filter_stride - 1) / filter_stride;
+
+                const int64_t& tmp = (output_size - 1) * filter_stride + window_dilated_dim;
+                const int64_t& padding_needed = tmp > image_size ? tmp - image_size : 0;
+
+                const size_t& padding_lhs = static_cast<size_t>(padding_needed / 2);
+                const size_t& padding_rhs = static_cast<size_t>(padding_needed - padding_lhs);
+
+                pad_begin[i] = auto_pad == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs;
+                pad_end[i] = auto_pad == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs;
+            }
+
+            const int64_t& data_padded_dilated_dim =
+                input_dim.get_length() + pad_begin[i] + pad_end[i];
+            NODE_VALIDATION_CHECK(node,
+                                  window_dilated_dim <= data_padded_dilated_dim,
+                                  "Window after dilation has dimension (dim: ",
+                                  window_dilated_dim,
+                                  ") larger than the data shape after padding (dim: ",
+                                  data_padded_dilated_dim,
+                                  ") at axis ",
+                                  i,
+                                  ".");
+            output_shape[i + 2] = (data_padded_dilated_dim - window_dilated_dim) / strides[i] + 1;
+        }
+    }
+    node->set_pads_begin(pad_begin);
+    node->set_adding_above(pad_end);
+}
+
 void op::v1::Convolution::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    const PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -67,25 +233,10 @@ void op::v1::Convolution::validate_and_infer_types()
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    Rank result_ps_rank;
-    NODE_VALIDATION_CHECK(
-        this,
-        Rank::merge(result_ps_rank, data_batch_pshape.rank(), filters_pshape.rank()),
-        "Data batch and filters inputs must have same rank. Got: ",
-        data_batch_pshape,
-        " and ",
-        filters_pshape);
-
-    PartialShape result_shape =
-        validate_and_infer_convolution_forward_output_shape(this,
-                                                            result_ps_rank,
-                                                            data_batch_pshape,
-                                                            filters_pshape,
-                                                            m_auto_pad,
-                                                            m_strides,
-                                                            m_dilations,
-                                                            m_pads_begin,
-                                                            m_pads_end);
+    PartialShape input_shape = get_input_partial_shape(0);
+    PartialShape filters_shape = get_input_partial_shape(1);
+    PartialShape result_shape;
+    convolution_shape_infer(this, input_shape, filters_shape, result_shape);
     set_output_type(0, result_et, result_shape);
 }
 
