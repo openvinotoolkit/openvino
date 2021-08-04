@@ -43,14 +43,14 @@ namespace {
 
     class MoveFakeQuantizeActualValues {
     public:
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1; //before1
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore1;
         ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore1;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore1;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2; //before1
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeBefore2;
         ngraph::builder::subgraph::DequantizationOperations::Convert convertBefore2;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore2;
         std::string operation;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter; // after
+        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
         ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };

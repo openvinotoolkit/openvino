@@ -48,7 +48,7 @@ namespace ngraph {
                     if (operation == "relu") {
                         auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
                         auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
-                        parent1 = makeFakeQuantizeTypeRelaxed(relu1, inputPrecision, fqOnData1);
+                        parent1 = makeFakeQuantizeTypeRelaxed(relu1, inputPrecision, fqOnData1);// ???????? ?? MoveFakeQuantize
                         parent2 = makeFakeQuantizeTypeRelaxed(relu2, inputPrecision, fqOnData2);
                     }
                     else {
