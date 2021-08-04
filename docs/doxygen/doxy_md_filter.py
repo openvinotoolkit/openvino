@@ -106,7 +106,7 @@ def process(input_dir, output_dir, exclude_dirs):
         md_links = inline_links
         md_links.update(reference_links)
         content = replace_links(content, md_links, md_folder, label_to_file_map, input_dir)
-        content = add_htmlonly(content)
+        # content = add_htmlonly(content)
 
         copy_file(md_file, content, input_dir, output_dir)
 
