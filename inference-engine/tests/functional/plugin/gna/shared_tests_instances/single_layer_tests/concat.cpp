@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<size_t > axes = {1};
+std::vector<int> axes = {1};
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
