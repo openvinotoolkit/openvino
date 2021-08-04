@@ -89,7 +89,8 @@ public:
      * @param that copied SOPointer object
      */
     template <typename U>
-    SOPointer(const SOPointer<U>& that): _so(that._so), _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
+    SOPointer(const SOPointer<U>& that): _so(that._so),
+                                         _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
         IE_ASSERT(_ptr != nullptr);
     }
 
@@ -145,7 +146,8 @@ protected:
                 ResponseDesc desc;
                 StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
                 if (sts != OK) {
-                    IE_EXCEPTION_SWITCH(sts, ExceptionType,
+                    IE_EXCEPTION_SWITCH(sts,
+                                        ExceptionType,
                                         InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START

@@ -53,14 +53,30 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3 && C_src_stride == 1 && W_src_stride == 3 &&
         W_dst_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
-            blob_copy_4d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr), reinterpret_cast<uint8_t*>(dst_ptr), N_src_stride, H_src_stride, N_dst_stride,
-                                    H_dst_stride, C_dst_stride, static_cast<int>(N), static_cast<int>(H), static_cast<int>(W));
+            blob_copy_4d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
+                                    reinterpret_cast<uint8_t*>(dst_ptr),
+                                    N_src_stride,
+                                    H_src_stride,
+                                    N_dst_stride,
+                                    H_dst_stride,
+                                    C_dst_stride,
+                                    static_cast<int>(N),
+                                    static_cast<int>(H),
+                                    static_cast<int>(W));
             return;
         }
 
         if (PRC == Precision::FP32) {
-            blob_copy_4d_split_f32c3(reinterpret_cast<const float*>(src_ptr), reinterpret_cast<float*>(dst_ptr), N_src_stride, H_src_stride, N_dst_stride,
-                                     H_dst_stride, C_dst_stride, static_cast<int>(N), static_cast<int>(H), static_cast<int>(W));
+            blob_copy_4d_split_f32c3(reinterpret_cast<const float*>(src_ptr),
+                                     reinterpret_cast<float*>(dst_ptr),
+                                     N_src_stride,
+                                     H_src_stride,
+                                     N_dst_stride,
+                                     H_dst_stride,
+                                     C_dst_stride,
+                                     static_cast<int>(N),
+                                     static_cast<int>(H),
+                                     static_cast<int>(W));
             return;
         }
     }
@@ -68,14 +84,30 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC && C == 3 && C_dst_stride == 1 && W_dst_stride == 3 &&
         W_src_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
-            blob_copy_4d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr), reinterpret_cast<uint8_t*>(dst_ptr), N_src_stride, H_src_stride, C_src_stride,
-                                    N_dst_stride, H_dst_stride, static_cast<int>(N), static_cast<int>(H), static_cast<int>(W));
+            blob_copy_4d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
+                                    reinterpret_cast<uint8_t*>(dst_ptr),
+                                    N_src_stride,
+                                    H_src_stride,
+                                    C_src_stride,
+                                    N_dst_stride,
+                                    H_dst_stride,
+                                    static_cast<int>(N),
+                                    static_cast<int>(H),
+                                    static_cast<int>(W));
             return;
         }
 
         if (PRC == Precision::FP32) {
-            blob_copy_4d_merge_f32c3(reinterpret_cast<const float*>(src_ptr), reinterpret_cast<float*>(dst_ptr), N_src_stride, H_src_stride, C_src_stride,
-                                     N_dst_stride, H_dst_stride, static_cast<int>(N), static_cast<int>(H), static_cast<int>(W));
+            blob_copy_4d_merge_f32c3(reinterpret_cast<const float*>(src_ptr),
+                                     reinterpret_cast<float*>(dst_ptr),
+                                     N_src_stride,
+                                     H_src_stride,
+                                     C_src_stride,
+                                     N_dst_stride,
+                                     H_dst_stride,
+                                     static_cast<int>(N),
+                                     static_cast<int>(H),
+                                     static_cast<int>(W));
             return;
         }
     }
@@ -182,15 +214,35 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
     if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW && C == 3 && C_src_stride == 1 && W_src_stride == 3 &&
         W_dst_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
-            blob_copy_5d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr), reinterpret_cast<uint8_t*>(dst_ptr), N_src_stride, D_src_stride, H_src_stride,
-                                    N_dst_stride, D_dst_stride, H_dst_stride, C_dst_stride, static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
+            blob_copy_5d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
+                                    reinterpret_cast<uint8_t*>(dst_ptr),
+                                    N_src_stride,
+                                    D_src_stride,
+                                    H_src_stride,
+                                    N_dst_stride,
+                                    D_dst_stride,
+                                    H_dst_stride,
+                                    C_dst_stride,
+                                    static_cast<int>(N),
+                                    static_cast<int>(D),
+                                    static_cast<int>(H),
                                     static_cast<int>(W));
             return;
         }
 
         if (PRC == Precision::FP32) {
-            blob_copy_5d_split_f32c3(reinterpret_cast<const float*>(src_ptr), reinterpret_cast<float*>(dst_ptr), N_src_stride, D_src_stride, H_src_stride,
-                                     N_dst_stride, D_dst_stride, H_dst_stride, C_dst_stride, static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
+            blob_copy_5d_split_f32c3(reinterpret_cast<const float*>(src_ptr),
+                                     reinterpret_cast<float*>(dst_ptr),
+                                     N_src_stride,
+                                     D_src_stride,
+                                     H_src_stride,
+                                     N_dst_stride,
+                                     D_dst_stride,
+                                     H_dst_stride,
+                                     C_dst_stride,
+                                     static_cast<int>(N),
+                                     static_cast<int>(D),
+                                     static_cast<int>(H),
                                      static_cast<int>(W));
             return;
         }
@@ -199,15 +251,35 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
     if (src->getTensorDesc().getLayout() == NCDHW && dst->getTensorDesc().getLayout() == NDHWC && C == 3 && C_dst_stride == 1 && W_dst_stride == 3 &&
         W_src_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
-            blob_copy_5d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr), reinterpret_cast<uint8_t*>(dst_ptr), N_src_stride, D_src_stride, H_src_stride,
-                                    C_src_stride, N_dst_stride, D_dst_stride, H_dst_stride, static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
+            blob_copy_5d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
+                                    reinterpret_cast<uint8_t*>(dst_ptr),
+                                    N_src_stride,
+                                    D_src_stride,
+                                    H_src_stride,
+                                    C_src_stride,
+                                    N_dst_stride,
+                                    D_dst_stride,
+                                    H_dst_stride,
+                                    static_cast<int>(N),
+                                    static_cast<int>(D),
+                                    static_cast<int>(H),
                                     static_cast<int>(W));
             return;
         }
 
         if (PRC == Precision::FP32) {
-            blob_copy_5d_merge_f32c3(reinterpret_cast<const float*>(src_ptr), reinterpret_cast<float*>(dst_ptr), N_src_stride, D_src_stride, H_src_stride,
-                                     C_src_stride, N_dst_stride, D_dst_stride, H_dst_stride, static_cast<int>(N), static_cast<int>(D), static_cast<int>(H),
+            blob_copy_5d_merge_f32c3(reinterpret_cast<const float*>(src_ptr),
+                                     reinterpret_cast<float*>(dst_ptr),
+                                     N_src_stride,
+                                     D_src_stride,
+                                     H_src_stride,
+                                     C_src_stride,
+                                     N_dst_stride,
+                                     D_dst_stride,
+                                     H_dst_stride,
+                                     static_cast<int>(N),
+                                     static_cast<int>(D),
+                                     static_cast<int>(H),
                                      static_cast<int>(W));
             return;
         }

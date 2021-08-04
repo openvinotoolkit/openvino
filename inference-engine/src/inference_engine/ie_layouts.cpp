@@ -19,7 +19,9 @@ TensorDesc::TensorDesc(const Precision& precision, Layout layout): precision(pre
 }
 
 TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const BlockingDesc& blockDesc)
-    : dims(dims), precision(precision), blockingDesc(blockDesc) {
+    : dims(dims),
+      precision(precision),
+      blockingDesc(blockDesc) {
     if (dims.size() == 0 || blockingDesc.getBlockDims().size() == 0) {
         layout = Layout::SCALAR;
         return;

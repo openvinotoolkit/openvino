@@ -37,7 +37,8 @@ public:
     explicit ExecutableNetworkThreadSafeDefault(
         const ITaskExecutor::Ptr& taskExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Default"}),
         const ITaskExecutor::Ptr& callbackExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Callback"}))
-        : _taskExecutor{taskExecutor}, _callbackExecutor{callbackExecutor} {}
+        : _taskExecutor{taskExecutor},
+          _callbackExecutor{callbackExecutor} {}
 
     /**
      * @brief Given optional implementation of creating asynchronous inference

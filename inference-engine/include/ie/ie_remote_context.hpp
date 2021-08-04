@@ -105,7 +105,8 @@ public:
      * @return true if this object can be dynamically cast to the type T*.
      * Otherwise, false
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() noexcept {
         return dynamic_cast<T*>(this) != nullptr;
@@ -119,7 +120,8 @@ public:
      * @return true if this object can be dynamically cast to the type const T*.
      * Otherwise, false
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() const noexcept {
         return dynamic_cast<const T*>(this) != nullptr;
@@ -132,7 +134,8 @@ public:
      * RemoteContext
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
@@ -145,7 +148,8 @@ public:
      * RemoteContext
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     const T* as() const noexcept {
         return dynamic_cast<const T*>(this);

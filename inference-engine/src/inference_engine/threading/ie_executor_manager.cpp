@@ -61,7 +61,8 @@ void ExecutorManagerImpl::clear(const std::string& id) {
         cpuStreamsExecutors.clear();
     } else {
         executors.erase(id);
-        cpuStreamsExecutors.erase(std::remove_if(cpuStreamsExecutors.begin(), cpuStreamsExecutors.end(),
+        cpuStreamsExecutors.erase(std::remove_if(cpuStreamsExecutors.begin(),
+                                                 cpuStreamsExecutors.end(),
                                                  [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
                                                      return it.first._name == id;
                                                  }),

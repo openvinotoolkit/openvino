@@ -23,7 +23,10 @@ namespace detail {
 
     #if USE_TBBBIND_2_4
 extern "C" {
-void __TBB_internal_initialize_system_topology(std::size_t groups_num, int& numa_nodes_count, int*& numa_indexes_list, int& core_types_count,
+void __TBB_internal_initialize_system_topology(std::size_t groups_num,
+                                               int& numa_nodes_count,
+                                               int*& numa_indexes_list,
+                                               int& core_types_count,
                                                int*& core_types_indexes_list);
 binding_handler* __TBB_internal_allocate_binding_handler(int number_of_slots, int numa_id, int core_type_id, int max_threads_per_core);
 void __TBB_internal_deallocate_binding_handler(binding_handler* handler_ptr);
@@ -135,7 +138,10 @@ tbb::task_arena::constraints convert_constraints(const custom::task_arena::const
 }  // namespace detail
 
 task_arena::task_arena(int max_concurrency_, unsigned reserved_for_masters)
-    : my_task_arena{max_concurrency_, reserved_for_masters}, my_initialization_state{}, my_constraints{}, my_binding_observer{} {}
+    : my_task_arena{max_concurrency_, reserved_for_masters},
+      my_initialization_state{},
+      my_constraints{},
+      my_binding_observer{} {}
 
 task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_masters)
     #if USE_TBBBIND_2_4
@@ -154,7 +160,10 @@ task_arena::task_arena(const constraints& constraints_, unsigned reserved_for_ma
 , my_initialization_state{}, my_constraints{constraints_}, my_binding_observer{} {}
 
 task_arena::task_arena(const task_arena& s)
-    : my_task_arena{s.my_task_arena}, my_initialization_state{}, my_constraints{s.my_constraints}, my_binding_observer{} {}
+    : my_task_arena{s.my_task_arena},
+      my_initialization_state{},
+      my_constraints{s.my_constraints},
+      my_binding_observer{} {}
 
 void task_arena::initialize() {
     my_task_arena.initialize();

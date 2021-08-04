@@ -63,7 +63,8 @@ inline void ltrim(std::string& s) {
  * @param s - string to trim
  */
 inline void rtrim(std::string& s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(),
+    s.erase(std::find_if(s.rbegin(),
+                         s.rend(),
                          [](int c) {
                              return !std::isspace(c);
                          })

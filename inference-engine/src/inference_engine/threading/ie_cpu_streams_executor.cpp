@@ -33,7 +33,12 @@ struct CPUStreamsExecutor::Impl {
             int _ncpus = 0;
             int _threadBindingStep = 0;
             int _offset = 0;
-            Observer(custom::task_arena& arena, CpuSet mask, int ncpus, const int streamId, const int threadsPerStream, const int threadBindingStep,
+            Observer(custom::task_arena& arena,
+                     CpuSet mask,
+                     int ncpus,
+                     const int streamId,
+                     const int threadsPerStream,
+                     const int threadBindingStep,
                      const int threadBindingOffset)
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
@@ -81,7 +86,8 @@ struct CPUStreamsExecutor::Impl {
                     // wrapping around total_streams (i.e. how many streams all different core types can handle together)
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
                     const auto streamId_wrapped = _streamId % total_streams;
-                    const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
+                    const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(),
+                                                                  _impl->total_streams_on_core_types.cend(),
                                                                   [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type& p) {
                                                                       return p.second > streamId_wrapped;
                                                                   })
@@ -98,8 +104,13 @@ struct CPUStreamsExecutor::Impl {
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();
                     if (nullptr != processMask) {
-                        _observer.reset(new Observer{*_taskArena, std::move(processMask), ncpus, _streamId, _impl->_config._threadsPerStream,
-                                                     _impl->_config._threadBindingStep, _impl->_config._threadBindingOffset});
+                        _observer.reset(new Observer{*_taskArena,
+                                                     std::move(processMask),
+                                                     ncpus,
+                                                     _streamId,
+                                                     _impl->_config._threadsPerStream,
+                                                     _impl->_config._threadBindingStep,
+                                                     _impl->_config._threadBindingOffset});
                         _observer->observe(true);
                     }
                 }
@@ -154,7 +165,8 @@ struct CPUStreamsExecutor::Impl {
     };
 
     explicit Impl(const Config& config)
-        : _config{config}, _streams([this] {
+        : _config{config},
+          _streams([this] {
               return std::make_shared<Impl::Stream>(this);
           }) {
         auto numaNodes = getAvailableNUMANodes();

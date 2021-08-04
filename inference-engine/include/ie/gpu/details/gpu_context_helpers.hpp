@@ -27,7 +27,10 @@ protected:
      * object parameter typecasted to desired user type
      */
     template <typename Result, typename Tmp>
-    Result _ObjFromParams(const ParamMap& params, const std::string& handle_Key, const std::string& type_Key, const std::string& obj_T1,
+    Result _ObjFromParams(const ParamMap& params,
+                          const std::string& handle_Key,
+                          const std::string& type_Key,
+                          const std::string& obj_T1,
                           const std::string& obj_T2 = "__") const {
         auto itrType = params.find(type_Key);
         if (itrType == params.end())

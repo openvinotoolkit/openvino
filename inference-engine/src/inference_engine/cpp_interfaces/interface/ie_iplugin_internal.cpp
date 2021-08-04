@@ -110,7 +110,8 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
     return res;
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(const CNNNetwork& network,
+                                                                          const std::map<std::string, std::string>& config,
                                                                           const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
     if (nullptr == context) {
@@ -168,7 +169,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std:
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel, const std::shared_ptr<RemoteContext>& context,
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(std::istream& networkModel,
+                                                                            const std::shared_ptr<RemoteContext>& context,
                                                                             const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
@@ -190,12 +192,14 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(const CNNNetwork&, const std::shared_ptr<RemoteContext>&,
+std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(const CNNNetwork&,
+                                                                                 const std::shared_ptr<RemoteContext>&,
                                                                                  const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
 
-void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork, const ConstInputsDataMap& inputs,
+void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                                         const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
     IE_ASSERT(exeNetwork != nullptr);
     // Set inputs/outputs and pointer to plugin manually here

@@ -167,14 +167,15 @@ constexpr inline bool Greater(size_t v1, size_t v2) {
  * @param      value   Value to be converted
  * @return     A saturated value
  */
-template <class OutT, class InT,
+template <class OutT,
+          class InT,
           typename std::enable_if<std::is_integral<OutT>::value && std::is_integral<InT>::value && std::is_signed<InT>::value &&
                                   !std::is_same<OutT, InT>::value>::type* = nullptr>
 inline OutT saturate_cast(const InT& value) {
-    using MaxT = typename std::conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_unsigned<OutT>::type,
-                                           typename std::make_unsigned<InT>::type>::type;
-    using MinT = typename std::conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_signed<OutT>::type,
-                                           typename std::make_signed<InT>::type>::type;
+    using MaxT = typename std::
+        conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_unsigned<OutT>::type, typename std::make_unsigned<InT>::type>::type;
+    using MinT = typename std::
+        conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_signed<OutT>::type, typename std::make_signed<InT>::type>::type;
 
     static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
     static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());
@@ -200,12 +201,13 @@ inline OutT saturate_cast(const InT& value) {
  * @param      value   Value to be converted
  * @return     A saturated value
  */
-template <class OutT, class InT,
+template <class OutT,
+          class InT,
           typename std::enable_if<std::is_integral<OutT>::value && std::is_integral<InT>::value && std::is_unsigned<InT>::value &&
                                   !std::is_same<OutT, InT>::value>::type* = nullptr>
 inline OutT saturate_cast(const InT& value) {
-    using MaxT = typename std::conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_unsigned<OutT>::type,
-                                           typename std::make_unsigned<InT>::type>::type;
+    using MaxT = typename std::
+        conditional<details::Greater(sizeof(OutT), sizeof(InT)), typename std::make_unsigned<OutT>::type, typename std::make_unsigned<InT>::type>::type;
 
     static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
     static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());

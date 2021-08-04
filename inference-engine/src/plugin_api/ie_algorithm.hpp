@@ -64,7 +64,9 @@ inline void erase_if(Container& data, const PredicateT& predicate) {
  */
 template <typename TIterator>
 auto product(TIterator beg, TIterator en) -> typename std::remove_reference<decltype(*beg)>::type {
-    return std::accumulate(beg, en, static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
+    return std::accumulate(beg,
+                           en,
+                           static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
                            std::multiplies<typename std::remove_reference<decltype(*beg)>::type>());
 }
 

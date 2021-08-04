@@ -70,7 +70,9 @@ public:
      * @return Pointer to underlying ID3D11Buffer interface
      */
     operator ID3D11Buffer*() {
-        return _ObjFromParams<ID3D11Buffer*, gpu_handle_param>(getParams(), GPU_PARAM_KEY(DEV_OBJECT_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE),
+        return _ObjFromParams<ID3D11Buffer*, gpu_handle_param>(getParams(),
+                                                               GPU_PARAM_KEY(DEV_OBJECT_HANDLE),
+                                                               GPU_PARAM_KEY(SHARED_MEM_TYPE),
                                                                GPU_PARAM_VALUE(DX_BUFFER));
     }
 };
@@ -101,7 +103,9 @@ public:
      * @return Pointer to underlying ID3D11Texture2D interface
      */
     operator ID3D11Texture2D*() {
-        return _ObjFromParams<ID3D11Texture2D*, gpu_handle_param>(getParams(), GPU_PARAM_KEY(DEV_OBJECT_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE),
+        return _ObjFromParams<ID3D11Texture2D*, gpu_handle_param>(getParams(),
+                                                                  GPU_PARAM_KEY(DEV_OBJECT_HANDLE),
+                                                                  GPU_PARAM_KEY(SHARED_MEM_TYPE),
                                                                   GPU_PARAM_VALUE(VA_SURFACE));
     }
 

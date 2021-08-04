@@ -9,7 +9,10 @@
 namespace InferenceEngine {
 
 CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard, const std::string& hash, std::shared_ptr<std::mutex> m, std::atomic_int& refCount)
-    : m_cacheGuard(cacheGuard), m_hash(hash), m_mutex(m), m_refCount(refCount) {
+    : m_cacheGuard(cacheGuard),
+      m_hash(hash),
+      m_mutex(m),
+      m_refCount(refCount) {
     // Don't lock mutex right here for exception-safe considerations
     m_refCount++;
 }

@@ -262,8 +262,12 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return supported;
     }
 
-    SoExecutableNetworkInternal LoadNetworkImpl(const CNNNetwork& network, InferencePlugin& plugin, const std::map<std::string, std::string>& parsedConfig,
-                                                const RemoteContext::Ptr& context, const std::string& blobID, const std::string& modelPath = std::string(),
+    SoExecutableNetworkInternal LoadNetworkImpl(const CNNNetwork& network,
+                                                InferencePlugin& plugin,
+                                                const std::map<std::string, std::string>& parsedConfig,
+                                                const RemoteContext::Ptr& context,
+                                                const std::string& blobID,
+                                                const std::string& modelPath = std::string(),
                                                 bool forceDisableCache = false) {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
         SoExecutableNetworkInternal execNetwork;
@@ -285,9 +289,13 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return execNetwork;
     }
 
-    SoExecutableNetworkInternal LoadNetworkFromCache(const std::shared_ptr<ICacheManager>& cacheManager, const std::string& blobId, InferencePlugin& plugin,
-                                                     const std::map<std::string, std::string>& config, const RemoteContext::Ptr& context,
-                                                     bool& networkIsImported, const std::string& modelPath = std::string()) {
+    SoExecutableNetworkInternal LoadNetworkFromCache(const std::shared_ptr<ICacheManager>& cacheManager,
+                                                     const std::string& blobId,
+                                                     InferencePlugin& plugin,
+                                                     const std::map<std::string, std::string>& config,
+                                                     const RemoteContext::Ptr& context,
+                                                     bool& networkIsImported,
+                                                     const std::string& modelPath = std::string()) {
         SoExecutableNetworkInternal execNetwork;
         struct HeaderException {};
 
@@ -326,7 +334,8 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return execNetwork;
     }
 
-    std::map<std::string, std::string> CreateCompileConfig(const InferencePlugin& plugin, const std::string& deviceFamily,
+    std::map<std::string, std::string> CreateCompileConfig(const InferencePlugin& plugin,
+                                                           const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
         std::map<std::string, Parameter> getMetricConfig;
         auto compileConfig = origConfig;
@@ -358,13 +367,17 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return compileConfig;
     }
 
-    std::string CalculateNetworkHash(const CNNNetwork& network, const std::string& deviceFamily, const InferencePlugin& plugin,
+    std::string CalculateNetworkHash(const CNNNetwork& network,
+                                     const std::string& deviceFamily,
+                                     const InferencePlugin& plugin,
                                      const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
         return NetworkCompilationContext::computeHash(network, compileConfig);
     }
 
-    std::string CalculateFileHash(const std::string& modelName, const std::string& deviceFamily, const InferencePlugin& plugin,
+    std::string CalculateFileHash(const std::string& modelName,
+                                  const std::string& deviceFamily,
+                                  const InferencePlugin& plugin,
                                   const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
         return NetworkCompilationContext::computeHash(modelName, compileConfig);
@@ -493,7 +506,8 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
@@ -519,7 +533,8 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -544,7 +559,8 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+                                              const std::string& deviceName,
                                               const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);

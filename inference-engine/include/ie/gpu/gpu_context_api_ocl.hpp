@@ -41,7 +41,10 @@ public:
      * @return `cl_context`
      */
     cl_context get() {
-        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(), GPU_PARAM_KEY(OCL_CONTEXT), GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL),
+        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(),
+                                                            GPU_PARAM_KEY(OCL_CONTEXT),
+                                                            GPU_PARAM_KEY(CONTEXT_TYPE),
+                                                            GPU_PARAM_VALUE(OCL),
                                                             GPU_PARAM_VALUE(VA_SHARED));
     }
 
@@ -108,7 +111,10 @@ public:
      * @return underlying OpenCL memory object handle
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER),
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(),
+                                                        GPU_PARAM_KEY(MEM_HANDLE),
+                                                        GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                        GPU_PARAM_VALUE(OCL_BUFFER),
                                                         GPU_PARAM_VALUE(DX_BUFFER));
     }
 
@@ -155,7 +161,10 @@ public:
      * @return `cl_mem`
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D),
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(),
+                                                        GPU_PARAM_KEY(MEM_HANDLE),
+                                                        GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                        GPU_PARAM_VALUE(OCL_IMAGE2D),
                                                         GPU_PARAM_VALUE(VA_SURFACE));
     }
 

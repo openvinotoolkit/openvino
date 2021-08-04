@@ -44,7 +44,10 @@ public:
      * @param offsetInBytes Offset in originally locked region
      */
     LockedMemoryBase(IAllocator* ptr, void* handle, LockOp lockFlag, size_t offsetInBytes)
-        : _allocator(ptr), _handle(handle), _lockFlag(lockFlag), _offset(offsetInBytes) {}
+        : _allocator(ptr),
+          _handle(handle),
+          _lockFlag(lockFlag),
+          _offset(offsetInBytes) {}
 
     /**
      * @brief A copy constructor

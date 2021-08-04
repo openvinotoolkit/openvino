@@ -233,9 +233,24 @@ public:
     static Precision FromStr(const std::string& str) {
         static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78), PRECISION_NAME(BOOL), PRECISION_NAME(BF16), PRECISION_NAME(I4),   PRECISION_NAME(I8),    PRECISION_NAME(I16),
-            PRECISION_NAME(I32), PRECISION_NAME(I64),  PRECISION_NAME(U4),   PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),
-            PRECISION_NAME(U64), PRECISION_NAME(FP32), PRECISION_NAME(FP64), PRECISION_NAME(FP16), PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
+            PRECISION_NAME(Q78),
+            PRECISION_NAME(BOOL),
+            PRECISION_NAME(BF16),
+            PRECISION_NAME(I4),
+            PRECISION_NAME(I8),
+            PRECISION_NAME(I16),
+            PRECISION_NAME(I32),
+            PRECISION_NAME(I64),
+            PRECISION_NAME(U4),
+            PRECISION_NAME(U8),
+            PRECISION_NAME(U16),
+            PRECISION_NAME(U32),
+            PRECISION_NAME(U64),
+            PRECISION_NAME(FP32),
+            PRECISION_NAME(FP64),
+            PRECISION_NAME(FP16),
+            PRECISION_NAME(MIXED),
+            PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -485,7 +500,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<Precision>& 
     return os;
 }
 
-inline constexpr uint32_t getPrecisionMask(InferenceEngine::Precision::ePrecision precision1, InferenceEngine::Precision::ePrecision precision2,
+inline constexpr uint32_t getPrecisionMask(InferenceEngine::Precision::ePrecision precision1,
+                                           InferenceEngine::Precision::ePrecision precision2,
                                            InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
                                            InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
     return (precision1) | (precision2 << 8) | (precision3 << 16) | (precision4 << 24);

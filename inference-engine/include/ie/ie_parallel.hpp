@@ -176,7 +176,8 @@ void parallel_nt_static(int nthr, const F& func) {
         nthr = parallel_get_max_threads();
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     tbb::parallel_for(
-        0, nthr,
+        0,
+        nthr,
         [&](int ithr) {
             func(ithr, nthr);
         },
@@ -205,7 +206,8 @@ template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return _TBB_REDUCE_FUNC(
-        tbb::blocked_range<T0>(0, D0), input,
+        tbb::blocked_range<T0>(0, D0),
+        input,
         [&](const tbb::blocked_range<T0>& r, R init) -> R {
             R sum = init;
             for (T0 dim1 = r.begin(); dim1 < r.end(); ++dim1)
@@ -238,7 +240,8 @@ template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return _TBB_REDUCE_FUNC(
-        tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), input,
+        tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
+        input,
         [&](const tbb::blocked_range2d<T0, T1>& r, R init) -> R {
             R sum = init;
             for (T0 dim2 = r.rows().begin(); dim2 < r.rows().end(); dim2++) {
@@ -277,7 +280,8 @@ template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     return _TBB_REDUCE_FUNC(
-        tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2), input,
+        tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
+        input,
         [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init) -> R {
             R sum = init;
             for (T0 dim1 = r.pages().begin(); dim1 < r.pages().end(); dim1++) {
@@ -397,7 +401,8 @@ void parallel_for(const T0& D0, const F& func) {
         for_1d(0, 1, D0, func);
     } else {
         tbb::parallel_for(
-            0, nthr,
+            0,
+            nthr,
             [&](int ithr) {
                 for_1d(ithr, nthr, D0, func);
             },
@@ -444,7 +449,8 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
         for_2d(0, 1, D0, D1, func);
     } else {
         tbb::parallel_for(
-            0, nthr,
+            0,
+            nthr,
             [&](int ithr) {
                 for_2d(ithr, nthr, D0, D1, func);
             },
@@ -492,7 +498,8 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
         for_3d(0, 1, D0, D1, D2, func);
     } else {
         tbb::parallel_for(
-            0, nthr,
+            0,
+            nthr,
             [&](int ithr) {
                 for_3d(ithr, nthr, D0, D1, D2, func);
             },
@@ -541,7 +548,8 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_4d(0, 1, D0, D1, D2, D3, func);
     } else {
         tbb::parallel_for(
-            0, nthr,
+            0,
+            nthr,
             [&](int ithr) {
                 for_4d(ithr, nthr, D0, D1, D2, D3, func);
             },
@@ -591,7 +599,8 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_5d(0, 1, D0, D1, D2, D3, D4, func);
     } else {
         tbb::parallel_for(
-            0, nthr,
+            0,
+            nthr,
             [&](int ithr) {
                 for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
             },

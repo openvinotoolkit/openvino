@@ -72,7 +72,9 @@ public:
      * @return `VASurfaceID` handle
      */
     operator VASurfaceID() {
-        return _ObjFromParams<VASurfaceID, uint32_t>(getParams(), GPU_PARAM_KEY(DEV_OBJECT_HANDLE), GPU_PARAM_KEY(SHARED_MEM_TYPE),
+        return _ObjFromParams<VASurfaceID, uint32_t>(getParams(),
+                                                     GPU_PARAM_KEY(DEV_OBJECT_HANDLE),
+                                                     GPU_PARAM_KEY(SHARED_MEM_TYPE),
                                                      GPU_PARAM_VALUE(VA_SURFACE));
     }
 

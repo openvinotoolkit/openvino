@@ -65,7 +65,8 @@ public:
      * parameter value) relevant only for this load operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -80,7 +81,8 @@ public:
      * parameter value) relevant only for this load operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath, const std::string& deviceName,
+    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+                                                    const std::string& deviceName,
                                                     const std::map<std::string, std::string>& config) = 0;
 
     /**
@@ -91,7 +93,8 @@ public:
      * parameter value) relevant only for this load operation*
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
+                                                      const std::string& deviceName = {},
                                                       const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -105,7 +108,8 @@ public:
      * @return An object containing a map of pairs a layer name -> a device name
      * supporting this layer.
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) const = 0;
 
     /**

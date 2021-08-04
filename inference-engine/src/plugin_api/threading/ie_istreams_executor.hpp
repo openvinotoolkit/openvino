@@ -119,8 +119,14 @@ public:
          * @param[in]  threads              @copybrief Config::_threads
          * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
          */
-        Config(std::string name = "StreamsExecutor", int streams = 1, int threadsPerStream = 0, ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1, int threadBindingOffset = 0, int threads = 0, PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+        Config(std::string name = "StreamsExecutor",
+               int streams = 1,
+               int threadsPerStream = 0,
+               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
+               int threadBindingStep = 1,
+               int threadBindingOffset = 0,
+               int threads = 0,
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
             : _name{name},
               _streams{streams},
               _threadsPerStream{threadsPerStream},

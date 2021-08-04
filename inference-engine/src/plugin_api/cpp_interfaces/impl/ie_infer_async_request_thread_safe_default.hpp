@@ -80,7 +80,8 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
             case InferState::Canceled:
                 IE_THROW(InferCancelled);
             case InferState::Idle: {
-                _futures.erase(std::remove_if(std::begin(_futures), std::end(_futures),
+                _futures.erase(std::remove_if(std::begin(_futures),
+                                              std::end(_futures),
                                               [](const std::shared_future<void>& future) {
                                                   if (future.valid()) {
                                                       return (std::future_status::ready == future.wait_for(std::chrono::milliseconds{0}));
@@ -140,7 +141,8 @@ public:
      * @param[in]  taskExecutor      The task executor
      * @param[in]  callbackExecutor  The callback executor
      */
-    AsyncInferRequestThreadSafeDefault(const IInferRequestInternal::Ptr& request, const ITaskExecutor::Ptr& taskExecutor,
+    AsyncInferRequestThreadSafeDefault(const IInferRequestInternal::Ptr& request,
+                                       const ITaskExecutor::Ptr& taskExecutor,
                                        const ITaskExecutor::Ptr& callbackExecutor)
         : _syncRequest{request},
           _requestExecutor{taskExecutor},

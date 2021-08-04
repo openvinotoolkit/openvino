@@ -68,7 +68,8 @@ public:
      * @return true if this object can be dynamically cast to the type T*.
      * Otherwise, false
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() noexcept {
         return dynamic_cast<T*>(this) != nullptr;
@@ -81,7 +82,8 @@ public:
      * @return true if this object can be dynamically cast to the type const T*.
      * Otherwise, false
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     bool is() const noexcept {
         return dynamic_cast<const T*>(this) != nullptr;
@@ -96,7 +98,8 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type T or nullptr on error
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     T* as() noexcept {
         return dynamic_cast<T*>(this);
@@ -111,7 +114,8 @@ public:
      * @tparam T Type to cast to. Must represent a class derived from the Blob
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
-    template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+    template <typename T,
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
               typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
     const T* as() const noexcept {
         return dynamic_cast<const T*>(this);
@@ -261,7 +265,8 @@ protected:
  * @return shared_ptr to the type T. Returned shared_ptr shares ownership of the
  * object with the input Blob::Ptr
  */
-template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+template <typename T,
+          typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
 std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
     return std::dynamic_pointer_cast<T>(blob);
@@ -273,7 +278,8 @@ std::shared_ptr<T> as(const Blob::Ptr& blob) noexcept {
  * @return shared_ptr to the type const T. Returned shared_ptr shares ownership
  * of the object with the input Blob::Ptr
  */
-template <typename T, typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+template <typename T,
+          typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
           typename std::enable_if<std::is_base_of<Blob, T>::value, int>::type = 0>
 std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
     return std::dynamic_pointer_cast<const T>(blob);

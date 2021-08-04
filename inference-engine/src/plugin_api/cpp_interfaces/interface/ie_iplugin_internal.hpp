@@ -158,7 +158,8 @@ public:
      * used to execute the network
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config,
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config,
                                                                     const std::shared_ptr<RemoteContext>& context);
 
     /**
@@ -244,7 +245,8 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel, const std::shared_ptr<RemoteContext>& context,
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const std::shared_ptr<RemoteContext>& context,
                                                                       const std::map<std::string, std::string>& config);
 
     /**
@@ -300,7 +302,8 @@ protected:
      * load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network, const std::shared_ptr<RemoteContext>& context,
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
+                                                                           const std::shared_ptr<RemoteContext>& context,
                                                                            const std::map<std::string, std::string>& config);
 
     /**
