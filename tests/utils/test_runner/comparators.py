@@ -60,6 +60,7 @@ class TimeMetricsComparator:
 
 
 class MemoryMetricsComparator:
+    steps_to_compare = {"create_exenetwork", "inference"}
     vm_metrics_to_compare = {"vmrss", "vmhw"}
 
     def __init__(self, values):
@@ -70,6 +71,8 @@ class MemoryMetricsComparator:
         """Compare values with provided reference"""
         log = DummyLogger() if not log else log
         for step_name, vm_records in reference.items():
+            if step_name not in self.steps_to_compare:
+                continue
             for vm_metric, stat_metrics in vm_records.items():
                 if vm_metric not in self.vm_metrics_to_compare:
                     continue

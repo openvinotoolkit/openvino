@@ -69,12 +69,6 @@ def pytest_addoption(parser):
         type=Path,
         help="path to dump test config with references updated with statistics collected while run",
     )
-    helpers_args_parser.addoption(
-        '--timeline_report',
-        type=Path,
-        # TODO:
-        help='path to build manifest to extract commit information'
-    )
     db_args_parser = parser.getgroup("test database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -90,6 +84,12 @@ def pytest_addoption(parser):
         type=str,
         required=is_db_used,
         help='MongoDB URL in a form "mongodb://server:port"'
+    )
+    db_args_parser.addoption(
+        '--timeline_report',
+        type=Path,
+        required=is_db_used,
+        help='path to build manifest to extract commit information'
     )
     db_args_parser.addoption(
         '--db_name',
@@ -356,7 +356,7 @@ def manifest_metadata(request):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collection, args.timeline_report
+def prepare_timeline_report(pytestconfig):  # records, args.db_url, args.db_collection, args.timeline_report
     """ Create memcheck timeline HTML report for records.
     """
     yield
@@ -370,7 +370,9 @@ def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collec
         records.sort(
             key=lambda item: f"{item['status']}{item['device']['name']}{item['model']['name']}{item['test_name']}")
         timelines = query_timeline(records, db_url, db_name, db_collection)
+
         import jinja2  # pylint: disable=import-outside-toplevel
+
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
                 searchpath=Path().absolute() / 'memcheck-template'),
@@ -459,4 +461,4 @@ def pytest_runtest_makereport(item, call):
         instance["db"]["results"] = instance["results"]
         logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
         # TODO: upload to new DB (memcheck -> memory_tests)
-        #upload_data(data, db_url, db_name, db_collection)
+        upload_data(instance["db"], db_url, db_name, db_collection)
