@@ -7,24 +7,27 @@
 #include <map>
 #include <string>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/output_vector.hpp"
 #include "ngraph/type.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 namespace ngraph
 {
     class Node;
-    using VariantTypeInfo = DiscreteTypeInfo;
+}
+namespace ov
+{
+    using VariantTypeInfo = ngraph::DiscreteTypeInfo;
 
-    class NGRAPH_API Variant
+    class CORE_API Variant
     {
     public:
         virtual ~Variant();
         virtual const VariantTypeInfo& get_type_info() const = 0;
 
-        virtual std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node);
-        virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
         virtual bool is_copyable() const;
+        virtual std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node>& node);
+        virtual std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector& nodes);
         virtual std::string to_string() { return ""; }
     };
 
@@ -47,8 +50,8 @@ namespace ngraph
         value_type m_value;
     };
 
-    extern template class NGRAPH_API VariantImpl<std::string>;
-    extern template class NGRAPH_API VariantImpl<int64_t>;
+    extern template class CORE_API VariantImpl<std::string>;
+    extern template class CORE_API VariantImpl<int64_t>;
 
     template <typename VT>
     class VariantWrapper
@@ -56,7 +59,7 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API VariantWrapper<std::string> : public VariantImpl<std::string>
+    class CORE_API VariantWrapper<std::string> : public VariantImpl<std::string>
     {
     public:
         static constexpr VariantTypeInfo type_info{"Variant::std::string", 0};
@@ -68,7 +71,7 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API VariantWrapper<int64_t> : public VariantImpl<int64_t>
+    class CORE_API VariantWrapper<int64_t> : public VariantImpl<int64_t>
     {
     public:
         static constexpr VariantTypeInfo type_info{"Variant::int64_t", 0};
@@ -102,4 +105,4 @@ namespace ngraph
 #endif
 
     using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-} // namespace ngraph
+} // namespace ov

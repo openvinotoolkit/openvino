@@ -81,8 +81,13 @@ namespace ngraph
         VariableMap m_variable_values;
     };
 
+} // namespace ngraph
+
+namespace ov
+{
     template <>
-    class NGRAPH_API VariantWrapper<VariableContext> : public VariantImpl<VariableContext>
+    class NGRAPH_API VariantWrapper<ngraph::VariableContext>
+        : public VariantImpl<ngraph::VariableContext>
     {
     public:
         static constexpr VariantTypeInfo type_info{"Variant::EvaluationContext::VariableContext",
@@ -99,5 +104,4 @@ namespace ngraph
         using Variant::init;
         using Variant::merge;
     };
-
-} // namespace ngraph
+} // namespace ov

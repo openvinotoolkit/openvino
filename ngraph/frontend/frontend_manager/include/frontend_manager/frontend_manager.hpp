@@ -98,6 +98,9 @@ namespace ngraph
 
     } // namespace frontend
 
+} // namespace ngraph
+namespace ov
+{
     template <>
     class FRONTEND_API VariantWrapper<std::istream*> : public VariantImpl<std::istream*>
     {
@@ -123,5 +126,4 @@ namespace ngraph
         }
     };
 #endif
-
-} // namespace ngraph
+} // namespace ov
