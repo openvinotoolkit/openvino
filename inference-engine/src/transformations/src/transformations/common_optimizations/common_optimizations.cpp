@@ -6,7 +6,6 @@
 
 #include "transformations/init_node_info.hpp"
 #include "itt.hpp"
-#include "transformations/common_optimizations/algebraic_simplification.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -21,6 +20,7 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
+#include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
@@ -108,7 +108,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
     eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
@@ -133,6 +132,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::DilatedConvolutionConverter>();
     common_fusions->add_matcher<ngraph::pass::GeluFusion>();
     common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();

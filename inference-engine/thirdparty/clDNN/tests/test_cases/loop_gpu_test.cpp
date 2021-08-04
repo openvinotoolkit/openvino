@@ -39,18 +39,17 @@ TEST(loop_gpu, basic_no_concat)
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
-    set_values(input_mem, input_data);
-
     std::vector<float> eltwise_operand {
         1.f, -2.f, 3.f, -4.f, 3.0f, -2.0f, 1.f, -2.f, 3.0f, -4.0f,
         3.f, -2.f, 1.f, -2.f, 3.5f, -4.5f, 5.f, -4.f, 3.5f, -2.2f
     };
-    set_values(operand_mem, eltwise_operand);
-
     int trip_count = 8;
-    set_values(trip_count_mem, {trip_count});
-
     int initial_condition = 1;
+
+    // initialize input buffers
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, { trip_count });
     set_values(initial_condition_mem, {initial_condition});
 
     topology body(
@@ -90,14 +89,36 @@ TEST(loop_gpu, basic_no_concat)
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
 
-    mem_lock<int32_t> ptr{num_iteration_mem, get_test_stream()};
-    EXPECT_EQ(ptr[0], trip_count);
-
     // value check
-    mem_lock<float> output_ptr{output, get_test_stream()};
-    EXPECT_EQ(output_ptr.size(), input_data.size());
-    for (size_t i = 0, iend = input_data.size(); i<iend; ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
+    {
+        mem_lock<float> output_ptr{ output, get_test_stream() };
+        EXPECT_EQ(output_ptr.size(), input_data.size());
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
+        }
+    }
+
+    // allocate new output memory
+    layout loop_l = network.get_output_memory("loop")->get_layout();
+    auto output_mem = engine.allocate_memory(loop_l);
+    network.set_output_memory("loop", output_mem);
+
+    //one more execute
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, { trip_count });
+    set_values(initial_condition_mem, { initial_condition });
+    outputs = network.execute();
+
+    // check everything once again
+    EXPECT_EQ(outputs.size(), 1);
+    auto output2 = outputs.begin()->second.get_memory();
+    {
+        mem_lock<float> output_ptr2{ output2, get_test_stream() };
+        EXPECT_EQ(output_ptr2.size(), input_data.size());
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            ASSERT_FLOAT_EQ(output_ptr2[i], input_data[i] + eltwise_operand[i] * trip_count);
+        }
     }
 }
 
@@ -115,17 +136,16 @@ TEST(loop_gpu, basic_concat)
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
-    set_values(input_mem, input_data);
-
     std::vector<float> eltwise_operand {
         1.f, -2.f, 3.f, -4.f
     };
-    set_values(operand_mem, eltwise_operand);
-
     size_t trip_count = input_data.size()/eltwise_operand.size();
-    set_values(trip_count_mem, {trip_count});
-
     int initial_condition = 1;
+
+    // initialize input buffers
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, {trip_count});
     set_values(initial_condition_mem, {initial_condition});
 
     topology body(
@@ -164,16 +184,34 @@ TEST(loop_gpu, basic_concat)
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
 
-    mem_lock<int32_t> ptr{num_iteration_mem, get_test_stream()};
-    const int32_t actual_iterations = ptr[0];
-    EXPECT_EQ(actual_iterations, trip_count);
-
     // value check
-    mem_lock<float> output_ptr{output, get_test_stream()};
-    for (size_t i=0, iend = input_data.size(); i<iend; ++i) {
-        const size_t j = i % eltwise_operand.size();
-        float expected = input_data[i] + eltwise_operand[j];
-        EXPECT_FLOAT_EQ(output_ptr[i], expected);
+    {
+        mem_lock<float> output_ptr{ output, get_test_stream() };
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            const size_t j = i % eltwise_operand.size();
+            float expected = input_data[i] + eltwise_operand[j];
+            ASSERT_FLOAT_EQ(output_ptr[i], expected);
+        }
+    }
+
+    // allocate new output memory
+    layout loop_l = network.get_output_memory("loop")->get_layout();
+    auto output_mem = engine.allocate_memory(loop_l);
+    network.set_output_memory("loop", output_mem);
+
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, { trip_count });
+    set_values(initial_condition_mem, { initial_condition });
+    outputs = network.execute();
+    auto output2 = outputs.begin()->second.get_memory();
+    {
+        mem_lock<float> output_ptr2{ output2, get_test_stream() };
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            const size_t j = i % eltwise_operand.size();
+            float expected = input_data[i] + eltwise_operand[j];
+            ASSERT_FLOAT_EQ(output_ptr2[i], expected);
+        }
     }
 }
 
@@ -197,25 +235,22 @@ TEST(loop_gpu, basic_concat_nested)
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
         -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
     };
-    set_values(input_mem, input_data);
 
     std::vector<float> inner_eltwise_operand {
         1.f, -2.f, 3.f, -4.f
     };
-    set_values(inner_operand_mem, inner_eltwise_operand);
 
     size_t inner_trip_count = input_data.size() / inner_eltwise_operand.size();
-    set_values(inner_trip_count_mem, {inner_trip_count});
-
     int inner_initial_condition = 1;
-    set_values(inner_initial_condition_mem, {inner_initial_condition});
-
     int outer_trip_count = 8;
-    set_values(trip_count_mem, {outer_trip_count});
-
     int outer_initial_condition = 1;
-    set_values(initial_condition_mem, {outer_initial_condition});
 
+    set_values(input_mem, input_data);
+    set_values(inner_operand_mem, inner_eltwise_operand);
+    set_values(inner_trip_count_mem, { inner_trip_count });
+    set_values(inner_initial_condition_mem, { inner_initial_condition });
+    set_values(trip_count_mem, { outer_trip_count });
+    set_values(initial_condition_mem, { outer_initial_condition });
 
     /////////////////////////////////
     // set inner loop body
@@ -302,19 +337,34 @@ TEST(loop_gpu, basic_concat_nested)
     EXPECT_EQ(output_layout.size.feature[0], 1);
     EXPECT_EQ(output_layout.size.spatial[0], 4);
     EXPECT_EQ(output_layout.size.spatial[1], 5);
-
-    // check trip count = actual iteration
-    mem_lock<int64_t> inner_num_iteration_ptr{inner_num_iteration_mem, get_test_stream()};
-    int64_t inner_actual_iterations = inner_num_iteration_ptr[0];
-    EXPECT_EQ(inner_actual_iterations, inner_trip_count);
-    mem_lock<int64_t> num_iteration_ptr{num_iteration_mem, get_test_stream()};
-    int64_t actual_iterations = num_iteration_ptr[0];
-    EXPECT_EQ(actual_iterations, outer_trip_count);
-
+    
     // check output values
     EXPECT_EQ(output_layout.count(), expected.size());
-    mem_lock<float> output_ptr{output, get_test_stream()};
-    for (size_t i=0 ;i<output_layout.count(); ++i) {
-        EXPECT_FLOAT_EQ(output_ptr[i], expected.at(i));
+    {
+        mem_lock<float> output_ptr{ output, get_test_stream() };
+        for (size_t i = 0; i < output_layout.count(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
+        }
+    }
+
+    // allocate new output memory, run and test everything once again
+    layout loop_l = network.get_output_memory("loop")->get_layout();
+    auto output_mem = engine.allocate_memory(loop_l);
+    network.set_output_memory("loop", output_mem);
+
+    set_values(input_mem, input_data);
+    set_values(inner_operand_mem, inner_eltwise_operand);
+    set_values(inner_trip_count_mem, { inner_trip_count });
+    set_values(inner_initial_condition_mem, { inner_initial_condition });
+    set_values(trip_count_mem, { outer_trip_count });
+    set_values(initial_condition_mem, { outer_initial_condition });
+
+    outputs = network.execute();
+    auto output2 = outputs.begin()->second.get_memory();
+    {
+        mem_lock<float> output_ptr{ output2, get_test_stream() };
+        for (size_t i = 0; i < output_layout.count(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], expected.at(i));
+        }
     }
 }

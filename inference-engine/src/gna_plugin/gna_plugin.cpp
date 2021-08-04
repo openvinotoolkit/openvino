@@ -63,6 +63,7 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
+#include "transformations/decompose_2d_conv.hpp"
 #include "transformations/convert_padded2valid_conv.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -470,7 +471,6 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
         auto data = input.second->getInputData();
         for (auto && nextToInputLayer : getInputTo(data)) {
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
-                inputIdx++;
                 continue;
             }
             // replacing scale factor from this fq layer
@@ -493,6 +493,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                 scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
             }
 
+            IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
+            IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
+
             if (!config.inputScaleFactors.empty()) {
                 gnalog() << "Scale factor calculated during model quantization (" << scaleInput
                     << ") will be used instead of user input (" << inputsDesc->inputScaleFactors[inputIdx] << ").\n";
@@ -505,9 +508,9 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
 
             config.inputScaleFactors[inputIdx] = scaleInput;
             inputsDesc->inputScaleFactors[inputIdx] = scaleInput;
-
-            inputIdx++;
         }
+
+        inputIdx++;
     }
 }
 
@@ -671,6 +674,11 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+
+    if (!gnaFlags->sw_fp32) {
+        InitGNADevice();
+    }
+
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
@@ -680,6 +688,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ConvertPadded2ValidConv>();
+        if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
+            manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
+            manager.register_pass<Decompose2DConvTransposedWithBias>();
+            manager.register_pass<Decompose2DConv>();
+        }
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
@@ -868,15 +881,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
 
-    if (!graphCompiler.memory_connection.empty()) {
+    if (!graphCompiler.memory_connection.empty() && gnaFlags->gna_lib_async_threads_num != 1) {
+        // TODO: check if updating the number of threads is needed for sw_fp32
         gnaFlags->gna_lib_async_threads_num = 1;
+        if (!gnaFlags->sw_fp32)
+            InitGNADevice();
     }
 
     if (gnaFlags->sw_fp32) {
         gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
         graphCompiler.setGNAMemoryPtr(gnamem);
-    } else {
-        InitGNADevice();
     }
 
     // keep inputs information and create input primitives

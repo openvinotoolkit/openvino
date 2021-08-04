@@ -45,5 +45,5 @@ std::string reorg_yolo_inst::to_string(reorg_yolo_node const& node) {
 
     return primitive_description.str();
 }
-reorg_yolo_inst::typed_primitive_inst(network_impl& network, reorg_yolo_node const& node) : parent(network, node) {}
+reorg_yolo_inst::typed_primitive_inst(network& network, reorg_yolo_node const& node) : parent(network, node) {}
 }  // namespace cldnn

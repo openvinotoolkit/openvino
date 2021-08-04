@@ -24,6 +24,10 @@ constexpr uint32_t noOfInputsLowPrecDivisor = 16;
 
 constexpr uint32_t affineMaxBatchSize = 8;
 
+constexpr uint32_t maxPoolMaxWindowSize = 6;
+
+constexpr uint32_t copyMaxGrouping = 8;
+
 namespace Cnn2D {
 struct RangeLimit {
     uint32_t min;
@@ -87,6 +91,8 @@ class Validator {
 
     static void ThrowIfNotEmpty(const std::string prefix, const std::string error);
 public:
+    Validator() = default;
+
     void ValidateCnn2D(std::string name, const uint32_t inHeight, const uint32_t inWidth,
         const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
         const uint32_t strideH, const uint32_t strideW, OvGnaType inPrecision) const;

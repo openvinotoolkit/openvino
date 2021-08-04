@@ -21,7 +21,7 @@
 
 using namespace cldnn;
 
-void compile_graph::run(program_impl& p) {
+void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
     size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {

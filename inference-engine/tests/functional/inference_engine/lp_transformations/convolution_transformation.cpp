@@ -71,7 +71,7 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
-            transform.set_callback<ngraph::pass::low_precision::ConvolutionTransformation>(
+            transform.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
                     return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
                 });

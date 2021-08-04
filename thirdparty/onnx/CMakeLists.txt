@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-
 #------------------------------------------------------------------------------
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 set(BUILD_SHARED_LIBS OFF)
 
@@ -19,14 +18,7 @@ macro(onnx_set_target_properties)
     target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
     target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(onnx PRIVATE /WX-)
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        target_compile_options(onnx PRIVATE -Wno-all)
-        target_compile_options(onnx_proto PRIVATE -Wno-all -Wno-unused-variable)
-    endif()
-
-    target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
+    ov_disable_all_warnings(onnx onnx_proto)
 endmacro()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
