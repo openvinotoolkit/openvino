@@ -63,11 +63,5 @@ private:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector {convert}, ngraph::ParameterVector {in});
     }
 };
-
-namespace {
-TEST_P(ReferenceConversionLayerTest, CompareWithHardcodedRefs) {
-    Exec();
-}
-} // namespace
 } // namespace ConversionOpsRefTestDefinitions
 } // namespace reference_tests
