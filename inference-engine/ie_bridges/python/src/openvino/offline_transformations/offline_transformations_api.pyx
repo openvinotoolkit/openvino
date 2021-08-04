@@ -12,6 +12,7 @@ from libcpp.map cimport map
 
 import numpy as np
 
+
 def ApplyMOCTransformations(IENetwork network, bool cf):
     C.ApplyMOCTransformations(network.impl, cf)
 

@@ -71,8 +71,7 @@ InferenceEnginePython::ConstantInfoPtr InferenceEnginePython::CreateEmptyConstan
     return std::make_shared<InferenceEnginePython::ConstantInfo>();
 }
 
-void InferenceEnginePython::ApplyScaleInputs(InferenceEnginePython::IENetwork network,
-                                             const std::map<std::string, ConstantInfoPtr>& values) {
+void InferenceEnginePython::ApplyScaleInputs(InferenceEnginePython::IENetwork network, const std::map<std::string, ConstantInfoPtr>& values) {
     using namespace ngraph::pass;
     Manager m;
     ScaleInputs::ScaleMap map;
@@ -83,17 +82,14 @@ void InferenceEnginePython::ApplyScaleInputs(InferenceEnginePython::IENetwork ne
 
         std::vector<size_t> shape((size_t)info.shape_size, 1);
         shape[info.axis] = info.data.size();
-        auto c = ngraph::opset1::Constant::create(ngraph::element::f32,
-                                                  ngraph::Shape(shape),
-                                                  info.data);
+        auto c = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape(shape), info.data);
         map.insert({name, c});
     }
     m.register_pass<ngraph::pass::ScaleInputs>(map);
     m.run_passes(network.actual->getFunction());
 }
 
-void InferenceEnginePython::ApplySubtractMeanInputs(InferenceEnginePython::IENetwork network,
-                                                    const std::map<std::string, ConstantInfoPtr>& values) {
+void InferenceEnginePython::ApplySubtractMeanInputs(InferenceEnginePython::IENetwork network, const std::map<std::string, ConstantInfoPtr>& values) {
     using namespace ngraph::pass;
     Manager m;
     SubtractMeanInputs::MeanMap map;
@@ -104,12 +100,9 @@ void InferenceEnginePython::ApplySubtractMeanInputs(InferenceEnginePython::IENet
 
         std::vector<size_t> shape((size_t)info.shape_size, 1);
         shape[info.axis] = info.data.size();
-        auto c = ngraph::opset1::Constant::create(ngraph::element::f32,
-                                                  ngraph::Shape(shape),
-                                                  info.data);
+        auto c = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape(shape), info.data);
         map.insert({name, c});
     }
     m.register_pass<ngraph::pass::SubtractMeanInputs>(map);
     m.run_passes(network.actual->getFunction());
 }
-

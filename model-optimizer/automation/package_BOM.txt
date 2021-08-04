@@ -966,6 +966,7 @@ mo/middle/pattern_match.py
 mo/middle/replacement.py
 mo/moc_frontend/__init__.py
 mo/moc_frontend/extractor.py
+mo/moc_frontend/mean_scale.py
 mo/moc_frontend/pipeline.py
 mo/moc_frontend/serialize.py
 mo/ops/__init__.py

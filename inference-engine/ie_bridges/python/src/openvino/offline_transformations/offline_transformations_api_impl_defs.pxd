@@ -27,10 +27,13 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
         int shape_size;
 
     ctypedef shared_ptr[ConstantInfo] ConstantInfoPtr
+
     cdef ConstantInfoPtr CreateConstantInfo(vector[float], int, int)
+
     cdef ConstantInfoPtr CreateEmptyConstantInfo()
 
     cdef void ApplyScaleInputs(IENetwork network, const map[string, ConstantInfoPtr]& values)
+
     cdef void ApplySubtractMeanInputs(IENetwork network, const map[string, ConstantInfoPtr]& values)
 
     cdef void CheckAPI()

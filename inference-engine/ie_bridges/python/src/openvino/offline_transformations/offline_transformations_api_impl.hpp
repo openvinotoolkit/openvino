@@ -24,12 +24,11 @@ void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 void GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names);
 
 struct ConstantInfo {
-    ConstantInfo(const std::vector<float>& data_, int axis_, int shape_size_):
-    data(data_), axis(axis_), shape_size(shape_size_) {}
+    ConstantInfo(const std::vector<float>& data_, int axis_, int shape_size_): data(data_), axis(axis_), shape_size(shape_size_) {}
     ConstantInfo() = default;
     std::vector<float> data = {};
     int axis = 0;
-    int shape_size = 0; // for {1,3,1,1} shape shape_size shall be 4
+    int shape_size = 0;  // for {1,3,1,1} shape shape_size shall be 4
 };
 
 using ConstantInfoPtr = std::shared_ptr<ConstantInfo>;
@@ -37,11 +36,9 @@ using ConstantInfoPtr = std::shared_ptr<ConstantInfo>;
 ConstantInfoPtr CreateConstantInfo(const std::vector<float>& data_, int axis_, int shape_size_);
 ConstantInfoPtr CreateEmptyConstantInfo();
 
-void ApplyScaleInputs(InferenceEnginePython::IENetwork network,
-                      const std::map<std::string, ConstantInfoPtr>& values);
+void ApplyScaleInputs(InferenceEnginePython::IENetwork network, const std::map<std::string, ConstantInfoPtr>& values);
 
-void ApplySubtractMeanInputs(InferenceEnginePython::IENetwork network,
-                             const std::map<std::string, ConstantInfoPtr>& values);
+void ApplySubtractMeanInputs(InferenceEnginePython::IENetwork network, const std::map<std::string, ConstantInfoPtr>& values);
 
 void CheckAPI();
 
