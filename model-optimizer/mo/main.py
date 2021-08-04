@@ -107,7 +107,7 @@ def prepare_ir(argv: argparse.Namespace):
                 moc_front_end = fem.load_by_model(argv.input_model)
                 if moc_front_end:
                     argv.framework = moc_front_end.get_name()
-            else:
+            elif argv.framework in available_moc_front_ends:
                 moc_front_end = fem.load_by_framework(argv.framework)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
