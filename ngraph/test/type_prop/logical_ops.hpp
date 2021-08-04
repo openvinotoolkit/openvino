@@ -48,7 +48,7 @@ namespace
         auto input2 = std::make_shared<ngraph::op::Parameter>(type, shape2);
         try
         {
-            auto logical_or = std::make_shared<T>(input1, input2);
+            auto op = std::make_shared<T>(input1, input2);
         }
         catch (const ngraph::NodeValidationFailure& error)
         {
@@ -57,7 +57,7 @@ namespace
     }
 } // namespace
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_f32)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_f32)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -65,7 +65,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_f32)
         "Operands for logical operators must have boolean element type but have element type f32");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_f64)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_f64)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -73,7 +73,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_f64)
         "Operands for logical operators must have boolean element type but have element type f64");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_i32)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_i32)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -81,7 +81,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_i32)
         "Operands for logical operators must have boolean element type but have element type i32");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_i64)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_i64)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -89,7 +89,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_i64)
         "Operands for logical operators must have boolean element type but have element type i64");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_u32)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_u32)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -97,7 +97,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_u32)
         "Operands for logical operators must have boolean element type but have element type u32");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_u64)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_type_u64)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(
@@ -105,7 +105,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_type_u64)
         "Operands for logical operators must have boolean element type but have element type u64");
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_shape)
+TYPED_TEST_P(LogicalOperatorTypeProp, incorrect_shape)
 {
     using OP_Type = typename TypeParam::op_type;
     incorrect_init<OP_Type>(ngraph::element::boolean,
@@ -114,7 +114,7 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_incorrect_shape)
                             ngraph::Shape{1, 2, 3});
 }
 
-TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_broadcast)
+TYPED_TEST_P(LogicalOperatorTypeProp, broadcast)
 {
     using OP_Type = typename TypeParam::op_type;
 
@@ -130,11 +130,11 @@ TYPED_TEST_P(LogicalOperatorTypeProp, logical_or_broadcast)
 }
 
 REGISTER_TYPED_TEST_SUITE_P(LogicalOperatorTypeProp,
-                            logical_or_broadcast,
-                            logical_or_incorrect_type_f32,
-                            logical_or_incorrect_type_f64,
-                            logical_or_incorrect_type_i32,
-                            logical_or_incorrect_type_i64,
-                            logical_or_incorrect_type_u32,
-                            logical_or_incorrect_type_u64,
-                            logical_or_incorrect_shape);
+                            broadcast,
+                            incorrect_type_f32,
+                            incorrect_type_f64,
+                            incorrect_type_i32,
+                            incorrect_type_i64,
+                            incorrect_type_u32,
+                            incorrect_type_u64,
+                            incorrect_shape);
