@@ -9,6 +9,7 @@
 #include "cldnn/runtime/error_handler.hpp"
 #include "cldnn/runtime/event.hpp"
 #include "cldnn/runtime/memory.hpp"
+#include "cldnn/graph/network.hpp"
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
 #include "program_node.h"
@@ -20,7 +21,6 @@
 
 namespace cldnn {
 
-struct network_impl;
 class primitive_inst;
 
 template <class PType>
@@ -86,7 +86,7 @@ public:
     bool can_be_optimized() const { return _node.can_be_optimized(); }
     std::shared_ptr<const primitive> desc() const { return _node.get_primitive(); }
     program_node const& get_node() const { return _node; }
-    network_impl& get_network() const { return _network; }
+    network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     void set_output_memory(memory::ptr mem);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
@@ -141,9 +141,9 @@ public:
     }
 
 protected:
-    primitive_inst(network_impl& network, program_node const& node, bool allocate_memory);
+    primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
-    network_impl& _network;
+    network& _network;
     program_node const& _node;
 
     std::unique_ptr<primitive_impl> _impl;
@@ -242,14 +242,14 @@ public:
     const typed_node& node;
     const PType& argument;
 
-    typed_primitive_inst_base(network_impl& network, typed_node const& node)
+    typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
 protected:
-    typed_primitive_inst_base(network_impl& network, typed_node const& node, bool allocate_memory)
+    typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
         : primitive_inst(network, node, allocate_memory), node(_node), argument(*node.get_primitive()) {}
 
-    typed_primitive_inst_base(network_impl& network, typed_node const& node, memory::ptr buffer)
+    typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {
         _output = buffer;
     }

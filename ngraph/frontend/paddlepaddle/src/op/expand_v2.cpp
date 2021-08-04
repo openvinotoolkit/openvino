@@ -61,7 +61,11 @@ namespace ngraph
                         fixed_shape_node, input_shape_node, false);
 
                     return node.default_single_output_mapping(
-                        {std::make_shared<ngraph::opset6::Tile>(x, repeated_node)}, {"Out"});
+                        {std::make_shared<ngraph::opset6::Tile>(
+                            x,
+                            std::make_shared<ngraph::opset6::Convert>(repeated_node,
+                                                                      element::i64))},
+                        {"Out"});
                 }
 
             } // namespace op
