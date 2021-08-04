@@ -91,7 +91,9 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
                     size_t offset = imageId * numChannels * width * height + (((app_info.layout == "NCHW") || (app_info.layout == "CHW"))
                                                                                   ? (ch * width * height + h * width + w)
                                                                                   : (h * width * numChannels + w * numChannels + ch));
-                    inputBlobData[offset] = static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]);
+                    inputBlobData[offset] =
+                        (static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]) - static_cast<T>(app_info.mean[ch])) /
+                        static_cast<T>(app_info.scale[ch]);
                 }
             }
         }

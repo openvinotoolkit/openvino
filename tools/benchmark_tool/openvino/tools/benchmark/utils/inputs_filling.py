@@ -126,6 +126,9 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
     shape = info.shape
     images = np.ndarray(shape)
     image_index = request_id * batch_size * input_size + input_id
+
+    scale_mean = (not np.array_equal(info.scale, (1.0, 1.0, 1.0)) or not np.array_equal(info.mean, (0.0, 0.0, 0.0)))
+
     for b in range(batch_size):
         image_index %= len(image_paths)
         image_filename = image_paths[image_index]
@@ -135,8 +138,20 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
         if image.shape[:-1] != new_im_size:
             logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
             image = cv2.resize(image, new_im_size)
+
+        if scale_mean:
+            blue, green, red = cv2.split(image)
+            blue = np.subtract(blue, info.mean[0])
+            blue = np.divide(blue, info.scale[0])
+            green = np.subtract(green, info.mean[1])
+            green = np.divide(green, info.scale[1])
+            red = np.subtract(red, info.mean[2])
+            red = np.divide(red, info.scale[2])
+            image = cv2.merge([blue, green, red])
+
         if info.layout in ['NCHW', 'CHW']:
             image = image.transpose((2, 0, 1))
+
         images[b] = image
 
         image_index += input_size

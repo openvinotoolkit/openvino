@@ -380,7 +380,7 @@ int main(int argc, char* argv[]) {
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
             bool reshape = false;
-            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, FLAGS_iscale, FLAGS_imean, inputInfo, reshape);
             if (reshape) {
                 InferenceEngine::ICNNNetwork::InputShapes shapes = {};
                 for (auto& item : app_inputs_info)
@@ -441,7 +441,7 @@ int main(int argc, char* argv[]) {
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS, {{"import network time (ms)", duration_ms}});
-            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, FLAGS_iscale, FLAGS_imean, exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }

@@ -130,6 +130,12 @@ def parse_args():
                       help="Optional. Enable model caching to specified directory")
     args.add_argument('-lfile', '--load_from_file', required=False, nargs='?', default=argparse.SUPPRESS,
                       help="Optional. Loads model from file directly without read_network.")
+    args.add_argument('-iscale', '--input_scale', type=str, required=False, default='',
+                      help="Optional. Scale values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -iscale data[255,255,255],info[255,255,255]\n")
+    args.add_argument('-imean', '--input_mean', type=str, required=False, default='',
+                      help="Optional. Mean values to be used for the input image per channel.\n Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                           "Example: -imean data[255,255,255],info[255,255,255]\n")
     parsed_args = parser.parse_args()
 
     return parsed_args

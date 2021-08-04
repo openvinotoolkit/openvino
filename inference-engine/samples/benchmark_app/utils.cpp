@@ -88,6 +88,17 @@ std::vector<std::string> split(const std::string& s, char delim) {
     return result;
 }
 
+std::vector<float> splitFloat(const std::string& s, char delim) {
+    std::vector<float> result;
+    std::stringstream ss(s);
+    std::string item;
+
+    while (getline(ss, item, delim)) {
+        result.push_back(std::stof(item));
+    }
+    return result;
+}
+
 std::vector<std::string> parseDevices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     if (comma_separated_devices.find(":") != std::string::npos) {
@@ -159,6 +170,44 @@ std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& sha
         ss << "]";
     }
     return ss.str();
+}
+
+std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& scale_mean, const benchmark_app::InputsInfo& inputs_info) {
+    //  Format: data:[255,255,255],info[255,255,255]
+    std::map<std::string, std::vector<float>> return_value;
+
+    std::string search_string = scale_mean;
+    auto start_pos = search_string.find_first_of('[');
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        auto input_name = search_string.substr(0, start_pos);
+        auto input_value_string = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        auto input_value = splitFloat(input_value_string, ',');
+
+        if (!input_name.empty()) {
+            if (inputs_info.count(input_name)) {
+                return_value[input_name] = input_value;
+            }
+            // ignore wrong input name
+        } else {
+            for (auto& item : inputs_info) {
+                if (item.second.isImage())
+                    return_value[item.first] = input_value;
+            }
+            search_string.clear();
+            break;
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || search_string.front() != ',')
+            break;
+        search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse input parameter string: " + scale_mean);
+    return return_value;
 }
 
 #ifdef USE_OPENCV
