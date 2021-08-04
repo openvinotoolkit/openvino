@@ -140,8 +140,6 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
             image = cv2.resize(image, new_im_size)
 
         if scale_mean:
-            print("info scale: ", info.scale)
-            print("info mean: ", info.mean)
             blue, green, red = cv2.split(image)
             blue = np.subtract(blue, info.mean[0])
             blue = np.divide(blue, info.scale[0])
