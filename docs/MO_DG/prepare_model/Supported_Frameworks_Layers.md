@@ -519,3 +519,67 @@ Standard ONNX\* operators:
 | Upsample | No |
 | Where | No |
 | Xor | No |
+
+
+## PaddlePaddle\* Supported Operators
+
+Standard PaddlePaddle(paddlepaddle>=2.1)\* Operators:
+
+| Operator Name in PaddlePaddle\*| Limitations|
+| :----------| :----------|
+| adpative_pool2d | 'NHWC' data_layout is not supported |
+| arg_max | 'int32' output data_type is not supported |
+| assign_value | No |
+| batch_norm | No |
+| bilinear_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| bilinear_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| bmm | No |
+| cast | No |
+| clip | No |
+| concat | No |
+| conv2d | 'NHWC' data_layout is not supported |
+| depthwise_conv2d | 'NHWC' data_layout is not supported |
+| deformable_conv | No |
+| elementwise_add | No |
+| elementwise_div | No |
+| elementwise_max | No |
+| elementwise_min | No |
+| elementwise_mul | No |
+| elementwise_pow | No |
+| elementwise_sub | No |
+| equal | No |
+| expand_v2 | No |
+| fill_constant_batch_size_like | No |
+| fill_constant | No |
+| flatten_contiguous_range | No |
+| greater_equal | No |
+| hard_sigmoid | No |
+| hard_swish | No |
+| leaky_relu | No |
+| log | No |
+| logical_not | No |
+| matmul | No |
+| matrix_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| max_pool2d_with_index | No |
+| mul | No |
+| multiclass_nms | Only supports IE CPU plugin with 'number of selected boxes' static shape(eg: min(min(num_boxes, nms_top_k) * num_classes_output, keep_top_k)) |
+| nearest_interp | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| nearest_interp_v2 | 'NCW' 'NWC' 'NHWC' 'NCDHW' 'NDHWC' data_layout are not supported |
+| pad3d | 'Circular' mode is not supported |
+| pow | No |
+| pool2d | 'NHWC' data_layout is not supported |
+| range | No |
+| relu | No |
+| relu6 | No |
+| reshape2 | No |
+| rnn | 'SimpleRNN' and 'GRU' modes are not supported |
+| scale | No |
+| shape | No |
+| slice | No |
+| softmax | No |
+| sigmoid | No |
+| split | No |
+| squeeze2 | No |
+| transpose2 | No |
+| unsqueeze2 | No |
+| yolo_box | No |
