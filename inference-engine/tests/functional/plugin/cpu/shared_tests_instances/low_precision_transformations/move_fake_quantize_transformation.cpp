@@ -13,12 +13,11 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    // ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
-    //LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
 const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
@@ -30,10 +29,10 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "relu",
-        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+        { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
         {},
         {},
-        "Concat",
+        "Concatenation",
         "U8"
     },
     /*{
@@ -104,7 +103,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
 
 const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 16, 16 },
-    //{ 4, 3, 16, 16 }
+    { 4, 3, 16, 16 }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
