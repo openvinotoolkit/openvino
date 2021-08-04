@@ -32,7 +32,7 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 
 2. Run test:
 ``` bash
-./scripts/run_timetest.py ../../bin/intel64/Release/timetest_infer -m model.xml -d CPU
+./utils/scripts/run_test.py ../../bin/intel64/Release/timetest_infer -m model.xml -d CPU
 ```
 
 2. Run several configurations using `pytest`:
@@ -40,6 +40,6 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 pytest ./test_runner/test_timetest.py --exe ../../bin/intel64/Release/timetest_infer
 
 # For parse_stat testing:
-pytest ./scripts/run_timetest.py
+pytest ./utils/scripts/run_test.py
 ```
 

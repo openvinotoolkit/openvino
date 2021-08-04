@@ -64,7 +64,7 @@ public:
   void write() {
     if (!statistics_file)
       throw std::runtime_error("Statistic file path isn't set");
-    for (auto& mem_counter: mem_struct_order) {
+    for (auto& mem_counter: mem_structure) {
       statistics_file << mem_counter.first << ":" << '\n'
                       << SEPARATOR << "vmrss: " << mem_counter.second[0] << '\n'
                       << SEPARATOR << "vmhwm: " << mem_counter.second[1] << '\n'

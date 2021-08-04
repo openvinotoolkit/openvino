@@ -23,11 +23,11 @@ import os
 import shutil
 import sys
 import tempfile
+from copy import deepcopy
+from pathlib import Path
+
 import pytest
 import yaml
-from copy import deepcopy
-
-from pathlib import Path
 from jsonschema import validate, ValidationError
 
 UTILS_DIR = Path(__file__).parent.parent

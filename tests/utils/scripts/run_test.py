@@ -63,8 +63,12 @@ def run_test(args: dict, log=None):
 
         log.debug("Statistics after run of executable #{}: {}".format(run_iter, stats_parser.executor.last_stats))
 
+    # Filter results
+    stats_parser.filter_stats()
+
     # Aggregate results
     stats_parser.aggregate_stats()
+
     log.debug("Aggregated statistics after full run: {}".format(stats_parser.executor.aggregated_stats))
 
     return 0, "", stats_parser.executor.aggregated_stats, stats_parser.executor.combined_stats

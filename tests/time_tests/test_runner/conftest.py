@@ -23,18 +23,19 @@ import os
 import shutil
 import sys
 import tempfile
+from pathlib import Path
+
 import pytest
 import yaml
-
-from pathlib import Path
 from jsonschema import validate, ValidationError
 
-TIME_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
-sys.path.append(TIME_TESTS_DIR)
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
+TEST_CONF_DEFAULT_PATH = os.path.join(Path(__file__).parent.parent.parent, "test_runner", "test_config.yml")
+sys.path.insert(0, str(UTILS_DIR))
 
-from scripts.run_timetest import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    get_cpu_info, DATABASE, DB_COLLECTIONS
+from scripts.run_test import check_positive_int
+from platform_utils import get_os_name, get_os_version, get_cpu_info
+from test_runner.utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
 
 
 # -------------------- CLI options --------------------
@@ -47,7 +48,7 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="path to a test config",
-        default=Path(__file__).parent / "test_config.yml"
+        default=TEST_CONF_DEFAULT_PATH
     )
     test_args_parser.addoption(
         "--exe",
@@ -82,8 +83,15 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in "{}" database'.format(DATABASE),
+        help='collection name in database',
         choices=DB_COLLECTIONS
+    )
+    db_args_parser.addoption(
+        '--db_name',
+        type=str,
+        required=is_db_used,
+        help='database name',
+        choices=DATABASES
     )
     db_args_parser.addoption(
         '--db_metadata',
@@ -402,6 +410,7 @@ def pytest_runtest_makereport(item, call):
                 data["status"] = "passed"
 
         db_url = item.config.getoption("db_url")
+        db_name = item.config.getoption("db_name")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
-        upload_timetest_data(data, db_url, db_collection)
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, data))
+        upload_data(data, db_url, db_name, db_collection)

@@ -19,8 +19,8 @@ import logging
 import os
 import shutil
 
-from scripts.run_timetest import run_timetest
-from test_runner.utils import expand_env_vars
+from scripts.run_test import run_test
+from path_utils import expand_env_vars
 
 REFS_FACTOR = 1.2      # 120%
 
@@ -57,14 +57,14 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "niter": niter
     }
     logging.info("Run timetest once to generate any cache")
-    retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
+    retcode, msg, _, _ = run_test({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"
     if cl_cache_dir:
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
     if model_cache_dir:
         assert os.listdir(model_cache_dir), "model_cache isn't generated"
 
-    retcode, msg, aggr_stats, raw_stats = run_timetest(exe_args, log=logging)
+    retcode, msg, aggr_stats, raw_stats = run_test(exe_args, log=logging)
     assert retcode == 0, f"Run of executable failed: {msg}"
 
     # Add timetest results to submit to database and save in new test conf as references
