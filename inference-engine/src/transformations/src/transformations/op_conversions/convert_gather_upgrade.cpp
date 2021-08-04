@@ -17,36 +17,25 @@ NGRAPH_RTTI_DEFINITION(pass::ConvertGather1ToGather7, "ConvertGather1ToGather7",
 NGRAPH_RTTI_DEFINITION(pass::ConvertGather7ToGather8, "ConvertGather7ToGather8", 0);
 
 
-template<class SrcOpClass, class DstOpClass>
-bool upgrade_gather(ngraph::pattern::Matcher& m,
-                      const std::function<std::shared_ptr<DstOpClass>(const std::shared_ptr<SrcOpClass>&)> &dst_node_builder) {
-    auto src_node = std::dynamic_pointer_cast<SrcOpClass>(m.get_match_root());
-    if (!src_node)
-        return false;
-
-    auto dst_node = std::dynamic_pointer_cast<DstOpClass>(dst_node_builder(src_node));
-    if (!dst_node)
-        return false;
-
-    dst_node->set_friendly_name(src_node->get_friendly_name());
-    ngraph::copy_runtime_info(src_node, dst_node);
-    ngraph::replace_node(src_node, dst_node);
-    return true;
-}
-
 pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     MATCHER_SCOPE(ConvertGather1ToGather7);
 
     auto gather_v1_pattern = pattern::wrap_type<opset1::Gather>();
-    auto gather_v7_builder = [=](const std::shared_ptr<opset1::Gather>& gather_v1_node){
-        return make_shared<opset7::Gather>(gather_v1_node->input_value(0),
-                                           gather_v1_node->input_value(1),
-                                           gather_v1_node->input_value(2),
-                                           0);
-    };
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        return upgrade_gather<opset1::Gather, opset7::Gather>(m, gather_v7_builder);
+        auto gather_v1_node = std::dynamic_pointer_cast<opset1::Gather>(m.get_match_root());
+        if (!gather_v1_node)
+            return false;
+
+        auto gather_v7_node = make_shared<opset7::Gather>(gather_v1_node->input_value(0),
+                                                          gather_v1_node->input_value(1),
+                                                          gather_v1_node->input_value(2),
+                                                          0);
+
+        gather_v7_node->set_friendly_name(gather_v1_node->get_friendly_name());
+        ngraph::copy_runtime_info(gather_v1_node, gather_v7_node);
+        ngraph::replace_node(gather_v1_node, gather_v7_node);
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(gather_v1_pattern, matcher_name);
@@ -57,15 +46,21 @@ pass::ConvertGather7ToGather8::ConvertGather7ToGather8() {
     MATCHER_SCOPE(ConvertGather7ToGather8);
 
     auto gather_v7_pattern = pattern::wrap_type<opset7::Gather>();
-    auto gather_v8_builder = [=](const std::shared_ptr<opset7::Gather>& gather_v7_node){
-        return make_shared<opset8::Gather>(gather_v7_node->input_value(0),
-                                           gather_v7_node->input_value(1),
-                                           gather_v7_node->input_value(2),
-                                           gather_v7_node->get_batch_dims());
-    };
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        return upgrade_gather<opset7::Gather, opset8::Gather>(m, gather_v8_builder);
+        auto gather_v7_node = std::dynamic_pointer_cast<opset7::Gather>(m.get_match_root());
+        if (!gather_v7_node)
+            return false;
+
+        auto gather_v8_node = make_shared<opset8::Gather>(gather_v7_node->input_value(0),
+                                                          gather_v7_node->input_value(1),
+                                                          gather_v7_node->input_value(2),
+                                                          gather_v7_node->get_batch_dims());
+
+        gather_v8_node->set_friendly_name(gather_v7_node->get_friendly_name());
+        ngraph::copy_runtime_info(gather_v7_node, gather_v8_node);
+        ngraph::replace_node(gather_v7_node, gather_v8_node);
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(gather_v7_pattern, matcher_name);

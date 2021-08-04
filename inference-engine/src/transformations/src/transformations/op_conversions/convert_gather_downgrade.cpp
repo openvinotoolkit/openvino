@@ -17,40 +17,26 @@ NGRAPH_RTTI_DEFINITION(pass::ConvertGather7ToGather1, "ConvertGather7ToGather1",
 NGRAPH_RTTI_DEFINITION(pass::ConvertGather8ToGather7, "ConvertGather8ToGather7", 0);
 
 
-template<class SrcOpClass, class DstOpClass>
-bool downgrade_gather(ngraph::pattern::Matcher& m,
-                       const std::function<std::shared_ptr<DstOpClass>(const std::shared_ptr<SrcOpClass>&)> &dst_node_builder) {
-    auto src_node = std::dynamic_pointer_cast<SrcOpClass>(m.get_match_root());
-    if (!src_node)
-        return false;
-
-    auto dst_node = std::dynamic_pointer_cast<DstOpClass>(dst_node_builder(src_node));
-    if (!dst_node)
-        return false;
-
-    dst_node->set_friendly_name(src_node->get_friendly_name());
-    ngraph::copy_runtime_info(src_node, dst_node);
-    ngraph::replace_node(src_node, dst_node);
-    return true;
-}
-
 pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
 
     auto gather_v7_pattern = pattern::wrap_type<opset7::Gather>();
-    auto gather_v1_builder = [=] (const shared_ptr<opset7::Gather>& gather_v7_node) {
-        shared_ptr<opset1::Gather> gather_v1 = nullptr;
-
-        if (gather_v7_node->get_batch_dims() == 0) {
-            gather_v1 = make_shared<opset1::Gather>(gather_v7_node->input_value(0),
-                                                    gather_v7_node->input_value(1),
-                                                    gather_v7_node->input_value(2));
-        }
-        return gather_v1;
-    };
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        return downgrade_gather<opset7::Gather, opset1::Gather>(m, gather_v1_builder);
+        auto gather_v7_node = std::dynamic_pointer_cast<opset7::Gather>(m.get_match_root());
+        if (!gather_v7_node)
+            return false;
+        if (gather_v7_node->get_batch_dims() != 0)
+            return false;
+
+        auto gather_v1_node = make_shared<opset1::Gather>(gather_v7_node->input_value(0),
+                                                          gather_v7_node->input_value(1),
+                                                          gather_v7_node->input_value(2));
+
+        gather_v1_node->set_friendly_name(gather_v7_node->get_friendly_name());
+        ngraph::copy_runtime_info(gather_v7_node, gather_v1_node);
+        ngraph::replace_node(gather_v7_node, gather_v1_node);
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(gather_v7_pattern, matcher_name);
@@ -61,15 +47,21 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
     MATCHER_SCOPE(ConvertGather8ToGather7);
 
     auto gather_v8_pattern = pattern::wrap_type<opset8::Gather>();
-    auto gather_v7_builder = [=] (const shared_ptr<opset8::Gather>& gather_v8_node) {
-        return make_shared<opset7::Gather>(gather_v8_node->input_value(0),
-                                           gather_v8_node->input_value(1),
-                                           gather_v8_node->input_value(2),
-                                           gather_v8_node->get_batch_dims());
-    };
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        return downgrade_gather<opset8::Gather, opset7::Gather>(m, gather_v7_builder);
+        auto gather_v8_node = std::dynamic_pointer_cast<opset8::Gather>(m.get_match_root());
+        if (!gather_v8_node)
+            return false;
+
+        auto gather_v7_node = make_shared<opset7::Gather>(gather_v8_node->input_value(0),
+                                                          gather_v8_node->input_value(1),
+                                                          gather_v8_node->input_value(2),
+                                                          gather_v8_node->get_batch_dims());
+
+        gather_v7_node->set_friendly_name(gather_v8_node->get_friendly_name());
+        ngraph::copy_runtime_info(gather_v8_node, gather_v7_node);
+        ngraph::replace_node(gather_v8_node, gather_v7_node);
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(gather_v8_pattern, matcher_name);
