@@ -22,7 +22,7 @@ namespace ngraph
                     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
                     std::shared_ptr<ngraph::Node> alpha_node =
-                        default_opset::Constant::create(data.get_element_type(), Shape{}, {alpha});
+                        default_opset::Constant::create(data.get_element_type(), Shape{1}, {alpha});
                     return {std::make_shared<default_opset::PRelu>(data, alpha_node)};
                 }
 
