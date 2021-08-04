@@ -23,12 +23,14 @@
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
+#include "loop_inst.h"
 #include "kernel_selector_helper.h"
 #include "runtime/cldnn_itt.hpp"
 
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stack>
 #include <memory>
 #include <set>
 #include <utility>
@@ -216,6 +218,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     build_insts_deps();
     build_exec_order();
     validate_primitives();
+    add_default_output_chains();
 }
 
 network::network(engine& engine,
@@ -312,23 +315,110 @@ void network::set_input_data(const primitive_id& id, memory::ptr data) {
     input->set_data(data);
 }
 
-void network::set_output_memory(const primitive_id& id, memory::ptr mem) {
-    std::shared_ptr<primitive_inst> primitive_inst;
+void network::add_default_output_chains() {
+    for (auto& output : _outputs) {
+        add_output_chain(output);
+    }
+}
 
-    primitive_inst = find_primitive(id);
+network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst) {
+    std::vector<std::shared_ptr<primitive_inst>> chain;
+    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+    auto& eng = get_engine();
+    const auto& mem_orig = p_inst->output_memory();
 
-    if (primitive_inst == nullptr)
+    auto add_mdata_chain = [&](std::shared_ptr<primitive_inst>& p_inst) {
+        auto mdata_ptr = std::dynamic_pointer_cast<mutable_data_inst>(p_inst);
+        if (!mdata_ptr)
+            return;
+        // special handling for mutable data, which can share
+        // its attached memory with both its inputs and outputs
+        for (auto& dep : p_inst->dependencies()) {
+            // check dependencies
+            if (eng.is_the_same_buffer(mem_orig, dep->output_memory())) {
+                chain.push_back(std::const_pointer_cast<primitive_inst>(dep));
+            }
+            // then second order dependencies
+            for (auto& second_dep : dep->dependencies()) {
+                if (eng.is_the_same_buffer(mem_orig, second_dep->output_memory())) {
+                    chain.push_back(std::const_pointer_cast<primitive_inst>(second_dep));
+                }
+            }
+        }
+
+        //then users
+        const auto& users = p_inst->get_users();
+        for (const auto& usr : users) {
+            auto usr_prim = get_primitive(usr->id());
+            if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
+                chain.push_back(usr_prim);
+            }
+        }
+    };
+
+    if (p_inst->can_be_optimized()) {
+        candidates.push(p_inst);
+    } else {
+        chain.push_back(p_inst);
+    }
+    add_mdata_chain(p_inst);
+
+    // find all dependencies that are 'optimized'
+    while (!candidates.empty()) {
+        auto& cand = candidates.top();
+        candidates.pop();
+        const auto& mem_cand = cand->output_memory();
+        if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
+            auto nc_cand = std::const_pointer_cast<primitive_inst>(cand);
+            chain.push_back(nc_cand);
+            add_mdata_chain(nc_cand);
+        }
+
+        for (auto& dep : cand->dependencies()) {
+            if (dep->can_be_optimized()) {
+                candidates.push(dep);
+            } else {
+                const auto& mem_dep = dep->output_memory();
+                if (eng.is_the_same_buffer(mem_orig, mem_dep)) {
+                    auto nc_dep = std::const_pointer_cast<primitive_inst>(dep);
+                    chain.push_back(nc_dep);
+                    add_mdata_chain(nc_dep);
+                }
+            }
+        }
+    }
+
+    std::sort(chain.begin(), chain.end());
+    chain.erase(std::unique(chain.begin(), chain.end()), chain.end());
+    return _output_chains.insert({ p_inst->id(), chain }).first;
+}
+
+void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+    std::shared_ptr<primitive_inst> p_inst;
+
+    p_inst = find_primitive(id);
+
+    if (!p_inst)
         throw std::runtime_error("topology doesn't contain primitive: " + id);
 
-    auto iter = std::find(_outputs.begin(), _outputs.end(), primitive_inst);
+    auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
         throw std::runtime_error("primitive: " + id + " is not a network output");
 
-    auto output = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-
     // Wait for previous execution completion
     reset_execution(true);
-    output->set_output_memory(mem);
+
+    auto& eng = get_engine();
+    // locate primitive chain for this output
+    // if no chain found - add it
+    auto o_iter = _output_chains.find(id);
+    if (o_iter == _output_chains.end()) {
+        o_iter = add_output_chain(p_inst);
+    }
+
+    for (auto& prim : o_iter->second) {
+        prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
+    }
 }
 
 void cldnn::network::check_names() {

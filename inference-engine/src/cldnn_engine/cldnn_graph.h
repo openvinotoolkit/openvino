@@ -51,8 +51,10 @@ public:
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
+    std::mutex& get_mutex() { return m_infer_mutex; }
 
 protected:
+    std::mutex m_infer_mutex;
     std::string m_networkName;
     Config m_config;
 
