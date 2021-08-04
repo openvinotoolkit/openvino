@@ -15,9 +15,9 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     std::vector<std::pair<size_t, size_t>> inputShape;
-    InferenceEngine::SizeVector targetShape;
+    std::vector<InferenceEngine::SizeVector> targetShapes;
     std::string targetDevice;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) =
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
         obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
@@ -27,7 +27,7 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "TS=" << CommonTestUtils::vec2str(targetShape) << "_";
+    result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -47,15 +47,20 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
     std::vector<std::pair<size_t, size_t>> inputShape;
-    auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetStaticShape, targetDevice) =
+    std::vector<InferenceEngine::SizeVector> targetShapes;
+    std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShapes, targetDevice) =
         this->GetParam();
-    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShape);
-    ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels;
+    for (auto&& targetShape : targetShapes) {
+        targetStaticShapes.emplace_back(targetShape);
+    }
+    inputDynamicShape = FuncTestUtils::PartialShapeUtils::vec2partialshape(inputShape, targetStaticShapes[0]);
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+
+    setTargetStaticShape(targetStaticShapes[0]);
+    makeConvolutionFunction();
+}
+
+void ConvolutionLayerTest::makeConvolutionFunction() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

@@ -47,10 +47,13 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
-        GenerateInputs();
-        Infer();
-        Validate();
-        s.updateOPsStats(function, PassRate::Statuses::PASSED);
+        for (auto&& tss : targetStaticShapes) {
+            setTargetStaticShape(tss);
+            GenerateInputs();
+            Infer();
+            Validate();
+            s.updateOPsStats(function, PassRate::Statuses::PASSED);
+        }
     }
     catch (const std::runtime_error &re) {
         s.updateOPsStats(function, PassRate::Statuses::FAILED);
@@ -494,6 +497,10 @@ std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
 
 std::map<std::string, std::string> &LayerTestsCommon::GetConfiguration() {
     return configuration;
+}
+
+void LayerTestsCommon::setTargetStaticShape(ngraph::Shape& desiredTargetStaticShape) {
+    targetStaticShape = desiredTargetStaticShape;
 }
 
 }  // namespace LayerTestsUtils

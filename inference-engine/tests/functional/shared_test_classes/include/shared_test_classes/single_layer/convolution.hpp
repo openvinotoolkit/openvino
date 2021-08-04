@@ -33,7 +33,7 @@ typedef std::tuple<
         InferenceEngine::Layout,                // Input layout
         InferenceEngine::Layout,                // Output layout
         std::vector<std::pair<size_t, size_t>>, // Input shape
-        std::vector<size_t>,                    // target shape
+        std::vector<std::vector<size_t>>,       // target shapes
         LayerTestsUtils::TargetDevice           // Device name
 > convLayerTestParamsSet;
 
@@ -44,6 +44,14 @@ public:
 
 protected:
     void SetUp() override;
+    void makeConvolutionFunction();
+
+private:
+    InferenceEngine::Precision::ePrecision netPrecision = InferenceEngine::Precision::UNSPECIFIED;
+    ngraph::op::PadType padType;
+    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<ptrdiff_t> padBegin, padEnd;
+    size_t convOutChannels;
 };
 // ! [test_convolution:definition]
 

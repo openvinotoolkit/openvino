@@ -142,6 +142,9 @@ protected:
     std::shared_ptr<InferenceEngine::Core> core;
     ngraph::PartialShape inputDynamicShape;
     ngraph::Shape targetStaticShape;
+    std::vector<ngraph::Shape> targetStaticShapes;
+
+    virtual void setTargetStaticShape(ngraph::Shape& targetStaticShape);
 
     virtual void Validate();
 
