@@ -61,6 +61,8 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                 return false;
             }
 
+            // Convolution+Add or MatMul+Add can be fused later
+            // so don't fuse Add+FQ in that situation
             const auto& add_inputs = add_node->input_values();
             bool add_parent_is_conv_or_mm = std::any_of(add_inputs.begin(), add_inputs.end(),
                                                         [] (const Output<Node>& node) -> bool {
