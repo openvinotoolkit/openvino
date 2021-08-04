@@ -121,10 +121,12 @@ class TestMainFrontend(unittest.TestCase):
             group(1).replace("\r", "")
         assert xml_file and bin_file
 
-        # verify that 'convert' and 'supported' was called
+        # verify that 'convert', 'supported' and 'get_name' were called
         stat = get_frontend_statistic()
         assert stat.convert_model == 1
         assert stat.supported == 1
+        assert stat.get_name > 0
+
         # verify that meta info is added to XML file
         with open(xml_file) as file:
             assert 'mock_mo_ngraph_frontend' in file.read()

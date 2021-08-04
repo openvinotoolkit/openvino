@@ -394,10 +394,12 @@ struct MOCK_API FeStat
     std::vector<std::string> m_load_paths;
     int m_convert_model = 0;
     int m_supported = 0;
+    int m_get_name = 0;
     // Getters
     std::vector<std::string> load_paths() const { return m_load_paths; }
     int convert_model() const { return m_convert_model; }
     int supported() const { return m_supported; }
+    int get_name() const { return m_get_name; }
 };
 
 /// \brief Mock implementation of FrontEnd
@@ -443,5 +445,11 @@ private:
             }
         }
         return false;
+    }
+
+    std::string get_name() const override
+    {
+        m_stat.m_get_name++;
+        return "mock_mo_ngraph_frontend";
     }
 };

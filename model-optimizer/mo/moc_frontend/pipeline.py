@@ -74,7 +74,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     def shape_to_array(shape: PartialShape):
         return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
-        return
 
     # Set batch size
     if argv.batch is not None and argv.batch > 0:

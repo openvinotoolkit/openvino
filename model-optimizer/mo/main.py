@@ -100,18 +100,13 @@ def prepare_ir(argv: argparse.Namespace):
     fem = argv.feManager
     available_moc_front_ends = []
     moc_front_end = None
-    if fem is not None:  # in future, check of 'use_legacy_frontend' in argv can be added here
+    if fem:  # in future, check of 'use_legacy_frontend' in argv can be added here
         available_moc_front_ends = fem.get_available_front_ends()
         if argv.input_model:
             if not argv.framework:
-                for fe_name in available_moc_front_ends:
-                    try:
-                        fe = fem.load_by_framework(fe_name)
-                        if fe.supported(argv.input_model):
-                            moc_front_end = fe
-                            argv.framework = fe_name
-                    except:
-                        pass
+                moc_front_end = fem.load_by_model(argv.input_model)
+                if moc_front_end:
+                    argv.framework = moc_front_end.get_name()
             else:
                 moc_front_end = fem.load_by_framework(argv.framework)
 
@@ -448,5 +443,5 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    fem = FrontEndManager()
-    sys.exit(main(get_all_cli_parser(fem), fem, None))
+    fe_manager = FrontEndManager()
+    sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))
