@@ -10,7 +10,7 @@
 #include "fully_connected_inst.h"
 #include "data_inst.h"
 #include "cldnn/runtime/memory.hpp"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 
 #include <vector>
 #include <tuple>
@@ -111,7 +111,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
 
 }  // namespace
 
-void concat_input_order::run(program_impl& p) {
+void concat_input_order::run(program& p) {
     for (auto node : p.get_processing_order()) {
         // Check that optimization can be performed:
         // 1. Not an output

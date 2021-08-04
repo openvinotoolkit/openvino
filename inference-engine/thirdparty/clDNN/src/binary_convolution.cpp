@@ -66,7 +66,7 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     return primitive_description.str();
 }
 
-binary_convolution_inst::typed_primitive_inst(network_impl& network, binary_convolution_node const& node)
+binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
     auto stride = argument.stride;
 
