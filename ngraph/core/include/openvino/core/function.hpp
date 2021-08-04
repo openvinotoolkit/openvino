@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -19,11 +18,12 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
+#include "openvino/core/core_visibility.hpp"
 
 namespace ov
 {
     /// A user-defined function.
-    class NGRAPH_API Function
+    class CORE_API Function
     {
     public:
         static constexpr ngraph::DiscreteTypeInfo type_info{"Function", 0};
