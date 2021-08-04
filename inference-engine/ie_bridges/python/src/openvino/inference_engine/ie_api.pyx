@@ -940,26 +940,6 @@ cdef class ExecutableNetwork:
             inputs[in_.first.decode()] = input_info_ptr
         return inputs
 
-    ## \note The property is deprecated. Please use the input_info property
-    #        to get the map of inputs
-    #
-    ## A dictionary that maps input layer names to DataPtr objects
-    @property
-    def inputs(self):
-        warnings.warn("'inputs' property of ExecutableNetwork class is deprecated. "
-                      "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoCPtr objects which can be accessed by 'input_info' property.",
-                      DeprecationWarning)
-        cdef map[string, C.DataPtr] c_inputs = deref(self.impl).getInputs()
-        inputs = {}
-        cdef DataPtr data_ptr
-        for in_ in c_inputs:
-            data_ptr = DataPtr()
-            data_ptr._ptr = in_.second
-            data_ptr._ptr_plugin = deref(self.impl).getPluginLink()
-            inputs[in_.first.decode()] = data_ptr
-        return inputs
-
     ## A dictionary that maps output layer names to CDataPtr objects
     @property
     def outputs(self):
@@ -1303,27 +1283,6 @@ cdef class InferRequest:
                                             "cpu_time": info.cpu_time, "execution_index": info.execution_index}
         return profile
 
-    ## A dictionary that maps input layer names to `numpy.ndarray`
-    #  objects of proper shape with input data for the layer
-    @property
-    def inputs(self):
-        warnings.warn("'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property.",
-                      DeprecationWarning)
-        inputs = {}
-        for input in self._inputs_list:
-            inputs[input] = self._get_blob_buffer(input.encode()).to_numpy()
-        return inputs
-
-    ## A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
-    @property
-    def outputs(self):
-        warnings.warn("'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property.",
-                      DeprecationWarning)
-        outputs = {}
-        for output in self._outputs_list:
-            outputs[output] = self._get_blob_buffer(output.encode()).to_numpy()
-        return deepcopy(outputs)
-
     ## Current infer request inference time in milliseconds
     @property
     def latency(self):
@@ -1368,69 +1327,25 @@ cdef class InferRequest:
 cdef class IENetwork:
     ## Class constructor
     #
-    #  \note Reading networks using IENetwork constructor is deprecated.
-    #  Please, use IECore.read_network() method instead.
+    #  @param model: A PyCapsule containing smart pointer to nGraph function.
     #
-    #  @param model: A `.xml` file of the IR or PyCapsule containing smart pointer to nGraph function.
-    #                In case of passing a `.xml` file  attribute value can be a string path or bytes with file content
-    #                depending on `init_from_buffer` attribute value
-    #                .
-    #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
-    #                  bytes with file content.
-    #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
-    #                           If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
-    #                           of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
-    #                           Ignored in case of `IENetwork` object  initialization from nGraph function.
     #  @return Instance of IENetwork class
     #
     #  Usage example:\n
     #   Initializing `IENetwork` object from IR files:
     #   ```python
-    #   net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #   func = Function([relu], [param], 'test')
+    #   caps = Function.to_capsule(func)
+    #   net = IENetwork(caps)
     #   ```
-    #
-    #   Initializing `IENetwork` object bytes with content of IR files:
-    #   ```python
-    #   with open(path_to_bin_file, 'rb') as f:
-    #       bin = f.read()
-    #   with open(path_to_xml_file, 'rb') as f:
-    #       xml = f.read()
-    #   net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
-    #   ```
-
-    def __cinit__(self, model: [str, bytes] = "", weights: [str, bytes] = "", init_from_buffer: bool = False):
+    def __cinit__(self, model = None):
         # Try to create Inference Engine network from capsule
-        if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
-            self.impl = C.IENetwork(model)
-            return
-        cdef char*xml_buffer = <char*> malloc(len(model)+1)
-        cdef uint8_t*bin_buffer = <uint8_t *> malloc(len(weights))
-        cdef string model_
-        cdef string weights_
-        if init_from_buffer:
-            warnings.warn("Reading network using constructor is deprecated. "
-                          "Please, use IECore.read_network() method instead", DeprecationWarning)
-            memcpy(xml_buffer, <char*> model, len(model))
-            memcpy(bin_buffer, <uint8_t *> weights, len(weights))
-            xml_buffer[len(model)] = b'\0'
-            self.impl = C.IENetwork()
-            self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
+        if model is not None:
+            with nogil:
+                self.impl = C.IENetwork(model)
         else:
-            if model and weights:
-                warnings.warn("Reading network using constructor is deprecated. "
-                              "Please, use IECore.read_network() method instead", DeprecationWarning)
-                if not os.path.isfile(model):
-                    raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
-                if not os.path.isfile(weights):
-                    raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
-                model_ = model.encode()
-                weights_ = weights.encode()
-                self.impl = C.IENetwork(model_, weights_)
-            else:
-                with nogil:
-                    self.impl = C.IENetwork()
-            free(bin_buffer)
-        free(xml_buffer)
+            with nogil:
+                self.impl = C.IENetwork()
 
     ## Name of the loaded network
     @property
@@ -1451,26 +1366,6 @@ cdef class IENetwork:
             input_info_ptr._ptr = input.second
             input_info_ptr._ptr_network = &self.impl
             inputs[input.first.decode()] = input_info_ptr
-        return inputs
-
-    ## \note The property is deprecated. Please use the input_info property
-    #        to get the map of inputs
-    #
-    ## A dictionary that maps input layer names to DataPtr objects
-    @property
-    def inputs(self):
-        warnings.warn("'inputs' property of IENetwork class is deprecated. "
-                      "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoPtr objects which can be accessed by 'input_info' property.",
-                      DeprecationWarning)
-        cdef map[string, C.DataPtr] c_inputs = self.impl.getInputs()
-        inputs = {}
-        cdef DataPtr data_ptr
-        for input in c_inputs:
-            data_ptr = DataPtr()
-            data_ptr._ptr_network = &self.impl
-            data_ptr._ptr = input.second
-            inputs[input.first.decode()] = data_ptr
         return inputs
 
     ## A dictionary that maps output layer names to DataPtr objects

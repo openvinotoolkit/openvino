@@ -66,32 +66,6 @@ def test_output_blobs(device):
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
 
 
-def test_inputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        inputs = executable_network.requests[0].inputs
-    assert "'inputs' property of InferRequest is deprecated. " \
-           "Please instead use 'input_blobs' property." in str(w[-1].message)
-    del executable_network
-    del ie_core
-    del net
-
-
-def test_outputs_deprecated(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    executable_network = ie_core.load_network(net, device, num_requests=2)
-    with warnings.catch_warnings(record=True) as w:
-        outputs = executable_network.requests[0].outputs
-    assert "'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property." in str(
-        w[-1].message)
-    del executable_network
-    del ie_core
-    del net
-
-
 def test_inputs_list(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
