@@ -15,7 +15,7 @@ from mo.ops.unsqueeze import Unsqueeze
 
 def replace_strided_slice(node, mask, op):
     node_name = node.soft_get('name', node.id)
-    axis = np.where(mask == 1)
+    axis = np.where(mask == 1)[0]
     new_node = create_op_node_with_second_input(node.graph, op, int64_array(axis))
     node.in_port(0).get_connection().set_destination(new_node.in_port(0))
     node.out_port(0).get_connection().set_source(new_node.out_port(0))
