@@ -17,6 +17,7 @@
 #include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include <stack>
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -51,6 +52,8 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
             if (layout.format.is_image_2d())
                 CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output buffer instead of an image");
             break;
+        case shared_mem_type::shared_mem_usm:
+            break;
         default:
             CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output memory of unknown/invalid type");
             break;
@@ -58,12 +61,23 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem) {
+void primitive_inst::set_output_memory(memory::ptr mem_new, bool check) {
+    auto& eng = _network.get_engine();
+    // skip all the buzz if no action actually required
+    if (eng.is_the_same_buffer(*mem_new, *_output)) {
+        return;
+    }
+
     auto ol = _node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    if (check)
+        check_memory_to_set(*mem_new, ol);
 
-    _output = mem;
+    if (_node.is_constant()) {
+        mem_new->copy_from(_network.get_stream(), *_output);
+    } else {
+        _output = mem_new;
+    }
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {

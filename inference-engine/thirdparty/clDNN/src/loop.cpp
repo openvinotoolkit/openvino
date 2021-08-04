@@ -189,6 +189,109 @@ static void validate_mappings(loop_node const & node) {
     }
 }
 
+void loop_inst::update_mapped_memory() {
+    if (!preproc_memories_done) {
+        return;
+    }
+    // update output memory
+    const auto& output_primitive_maps = node.get_output_primitive_maps();
+    for (size_t i = 0; i < output_primitive_maps.size(); ++i) {
+        const auto& output_mapping = output_primitive_maps.at(i);
+        const primitive_id& external_id = output_mapping.external_id;
+        const primitive_id& internal_id = output_mapping.internal_id;
+        memory::ptr to_mem = get_external_memory(external_id);
+        if (output_mapping.axis < 0) {
+            body_network->get_primitive(internal_id)->set_output_memory(to_mem);
+        } else {
+            for (auto& mem_mapping : concatenated_output_mem_mappings) {
+                if (mem_mapping.concat_data_prim->id() == internal_id) {
+                    mem_mapping.concatenated_mem = to_mem;
+                    break;
+                }
+            }
+        }
+    }
+    // update input memory
+    for (size_t memory_num = 0; memory_num < inputs_memory_count(); memory_num++) {
+        const primitive_id& input_external_id = dependencies().at(memory_num)->id();
+        auto input_map_ptrs = node.find_io_primitive_maps(input_external_id, true);
+        if (input_map_ptrs.empty()) {
+            if (input_external_id == node.get_trip_count_id() ||
+                input_external_id == node.get_initial_execution_id()) {
+                continue;
+            }
+        }
+
+        auto memory = input_memory_ptr(memory_num);
+        for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
+            const auto input_map = input_map_ptrs.at(i);
+            bool is_concatenated_input = (input_map->axis >= 0);
+            if (is_concatenated_input) {
+                for (auto& mem_mapping : concatenated_input_mem_mappings) {
+                    if (mem_mapping.sliced_data_prim->id() == input_map->internal_id) {
+                        mem_mapping.concatenated_mem = memory;
+                        break;
+                    }
+                }
+            } else {
+                body_network->set_input_data(input_map->internal_id, memory);
+            }
+        }
+    }
+    //update backedges memory
+    const auto& back_edges = node.get_back_edges();
+    // checking if memory is a destination of a backedge
+    for (const auto& back_edge : back_edges) {
+        //find corresponding input of the backedge
+        const auto input_map_ptrs = node.find_io_primitive_maps(back_edge.to, false);
+        assert(input_map_ptrs.size() == 1);
+        const auto& input_map = input_map_ptrs.front();
+        auto backedged_sliced_output_mems = get_sliced_mem(back_edge.from);
+        const auto backedge_to_prim = body_network->get_primitive(back_edge.to);
+        const auto backedge_from_prim = body_network->get_primitive(back_edge.from);
+        memory::ptr initial_mem = get_external_memory(input_map->external_id);
+
+        for (auto& backedge_mapping : backedge_memory_mappings) {
+            if (backedge_mapping.from_primitive->id() == backedge_from_prim->id() &&
+                backedge_mapping.to_primitive->id() == backedge_to_prim->id()) {
+                if (backedged_sliced_output_mems.empty()) {
+                    // backedge output which does not need concatenation
+                    // input memory = output memory = loop output memory
+                    const auto output_mapping = node.find_io_primitive_maps(back_edge.from, false);
+                    memory::ptr backedge_mem;
+                    if (output_mapping.empty()) {
+                        // from and to primitives in backedge are connected directly
+                        if (backedge_to_prim == backedge_from_prim->dependencies().front()) {
+                            backedge_mapping.initial_mem = initial_mem;
+                            continue;
+                        } else {
+                            // generally, shouldn't go this way, but...
+                            auto output_prim = body_network->get_primitive(back_edge.from);
+                            layout output_layout = output_prim->output_memory().get_layout();
+                            backedge_mem = body_network->get_engine().allocate_memory(output_layout, 0);
+                        }
+                    } else {
+                        backedge_mem = get_external_memory(output_mapping.front()->external_id);
+                    }
+                    body_network->set_input_data(back_edge.to, backedge_mem);
+                    body_network->set_output_memory(back_edge.from, backedge_mem);
+                    backedge_mapping.from_mems = { backedge_mem };
+                    backedge_mapping.initial_mem = initial_mem;
+                } else {
+                    backedge_mapping.from_mems = backedged_sliced_output_mems;
+                    backedge_mapping.initial_mem = initial_mem;
+                }
+                break;
+            }
+        }
+    }
+}
+
+void loop_inst::set_output_memory(memory::ptr mem, bool check) {
+    primitive_inst::set_output_memory(mem, check);
+    update_mapped_memory();
+}
+
 void loop_inst::preprocess_output_memory() {
     auto& engine = _network.get_engine();
     const auto& output_primitive_maps = node.get_output_primitive_maps();
@@ -329,18 +432,18 @@ void loop_inst::preprocess_backedge_memory() {
 }
 
 std::vector<memory::ptr> loop_inst::get_sliced_mem(const primitive_id& internal_id) const {
-        for (const auto& mem_mapping : concatenated_input_mem_mappings) {
-            if (mem_mapping.sliced_data_prim->id() == internal_id) {
-                return mem_mapping.sliced_mems;
-            }
+    for (const auto& mem_mapping : concatenated_input_mem_mappings) {
+        if (mem_mapping.sliced_data_prim->id() == internal_id) {
+            return mem_mapping.sliced_mems;
         }
-        for (const auto& mem_mapping : concatenated_output_mem_mappings) {
-            if (mem_mapping.concat_data_prim->id() == internal_id) {
-                return mem_mapping.sliced_mems;
-            }
-        }
-        return {}; // not found
     }
+    for (const auto& mem_mapping : concatenated_output_mem_mappings) {
+        if (mem_mapping.concat_data_prim->id() == internal_id) {
+            return mem_mapping.sliced_mems;
+        }
+    }
+    return {}; // not found
+}
 
 memory::ptr loop_inst::get_external_memory(const primitive_id& external_id) const {
     const auto outputPrim = _network.get_primitive(external_id);

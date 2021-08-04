@@ -181,6 +181,7 @@ public:
                                     bool reusable = true);
 
 private:
+    using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
     stream::ptr _stream;
@@ -196,6 +197,7 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
 
     std::unordered_map<primitive_id, event::ptr> _events;
+    output_chains_map _output_chains;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
@@ -204,5 +206,7 @@ private:
     std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
     void check_names();
+    void add_default_output_chains();
+    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 };
 }  // namespace cldnn

@@ -88,7 +88,7 @@ public:
     program_node const& get_node() const { return _node; }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
-    void set_output_memory(memory::ptr mem);
+    virtual void set_output_memory(memory::ptr mem, bool check = true);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return _node.get_users(); }
 
