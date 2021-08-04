@@ -652,13 +652,13 @@ inline short reducePrecisionBitwiseS(const float in) {
 
 }  // namespace Bf16TestUtils
 
-enum BlobType {
+enum class BlobType {
     Memory,
     Batched,
     Compound,
 //    Remote,
     I420,
-    NV12
+    NV12,
 };
 
 inline std::ostream& operator<<(std::ostream& os, BlobType type) {
@@ -680,8 +680,8 @@ inline std::ostream& operator<<(std::ostream& os, BlobType type) {
     }
 }
 
-inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType BlobType) {
-    switch (BlobType) {
+inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::TensorDesc& td, BlobType blobType) {
+    switch (blobType) {
     case BlobType::Memory:
         return createAndFillBlob(td);
     case BlobType::Batched:
@@ -694,7 +694,7 @@ inline InferenceEngine::Blob::Ptr createBlobByType(const InferenceEngine::Tensor
         for (size_t i = 0; i < subBlobsNum; i++) {
             subBlobs.push_back(createAndFillBlob(subBlobDesc));
         }
-        return BlobType == BlobType::Batched ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs) :
+        return blobType == BlobType::Batched ? InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(subBlobs) :
                 InferenceEngine::make_shared_blob<InferenceEngine::CompoundBlob>(subBlobs);
     }
 // TODO: ocl + remote
