@@ -13,6 +13,7 @@
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node_output.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -22,8 +23,6 @@ namespace ngraph
     // in practice including node.hpp here was causing compilation errors on some
     // systems (namely macOS).
     class Node;
-
-    class Variant;
 
     namespace descriptor
     {
@@ -53,8 +52,6 @@ namespace ngraph
             void remove_input(Input* input);
             const std::vector<Input*>& get_inputs() const { return m_inputs; }
             Tensor& get_tensor() const;
-
-            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
             RTMap& get_rt_info() { return m_rt_info; }
             const RTMap& get_rt_info() const { return m_rt_info; }

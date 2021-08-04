@@ -230,8 +230,10 @@ bool runtime::dynamic::DynamicExecutable::call(
                 i++;
             }
 
+            NGRAPH_SUPPRESS_DEPRECATED_START;
             clone = specialize_function(
                 m_wrapped_function, arg_element_types, arg_shapes, arg_value_base_pointers);
+            NGRAPH_SUPPRESS_DEPRECATED_END;
         }
 
         pass::Manager passes;

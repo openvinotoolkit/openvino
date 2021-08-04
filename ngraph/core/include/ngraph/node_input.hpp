@@ -11,6 +11,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -23,8 +24,6 @@ namespace ngraph
     class Input
     {
     };
-
-    class Variant;
 
     /// \brief A handle for one of a node's inputs.
     template <>
@@ -61,7 +60,6 @@ namespace ngraph
         /// \param new_source_output A handle for the output that will replace this input's source.
         void replace_source_output(const Output<Node>& new_source_output) const;
 
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
         /// \return The reference to runtime info map
         RTMap& get_rt_info();
         /// \return The constant reference to runtime info map
@@ -110,7 +108,6 @@ namespace ngraph
         /// \return true if this input is relevant to its node's output values; else false.
         bool get_is_relevant_to_values() const;
 
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
         /// \return The constant reference to runtime info map
         const RTMap& get_rt_info() const;
 
