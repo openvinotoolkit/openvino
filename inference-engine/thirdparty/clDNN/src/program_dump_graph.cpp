@@ -163,7 +163,7 @@ std::string get_load_program_name(build_options opts) {
 }
 
 void dump_graph_init(std::ofstream& graph,
-                     const program_impl& program,
+                     const program& program,
                      std::function<bool(program_node const&)> const& filter) {
     const auto extr_oformat = [](program_node* ptr) {
         std::string out = fmt_to_str(ptr->get_output_layout().format);
@@ -272,21 +272,21 @@ void dump_graph_init(std::ofstream& graph,
     close_stream(graph);
 }
 
-void dump_graph_processing_order(std::ofstream& graph, const program_impl& program) {
+void dump_graph_processing_order(std::ofstream& graph, const program& program) {
     for (auto node : program.get_processing_order())
         graph << reinterpret_cast<uintptr_t>(node) << " (" << node->id() << ")\n";
     graph << '\n';
     close_stream(graph);
 }
 
-void dump_graph_optimized(std::ofstream& graph, const program_impl& program) {
+void dump_graph_optimized(std::ofstream& graph, const program& program) {
     for (auto& prim_id : program.get_optimized_out()) graph << prim_id << "\n";
     graph << '\n';
     close_stream(graph);
 }
 
 void dump_graph_info(std::ofstream& graph,
-                     const program_impl& program,
+                     const program& program,
                      std::function<bool(program_node const&)> const& filter) {
     for (auto& node : program.get_processing_order()) {
         if (filter && !filter(*node))

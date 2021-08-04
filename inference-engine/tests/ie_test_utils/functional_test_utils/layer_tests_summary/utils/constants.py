@@ -54,9 +54,11 @@ VERIFIED_OP_REFERENCES = [
     'HardSigmoid-1',
     'Interpolate-4',
     'Less-1',
+    'LessEqual-1'
     'LRN-1',
     'LSTMCell-4',
     'LSTMSequence-5',
+    'LogicalAnd-1'
     'LogSoftmax-5',
     'Loop-5',
     'MVN-1',

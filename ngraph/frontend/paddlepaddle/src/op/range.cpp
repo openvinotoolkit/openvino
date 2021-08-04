@@ -19,9 +19,6 @@ namespace ngraph
                     auto stop = node.get_ng_input("End");
                     auto step = node.get_ng_input("Step");
                     auto type = node.get_out_port_type("Out");
-                    PDPD_ASSERT(type == element::i64 || type == element::i32 ||
-                                    type == element::f32,
-                                "Only supports int32, int64, float32");
 
                     const auto axis = ngraph::opset6::Constant::create(element::i64, Shape{}, {0});
                     auto start_scalar = std::make_shared<ngraph::opset6::Squeeze>(start, axis);

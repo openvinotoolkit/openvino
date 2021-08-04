@@ -1,9 +1,8 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "deformable_conv.hpp"
 #include <ngraph/opsets/opset8.hpp>
+#include <node_context.hpp>
 #include "conv2d_utils.hpp"
 
 namespace ngraph
@@ -25,7 +24,6 @@ namespace ngraph
 
                     auto groups = node.get_attribute<int>("groups");
                     auto deformable_groups = node.get_attribute<int>("deformable_groups");
-                    // auto im2col_step = node.get_attribute<int>("im2col_step"); // TODO
 
                     const auto paddings = get_pads(node);
                     const auto pads_begin = paddings.first;

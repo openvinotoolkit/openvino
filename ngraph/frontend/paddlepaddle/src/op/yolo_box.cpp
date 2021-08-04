@@ -5,7 +5,7 @@
 #include <numeric>
 
 #include <ngraph/opsets/opset6.hpp>
-#include "yolo_box.hpp"
+#include <node_context.hpp>
 
 namespace ngraph
 {
@@ -72,13 +72,6 @@ namespace ngraph
                     auto const_conf_thresh = Constant::create<float>(f32, {1}, {conf_thresh});
 
                     auto clip_bbox = node_context.get_attribute<bool>("clip_bbox");
-
-                    std::cout << "num_anchors: " << num_anchors << " scale_x_y: " << scale_x_y
-                              << std::endl;
-                    std::cout << "downsample_ratio: " << downsample_ratio
-                              << " conf_thresh: " << conf_thresh << std::endl;
-                    std::cout << "class_num:  " << class_num << " image_size: " << image_size
-                              << std::endl;
 
                     // main X
                     // node_x_shape {batch_size, num_anchors, 5 + class_num, input_height,

@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "op_table.hpp"
 
 namespace ngraph
@@ -43,8 +42,8 @@ namespace ngraph
                 OP_CONVERTER(log);
                 OP_CONVERTER(logical_not);
                 OP_CONVERTER(matmul);
-                OP_CONVERTER(matrix_nms);
                 OP_CONVERTER(mul);
+                OP_CONVERTER(matrix_nms);
                 OP_CONVERTER(multiclass_nms);
                 OP_CONVERTER(nearest_interp_v2);
                 OP_CONVERTER(pad3d);
@@ -113,9 +112,9 @@ namespace ngraph
                         {"log", op::log},
                         {"logical_not", op::logical_not},
                         {"matmul", op::matmul},
-                        {"matrix_nms", op::matrix_nms},
                         {"max_pool2d_with_index", op::pool2d},
                         {"mul", op::mul},
+                        {"matrix_nms", op::matrix_nms},
                         {"multiclass_nms3", op::multiclass_nms},
                         {"nearest_interp_v2", op::nearest_interp_v2},
                         {"nearest_interp", op::nearest_interp_v2},
@@ -138,7 +137,6 @@ namespace ngraph
                         {"transpose2", op::transpose2},
                         {"unsqueeze2", op::unsqueeze},
                         {"yolo_box", op::yolo_box}};
-
             };
 
         } // namespace pdpd
