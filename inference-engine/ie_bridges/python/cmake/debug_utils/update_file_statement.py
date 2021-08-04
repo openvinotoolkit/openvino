@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import shutil
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -14,8 +15,10 @@ args = parser.parse_args()
 
 output_file = args.input_file if not args.output_file else args.output_file
 
-if args.match_string != " " and args.match_string != args.replace_string:
+if args.match_string != args.replace_string:
     with open(args.input_file) as _file:
         _file_mod = _file.read().replace(args.match_string, args.replace_string)
     with open(output_file, 'w') as _file:
         _file.write(_file_mod)
+elif args.output_file:
+    shutil.copyfile(args.input_file, args.output_file)

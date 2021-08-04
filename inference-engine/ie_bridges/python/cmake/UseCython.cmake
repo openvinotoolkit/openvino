@@ -257,43 +257,42 @@ function( compile_pyx _name generated_file )
   list( REMOVE_DUPLICATES c_header_dependencies )
 
   # Add command to run the compiler
-  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT ("${CMAKE_DEBUG_POSTFIX}" STREQUAL ""))
-    # set import statement to update in C code
-    if(${_name} STREQUAL "ie_api")
-      set(import_statements "constants")
-    else()
-      set(import_statements " ")
-    endif()
-
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+    # check import statements to update in C code
+    set(pyx_file ${CMAKE_CURRENT_SOURCE_DIR}/${_name}.pyx)
+    file(STRINGS "${pyx_file}" import_statements REGEX "(^from [.]+[^ ]+ import)")
+    unset(pyx_dependences)
+    foreach(statement ${import_statements})
+      string(REGEX REPLACE "^from [.]+([^ ]+).*" "\\1" module "${statement}")
+      list(APPEND pyx_dependences ${module})
+    endforeach()
     add_custom_command( OUTPUT ${_generated_file}
-    COMMAND ${CYTHON_EXECUTABLE}
-    ARGS ${cxx_arg} ${include_directory_arg} ${version_arg}
-    ${annotate_arg} ${no_docstrings_arg} ${cython_debug_arg} ${CYTHON_FLAGS}
-    --output-file  ${_generated_file} ${pyx_locations}
-    DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
-    IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
-    COMMENT ${comment}
-    # add debug postfix to import and PyInit statements in C code
-    # it's required if we want to create a library whose name has debug postfix (CVS-29031)
-    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
-                      -i ${_generated_file}
-                      --match_string "PyInit_${_name}"
-                      --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
-    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
-                      -i ${_generated_file}
-                      --match_string "${import_statements}"
-                      --replace_string "${import_statements}${CMAKE_DEBUG_POSTFIX}"
-    )
+      COMMAND ${CYTHON_EXECUTABLE}
+      ARGS ${cxx_arg} ${include_directory_arg} ${version_arg}
+      ${annotate_arg} ${no_docstrings_arg} ${cython_debug_arg} ${CYTHON_FLAGS}
+      --output-file  ${_generated_file} ${pyx_locations}
+      DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
+      IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
+      COMMENT ${comment}
+      # add debug postfix to import and PyInit statements in C code
+      # it's required if we want to create a library whose name has debug postfix (CVS-29031)
+      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
+                        -i ${_generated_file}
+                        --match_string "PyInit_${_name}"
+                        --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
+      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_cxx_dependences.py
+                        -i ${_generated_file}
+                        --module_names "${pyx_dependences}"
+                        --debug_postfix "${CMAKE_DEBUG_POSTFIX}")
   else()
     add_custom_command( OUTPUT ${_generated_file}
-    COMMAND ${CYTHON_EXECUTABLE}
-    ARGS ${cxx_arg} ${include_directory_arg} ${version_arg}
-    ${annotate_arg} ${no_docstrings_arg} ${cython_debug_arg} ${CYTHON_FLAGS}
-    --output-file  ${_generated_file} ${pyx_locations}
-    DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
-    IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
-    COMMENT ${comment}
-    )
+      COMMAND ${CYTHON_EXECUTABLE}
+      ARGS ${cxx_arg} ${include_directory_arg} ${version_arg}
+      ${annotate_arg} ${no_docstrings_arg} ${cython_debug_arg} ${CYTHON_FLAGS}
+      --output-file  ${_generated_file} ${pyx_locations}
+      DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
+      IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
+      COMMENT ${comment})
   endif()
 
   # Remove their visibility to the user.

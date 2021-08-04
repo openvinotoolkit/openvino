@@ -48,22 +48,15 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")
 
 # perform copy
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT ("${CMAKE_DEBUG_POSTFIX}" STREQUAL ""))
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        # add debug postfix to import statement (CVS-29031)
-        COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/update_file_statement.py
-            -i ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
-            --match_string "from .offline_transformations_api"
-            --replace_string "from .offline_transformations_api${CMAKE_DEBUG_POSTFIX}"
-            -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
-        )
-else()
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${PYTHON_BRIDGE_SRC_ROOT}/src/openvino/offline_transformations/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+add_custom_command(TARGET ${TARGET_NAME}
+    POST_BUILD
+    # add debug postfix to import statement or just copy(CVS-29031)
+    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
+        -i ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
+        --match_string "from .offline_transformations_api"
+        --replace_string "from .offline_transformations_api${IE_BUILD_POSTFIX}"
+         -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     )
-endif()
 
 # install
 
