@@ -31,6 +31,7 @@
 #include <transformations/op_conversions/batch_norm_decomposition.hpp>
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -60,6 +61,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
     eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::NopElimination>(false /* do not use shape for elimination */);
     eliminations->set_name("ngraph::pass::CommonEliminations");
 
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();

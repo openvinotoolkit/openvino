@@ -11,6 +11,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <transformations/common_optimizations/pad_fusion.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -40,7 +41,7 @@ TEST(TransformationTests, PadElimination) {
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::PadFusion>();
+        m.register_pass<pass::EliminatePad>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

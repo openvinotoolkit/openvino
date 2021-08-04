@@ -227,7 +227,7 @@ namespace ngraph
 
         protected:
             bool apply_matcher_passes(std::shared_ptr<Function> f,
-                                      std::deque<std::shared_ptr<Node>> nodes_to_run);
+                                      std::deque<std::weak_ptr<Node>> nodes_to_run);
 
             bool m_enable_shape_inference = false;
 
