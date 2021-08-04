@@ -322,6 +322,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     manager.run_passes(nGraphFunc);
 
+    //ngraph::pass:
+    ngraph::pass::VisualizeTree("C:/Users/ndemasho/rep/Visual/cpu.common.svg").run_on_function(nGraphFunc);
+
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
@@ -365,6 +368,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
         });
         lptManager.run_passes(nGraphFunc);
+        ngraph::pass::VisualizeTree("C:/Users/ndemasho/rep/Visual/cpu.commonAfter.svg").run_on_function(nGraphFunc);
     }
 
     ngraph::pass::Manager postLPTPassManager;
