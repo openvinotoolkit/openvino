@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <ngraph/strides.hpp>
+#include <ngraph/node_input.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
 

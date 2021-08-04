@@ -15,7 +15,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/specialize_function.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToLSTMSequence, "ConvertTensorIteratorToLSTMSequence", 0);
