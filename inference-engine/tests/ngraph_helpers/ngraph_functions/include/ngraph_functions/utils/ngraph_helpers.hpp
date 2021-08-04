@@ -148,7 +148,7 @@ enum ComparisonTypes {
     GREATER_EQUAL
 };
 
-enum ConvertionTypes {
+enum ConversionTypes {
     CONVERT,
     CONVERT_LIKE
 };
