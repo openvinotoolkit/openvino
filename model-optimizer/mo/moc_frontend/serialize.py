@@ -9,20 +9,25 @@ from mo.front.common.layout import get_features_dim
 from mo.pipeline.common import get_ir_version
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.utils.cli_parser import get_meta_info
+from mo.utils.error import Error
+from mo.utils.utils import refer_to_faq_msg
 
-import ngraph as ng
-from ngraph import Function         # pylint: disable=no-name-in-module,import-error
-from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-error
+# pylint: disable=no-name-in-module,import-error
+from ngraph import Function
+from ngraph import function_to_cnn
 from openvino.inference_engine import IENetwork
+from openvino.offline_transformations import ApplyScaleInputs,\
+    ApplySubtractMeanInputs, ConstantInfo
 
 
 def apply_mean_scale(network: IENetwork, input_nodes, preprocessing_name: str, mean_scale_val):
-    is_mean = preprocessing_name is 'mean'
+    is_mean = preprocessing_name == 'mean'
     print("Inputs={}".format(input_nodes))
     if not isinstance(mean_scale_val, dict):
         # TODO: The case when input names to apply mean/scales weren't specified
         if len(mean_scale_val) != len(input_nodes):
-            print("Values [{}] {}, nodes={} {}".format(mean_scale_val, len(mean_scale_val), input_nodes, len(input_nodes)))
+            print("Values [{}] {}, nodes={} {}".format(
+                mean_scale_val, len(mean_scale_val), input_nodes, len(input_nodes)))
             raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
 
         data = np.copy(mean_scale_val)
@@ -38,7 +43,6 @@ def apply_mean_scale(network: IENetwork, input_nodes, preprocessing_name: str, m
             )
 
     converted_map = {}
-    from openvino.offline_transformations import ApplyScaleInputs, ApplySubtractMeanInputs, ConstantInfo
     for node_name, node_mean_scale_values in mean_scale_val.items():
         print("node_name={}, vals={}".format(node_name, node_mean_scale_values))
         found_node = None
