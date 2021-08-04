@@ -49,7 +49,7 @@ ComparisionOpsData data = {
     CommonTestUtils::DEVICE_CPU,
 };
 
-const auto SerializeEqualTestParams = ::testing::Combine(
+const auto SerializeLessTestParams = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(data.inputShapes)),
     ::testing::ValuesIn(data.inputsPrecisions),
     ::testing::Values(data.opType),
@@ -59,5 +59,5 @@ const auto SerializeEqualTestParams = ::testing::Combine(
     ::testing::Values(data.deviceName),
     ::testing::Values(data.additional_config));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, SerializeEqualTestParams, ComparisonLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, ComparisonLayerTest, SerializeLessTestParams, ComparisonLayerTest::getTestCaseName);
 } // namespace
