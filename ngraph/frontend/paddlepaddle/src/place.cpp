@@ -13,28 +13,21 @@ bool PlacePDPD::is_input() const
 {
     const auto& model_ins = m_input_model.get_inputs();
 
-    const auto cmp = [this](const Place::Ptr& p) { return p.get() == this; };
+    const auto cmp = [this](const Place::Ptr& p) { return this->is_equal_data(p); };
     return std::find_if(model_ins.begin(), model_ins.end(), cmp) != model_ins.end();
 }
 
 bool PlacePDPD::is_output() const
 {
     const auto& model_outs = m_input_model.get_outputs();
-    const auto cmp = [this](const Place::Ptr& p) { return p.get() == this; };
+    const auto cmp = [this](const Place::Ptr& p) { return this->is_equal_data(p); };
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
 }
 
-OpPlacePDPD::OpPlacePDPD(const InputModel& input_model,
-                         const paddle::framework::proto::OpDesc& op_desc,
-                         const std::vector<std::string>& names)
-    : PlacePDPD(input_model, names)
-    , m_op_desc(op_desc)
-{
-}
-
-OpPlacePDPD::OpPlacePDPD(const InputModel& input_model,
+OpPlacePDPD::OpPlacePDPD(const InputModelPDPD& input_model,
                          const paddle::framework::proto::OpDesc& op_desc)
-    : OpPlacePDPD(input_model, op_desc, {})
+    : PlacePDPD(input_model)
+    , m_op_desc(op_desc)
 {
 }
 
@@ -246,10 +239,9 @@ Place::Ptr OpPlacePDPD::get_target_tensor(int outputPortIndex) const
     return get_output_port(outputPortIndex)->get_target_tensor();
 }
 
-TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
-                                 const std::vector<std::string>& names,
+TensorPlacePDPD::TensorPlacePDPD(const InputModelPDPD& input_model,
                                  const paddle::framework::proto::VarDesc& var_desc)
-    : PlacePDPD(input_model, names)
+    : PlacePDPD(input_model)
     , m_var_desc(var_desc)
 {
     const auto& var_type = var_desc.type();
@@ -260,12 +252,6 @@ TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
         m_pshape = PartialShape(
             std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
     }
-}
-
-TensorPlacePDPD::TensorPlacePDPD(const InputModel& input_model,
-                                 const paddle::framework::proto::VarDesc& var_desc)
-    : TensorPlacePDPD(input_model, {var_desc.name()}, var_desc)
-{
 }
 
 std::vector<Place::Ptr> TensorPlacePDPD::get_consuming_ports() const

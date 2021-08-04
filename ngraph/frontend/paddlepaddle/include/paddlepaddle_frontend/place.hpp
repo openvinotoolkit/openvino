@@ -6,6 +6,7 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
+#include "model.hpp"
 
 namespace paddle
 {
@@ -30,13 +31,13 @@ namespace ngraph
         class PlacePDPD : public Place
         {
         public:
-            PlacePDPD(const InputModel& input_model, const std::vector<std::string>& names)
+            PlacePDPD(const InputModelPDPD& input_model, const std::vector<std::string>& names)
                 : m_input_model(input_model)
                 , m_names(names)
             {
             }
 
-            explicit PlacePDPD(const InputModel& input_model)
+            explicit PlacePDPD(const InputModelPDPD& input_model)
                 : PlacePDPD(input_model, std::vector<std::string>{})
             {
             }
@@ -48,17 +49,20 @@ namespace ngraph
             bool is_equal(Ptr another) const override { return this == another.get(); }
 
             std::vector<std::string> get_names() const override { return m_names; }
+            void add_name(const std::string& name) { m_names.push_back(name); }
+            void set_name(const std::string& name) { m_names.assign({name}); }
+            void remove_name(const std::string& name) { m_names.erase(std::remove(m_names.begin(), m_names.end(), name), m_names.end()); }
 
-        private:
-            const InputModel& m_input_model;
+        protected:
+            const InputModelPDPD& m_input_model;
             std::vector<std::string> m_names;
         };
 
         class InPortPlacePDPD : public PlacePDPD
         {
         public:
-            explicit InPortPlacePDPD(const InputModel& input_model)
-                : PlacePDPD(input_model)
+            explicit InPortPlacePDPD(const InputModelPDPD& input_model)
+                : PlacePDPD(input_model, {})
             {
             }
 
@@ -85,7 +89,7 @@ namespace ngraph
         class OutPortPlacePDPD : public PlacePDPD
         {
         public:
-            explicit OutPortPlacePDPD(const InputModel& input_model)
+            explicit OutPortPlacePDPD(const InputModelPDPD& input_model)
                 : PlacePDPD(input_model)
             {
             }
@@ -110,11 +114,11 @@ namespace ngraph
         class OpPlacePDPD : public PlacePDPD
         {
         public:
-            OpPlacePDPD(const InputModel& input_model,
+            OpPlacePDPD(const InputModelPDPD& input_model,
                         const paddle::framework::proto::OpDesc& op_desc,
                         const std::vector<std::string>& names);
 
-            OpPlacePDPD(const InputModel& input_model,
+            OpPlacePDPD(const InputModelPDPD& input_model,
                         const paddle::framework::proto::OpDesc& op_desc);
 
             void add_in_port(const std::shared_ptr<InPortPlacePDPD>& input,
@@ -180,11 +184,11 @@ namespace ngraph
         class TensorPlacePDPD : public PlacePDPD
         {
         public:
-            TensorPlacePDPD(const InputModel& input_model,
+            TensorPlacePDPD(const InputModelPDPD& input_model,
                             const std::vector<std::string>& names,
                             const paddle::framework::proto::VarDesc& var_desc);
 
-            TensorPlacePDPD(const InputModel& input_model,
+            TensorPlacePDPD(const InputModelPDPD& input_model,
                             const paddle::framework::proto::VarDesc& var_desc);
 
             void add_producing_port(const std::shared_ptr<OutPortPlacePDPD>& out_port);

@@ -16,12 +16,14 @@ namespace ngraph
         class PDPD_API InputModelPDPD : public InputModel
         {
             friend class FrontEndPDPD;
+            friend class TensorPlacePDPD;
             class InputModelPDPDImpl;
             std::shared_ptr<InputModelPDPDImpl> _impl;
 
             std::vector<std::shared_ptr<OpPlacePDPD>> getOpPlaces() const;
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
+            std::vector<std::shared_ptr<TensorPlacePDPD>> getVarPlaces() const;
             std::map<std::string, Output<Node>> getTensorValues() const;
+            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarNames() const;
 
         public:
             explicit InputModelPDPD(const std::string& path);
@@ -40,6 +42,14 @@ namespace ngraph
             ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
             void set_element_type(Place::Ptr place, const ngraph::element::Type&) override;
             void set_tensor_value(Place::Ptr place, const void* value) override;
+            Place::Ptr add_output(Place::Ptr place) override;
+            void remove_output(Place::Ptr place) override;
+            void cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional = "") override;
+            void cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional = "") override;
+
+            void free_name_for_tensor(const std::string& name) override;
+            void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
+            void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)  override;
         };
 
     } // namespace frontend

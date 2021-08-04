@@ -233,7 +233,7 @@ namespace ngraph
             {
                 const auto& outp_place = std::dynamic_pointer_cast<TensorPlacePDPD>(_outp_place);
                 auto var = outp_place->get_desc();
-                auto input_var_name = var.name();
+                const auto& input_var_name = var.name();
                 auto result = std::make_shared<Result>(nodes_dict.at(input_var_name));
                 result->set_friendly_name(input_var_name + "/Result");
                 result_nodes.push_back(result);
@@ -363,7 +363,7 @@ namespace ngraph
                         pdpd::get_supported_ops());
                 }
             }
-            for (auto result : partiallyConverted->get_results())
+            for (const auto& result : partiallyConverted->get_results())
             {
                 result->validate_and_infer_types();
             }
