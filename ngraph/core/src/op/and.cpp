@@ -7,6 +7,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 
+#include "ngraph/validation_util.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -61,12 +63,6 @@ namespace logand
         switch (arg0->get_element_type())
         {
             NGRAPH_TYPE_CASE(evaluate_logand, boolean, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, i32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, i64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, u32, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, u64, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, f16, arg0, arg1, out, broadcast_spec);
-            NGRAPH_TYPE_CASE(evaluate_logand, f32, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
@@ -77,6 +73,7 @@ bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_LogicalAnd_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -85,13 +82,7 @@ bool op::v1::LogicalAnd::has_evaluate() const
     NGRAPH_OP_SCOPE(v1_LogicalAnd_has_evaluate);
     switch (get_input_element_type(0))
     {
-    case ngraph::element::boolean:
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32: return true;
+    case ngraph::element::boolean: return true;
     default: break;
     }
     return false;

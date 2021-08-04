@@ -11,9 +11,9 @@ graph {
         values {
           dims: 3
           data_type: 10
-          int32_data: 1
-          int32_data: 8
-          int32_data: 3
+          int32_data: 15360 # 1.0
+          int32_data: 18432 # 8.0
+          int32_data: 16896 # 3.0
           name: "values"
         }
         indices {

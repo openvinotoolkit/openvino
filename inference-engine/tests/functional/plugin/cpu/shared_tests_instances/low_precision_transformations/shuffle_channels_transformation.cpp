@@ -15,7 +15,7 @@ const std::vector<ngraph::element::Type> netPrecisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::Shape> inputShapes = {
+const std::vector<ngraph::PartialShape> inputShapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };

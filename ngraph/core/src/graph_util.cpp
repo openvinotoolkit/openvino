@@ -20,6 +20,7 @@
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/provenance.hpp"
@@ -167,11 +168,9 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
     //         Change I's connected upstream output to O_rep
     for (size_t i = 0; i < target->get_output_size(); i++)
     {
-        for (auto& input : target->output(i).get_target_inputs())
-        {
-            input.replace_source_output(replacement->output(output_order[i]));
-        }
+        target->output(i).replace(replacement->output(output_order[i]));
     }
+
     replacement->add_node_control_dependents(target);
     replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
@@ -407,6 +406,32 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // clone function operations
     clone_nodes(func.get_ops(), node_map);
 
+    // clone variables
+    auto variables = func.get_variables();
+    VariableVector cloned_vars;
+    std::map<std::string, std::shared_ptr<Variable>> var_map;
+    for (const auto& var : variables)
+    {
+        auto cloned_var = std::make_shared<Variable>(
+            VariableInfo{PartialShape::dynamic(), element::dynamic, var->get_info().variable_id});
+        cloned_vars.push_back(cloned_var);
+        var_map[cloned_var->get_info().variable_id] = cloned_var;
+    }
+    if (!variables.empty())
+    {
+        for (const auto& op : node_map)
+        {
+            if (auto read_val = std::dynamic_pointer_cast<VariableExtension>(op.second))
+            {
+                read_val->set_variable(var_map.at(read_val->get_variable_id()));
+            }
+            else if (auto assign = std::dynamic_pointer_cast<VariableExtension>(op.second))
+            {
+                assign->set_variable(var_map.at(assign->get_variable_id()));
+            }
+        }
+    }
+
     // get cloned function results and sinks and parameters
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results())
@@ -419,25 +444,25 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
         cloned_results.push_back(result);
     }
     SinkVector cloned_sinks;
-    for (auto node : func.get_sinks())
+    for (const auto& node : func.get_sinks())
     {
         cloned_sinks.push_back(static_pointer_cast<op::Sink>(node_map.at(node.get())));
     }
 
     std::vector<std::shared_ptr<op::Parameter>> cloned_params;
-    for (auto param : func.get_parameters())
+    for (const auto& param : func.get_parameters())
     {
         cloned_params.push_back(as_type_ptr<op::Parameter>(node_map.at(param.get())));
     }
 
     // create and return cloned function
-    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
-    result->set_friendly_name(func.get_friendly_name());
-    result->add_sinks(cloned_sinks);
+    auto result = std::make_shared<ngraph::Function>(
+        cloned_results, cloned_sinks, cloned_params, cloned_vars, func.get_friendly_name());
     return result;
 }
 
-bool ngraph::is_equal_to_const_value(std::string const_value, const Output<Node>& reduce_constant)
+bool ngraph::is_equal_to_const_value(const std::string& const_value,
+                                     const Output<Node>& reduce_constant)
 {
     if (auto rc = as_type_ptr<ngraph::op::Constant>(reduce_constant.get_node_shared_ptr()))
     {
@@ -912,7 +937,15 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
             replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
+
+        // Save replacement tensor names before replacement as they will be
+        // overrided by the output tensor names
+        auto output_names = replacement.get_tensor_ptr()->get_names();
         output.replace(replacement);
+
+        // Restore back original replacement tensor names
+        replacement.get_tensor().add_names(output_names);
+
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                           replacement.get_node_shared_ptr());
         return true;

@@ -10,7 +10,7 @@
 #include "arg_max_min_inst.h"
 #include "fused_conv_eltwise_inst.h"
 
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "cldnn/runtime/engine.hpp"
 #include "cldnn/runtime/memory.hpp"
 
@@ -112,7 +112,7 @@ void primitive_inst::build_deps() {
     }
 }
 
-primitive_inst::primitive_inst(network_impl& network, program_node const& node, bool allocate_memory)
+primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
     : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr), _output(), _output_changed(false) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
@@ -149,7 +149,6 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
 
 memory::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
-    auto net_id = get_network_id();
     auto& engine = get_network().get_engine();
 
     // For outputs, cpu prim we want to have lockable alloc type
@@ -163,12 +162,11 @@ memory::ptr primitive_inst::allocate_output() {
                                                      : allocation_type::usm_device;
 
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-        return engine.get_memory_from_pool(layout,
-                                           _node.id(),
-                                           net_id,
-                                           _node.get_memory_dependencies(),
-                                           alloc_type,
-                                           false);
+        return _network.get_memory_from_pool(layout,
+                                             _node.id(),
+                                             _node.get_memory_dependencies(),
+                                             alloc_type,
+                                             false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
         return engine.allocate_memory(layout, allocation_type::usm_device, false);
@@ -179,12 +177,11 @@ memory::ptr primitive_inst::allocate_output() {
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type);
     } else {
-        return engine.get_memory_from_pool(layout,
-                                           _node.id(),
-                                           net_id,
-                                           _node.get_memory_dependencies(),
-                                           alloc_type,
-                                           true);
+        return _network.get_memory_from_pool(layout,
+                                             _node.id(),
+                                             _node.get_memory_dependencies(),
+                                             alloc_type,
+                                             true);
     }
 }
 

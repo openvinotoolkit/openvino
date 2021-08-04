@@ -113,12 +113,12 @@ void GNAPropagateMatcher :: match() {
         OutputsDataMap  outputsInfo;
 
         auto loadNetworkFromIR = [&] () -> InferenceEngine::CNNNetwork {
-            Core net_reader;
+            Core core;
             auto weights_fake = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
                     SizeVector({std::numeric_limits<uint32_t>::max()/2}), Layout::C));
             weights_fake->allocate();
 
-            auto net_original = net_reader.ReadNetwork(_env.model, weights_fake);
+            auto net_original = core.ReadNetwork(_env.model, weights_fake);
             size_t weightsSize = 0;
             std::vector<std::string> dataBlobs = {
                     "weights",
@@ -157,7 +157,7 @@ void GNAPropagateMatcher :: match() {
                 fillWeights(weights);
             }
 
-            auto net = net_reader.ReadNetwork(_env.model, weights);
+            auto net = core.ReadNetwork(_env.model, weights);
             sortedLayers = details::CNNNetSortTopologically(net);
             sortedLayers.insert(sortedLayers.end(), tiBodies.begin(), tiBodies.end());
 

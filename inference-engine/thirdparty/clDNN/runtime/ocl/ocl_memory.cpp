@@ -7,7 +7,7 @@
 #include "ocl_memory.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
-#include "ocl_base_event.hpp"
+#include "ocl_event.hpp"
 #include <stdexcept>
 #include <vector>
 
@@ -52,7 +52,7 @@ event::ptr gpu_buffer::fill(stream& stream) {
 event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
+    cl::Event ev_ocl = std::dynamic_pointer_cast<ocl_event>(ev)->get();
     cl_stream.get_cl_queue().enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), nullptr, &ev_ocl);
 
     // TODO: do we need sync here?
@@ -80,7 +80,7 @@ event::ptr gpu_buffer::copy_from(stream& /* stream */, const memory& /* other */
 event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = std::dynamic_pointer_cast<base_event>(ev)->get();
+    cl::Event ev_ocl = std::dynamic_pointer_cast<ocl_event>(ev)->get();
     cl_stream.get_cl_queue().enqueueWriteBuffer(_buffer, false, 0, size(), host_ptr, nullptr, &ev_ocl);
 
     return ev;
@@ -153,7 +153,7 @@ event::ptr gpu_image2d::fill(stream& stream) {
 event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
+    cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
     cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
     cl_stream.get_cl_queue().enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
 
@@ -289,7 +289,7 @@ void gpu_usm::unlock(const stream& /* stream */) {
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
     auto& cl_stream = downcast<ocl_stream>(stream);
     auto ev = stream.create_base_event();
-    cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
+    cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
     // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
     // cl_stream.get_usm_helper().enqueue_fill_mem<unsigned char>(cl_stream.get_cl_queue(), _buffer.get(), pattern, _bytes_count, nullptr, &ev_ocl)
     // Workarounded with enqeue_memcopy. ToDo: Remove below code. Uncomment above.
@@ -303,7 +303,7 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern) {
 
 event::ptr gpu_usm::fill(stream& stream) {
     // event::ptr ev{ new base_event(_context), false };
-    // cl::Event ev_ocl = downcast<base_event>(ev.get())->get();
+    // cl::Event ev_ocl = downcast<ocl_event>(ev.get())->get();
     // cl::usm::enqueue_set_mem(cl_stream.get_cl_queue(), _buffer.get(), 0, _bytes_count, nullptr, &ev_ocl);
     // ev->wait();
 

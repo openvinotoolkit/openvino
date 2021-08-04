@@ -5,6 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "myriad_test_case.h"
+#include "vpu/myriad_config.hpp"
+#include "vpu/vpu_plugin_config.hpp"
+#include "vpu/private_plugin_config.hpp"
 
 using MyriadEngineSetCorrectConfigTest = MyriadEngineSetConfigTest;
 using MyriadEngineSetIncorrectConfigTest = MyriadEngineSetConfigTest;

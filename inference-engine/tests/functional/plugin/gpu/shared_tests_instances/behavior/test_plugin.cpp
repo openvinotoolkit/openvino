@@ -15,6 +15,14 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
+    // AUTO:CPU,GPU test case will use cpu plugin which doesn't support FP16
+    const std::vector<InferenceEngine::Precision> netPrecisionsForAutoCG = {
+            InferenceEngine::Precision::FP32,
+            InferenceEngine::Precision::U8,
+            InferenceEngine::Precision::I16,
+            InferenceEngine::Precision::I32
+    };
+
     const std::vector<std::map<std::string, std::string>> configs = {
             {}
     };
@@ -124,9 +132,10 @@ namespace {
                                     ::testing::ValuesIn(AutoConfigs)),
                             BehaviorTestInput::getTestCaseName);
 
+
     INSTANTIATE_TEST_SUITE_P(smoke_AutoCG_BehaviorTests, BehaviorTestInput,
                             ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisionsForAutoCG),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(auto_cpu_gpu_conf)),
                             BehaviorTestInput::getTestCaseName);

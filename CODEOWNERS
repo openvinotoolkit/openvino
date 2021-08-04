@@ -73,3 +73,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # Documentation
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 *.md  @openvinotoolkit/openvino-docs-maintainers
+
+# Control 3d party dependencies
+*requirements*  @openvino-configuration-mgmt
+*setup.py  @openvino-configuration-mgmt
+/scripts/install_dependencies/  @openvino-configuration-mgmt

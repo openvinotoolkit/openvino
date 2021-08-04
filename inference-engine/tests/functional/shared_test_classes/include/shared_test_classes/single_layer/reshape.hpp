@@ -37,29 +37,4 @@ protected:
     void SetUp() override;
 };
 
-
-//TODO: Drop this Revise impl when all pluging will switch back to ReshapeLayerTest
-typedef std::tuple<bool,                               // SpecialZero
-                   InferenceEngine::Precision,         // Network precision
-                   InferenceEngine::Precision,         // Input precision
-                   InferenceEngine::Precision,         // Output precision
-                   InferenceEngine::Layout,            // Input layout
-                   InferenceEngine::Layout,            // Output layout
-                   std::vector<size_t>,                // Input shapes
-                   std::vector<int64_t>,               // OutForm Shapes
-                   std::string,                        // Device name
-                   std::map<std::string, std::string>  // Config
-                   >
-    reshapeParamsRevise;
-
-class ReshapeLayerTestRevise
-    : public testing::WithParamInterface<reshapeParamsRevise>,
-      virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(
-        testing::TestParamInfo<reshapeParamsRevise> obj);
-
-protected:
-    void SetUp() override;
-};
 }  // namespace LayerTestsDefinitions

@@ -25,6 +25,7 @@
 #include "dnn_types.h"
 #include "gna_types.h"
 #include "gna_limitations.hpp"
+#include "layers/gna_convolution_layer.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -50,6 +51,9 @@
 
 using namespace GNAPluginNS::backend;
 
+using GNAPluginNS::GNAConvolutionLayer::outputFromConv;
+using GNAPluginNS::GNAConvolutionLayer::outputFromPooling;
+using GNAPluginNS::GNAConvolutionLayer::outputFromPoolingLegacy;
 
 void GNAPluginNS::backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
     dump_write_index = index;
@@ -144,20 +148,15 @@ void GNAPluginNS::backend::AMIntelDNN::InitAffineComponentPrivate(intel_dnn_comp
 
 
 void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
-                                                 uint32_t num_rows_in,
                                                  uint32_t num_columns_in,
-                                                 uint32_t num_rows_out,
                                                  uint32_t num_columns_out,
                                                  uint32_t num_bytes_per_input,
                                                  uint32_t num_bytes_per_output,
                                                  uint32_t num_bytes_per_weight,
                                                  uint32_t num_bytes_per_bias,
                                                  uint32_t num_filters,
-                                                 uint32_t num_filter_rows,
                                                  uint32_t num_filter_coefficients,
-                                                 uint32_t num_feature_maps,
-                                                 uint32_t num_feature_map_rows,
-                                                 uint32_t num_feature_map_columns,
+                                                 const uint32_t convStride,
                                                  float weight_scale_factor,
                                                  float output_scale_factor,
                                                  void *&ptr_inputs,
@@ -165,9 +164,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
                                                  void *&ptr_filters,
                                                  void *&ptr_biases,
                                                  bool postInitMem) {
-    comp.num_rows_in = num_rows_in;
+    comp.num_rows_in = 1;
     comp.num_columns_in = num_columns_in;
-    comp.num_rows_out = num_rows_out;
+    comp.num_rows_out = 1;
     comp.num_columns_out = num_columns_out;
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
@@ -180,11 +179,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     comp.op.conv1D.num_bytes_per_weight = num_bytes_per_weight;
     comp.op.conv1D.num_bytes_per_bias = num_bytes_per_bias;
     comp.op.conv1D.num_filters = num_filters;
-    comp.op.conv1D.num_filter_rows = num_filter_rows;
     comp.op.conv1D.num_filter_coefficients = num_filter_coefficients;
-    comp.op.conv1D.num_feature_maps = num_feature_maps;
-    comp.op.conv1D.num_feature_map_rows = num_feature_map_rows;
-    comp.op.conv1D.num_feature_map_columns = num_feature_map_columns;
+    comp.op.conv1D.convStride = convStride;
     comp.op.conv1D.weight_scale_factor = weight_scale_factor;
     comp.output_scale_factor = output_scale_factor;
     comp.input_scale_factor = output_scale_factor / weight_scale_factor;
@@ -201,18 +197,17 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         ptr_outputs = &comp.ptr_outputs;
     }
 
-    if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
-        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << comp.num_rows_in * comp.num_columns_in <<
+    if (num_columns_in % 8 != 0) {
+        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << num_columns_in <<
                                ") is not a multiply by 8";
     }
-    if (comp.op.conv1D.num_filters < GNALimitations::convMinFiltersNum ||
-        comp.op.conv1D.num_filters > GNALimitations::convMaxFiltersNum ||
-        comp.op.conv1D.num_filters % GNALimitations::convFiltersNumDivider != 0) {
-        THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << comp.op.conv1D.num_filters;
+    if (num_filters < GNALimitations::convMinFiltersNum ||
+        num_filters > GNALimitations::convMaxFiltersNum ||
+        num_filters % GNALimitations::convFiltersNumDivider != 0) {
+        THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << num_filters;
     }
-    auto filter_stride_size = comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns;
-    auto max_number_of_out_elements = (comp.num_columns_in - comp.op.conv1D.num_filter_coefficients) / filter_stride_size + 1;
-    if (comp.num_columns_out / max_number_of_out_elements != comp.op.conv1D.num_filters) {
+    auto max_number_of_out_elements = outputFromConv(num_columns_in, num_filter_coefficients, convStride);
+    if (num_columns_out / max_number_of_out_elements != num_filters) {
         THROW_GNA_EXCEPTION << "Number of outputs or feature map config is incorrect in Convolutional1DComponent";
     }
 }
@@ -543,11 +538,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
         if (IS_CONV_1D(k)) {
             auto &conv = components[k].op.conv1D;
             graph << "  <TR><TD> num_filters</TD><TD>" <<  conv.num_filters<< "</TD></TR>\n";
-            graph << "  <TR><TD> num_filter_rows</TD><TD>" <<  conv.num_filter_rows<< "</TD></TR>\n";
             graph << "  <TR><TD> num_filter_coefficients</TD><TD>" <<  conv.num_filter_coefficients<< "</TD></TR>\n";
-            graph << "  <TR><TD> num_feature_maps</TD><TD>" <<  conv.num_feature_maps<< "</TD></TR>\n";
-            graph << "  <TR><TD> num_feature_map_rows</TD><TD>" <<  conv.num_feature_map_rows<< "</TD></TR>\n";
-            graph << "  <TR><TD> num_feature_map_columns</TD><TD>" <<  conv.num_feature_map_columns<< "</TD></TR>\n";
+            graph << "  <TR><TD> conv_stride</TD><TD>" <<  conv.convStride<< "</TD></TR>\n";
             graph << "  <TR><TD> wscale</TD><TD>" <<  conv.weight_scale_factor<< "</TD></TR>\n";
             graph << "  <TR><TD> wbit</TD><TD>" <<  conv.num_bytes_per_weight<< "</TD></TR>\n";
             graph << "  <TR><TD> bbit</TD><TD>" <<  conv.num_bytes_per_bias<< "</TD></TR>\n";
@@ -943,21 +935,15 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                 break;
                 case kDnnConvolutional1dOp: {
                     uint32_t num_filters = component[i].op.conv1D.num_filters;
-                    uint32_t num_filter_rows = component[i].op.conv1D.num_filter_rows;
                     uint32_t num_filter_coefficients = component[i].op.conv1D.num_filter_coefficients;
-                    uint32_t num_feature_maps = component[i].op.conv1D.num_feature_maps;
-                    uint32_t num_feature_map_rows = component[i].op.conv1D.num_feature_map_rows;
-                    uint32_t num_feature_map_columns = component[i].op.conv1D.num_feature_map_columns;
+                    const auto convStride = component[i].op.conv1D.convStride;
                     uint32_t num_bytes_per_weight = component[i].op.conv1D.num_bytes_per_weight;
                     uint32_t num_bytes_per_bias = component[i].op.conv1D.num_bytes_per_bias;
                     float weight_scale_factor = component[i].op.conv1D.weight_scale_factor;
                     float output_scale_factor = component[i].output_scale_factor;
                     out_file << "<num_filters> " << std::dec << num_filters << "\n";
                     out_file << "<num_filter_coefficients> " << std::dec << num_filter_coefficients << "\n";
-                    out_file << "<num_filter_rows> " << std::dec << num_filter_rows << "\n";
-                    out_file << "<num_feature_maps> " << std::dec << num_feature_maps << "\n";
-                    out_file << "<num_feature_map_rows> " << std::dec << num_feature_map_rows << "\n";
-                    out_file << "<num_feature_map_columns> " << std::dec << num_feature_map_columns << "\n";
+                    out_file << "<conv_stride> " << std::dec << convStride << "\n";
                     if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << "<num_bytes_per_weight> " << std::dec << 4 << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << 4 << "\n";
@@ -1374,28 +1360,8 @@ uint32_t GNAPluginNS::backend::AMIntelDNN::CountLayers() {
     return n;
 }
 
-namespace {
-uint32_t outputFromConv(const uint32_t in, const uint32_t flt, const uint32_t stride) {
-    // floor[(in - flt)/stride] + 1, GNA Spec 1.24
-    if (flt > in || flt == 0 || stride == 0) {
-        THROW_GNA_EXCEPTION << "Invalid (input, filter, stride) = (" << in << "," << flt << "," << stride << ")";
-    }
-    return (in - flt) / stride + 1;
-}
-
-uint32_t outputFromPooling(const uint32_t in, const uint32_t window, const uint32_t stride) {
-    // ceil[(in - window)/stride] + 1, GNA Spec 1.24
-    if (window > in || window == 0 || stride == 0) {
-        THROW_GNA_EXCEPTION << "Invalid (input, window, stride) = (" << in << "," << window << "," << stride << ")";
-    }
-    if (window == in) return 1;
-
-    return (in - window - 1) / stride + 2;
-}
-} // namespace
-
 #if GNA_LIB_VER == 2
-void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel) {
+void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(Gna2Model *gnaModel, const std::string& gnaCompileTarget) {
     Gna2Operation * gnaOperation;
     if (gnaModel == nullptr)
         THROW_GNA_EXCEPTION << "Invalid input parameter";
@@ -1431,10 +1397,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
 #endif
     for (int i = 0; i < component.size(); i++) {
         // std::cout << "Component + " << i <<"=GNA_" << std::distance(ptr_nnet->pLayers, pLayer) << "\n";
-#if  GNA_LIB_VER == 2
         auto& comp = component[i];
-#endif
-        switch (component[i].operation) {
+        switch (comp.operation) {
             case kDnnAffineOp:
 #if  GNA_LIB_VER == 2
                 HelperGna2OperationInitFullyConnectedAffine(gnaOperation, gnaUserAllocator, gnaUserFree,
@@ -1598,7 +1562,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 comp.op.conv1D.ptr_biases),
                         nullptr,
                         create_shape1D_parameter(
-                                comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns),
+                                comp.op.conv1D.convStride),
                         nullptr,
                         nullptr);
 
@@ -1624,11 +1588,11 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     pConvolutionalLayer->nBytesBias = component[i].op.conv1D.num_bytes_per_bias;
                     pConvolutionalLayer->nBytesFilterCoefficient = component[i].op.conv1D.num_bytes_per_weight;
                     pConvolutionalLayer->nFilters = component[i].op.conv1D.num_filters;
-                    pConvolutionalLayer->nFilterRows = component[i].op.conv1D.num_filter_rows;
+                    pConvolutionalLayer->nFilterRows = comp.op.conv1D.num_filter_coefficients / comp.op.conv1D.convStride;
                     pConvolutionalLayer->nFilterCoefficients = component[i].op.conv1D.num_filter_coefficients;
-                    pConvolutionalLayer->nFeatureMaps = component[i].op.conv1D.num_feature_maps;
-                    pConvolutionalLayer->nFeatureMapRows = component[i].op.conv1D.num_feature_map_rows;
-                    pConvolutionalLayer->nFeatureMapColumns = component[i].op.conv1D.num_feature_map_columns;
+                    pConvolutionalLayer->nFeatureMaps = 1;
+                    pConvolutionalLayer->nFeatureMapColumns = component[i].op.conv1D.convStride;
+                    pConvolutionalLayer->nFeatureMapRows = pLayer->nInputColumns / pConvolutionalLayer->nFeatureMapColumns;
                     pConvolutionalLayer->poolType = INTEL_NO_POOLING;  //  will be overwritten
                     pConvolutionalLayer->nPoolSize = 0;  //  will be overwritten
                     pConvolutionalLayer->nPoolStride = 0;  //  will be overwritten
@@ -1684,9 +1648,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         Gna2Shape* poolStride{};
 
                         if (gnaOperation->Operands[InOpIdx]->Shape.NumberOfDimensions == 2) { // kDnnConvolutional1dOp
-                            // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
                             poolWindow = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
-                            poolStride = create_shape1D_parameter(comp.op.maxpool.poolingWindowXY[0]);
+                            poolStride = create_shape1D_parameter(comp.op.maxpool.poolingStrideXY[0]);
                         } else {
                             poolWindow = create_shape2D_parameter(comp.op.maxpool.poolingWindowXY[1], comp.op.maxpool.poolingWindowXY[0]);
                             poolStride = create_shape2D_parameter(comp.op.maxpool.poolingStrideXY[1], comp.op.maxpool.poolingStrideXY[0]);
@@ -1714,9 +1677,11 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             const auto fltStride = fltStrideShape->Dimensions[0];
                             const auto outFromConv = outputFromConv(inVecCnt, nFltSize, fltStride);
                             //  FLAT input matrix, pooled outputs per filter
-                            // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - poolingWindow)
-                            outputTensor.Shape.Dimensions[1] =
-                                (outFromConv - 1) / poolStride->Dimensions[0] + 1;
+                            if (gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_3_0) {
+                                outputTensor.Shape.Dimensions[1] = outputFromPooling(outFromConv, poolWindow->Dimensions[0], poolStride->Dimensions[0]);
+                            } else {
+                                outputTensor.Shape.Dimensions[1] = outputFromPoolingLegacy(outFromConv, poolStride->Dimensions[0]);
+                            }
                         } else { // kDnnConvolutional2dOp
                             // Override GNA operation output pointer with the one from pooling component
                             outputTensor.Data = comp.ptr_outputs;
@@ -1750,17 +1715,15 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
                         pConvolutionalLayer->poolType = INTEL_MAX_POOLING;
-                        // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
                         pConvolutionalLayer->nPoolSize = component[i].op.maxpool.poolingWindowXY[0];
-                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingWindowXY[0];
+                        pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingStrideXY[0];
 
                         // number of output columns correction - based on GNA-library expectations
                         auto nFltSize = pConvolutionalLayer->nFilterCoefficients;
                         auto fltStrideSz = pConvolutionalLayer->nFeatureMaps * pConvolutionalLayer->nFeatureMapColumns;  // always move 1 "row"
                         auto outFromConv = outputFromConv(pLayer->nInputColumns, nFltSize, fltStrideSz);
                         // FLAT input matrix, pooled outputs per filter
-                        // TODO: Issue 50386 check why (outFromConv - 1) an not (outFromConv - nPoolSize)
-                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * ((outFromConv - 1) / pConvolutionalLayer->nPoolStride + 1);
+                        pLayer->nOutputColumns = pConvolutionalLayer->nFilters * outputFromPoolingLegacy(outFromConv, pConvolutionalLayer->nPoolStride);
                     }
 #endif
                 } else {
@@ -1784,7 +1747,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         || (component[i - 1].operation == kDnnConvolutional1dOp)
                         || (component[i - 1].operation == kDnnConvolutional2dOp)
                         || ((component[i - 1].operation == kDnnMaxPoolOp) &&
-                        (component[i - 2].operation == kDnnConvolutional1dOp))) {
+                        (component[i - 2].operation == kDnnConvolutional1dOp
+                            || component[i - 2].operation == kDnnConvolutional2dOp))) {
                         if (gnaOperation->Operands[PwlOpIdx] == nullptr) {
                             HelperGna2OperationSetOperand(gnaOperation, gnaUserAllocator, gnaUserFree, PwlOpIdx, createGna2TensorPwl(1, nullptr));
                         }

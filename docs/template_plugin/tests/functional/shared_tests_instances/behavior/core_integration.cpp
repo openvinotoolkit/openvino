@@ -73,7 +73,7 @@ using IEClassSetConfigTestHETERO = IEClassNetworkTest;
 
 TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     {
-        Core ie;
+        Core ie = createCoreWithTemplate();
         Parameter p;
 
         ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
@@ -84,7 +84,7 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     }
 
     {
-        Core ie;
+        Core ie = createCoreWithTemplate();
         Parameter p;
 
         ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(NO)}}, "HETERO"));
@@ -95,7 +95,7 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
     }
 
     {
-        Core ie;
+        Core ie = createCoreWithTemplate();
         Parameter p;
 
         ASSERT_NO_THROW(ie.GetMetric("HETERO", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -118,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(
 using IEClassGetConfigTestTEMPLATE = IEClassNetworkTest;
 
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
-    Core ie;
+    Core ie = createCoreWithTemplate();
     Parameter p;
     std::string deviceName = CommonTestUtils::DEVICE_TEMPLATE;
 

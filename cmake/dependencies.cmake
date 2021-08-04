@@ -7,10 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 # TODO: fix it
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 
-if(CMAKE_CROSSCOMPILING)
-    set(CMAKE_STAGING_PREFIX "${TEMP}")
-endif()
-
 if(ENABLE_SAME_BRANCH_FOR_MODELS)
     branchName(MODELS_BRANCH)
 else()
@@ -32,12 +28,12 @@ if(COMMAND get_linux_name)
 endif()
 
 if(CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES Linux AND CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
-    set(protoc_version "3.7.1")
+    set(protoc_version "3.9.2")
 
     RESOLVE_DEPENDENCY(SYSTEM_PROTOC_ROOT
         ARCHIVE_LIN "protoc-${protoc_version}-linux-x86_64.tar.gz"
         TARGET_PATH "${TEMP}/protoc-${protoc_version}-linux-x86_64"
-        SHA256 "a1bedd5c05ca51e49f8f254faa3d7331e05b3a806c151fb111d582f154d0fee8"
+        SHA256 "1d6da1d97d0cbfcd333558afe24533eb3cb48dc1e0ab5e971aa1e50ede8bcf45"
     )
     debug_message(STATUS "host protoc-${protoc_version} root path = " ${SYSTEM_PROTOC_ROOT})
 
@@ -95,7 +91,6 @@ if(THREADING STREQUAL "OMP")
     install(FILES ${source_list} 
             DESTINATION "deployment_tools/inference_engine/external/omp/lib"
             COMPONENT omp)
-    
 endif()
 
 ## TBB package
@@ -316,25 +311,25 @@ if(ENABLE_SPEECH_DEMO)
     if(DEFINED IE_PATH_TO_DEPS)
         if(WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_WIN "speech_demo_1.0.0.774_windows.zip"
+                    ARCHIVE_WIN "speech_demo_1.0.0.780_windows.zip"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "67b25170be5e89a4f0e90e8b39623b60c9a15b965c30329385e295fcd2edc856")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "957bd274a1f6dc1d83a46879c7ef3b3b06f17d11af85cc45c18919051d145abd")
             debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
         elseif(LINUX AND X86_64)
             if(LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_centos.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.780_centos.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "5ec3b7be9ae05376aefae5bd5fd4a39b12c274e82817fd3218120b8e8fc8ff5a")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "6d8d1111d0e662fe71d71cd3debad2995f6fb6fe5df3b92196dae06ff7abdf44")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             else()
                 RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
-                    ARCHIVE_LIN "speech_demo_1.0.0.774_linux.tgz"
+                    ARCHIVE_LIN "speech_demo_1.0.0.780_linux.tgz"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
-                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.774"
-                    SHA256 "f0bbd0a6218b0365e7cfb1f860b34e4ace7e0d47dd60b369cdea8a480329810f")
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.780"
+                    SHA256 "0ec6f1e47c00d781dc918af5d3055ab474ff47b9978dd6fe2add73e3339b0763")
                 debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
             endif()
         else()

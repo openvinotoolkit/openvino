@@ -11,8 +11,8 @@
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
-#include "network_impl.h"
-#include "implementation_map.h"
+#include "cldnn/graph/network.hpp"
+#include "impls/implementation_map.hpp"
 
 #include <memory>
 #include <string>
@@ -20,7 +20,7 @@
 namespace cldnn {
 template <class PType>
 struct primitive_type_base : primitive_type {
-    std::shared_ptr<cldnn::program_node> create_node(program_impl& program,
+    std::shared_ptr<cldnn::program_node> create_node(program& program,
                                                      const std::shared_ptr<primitive> prim) const override {
         if (prim->type != this)
             throw std::invalid_argument("primitive_type_base::create_node: primitive type mismatch");
@@ -28,7 +28,7 @@ struct primitive_type_base : primitive_type {
         return std::make_shared<typed_program_node<PType>>(std::static_pointer_cast<PType>(prim), program);
     }
 
-    std::shared_ptr<cldnn::primitive_inst> create_instance(network_impl& network,
+    std::shared_ptr<cldnn::primitive_inst> create_instance(network& network,
                                                            const cldnn::program_node& node) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::create_instance: primitive type mismatch");
@@ -37,25 +37,25 @@ struct primitive_type_base : primitive_type {
     }
 
     // TODO: Should we get rid of engine type in impl map? Or we must pass internal build engine to get real ocl type?
-    std::unique_ptr<primitive_impl> choose_impl(const engine& /* engine */, const cldnn::program_node& node) const override {
+    std::unique_ptr<primitive_impl> choose_impl(const cldnn::program_node& node) const override {
         if (node.type() != this)
             throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
 
-        auto factory = implementation_map<PType>::get(engine_types::ocl, node);
+        auto factory = implementation_map<PType>::get(node);
         return std::move(std::unique_ptr<primitive_impl>(factory(node)));
     }
 
-    bool does_an_implementation_exist(const engine& /* engine */, const cldnn::program_node& node) const override {
+    bool does_an_implementation_exist(const cldnn::program_node& node) const override {
         if (node.type() != this)
-            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
+            throw std::invalid_argument("primitive_type_base::does_an_implementation_exist: primitive type mismatch");
 
-        return implementation_map<PType>::check(engine_types::ocl, node);
+        return implementation_map<PType>::check(node);
     }
 
-    bool does_possible_implementation_exist(const engine& /* engine */, const cldnn::program_node& node) const override {
+    bool does_possible_implementation_exist(const cldnn::program_node& node) const override {
         if (node.type() != this)
-            throw std::invalid_argument("primitive_type_base::choose_impl: primitive type mismatch");
-        return implementation_map<PType>::check_io_eq(engine_types::ocl, node);
+            throw std::invalid_argument("primitive_type_base::does_possible_implementation_exist: primitive type mismatch");
+        return implementation_map<PType>::check_io_eq(node);
     }
 
     cldnn::layout calc_output_layout(const cldnn::program_node& node) const override {

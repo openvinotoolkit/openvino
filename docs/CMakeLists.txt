@@ -25,26 +25,29 @@ if(NOT ENABLE_DOCKER)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if (NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_ONNX_IMPORT_ENABLE)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
 
     set(all_docs_targets
         ie_docs_snippets
-        template_extension
-        templatePlugin TemplateBehaviorTests TemplateFunctionalTests)
+        template_extension templatePlugin templateFuncTests)
     foreach(target_name IN LISTS all_docs_targets)
-        if (TARGET ${target_name})
+        if(TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
             if(WIN32)
                 set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
             endif()
         endif()
     endforeach()
+
+    # install
+
+    install(TARGETS templatePlugin template_extension
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 
-set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check")
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation")
 set(POT_DOCS_DIR "" CACHE PATH "Path to post-training-compression-tool documentation")
@@ -52,27 +55,23 @@ set(GST_DOCS_DIR "" CACHE PATH "Path to gst-video-analytics documentation")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
-    find_package(PythonInterp 3 REQUIRED)
     find_package(LATEX REQUIRED)
 
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show lxml
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_QUIET
-    )
+    ie_check_pip_package(lxml FATAL_ERROR)
+    ie_check_pip_package(LinkChecker WARNING)
 
-    if (NOT ${PIP_EXIT_CODE} EQUAL 0)
-        message(FATAL_ERROR "lxml package is not installed. Please use \"pip install lxml\".")
-    endif()
+    find_host_program(LINKCHECKER_PY
+                      NAMES linkchecker
+                      DOC "linkchecker tools for documentation check")
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    set(DOXYGEN_DIR "${OpenVINO_MAIN_SOURCE_DIR}/docs/doxygen")
-    set(IE_SOURCE_DIR "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine")
+    set(DOXYGEN_DIR "${OpenVINO_SOURCE_DIR}/docs/doxygen")
+    set(IE_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/inference-engine")
     set(PYTHON_API_IN "${IE_SOURCE_DIR}/ie_bridges/python/src/openvino/inference_engine/ie_api.pyx")
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(NGRAPH_DIR "${OpenVINO_MAIN_SOURCE_DIR}/ngraph")
+    set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
     set(NGRAPH_PY_DIR "${NGRAPH_DIR}/python/src/ngraph/")
     set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
 
@@ -95,17 +94,17 @@ function(build_docs)
     configure_file(${FOOTER_SOURCE} ${FOOTER_BUILD} @ONLY)
 
     file(GLOB_RECURSE doc_source_files
-        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.svg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.svg")
+        LIST_DIRECTORIES true RELATIVE ${OpenVINO_SOURCE_DIR}
+        "${OpenVINO_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_SOURCE_DIR}/docs/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/docs/*.svg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.svg")
 
     configure_file(${PYTHON_API_IN} ${PYTHON_API_OUT} @ONLY)
 
@@ -216,19 +215,19 @@ function(build_docs)
 
     # ovino doc files
     file(GLOB_RECURSE ovino_doc_files
-        LIST_DIRECTORIES true RELATIVE ${OpenVINO_MAIN_SOURCE_DIR}
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/docs/*.jpg"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.md"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.png"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/*.jpg")
+        LIST_DIRECTORIES true RELATIVE ${OpenVINO_SOURCE_DIR}
+        "${OpenVINO_SOURCE_DIR}/docs/*.md"
+        "${OpenVINO_SOURCE_DIR}/docs/*.png"
+        "${OpenVINO_SOURCE_DIR}/docs/*.gif"
+        "${OpenVINO_SOURCE_DIR}/docs/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg")
 
     foreach(source_file ${ovino_doc_files})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy
-            "${OpenVINO_MAIN_SOURCE_DIR}/${source_file}" "${DOCS_BUILD_DIR}/openvino/${source_file}")
+            "${OpenVINO_SOURCE_DIR}/${source_file}" "${DOCS_BUILD_DIR}/openvino/${source_file}")
     endforeach()
 
     # omz doc files
@@ -353,7 +352,7 @@ function(build_docs)
 
     if(EXISTS "${LINKCHECKER_PY}")
         add_custom_target(docs_check
-                            COMMAND ${PYTHON_EXECUTABLE} "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
+                            COMMAND "${LINKCHECKER_PY}" -v "${DOCS_BUILD_DIR}/html/"
                             COMMENT "Check links in generated documentation"
                             WORKING_DIRECTORY "${DOCS_BUILD_DIR}"
                             VERBATIM)
@@ -363,7 +362,7 @@ function(build_docs)
     find_program(browser NAMES xdg-open)
     if(browser)
         add_custom_target(ie_docs_open
-                          COMMAND ${browser} "${OpenVINO_MAIN_SOURCE_DIR}/docs/html/index.html"
+                          COMMAND ${browser} "${OpenVINO_SOURCE_DIR}/docs/html/index.html"
                           DEPENDS ie_docs
                           COMMENT "Open OpenVINO documentation"
                           VERBATIM)

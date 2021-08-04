@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/include_all.cl"
+#include "include/fetch_data.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -110,7 +109,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 
             // Move temporary input offset to next row
             tmp_input_offset += DILATION_SIZE_Y * in_pitch_y;
-            
+
             uint tmp_weight_offset = weight_offset;
 
             // ====================================================================

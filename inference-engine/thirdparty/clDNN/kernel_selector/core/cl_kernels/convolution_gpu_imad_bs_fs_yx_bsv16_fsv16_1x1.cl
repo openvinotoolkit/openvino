@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/fetch.cl"
+#include "include/fetch_data.cl"
+#include "include/fetch_weights.cl"
 #include "include/imad.cl"
 #if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
@@ -119,7 +119,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
         for (uint z = 0; z < 16; z++) {
             output[dst_index + z] = results[z];
         }
-  
+
 #endif
     }
 }

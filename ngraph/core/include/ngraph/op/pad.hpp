@@ -19,6 +19,7 @@ namespace ngraph
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a generic padding operation.
                 ///
                 /// \param arg The output producing input tensor to be padded.

@@ -21,7 +21,7 @@ public:
     static std::string to_string(reorg_yolo_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reorg_yolo_node const& desc);
+    typed_primitive_inst(network& network, reorg_yolo_node const& desc);
 };
 
 using reorg_yolo_inst = typed_primitive_inst<reorg_yolo>;
