@@ -120,6 +120,10 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
+    if (NGRAPH_PDPD_FRONTEND_ENABLE)
+        add_dependencies(test_model_zoo paddlepaddle_test_models)
+    endif()
+
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"
             DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 
