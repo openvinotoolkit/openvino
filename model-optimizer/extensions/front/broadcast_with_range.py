@@ -57,21 +57,21 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
         node_name = node.soft_get('name', node.id)
         gather = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
                                              {'name': node_name + '/BroadcastingDim'})
+        gather_for_const = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
+                                                       {'name': const_name + '/BroadcastingDim'})
+        shapeof_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
+        shapeof_node.out_port(0).connect(gather_for_const.in_port(0))
+        max_node = Maximum(graph, {'name': node_name + '/MaxInputShape'}).create_node([gather, gather_for_const])
+
+        const.out_port(0).connect(shapeof_node.in_port(0))
 
         range_node = create_op_with_const_inputs(graph, Range,
                                                  {0: np.array(0, dtype=value.dtype),
                                                   2: np.array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
+        max_node.out_port(0).connect(range_node.in_port(1))
 
-        shapeof0_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
-        shapeof1_node = Shape(graph, {'name': node_name + '/ShapeOf'}).create_node()
-        max_node = Maximum(graph, {'name': node_name + '/MaxInputShape'}).create_node([shapeof0_node, shapeof1_node])
-        max_node.out_port(0).connect(gather.in_port(0))
-
-        const.out_port(0).connect(shapeof0_node.in_port(0))
-        node.in_port(1).get_connection().add_destination(shapeof1_node.in_port(0))
-
-        gather.out_port(0).connect(range_node.in_port(1))
+        node.in_port(1).get_connection().add_destination(gather.in_port(0))
 
         node.in_port(0).get_connection().set_source(range_node.out_port(0))
 
@@ -82,3 +82,52 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
             rename_nodes([(const, const_name + '/ToBeDeleted'), (unsqueeze, const_name)])
         else:
             rename_nodes([(const, const_name + '/ToBeDeleted'), (range_node, const_name)])
+
+    # @staticmethod
+    # def replace(node: Node, const: Node):
+    #     graph = node.graph
+    #     shape = const.shape
+    #     const_name = const.soft_get('name', const.id)
+    #
+    #     non_one_dims = np.argwhere(shape != 1).flatten()
+    #     one_dims = np.argwhere(shape == 1).flatten()
+    #
+    #     if not (non_one_dims.size == 1 and 5 < np.prod(shape) < 500):
+    #         # (5;500) range is deduced to affect less models
+    #         return
+    #
+    #     value = const.value
+    #     if not np.array_equal(np.arange(0, np.prod(shape), 1).reshape(shape), value):
+    #         return
+    #
+    #     positive_idx = non_one_dims.item(0)
+    #     negative_idx = positive_idx - len(shape)
+    #
+    #     node_name = node.soft_get('name', node.id)
+    #     gather = create_op_with_const_inputs(graph, Gather, {1: int64_array(negative_idx), 2: int64_array(0)},
+    #                                          {'name': node_name + '/BroadcastingDim'})
+    #
+    #     range_node = create_op_with_const_inputs(graph, Range,
+    #                                              {0: np.array(0, dtype=value.dtype),
+    #                                               2: np.array(1, dtype=value.dtype)},
+    #                                              {'name': const_name + '/Range', 'dtype': value.dtype})
+    #
+    #     shapeof0_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
+    #     shapeof1_node = Shape(graph, {'name': node_name + '/ShapeOf'}).create_node()
+    #     max_node = Maximum(graph, {'name': node_name + '/MaxInputShape'}).create_node([shapeof0_node, shapeof1_node])
+    #     max_node.out_port(0).connect(gather.in_port(0))
+    #
+    #     const.out_port(0).connect(shapeof0_node.in_port(0))
+    #     node.in_port(1).get_connection().add_destination(shapeof1_node.in_port(0))
+    #
+    #     gather.out_port(0).connect(range_node.in_port(1))
+    #
+    #     node.in_port(0).get_connection().set_source(range_node.out_port(0))
+    #
+    #     if one_dims.size:
+    #         unsqueeze = create_op_node_with_second_input(graph, Unsqueeze, one_dims,
+    #                                                      {'name': const_name + '/KeepShape'})
+    #         range_node.out_port(0).get_connection().insert_node(unsqueeze)
+    #         rename_nodes([(const, const_name + '/ToBeDeleted'), (unsqueeze, const_name)])
+    #     else:
+    #         rename_nodes([(const, const_name + '/ToBeDeleted'), (range_node, const_name)])
