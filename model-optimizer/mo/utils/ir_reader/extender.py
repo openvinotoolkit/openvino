@@ -39,16 +39,16 @@ class Extender(object):
     def const_shape_infer(node: Node):
         # Check equality of old (restored from IR) and new (calculated while shape inference) input shapes
         node['new_input_shapes'] = list()
-        for n in node.in_nodes():
-            node.new_input_shapes.append(node.in_node(n).shape)
+        for n in node.in_ports():
+            node.new_input_shapes.append(node.in_port(n).data.get_shape())
         assert len(node.new_input_shapes) == len(node.old_input_shapes), \
             'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
-        for i in range(len(node.new_input_shapes)):
-            assert np.array_equal(node.new_input_shapes[i], node.old_input_shapes[i]), \
+        for new_input_shape, old_input_shape in zip(node.new_input_shapes, node.old_input_shapes):
+            assert np.array_equal(new_input_shape, old_input_shape), \
                 'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
 
         # Set all output shapes the same as restored from IR
-        i = len(node.in_nodes())
-        for num in node.out_nodes():
-            node.out_node(num).shape = int64_array(node.ports[i][0])
+        i = len(node.in_ports())
+        for num in node.out_ports():
+            node.out_port(num).data.set_shape(int64_array(node.ports[i][0]))
             i += 1
