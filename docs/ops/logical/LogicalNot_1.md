@@ -6,13 +6,17 @@
 
 **Short description**: *LogicalNot* performs element-wise logical negation operation with given tensor.
 
-**Attributes**:
+**Detailed description**: *LogicalNot* performs element-wise logical negation operation with given tensor, based on the following mathematical formula:
 
-    No attributes available.
+\f[
+a_{i} = not(a_{i})
+\f]
+
+**Attributes**: *LogicalNot* operation has no attributes.
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+* **1**: An tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
@@ -22,15 +26,8 @@
 
 * *T*: boolean type.
 
-*LogicalNot* does the following with the input tensor *a*:
 
-\f[
-a_{i} = not(a_{i})
-\f]
-
-**Examples**
-
-*Example 1*
+**Example**
 
 ```xml
 <layer ... type="LogicalNot">
