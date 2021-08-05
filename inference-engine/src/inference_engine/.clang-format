@@ -23,5 +23,5 @@ CommentPragmas: '^#'
 DerivePointerAlignment: false
 FixNamespaceComments: true
 IndentCaseLabels: false
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: AfterHash
 SpaceBeforeCtorInitializerColon: false
