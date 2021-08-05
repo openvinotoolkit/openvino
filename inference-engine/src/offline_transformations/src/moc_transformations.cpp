@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "moc_transformations.hpp"
+#include "disable_shapeof_constant_folding.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -52,6 +53,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             element::TypeVector{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
+    manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
