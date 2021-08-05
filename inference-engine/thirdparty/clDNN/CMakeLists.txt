@@ -84,6 +84,8 @@ include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__CODEGEN_INCDIR}"
     "${CLDNN__API_DIR}"
+    "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src/threading/"
+    "${IE_MAIN_SOURCE_DIR}/src/inference_engine/include/ie/"
   )
 
 # =================================== Link targets and dependencies ====================================
@@ -95,3 +97,5 @@ if(CLDNN__INCLUDE_TESTS)
 endif()
 
 add_subdirectory(kernel_selector)
+
+target_link_libraries(${CLDNN_BUILD__PROJ__clDNN} INTERFACE inference_engine_s)

@@ -86,6 +86,8 @@ include_directories(
     "${__CLDNN_Directory__ks_core}/common"
     "${__CLDNN_Directory__ks_actual_kernels}"
     "${__CLDNN_Directory__ks_common}"
+    "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src/threading/"
+    "${IE_MAIN_SOURCE_DIR}/src/inference_engine/include/ie/"
   )
 
 # =================================== Link targets and dependencies ====================================
@@ -110,6 +112,8 @@ if(WIN32)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
+
+target_link_libraries("${CLDNN_BUILD__PROJ}" INTERFACE inference_engine_s)
 
 # ======================================================================================================
 
