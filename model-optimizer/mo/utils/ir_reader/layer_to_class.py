@@ -189,7 +189,9 @@ def groupconv_to_conv(op: Node):
         assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
-        weights_node.in_port(0).get_source().get_connection().set_destination(op.in_port(1))
+        # We don't use set_destination method here to support case with multiple destinations of source port
+        weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
+        weights_node.in_port(0).disconnect()
     else:
         assert op.in_port(1).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
