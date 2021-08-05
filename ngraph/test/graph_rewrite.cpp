@@ -433,3 +433,70 @@ TEST(PassConfigTest, Test1)
         ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
     }
 }
+
+class CheckConsumers : public ngraph::pass::MatcherPass
+{
+public:
+    NGRAPH_RTTI_DECLARATION;
+    CheckConsumers()
+    {
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
+            auto node = m.get_match_root();
+            auto consumers = [](Node * node) {
+                int64_t cnt{0};
+                for (auto output : node->outputs())
+                {
+                    cnt += output.get_target_inputs().size();
+                }
+                if (as_type<op::Parameter>(node) || as_type<op::Result>(node))
+                {
+                    cnt += 1;
+                }
+                return cnt;
+            };
+            /* The expected number of use_count() for Node is equal to the sum of next components:
+             * 1. Each consumer holds a pointer to Output<Node> which holds a shared_ptr to Node
+             * 2. pattern::Matcher object holds a shared_ptr to the matched node
+             * 3. Local node variable increases use_counter
+             * 4. Some GraphRewrite facilities
+             */
+            auto cnt = consumers(node.get());
+            if(node.use_count() != cnt + 7)
+            {
+                throw ngraph::ngraph_error("Wrong number of consumers");
+            }
+
+            NodeVector nodes;
+            for (const auto & inputs : node->input_values())
+            {
+                nodes.emplace_back(inputs.get_node_shared_ptr());
+            }
+
+            /* The expected number of use_count() for Node is equal to the sum of next components:
+             * 1. Each consumer holds a pointer to Output<Node> which holds a shared_ptr to Node
+             * 2. Local input_node variable increases use_counter
+             */
+            for (const auto & input_node : nodes)
+            {
+                if(input_node.use_count() != consumers(input_node.get()) + 1)
+                {
+                    throw ngraph::ngraph_error("Wrong number of consumers");
+                }
+            }
+            return false;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::any_input(), "CheckConsumers");
+        this->register_matcher(m, callback);
+    }
+};
+
+NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers", 0);
+
+TEST(GraphRewriteTest, nodes_use_count)
+{
+    auto f = get_function();
+    pass::Manager m;
+    m.register_pass<CheckConsumers>();
+    ASSERT_NO_THROW(m.run_passes(f));
+}
