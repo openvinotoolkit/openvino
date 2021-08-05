@@ -108,7 +108,7 @@ TBlob<uint8_t>::CPtr ReadWeights(std::string filepath) {
 std::shared_ptr<Function> createNgraphFunction() {
     TBlob<uint8_t>::CPtr weightsPtr = ReadWeights(FLAGS_m);
 
-    if (weightsPtr->byteSize() != 1724336)
+    if (weightsPtr->byteSize() != 6897344)
         IE_THROW() << "Incorrect weights file. This sample works only with LeNet "
                       "classification network.";
 

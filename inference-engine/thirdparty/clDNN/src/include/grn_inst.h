@@ -32,7 +32,7 @@ public:
     static std::string to_string(grn_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, grn_node const& node);
+    typed_primitive_inst(network& network, grn_node const& node);
 };
 
 using grn_inst = typed_primitive_inst<grn>;
