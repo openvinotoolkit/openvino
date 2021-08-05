@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <ie_parameter.hpp>
 #include <string>
 
 namespace InferenceEngine {

@@ -155,7 +155,12 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, Remot
  * @return A shared remote context instance
  */
 static inline D3DContext::Ptr make_shared_context(Core& core, std::string deviceName, ID3D11Device* device) {
-    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)}, {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
+    // clang-format off
+    ParamMap contextParams = {
+        {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+        {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}
+    };
+    // clang-format on
     return std::dynamic_pointer_cast<D3DContext>(core.CreateContext(deviceName, contextParams));
 }
 
