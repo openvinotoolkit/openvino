@@ -77,7 +77,7 @@ endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
 
-set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")
+set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include/ie")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
        ${PUBLIC_HEADERS_DIR}/*.hpp
@@ -162,11 +162,12 @@ if (TBBBIND_2_4_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
-                                             ngraph ngraph::frontend_manager::static inference_engine_transformations)
+                                             ngraph::frontend_manager::static inference_engine_transformations
+                                     PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-            $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
+            $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include/ie>
     PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -216,7 +217,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
 
 # Export for build tree
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+export(TARGETS ngraph ${TARGET_NAME} NAMESPACE IE::
         APPEND FILE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 
 # Export for developer package
@@ -268,7 +269,7 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}/include
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
@@ -306,7 +307,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceE
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
                                PATH_VARS ${PATH_VARS})
 
-set(IE_INCLUDE_DIR "include")
+set(IE_INCLUDE_DIR "include/ie")
 set(IE_NGRAPH_DIR "../ngraph/cmake")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "share/ie_parallel.cmake")
