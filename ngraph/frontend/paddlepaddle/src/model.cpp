@@ -41,7 +41,6 @@ namespace ngraph
             void overrideAllInputs(const std::vector<Place::Ptr>& inputs);
             void extractSubgraph(const std::vector<Place::Ptr>& inputs,
                                  const std::vector<Place::Ptr>& outputs);
-            void setDefaultShape(Place::Ptr place, const ngraph::Shape&);
             void setPartialShape(Place::Ptr place, const ngraph::PartialShape&);
             ngraph::PartialShape getPartialShape(Place::Ptr place) const;
             void setElementType(Place::Ptr place, const ngraph::element::Type&);
@@ -79,7 +78,6 @@ namespace ngraph
                              std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const;
             void traverse_down(const std::vector<Place::Ptr>& start_nodes, std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
                                std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const;
-            void clean_up_inputs_outputs();
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::vector<std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -440,12 +438,6 @@ namespace ngraph
             overrideAllOutputs(outputs);
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place,
-                                                                 const ngraph::Shape& shape)
-        {
-            FRONT_END_NOT_IMPLEMENTED("setDefaultShape");
-        }
-
         void
             InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place,
                                                                 const ngraph::PartialShape& p_shape)
@@ -678,17 +670,10 @@ namespace ngraph
             }
         }
 
-        InputModelPDPD::InputModelPDPD(const std::string& path)
+        InputModelPDPD::InputModelPDPD(const WSTRING& path)
             : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
         {
         }
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        InputModelPDPD::InputModelPDPD(const std::wstring& path)
-            : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
-        {
-        }
-#endif
 
         InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams)
             : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this)}
