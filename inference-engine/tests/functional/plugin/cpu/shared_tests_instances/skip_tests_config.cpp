@@ -61,6 +61,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NormalizeL2_5D.*)",
         // Issue: 59788. mkldnn_normalize_nchw applies eps after sqrt for across_spatial
         R"(.*NormalizeL2_.*axes=\(1.2.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(2.1.*_eps=100.*)",
+        R"(.*NormalizeL2_.*axes=\(3.1.2.*_eps=100.*)",
 
         // Unsupported operation of type: NormalizeL2 name : Doesn't support reduction axes: (2.2)
         R"(.*BF16NetworkRestore1.*)",
@@ -75,7 +77,7 @@ std::vector<std::string> disabledTestPatterns() {
         // need to implement Export / Import
         R"(.*IEClassImportExportTestP.*)",
         // azure is failing after #6199
-        R"(.*NmsLayerTest.*)"
+        R"(.*/NmsLayerTest.*)"
     };
 #ifdef __APPLE__
         // TODO: Issue 55717

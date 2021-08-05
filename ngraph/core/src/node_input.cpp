@@ -82,8 +82,6 @@ namespace ngraph
     {
     }
 
-    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
-
     RTMap& Input<Node>::get_rt_info() { return m_node->m_inputs.at(m_index).get_rt_info(); }
 
     const RTMap& Input<Node>::get_rt_info() const
