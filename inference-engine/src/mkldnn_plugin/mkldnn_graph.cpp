@@ -813,9 +813,6 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
         if (request != nullptr)
             request->ThrowIfCanceled();
 
-        if (batch > 0)
-            node->setDynamicBatchLim(batch);
-
         ENABLE_CPU_DEBUG_CAP(nd.dumpInputBlobs(node));
 
         OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, node->profiling.execute);

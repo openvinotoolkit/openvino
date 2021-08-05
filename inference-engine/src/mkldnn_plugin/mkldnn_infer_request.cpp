@@ -512,6 +512,10 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
     }
 
     m_curBatch = new_batch;
+
+    for (const auto& node : graph->GetNodes()) {
+        node->setDynamicBatchLim(new_batch);
+    }
 }
 
 std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {
