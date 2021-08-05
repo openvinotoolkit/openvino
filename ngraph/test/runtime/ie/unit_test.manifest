@@ -423,8 +423,6 @@ erf
 divide_adjoint_stability
 equal
 notequal
-greater
-greatereq
 less
 lesseq
 sum_3d_to_scalar_int32
@@ -465,7 +463,6 @@ gather_axis_0_int64
 gather_axis_0_uint16
 gather_axis_0_uint64
 concat_matrix_int64
-greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
