@@ -10,69 +10,41 @@
 #include <shared_test_classes/base/layer_test_utils.hpp>
 #include <tuple>
 
-#include "base_reference_test.hpp"
+#include "logical.hpp"
 
-using namespace reference_tests;
 using namespace ngraph;
 using namespace InferenceEngine;
+using LogicalTypes = ngraph::helpers::LogicalTypes;
 
-struct LogicalOrParams {
-    template <class IT, class OT>
-    LogicalOrParams(const ngraph::PartialShape& input_shape1, const ngraph::PartialShape& input_shape2, const std::vector<IT>& iValues1,
-                    const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
-        : pshape1(input_shape1),
-          pshape2(input_shape2),
-          elemType(ngraph::element::boolean),
-          inputData1(CreateBlob(ngraph::element::boolean, iValues1)),
-          inputData2(CreateBlob(ngraph::element::boolean, iValues2)),
-          refData(CreateBlob(ngraph::element::boolean, oValues)) {}
-    ngraph::PartialShape pshape1;
-    ngraph::PartialShape pshape2;
-    ngraph::element::Type elemType;
-    InferenceEngine::Blob::Ptr inputData1;
-    InferenceEngine::Blob::Ptr inputData2;
-    InferenceEngine::Blob::Ptr refData;
-};
-
-class ReferenceLogicalOrLayerTest : public testing::TestWithParam<LogicalOrParams>, public CommonReferenceTest {
-public:
-    void SetUp() override {
-        auto params = GetParam();
-        function = CreateFunction(params.pshape1, params.pshape2, params.elemType);
-        inputData = {params.inputData1, params.inputData2};
-        refOutData = {params.refData};
-    }
-    static std::string getTestCaseName(const testing::TestParamInfo<LogicalOrParams>& obj) {
-        auto param = obj.param;
-        std::ostringstream result;
-        result << "input_shape1=" << param.pshape1 << "_";
-        result << "input_shape2=" << param.pshape2 << "_";
-        result << "iType=" << param.elemType << "_";
-        result << "oType=" << param.elemType;
-        return result.str();
-    }
-
-private:
-    static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1, const PartialShape& input_shape2, const element::Type& input_type) {
-        const auto in1 = std::make_shared<op::Parameter>(input_type, input_shape1);
-        const auto in2 = std::make_shared<op::Parameter>(input_type, input_shape2);
-        const auto logical_or = std::make_shared<op::v1::LogicalOr>(in1, in2);
-        return std::make_shared<Function>(NodeVector {logical_or}, ParameterVector {in1, in2});
-    }
-};
-
-TEST_P(ReferenceLogicalOrLayerTest, CompareWithHardcodedRefs) {
+namespace reference_tests {
+namespace LogicalOpsRefTestDefinitions {
+namespace {
+TEST_P(ReferenceLogicalLayerTest, LogicalWithHardcodedRefs) {
     Exec();
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LogicalOr_With_Hardcoded_Refs, ReferenceLogicalOrLayerTest,
-    ::testing::Values(LogicalOrParams(ngraph::PartialShape {2, 2}, ngraph::PartialShape {2, 2}, std::vector<char> {true, false, true, false},
-                                      std::vector<char> {false, true, true, false}, std::vector<char> {true, true, true, false}),
-                      LogicalOrParams(ngraph::PartialShape {2, 1, 2, 1}, ngraph::PartialShape {1, 1, 2, 1}, std::vector<char> {true, false, true, false},
-                                      std::vector<char> {true, false}, std::vector<char> {true, false, true, false}),
-                      LogicalOrParams(ngraph::PartialShape {3, 4}, ngraph::PartialShape {3, 4},
-                                      std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true},
-                                      std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false},
-                                      std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, true})),
-    ReferenceLogicalOrLayerTest::getTestCaseName);
+std::vector<RefLogicalParams> generateLogicalParams() {
+    std::vector<RefLogicalParams> logicalParams {
+        Builder {}
+            .opType(LogicalTypes::LOGICAL_OR)
+            .input1({{2, 2}, element::boolean, std::vector<char> {true, false, true, false}})
+            .input2({{2, 2}, element::boolean, std::vector<char> {false, true, true, false}})
+            .expected({{2, 2}, element::boolean, std::vector<char> {true, true, true, false}}),
+        Builder {}
+            .opType(LogicalTypes::LOGICAL_OR)
+            .input1({{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}})
+            .input2({{1, 1, 2, 1}, element::boolean, std::vector<char> {true, false}})
+            .expected({{2, 1, 2, 1}, element::boolean, std::vector<char> {true, false, true, false}}),
+        Builder {}
+            .opType(LogicalTypes::LOGICAL_OR)
+            .input1({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, false, true, false, false, true, true, true}})
+            .input2({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, false}})
+            .expected({{3, 4}, element::boolean, std::vector<char> {true, true, true, true, true, true, true, false, false, true, true, true}})};
+    return logicalParams;
+}
+
+}  // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LogicalOr_With_Hardcoded_Refs, ReferenceLogicalLayerTest, ::testing::ValuesIn(generateLogicalParams()),
+                         ReferenceLogicalLayerTest::getTestCaseName);
+}  // namespace LogicalOpsRefTestDefinitions
+}  // namespace reference_tests
