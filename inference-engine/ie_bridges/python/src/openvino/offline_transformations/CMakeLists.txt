@@ -53,8 +53,8 @@ add_custom_command(TARGET ${TARGET_NAME}
     # add debug postfix to import statement or just copy(CVS-29031)
     COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
         -i ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py
-        --match_string "from .offline_transformations_api"
-        --replace_string "from .offline_transformations_api${IE_BUILD_POSTFIX}"
+        --match_string "from .${TARGET_NAME}"
+        --replace_string "from .${TARGET_NAME}${IE_BUILD_POSTFIX}"
          -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
     )
 
