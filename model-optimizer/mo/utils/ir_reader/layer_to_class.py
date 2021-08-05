@@ -185,17 +185,17 @@ def groupconv_to_conv(op: Node):
     if weights_node.type == 'Const':
         weights_node.value = np.reshape(weights_node.value, new_shape)
     elif weights_node.type == 'Reshape':
-        # we remove reshape node added in ConvolutionWithGroupsResolver pass
+        # We remove reshape node added in ConvolutionWithGroupsResolver pass
         assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
-        # We don't use set_destination method here to support case with multiple destinations of source port
+        # We use add_destination method here to support case with multiple destinations of source port
         weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
         weights_node.in_port(0).disconnect()
     else:
         assert op.in_port(1).get_source().data.get_shape() == new_shape, \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
-    # we need to set this attrs for correct shape infer as convolution
+    # We need to set this attrs for correct shape infer as convolution
     op['group'] = group
     # The only way GroupConvolution with 'group' = 1 appears in IR is by converting from TF DepthwiseConv2dNative.
     # In this case we need to specify 'op' parameter for the
@@ -361,11 +361,28 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
             node = custom_ops[op_type](new_graph, op.attrs()).create_node()
         else:
             if op_type not in Op.registered_ops:
-                log.warning('Operation {} not found in MO operations, please check it!'.format(op_type))
+                log.warning('Operation {} not found in MO operations, please check it! '
+                            'Simple shape infer function is used'.format(op_type))
                 node = Op(new_graph, op.attrs()).create_node()
                 node['infer'] = Extender.const_shape_infer
+                if 'ir_data_attrs' in op:
+                    node['IE'] = [(
+                                    'layer',
+                                    [('id', lambda node: node.node), 'name', 'type', 'version'],
+                                    [
+                                        (
+                                            'data',
+                                            list(op.ir_data_attrs.keys()),
+                                            []),
+                                        '@ports',
+                                        '@consts'])]
+
             else:
                 node = Op.get_op_class_by_name(op_type)(new_graph, op.attrs()).create_node()
+
+        # This attribute is no more needed and we delete it to
+        if 'ir_data_attrs' in node:
+            del node['ir_data_attrs']
 
         if op.has_and_set('need_copy_input_blobs'):
             copy_input_blobs(op, node)
