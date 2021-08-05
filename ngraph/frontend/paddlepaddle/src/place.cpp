@@ -273,6 +273,8 @@ std::vector<Place::Ptr> TensorPlacePDPD::get_consuming_ports() const
 
 Place::Ptr TensorPlacePDPD::get_producing_port() const
 {
+    if (m_producing_ports.empty())
+        return nullptr;
     FRONT_END_GENERAL_CHECK(m_producing_ports.size() == 1, "Only one producing port is supported.");
     if (const auto& producing_port = m_producing_ports[0].lock())
     {
@@ -318,16 +320,29 @@ std::vector<Place::Ptr> TensorPlacePDPD::get_consuming_operations() const
 bool TensorPlacePDPD::is_equal_data(Place::Ptr another) const
 {
     auto consuming_ports = get_consuming_ports();
+    if (is_equal(another))
+        return true;
+
     bool eq_to_consuming_port =
         std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
             return place->is_equal(another);
         });
-    return is_equal(another) || get_producing_port()->is_equal(another) || eq_to_consuming_port;
+    if (eq_to_consuming_port)
+        return true;
+
+    auto prod_port = get_producing_port();
+    if (prod_port && prod_port->is_equal(another))
+        return true;
+
+    return false;
 }
 
 Place::Ptr TensorPlacePDPD::get_producing_operation() const
 {
-    return get_producing_port()->get_producing_operation();
+    auto prod_port = get_producing_port();
+    if (prod_port)
+        return prod_port->get_producing_operation();
+    return nullptr;
 }
 
 std::shared_ptr<TensorPlacePDPD> InPortPlacePDPD::get_source_tensor_pdpd() const

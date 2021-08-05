@@ -110,6 +110,7 @@ namespace ngraph
                     auto tensor = std::make_shared<TensorPlacePDPD>(m_input_model, var);
                     m_var_places.push_back(tensor);
                     m_var_names[var.name()] = tensor;
+                    tensor->add_name(var.name());
                 }
 
                 for (const auto& op : block.ops())
@@ -280,9 +281,9 @@ namespace ngraph
         void InputModelPDPD::InputModelPDPDImpl::loadConsts(
             const std::basic_string<T>& folder_with_weights, std::istream* weight_stream)
         {
-            for (const auto& item : m_var_places)
+            for (const auto& item : m_var_names)
             {
-                const auto& var_desc = item->get_desc();
+                const auto& var_desc = item.second->get_desc();
                 const auto& name = var_desc.name();
                 if (pdpd::endsWith(name, std::string{"feed"}) ||
                     pdpd::endsWith(name, std::string{"fetch"}))
