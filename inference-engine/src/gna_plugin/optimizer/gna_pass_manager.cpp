@@ -2173,7 +2173,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
         if (nextLayers.empty()) {
-            return;
+            continue;
         }
 
         if (isFQFuseAllowed) {
