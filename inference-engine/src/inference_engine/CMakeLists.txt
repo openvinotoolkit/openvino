@@ -116,7 +116,7 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "precomp.hpp"
+    UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
