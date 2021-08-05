@@ -1441,8 +1441,6 @@ std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(co
 }
 
 FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision) {
-    const std::shared_ptr<Node> parent = dequantization.convert ? dequantization.convert : dequantization.data.get_node_shared_ptr();
-
     const std::shared_ptr<Node> multiplyConstant = dequantization.multiply ?
         dequantization.multiplyConstant->get_element_type() != precision ?
             foldConvert(dequantization.multiplyConstant, precision) :

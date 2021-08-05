@@ -156,7 +156,8 @@ public:
             testValues.actual.dequantization2 << "_" <<
             testValues.constInput << "_" <<
             testValues.actual.constValues << "_" <<
-            testValues.additionalLayer;
+            testValues.additionalLayer << "_" <<
+            (testValues.params.updatePrecisions ? "true" : "false");
         return result.str();
     }
 };
@@ -1071,4 +1072,123 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
         AddTransformation::getTestCaseName);
 } // namespace oneBranchQuantizationFp32
+
+namespace oneBranchQuantizationFp32DontUpdatePrecision {
+const std::vector<ngraph::element::Type> netPrecision = {
+    element::f32,
+};
+
+const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> inputShapesWithDynamicChannels = {
+    {{1, 4, 16, 16}, {1, 4, 16, 16}},
+    {{1, 4, 16, 16}, {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
+    {
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+        {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}
+    }
+};
+
+const std::vector<AddTransformationTestValues> testValues = {
+    // FP32 model, quantized branch: 1
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            ngraph::element::f32,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // FP32 model, quantized branch: 0
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // INT8 model (FQ decomposition before LPT), quantized branch: 1
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            { }
+        },
+        {
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    },
+    // INT8 model (FQ decomposition before LPT), quantized branch: 0
+    {
+        ngraph::element::f32,
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { 127.f }, { 4.f }},
+            ngraph::element::f32,
+            { },
+            { }
+        },
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::f32,
+            { {},  { 508.f }, { 0.25f } },
+            { {},  {}, { 4.f }},
+            { }
+        },
+        ""
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    AddTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecision),
+        ::testing::ValuesIn(inputShapesWithDynamicChannels),
+        ::testing::ValuesIn(testValues)),
+        AddTransformation::getTestCaseName);
+} // namespace oneBranchQuantizationFp32DontUpdatePrecision
 } // namespace

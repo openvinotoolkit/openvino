@@ -105,13 +105,28 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
         return -1;
     }
 
-    // TODO: LPT: this->updatePrecisions - is not covered
     if (!dequantization1.empty() && dequantization1.isLowPrecision() && (dequantization2.empty() || !dequantization2.isLowPrecision())) {
         return 1;
     }
 
     if ((dequantization1.empty() || !dequantization1.isLowPrecision()) && !dequantization2.empty() && dequantization2.isLowPrecision()) {
         return 0;
+    }
+
+    if (!updatePrecisions) {
+        // If result is still not defined, then handle special cases for updatePrecisions == false, assumption for one branch quantization:
+        //    1. branch with dequantization operations is quantized,
+        //    2. empty branch is not quantized.
+        // As result: move dequantization operations to empty branch.
+        // Note: keep comparisions uppper as is: low precision can be used in updatePrecisions == false case
+        // if FakeQuantize operations were decomposed before LPT.
+        if (!dequantization1.empty() && dequantization2.empty()) {
+            return 1;
+        }
+
+        if (dequantization1.empty() || !dequantization2.empty()) {
+            return 0;
+        }
     }
 
     const std::shared_ptr<opset1::FakeQuantize> fakeQuantize1 =
