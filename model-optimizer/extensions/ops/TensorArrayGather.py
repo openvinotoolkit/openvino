@@ -31,8 +31,7 @@ class TensorArrayGather(Op):
         else:
             ta_node['element_shape'] = node.element_shape
         data_shape = ta_node['element_shape']
-        # assert is_fully_defined(data_shape) or (data_shape.size == 2 and data_shape[0] is dynamic_dimension and
-        #                                         data_shape[1] is not dynamic_dimension)
+
         assert ta_node.has_valid('size')
         size = ta_node['size']
 
@@ -40,3 +39,4 @@ class TensorArrayGather(Op):
 
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = shape_array(output_shape)
+            node.graph.node[out_node]['value'] = None

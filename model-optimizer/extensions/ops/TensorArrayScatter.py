@@ -36,9 +36,7 @@ class TensorArrayScatter(Op):
         # Assign element_shape anyway, because the original element_shape can contain -1
         ta_node['element_shape'] = value.shape[1:]
 
-        output_shape = flow_in.shape
         output_value = flow_in.value
-        #flow_out
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = shape_array(output_shape)
+            node.graph.node[out_node]['shape'] = shape_array(flow_in.shape)
             node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)

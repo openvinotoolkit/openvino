@@ -26,10 +26,6 @@ class TensorArrayReader(Op):
         ta_node = Node(node.graph, str(handle.value))
         assert ta_node.has_valid('element_shape')
 
-        data_shape = ta_node['element_shape']
-
-        output_shape = data_shape
-
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = shape_array(output_shape)
+            node.graph.node[out_node]['shape'] = shape_array(ta_node['element_shape'])
             node.graph.node[out_node]['value'] = None
