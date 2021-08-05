@@ -45,7 +45,7 @@
 #include "transformations/common_optimizations/split_squeeze_concat_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/common_optimizations/strides_optimization.hpp"
-#include "transformations/common_optimizations/convert_to_unsigned_nms_gather.hpp"
+#include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -92,7 +92,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
-    manager.register_pass<ngraph::pass::ConvertToUnsignedNmsGather>(); // workaround until dynamism in NMS is not supported
+    manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>(); // workaround until dynamism in NMS is not supported
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();

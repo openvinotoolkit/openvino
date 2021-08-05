@@ -10,17 +10,18 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertToUnsignedNmsGather;
+class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
- * @ingroup ie_transformation_common_api
- * @brief Converts Gather indices to unsigned if indices are from NMS 1st output:
+ * The final result of theese transformations is that it converts Gather indices to unsigned
+ * if indices are from NMS 1st output.
  */
-class ngraph::pass::ConvertToUnsignedNmsGather: public ngraph::pass::FunctionPass {
+class ngraph::pass::ConvertNmsGatherPathToUnsigned: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
+
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

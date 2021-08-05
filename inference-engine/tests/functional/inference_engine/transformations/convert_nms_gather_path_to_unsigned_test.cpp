@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 #include "common_test_utils/ngraph_test_utils.hpp"
-
+#include "ngraph/pass/visualize_tree.hpp"
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/convert_to_unsigned_nms_gather.hpp>
+#include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/init_node_info.hpp>
 
 using namespace testing;
@@ -38,7 +38,9 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertToUnsignedNmsGather>();
+        manager.register_pass<pass::VisualizeTree>("before.png");
+        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
+        manager.register_pass<pass::VisualizeTree>("after.png");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -90,7 +92,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_2) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertToUnsignedNmsGather>();
+        manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -131,7 +133,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
 
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertToUnsignedNmsGather>();
+    manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_EQ(count_ops_of_type<opset1::Convert>(f), 0);
