@@ -15,8 +15,8 @@ from mo.ops.unsqueeze import Unsqueeze
 
 def replace_strided_slice(node, mask, op):
     node_name = node.soft_get('name', node.id)
-    axis = np.where(mask == 1)[0]
-    new_node = create_op_node_with_second_input(node.graph, op, int64_array(axis))
+    axes = np.where(mask == 1)[0]
+    new_node = create_op_node_with_second_input(node.graph, op, int64_array(axes))
     node.in_port(0).get_connection().set_destination(new_node.in_port(0))
     node.out_port(0).get_connection().set_source(new_node.out_port(0))
 
@@ -24,6 +24,12 @@ def replace_strided_slice(node, mask, op):
 
 
 class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
+    r"""
+    The transformation replaces StridedSlice with a Squeeze/Unsqueeze node if StridedSlice executes like a Squeeze/Unsqueeze
+    and does not slice values. This is necessary if StridedSlice is to be executed in original N(D)HWC layout, because
+    the operation does not have reinterp_shape attribute and MO can not insert NC(D)HW -> N(D)HWC Transpose in
+    extensions/middle/InsertLayoutPropagationTransposes.py.
+    """
     enabled = True
     force_clean_up = True
 
@@ -50,12 +56,14 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
             is_new_axis_mask = any(x == 1 for x in new_axis_mask)
 
             if is_shrink_axis_mask and is_new_axis_mask:
+                # StridedSlice will be replaced with Squeeze->Unsqueeze sequence
                 unsqueeze_axes = np.where(new_axis_mask == 1)[0]
                 squeeze_axes = np.where(shrink_axis_mask == 1)[0]
                 assert np.all(unsqueeze_axes != squeeze_axes), 'new_axis_mask and shrink_axis_mask are' \
                                                                'inconsistent: {} and {}'.format(new_axis_mask,
                                                                                                 shrink_axis_mask)
 
+                # Updating unsqueeze axes to get equivalent Squeeze->Unsqueeze sequence for StridedSlice
                 for sq_axis_index, sq_axis in enumerate(squeeze_axes):
                     for unsq_axis_index, unsq_axis in enumerate(unsqueeze_axes):
                         if sq_axis < unsq_axis:
