@@ -186,6 +186,27 @@ public:
      */
     virtual bool deallocate() noexcept = 0;
 
+
+    /**
+     * @brief Set new shape for blob, deallocate/allocate new linear size is bigger than previous one
+     */
+    void setShape(const SizeVector& dims) {
+        if (proper_product(dims) > proper_product(getTensorDesc().getDims())) {
+            // New blob shape requires more memory than old one -- reallocate
+            if (!deallocate())
+                IE_THROW() << "Cannot deallocate blob while an attempt to enlarge blob area in setShape.";
+
+            getTensorDesc().setDims(dims);  // Q: If rank is changed, who should set the layout?
+            // A: Old and new ranks should match as well as layouts; won't be a limitation in the new API
+
+            allocate();
+            // TODO: no way to detect if allocation is successful other than map/unmap that we wouldn't like to do here
+        } else {
+            // Don't shrink area when new size fit the existing area
+            getTensorDesc().setDims(dims);
+        }
+    }
+
     /**
      * @deprecated Cast to MemoryBlob and use new wlock/rwlock API instead.
      * Blob class can represent compound blob, which do not refer to the only solid memory.
@@ -233,7 +254,18 @@ protected:
      * @return Result of multiplication
      */
     static size_t product(const SizeVector& dims) noexcept {
-        if (dims.empty()) return 0;
+        if (dims.empty()) return 0; // TODO: WHY 0? This is 1 by definition.
+        return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
+    }
+
+    /**
+     * @deprecated Cast to MemoryBlob and use its API instead.
+     * @brief Multiplies the dimension vector values.
+     *
+     * @param dims Reference to a vector with dimension values of type size_t
+     * @return Result of multiplication
+     */
+    static size_t proper_product(const SizeVector& dims) noexcept {
         return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     }
 

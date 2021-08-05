@@ -218,10 +218,10 @@ public:
         return _syncRequest->GetPerformanceCounts();
     }
 
-    void SetShape(const std::string& name, const SizeVector& dims) override {
-        CheckState();
-        _syncRequest->SetShape(name, dims);
-    }
+    //void SetShape(const std::string& name, const SizeVector& dims) override {
+    //    CheckState();
+    //    _syncRequest->SetShape(name, dims);
+    //}
 
     void SetBlob(const std::string& name, const Blob::Ptr& data) override {
         CheckState();

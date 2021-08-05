@@ -70,6 +70,14 @@ void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &
         _preproc.reset(new PreprocEngine);
     }
 
+    // Shape preprocessed tensor if needed; it is required here due to dynamic input shapes
+    if (algorithm == NO_RESIZE) {
+        // Compete copy:
+        preprocessedBlob->setShape(_userBlob->getTensorDesc().getDims());
+    } else {
+        IE_THROW() << "Preprocessing for dynamically shaped inputs not yet supported. DEBUG: requires HW part detection here.";
+    }
+
     _preproc->preprocessWithGAPI(_userBlob, preprocessedBlob, algorithm, fmt, serial, batchSize);
 }
 

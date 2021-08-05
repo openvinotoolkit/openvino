@@ -51,7 +51,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first), InferenceEngine::Exception);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
@@ -69,7 +69,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkBoundWithoutSetShape) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first), InferenceEngine::Exception);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
 }
 
 
@@ -90,8 +90,9 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
+    //ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
     req.Infer();
     req.StartAsync();
@@ -119,8 +120,9 @@ TEST_P(InferRequestDynamicTests, InferUpperBoundNetworkWithGetBlob) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
+    //ASSERT_NO_THROW(req.SetShape(param_name, {1, 4, 20, 20}));
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
     req.Infer();
     req.StartAsync();
@@ -148,7 +150,10 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobLower) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_THROW(req.SetShape(param_name, {1, 4, 20, 20}), InferenceEngine::Exception);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape({1, 4, 20, 20}));
+    // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
+    //ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobUpper) {
@@ -168,7 +173,10 @@ TEST_P(InferRequestDynamicTests, InferOutOfRangeShapeNetworkWithGetBlobUpper) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_THROW(req.SetShape(param_name, {3, 4, 20, 20}), InferenceEngine::Exception);
+    ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape({3, 4, 20, 20}));
+    // Plugin may or may not throw in case if input tensor has dimensions that are out of bounds
+    // ASSERT_THROW(req.Infer(), InferenceEngine::Exception);
 }
 
 TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
@@ -190,8 +198,8 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
     InferenceEngine::InferRequest req;
     InferenceEngine::Blob::Ptr blob;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    ASSERT_NO_THROW(req.SetShape(param_name, refShape));
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape(refShape));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape);
     req.Infer();
     req.StartAsync();
@@ -201,8 +209,8 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkWithGetBlob2times) {
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refOutShape);
 
-    ASSERT_NO_THROW(req.SetShape(param_name, refShape2));
     ASSERT_NO_THROW(blob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
+    ASSERT_NO_THROW(blob->setShape(refShape2));
     ASSERT_EQ(blob->getTensorDesc().getDims(), refShape2);
     req.Infer();
     req.StartAsync();

@@ -122,7 +122,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundInput->getTensorDesc().getDims();
+            const auto& dims = foundInput->getTensorDesc().getDims();
+            //const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundInput->getTensorDesc().getDims();
             checkBlob(data, name, true,
                 foundInput->getTensorDesc().getLayout() != SCALAR
                 ? dims
@@ -136,7 +137,8 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundOutput->getTensorDesc().getDims();
+        //const auto& dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundOutput->getTensorDesc().getDims();
+        const auto& dims = foundOutput->getTensorDesc().getDims();
         checkBlob(data, name, false,
             foundOutput->getTensorDesc().getLayout() != SCALAR
             ? dims
@@ -171,9 +173,9 @@ void IInferRequestInternal::SetBatch(int batch) {
     IE_THROW(NotImplemented);
 }
 
-void IInferRequestInternal::SetShape(const std::string &name, const SizeVector &dims) {
-    IE_THROW(NotImplemented);
-}
+//void IInferRequestInternal::SetShape(const std::string &name, const SizeVector &dims) {
+//    IE_THROW(NotImplemented);
+//}
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
     IE_THROW(NotImplemented);
@@ -245,6 +247,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
         IE_THROW(NotAllocated) << strNotAllocated;
     }
     size_t refSize;
+    bool isDynamic = false;
     if (refDims.empty()) {
         SizeVector dims;
         if (isInput) {
@@ -255,7 +258,8 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
-            dims = m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : foundInputPair->second->getTensorDesc().getDims();
+            isDynamic = foundInputPair->second->getInputData()->getPartialShape().is_dynamic();
+            dims = /*m_realShapes.find(name) != m_realShapes.end() ? m_realShapes.at(name) : */foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR
                 ? details::product(dims)
                 : 1;
@@ -267,6 +271,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
+            isDynamic = foundOutputPair->second->getPartialShape().is_dynamic();
             ngraph::PartialShape blobPartialShape(blob->getTensorDesc().getDims());
             if (foundOutputPair->second->getPartialShape().compatible(blobPartialShape)) {
                 dims = blob->getTensorDesc().getDims();
@@ -282,7 +287,7 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
         refSize = details::product(refDims);
     }
 
-    if (refSize != blob->size()) {
+    if (!isDynamic && refSize != blob->size()) {
         IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
     }
     const bool remoteBlobPassed = blob->is<RemoteBlob>();
@@ -340,7 +345,7 @@ void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Bl
     }
 
     auto& preproc_ptr = ppDataIt->second;
-    preproc_ptr->isApplicable(from,  to);
+    //preproc_ptr->isApplicable(from,  to);
     // Stores the given blob as ROI blob. It will be used to fill in network input
     // during pre-processing
     preproc_ptr->setRoiBlob(from);

@@ -141,7 +141,7 @@ public:
      */
     virtual StatusCode Wait(int64_t millis_timeout);
 
-    virtual void SetShape(const std::string& name, const SizeVector& dims);
+    //virtual void SetShape(const std::string& name, const SizeVector& dims);
 
     /**
      * @brief Alias for callback type
@@ -234,7 +234,7 @@ protected:
     int m_curBatch = -1;  //!< Current batch value used in dynamic batching
 
     // Shapes that set by real in
-    std::map<std::string, InferenceEngine::SizeVector>      m_realShapes;
+    //std::map<std::string, InferenceEngine::SizeVector>      m_realShapes;
 
     /**
      * @brief A shared pointer to IInferRequestInternal
