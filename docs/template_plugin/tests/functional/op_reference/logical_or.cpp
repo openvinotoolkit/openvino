@@ -22,15 +22,13 @@ struct LogicalOrParams {
                     const std::vector<IT>& iValues2, const std::vector<OT>& oValues)
         : pshape1(input_shape1),
           pshape2(input_shape2),
-          inType(ngraph::element::boolean),
-          outType(ngraph::element::boolean),
+          elemType(ngraph::element::boolean),
           inputData1(CreateBlob(ngraph::element::boolean, iValues1)),
           inputData2(CreateBlob(ngraph::element::boolean, iValues2)),
           refData(CreateBlob(ngraph::element::boolean, oValues)) {}
     ngraph::PartialShape pshape1;
     ngraph::PartialShape pshape2;
-    ngraph::element::Type inType;
-    ngraph::element::Type outType;
+    ngraph::element::Type elemType;
     InferenceEngine::Blob::Ptr inputData1;
     InferenceEngine::Blob::Ptr inputData2;
     InferenceEngine::Blob::Ptr refData;
@@ -40,7 +38,7 @@ class ReferenceLogicalOrLayerTest : public testing::TestWithParam<LogicalOrParam
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params.pshape1, params.pshape2, params.inType);
+        function = CreateFunction(params.pshape1, params.pshape2, params.elemType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
@@ -49,17 +47,17 @@ public:
         std::ostringstream result;
         result << "input_shape1=" << param.pshape1 << "_";
         result << "input_shape2=" << param.pshape2 << "_";
-        result << "iType=" << param.inType << "_";
-        result << "oType=" << param.outType;
+        result << "iType=" << param.elemType << "_";
+        result << "oType=" << param.elemType;
         return result.str();
     }
 
 private:
     static std::shared_ptr<Function> CreateFunction(const PartialShape& input_shape1, const PartialShape& input_shape2, const element::Type& input_type) {
-        const auto in = std::make_shared<op::Parameter>(input_type, input_shape1);
+        const auto in1 = std::make_shared<op::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::Parameter>(input_type, input_shape2);
-        const auto logical_or = std::make_shared<op::v1::LogicalOr>(in, in2);
-        return std::make_shared<Function>(NodeVector {logical_or}, ParameterVector {in, in2});
+        const auto logical_or = std::make_shared<op::v1::LogicalOr>(in1, in2);
+        return std::make_shared<Function>(NodeVector {logical_or}, ParameterVector {in1, in2});
     }
 };
 
