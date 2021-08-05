@@ -16,6 +16,7 @@ public:
     NGRAPH_RTTI_DECLARATION;
     MultiplyTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
 } // namespace low_precision

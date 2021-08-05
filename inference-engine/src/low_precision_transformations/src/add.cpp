@@ -152,28 +152,25 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             newAddOrSubtract = newMultiply;
         }
     } else {
-        // dequantizations are on both branches
+        // low precision with dequantization operations on at least one branch
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
-        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(add, emptyPathIndex);
-        if (updatePrecisions && !dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
-            return false;
+        if (updatePrecisions) {
+            const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(add, emptyPathIndex);
+            if (!dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
+                return false;
+            }
         }
 
-        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(add, fullPathIndex);
-        if (updatePrecisions && !dequantizationFullPath.empty() && !dequantizationFullPath.isLowPrecision()) {
-            return false;
-        }
-
-        dequantizationEmptyPath = NetworkHelper::foldDequantization(addNode, emptyPathIndex);
+        const FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::foldDequantization(addNode, emptyPathIndex);
         std::shared_ptr<Node> subtractEmptyPathValues;
         std::shared_ptr<Node> multiplyEmptyPathValues;
-        std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
+        std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
 
-        dequantizationFullPath = NetworkHelper::foldDequantization(addNode, fullPathIndex);
+        const FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::foldDequantization(addNode, fullPathIndex);
         std::shared_ptr<Node> subtractFullPathValues;
         std::shared_ptr<Node> multiplyFullPathValues;
-        std::tie(subtractFullPathValues, multiplyFullPathValues) = NetworkHelper::createEmptyValues(dequantizationFullPath);
+        std::tie(subtractFullPathValues, multiplyFullPathValues) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);
 
         // calculation
         // before: Y = (SC1 * (X1 - SH1)) + (SC2 * (X2 - SH2))
@@ -196,11 +193,24 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         OutputVector inputs{ {}, {} };
         auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
 
+        // inputs[0]    inputs[1]
+        //     \          /
+        //      \        /
+        //   newAddOrSubtract
+        //          |
+        //     newMultiply
+
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             newSubtractFullPathValues == nullptr ?
                 fullPathInput :
-                std::make_shared<DequantizationSubtract>(fullPathInput, newSubtractFullPathValues),
+                std::make_shared<DequantizationSubtract>(
+                    // precision on branch with dequantization operations can be different with dequantization precision,
+                    // for example: FP16 model with FP32 dequantization
+                    fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
+                        std::make_shared<opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
+                        fullPathInput,
+                    newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
         newAddOrSubtract = std::make_shared<op::TypeRelaxed<opset1::Add>>(
