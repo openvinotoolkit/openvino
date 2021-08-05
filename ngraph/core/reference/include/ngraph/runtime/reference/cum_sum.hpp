@@ -15,6 +15,7 @@
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "utils/span.hpp"
 
 namespace ngraph
 {
@@ -45,8 +46,7 @@ namespace ngraph
                                  const T* data_ptr,
                                  const size_t axis_dim_size)
                 {
-                    const auto slices_count =
-                        shape_size(Shape(shape.begin(), shape.begin() + shape.size() - 1));
+                    const auto slices_count = shape_size(span(shape).drop_back(1));
                     auto axis_dim_counter = 0;
                     for (auto i = 0; i < slices_count; ++i)
                     {
