@@ -145,8 +145,8 @@ INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
 #if defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 4018)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
 #endif
 
 namespace details {
@@ -222,7 +222,7 @@ inline OutT saturate_cast(const InT& value) {
 }
 
 #if defined(_MSC_VER)
-    #pragma warning(pop)
+#    pragma warning(pop)
 #endif
 
 /**

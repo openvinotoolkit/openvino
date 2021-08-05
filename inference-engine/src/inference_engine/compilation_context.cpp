@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 #ifndef WIN32
-    #include <unistd.h>
+#    include <unistd.h>
 #endif
 #include <xml_parse_utils.h>
 
@@ -24,7 +24,7 @@
 #include "transformations/serialize.hpp"
 
 #ifdef WIN32
-    #define stat _stat
+#    define stat _stat
 #endif
 
 namespace InferenceEngine {

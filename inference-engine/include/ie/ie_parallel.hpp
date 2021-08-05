@@ -25,27 +25,27 @@
 #define IE_THREAD_TBB_AUTO 3
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    #ifndef NOMINMAX
-        #define NOMINMAX
-    #endif
-    #ifndef TBB_PREVIEW_LOCAL_OBSERVER
-        #define TBB_PREVIEW_LOCAL_OBSERVER 1
-    #endif
-    #ifndef TBB_PREVIEW_NUMA_SUPPORT
-        #define TBB_PREVIEW_NUMA_SUPPORT 1
-    #endif
-    #ifndef TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION
-        #define TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION 1
-    #endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    ifndef TBB_PREVIEW_LOCAL_OBSERVER
+#        define TBB_PREVIEW_LOCAL_OBSERVER 1
+#    endif
+#    ifndef TBB_PREVIEW_NUMA_SUPPORT
+#        define TBB_PREVIEW_NUMA_SUPPORT 1
+#    endif
+#    ifndef TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION
+#        define TBB_PREVIEW_TASK_ARENA_CONSTRAINTS_EXTENSION 1
+#    endif
 
-    #include "tbb/blocked_range.h"
-    #include "tbb/blocked_range2d.h"
-    #include "tbb/blocked_range3d.h"
-    #include "tbb/parallel_for.h"
-    #include "tbb/parallel_reduce.h"
-    #include "tbb/parallel_sort.h"
-    #include "tbb/task_arena.h"
-    #include "tbb/task_scheduler_observer.h"
+#    include "tbb/blocked_range.h"
+#    include "tbb/blocked_range2d.h"
+#    include "tbb/blocked_range3d.h"
+#    include "tbb/parallel_for.h"
+#    include "tbb/parallel_reduce.h"
+#    include "tbb/parallel_sort.h"
+#    include "tbb/task_arena.h"
+#    include "tbb/task_scheduler_observer.h"
 
 inline int parallel_get_max_threads() {
     return tbb::this_task_arena::max_concurrency();
@@ -62,32 +62,32 @@ inline void parallel_set_num_threads(int) {
 inline int parallel_get_env_threads() {
     return 0;
 }
-    #if IE_THREAD == IE_THREAD_TBB
-        #define PARTITIONING , tbb::static_partitioner()
+#    if IE_THREAD == IE_THREAD_TBB
+#        define PARTITIONING , tbb::static_partitioner()
 
-        // The TBB version less than 2018u1 has no static_partitioner argument for
-        // tbb::parallel_deterministic_reduce. So will fallback to non deterministic
-        // version.
-        #if (TBB_INTERFACE_VERSION >= 10001)
-            #define _TBB_REDUCE_FUNC tbb::parallel_deterministic_reduce
-        #else
-            #define _TBB_REDUCE_FUNC tbb::parallel_reduce
-        #endif
+// The TBB version less than 2018u1 has no static_partitioner argument for
+// tbb::parallel_deterministic_reduce. So will fallback to non deterministic
+// version.
+#        if (TBB_INTERFACE_VERSION >= 10001)
+#            define _TBB_REDUCE_FUNC tbb::parallel_deterministic_reduce
+#        else
+#            define _TBB_REDUCE_FUNC tbb::parallel_reduce
+#        endif
 
-    #else
-        #define PARTITIONING
-    #endif
+#    else
+#        define PARTITIONING
+#    endif
 #elif IE_THREAD == IE_THREAD_OMP
-    #include <omp.h>
+#    include <omp.h>
 
-    #include <algorithm>
-    #include <cstdlib>
-    #include <string>
+#    include <algorithm>
+#    include <cstdlib>
+#    include <string>
 
-    /* MSVC still supports omp 2.0 only */
-    #if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-        #define collapse(x)
-    #endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+/* MSVC still supports omp 2.0 only */
+#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#        define collapse(x)
+#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
 inline int parallel_get_max_threads() {
     return omp_get_max_threads();
 }
@@ -113,7 +113,7 @@ inline int parallel_get_env_threads() {
 }
 
 #elif IE_THREAD == IE_THREAD_SEQ
-    #include <algorithm>  // NOLINT
+#    include <algorithm>  // NOLINT
 inline int parallel_get_env_threads() {
     return 1;
 }
@@ -152,7 +152,7 @@ void parallel_nt(int nthr, const F& func) {
         return;
     }
 
-    #pragma omp parallel num_threads(nthr)
+#    pragma omp parallel num_threads(nthr)
     func(parallel_get_thread_num(), parallel_get_num_threads());
 #elif IE_THREAD == IE_THREAD_SEQ
     func(0, 1);
@@ -185,7 +185,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
 #elif IE_THREAD == IE_THREAD_OMP
 
-    #pragma omp parallel num_threads(nthr)
+#    pragma omp parallel num_threads(nthr)
     { func(parallel_get_thread_num(), parallel_get_num_threads()); }
 #endif
 }
@@ -220,15 +220,15 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 #else
     R sum = input;
 
-    #ifdef _MSC_VER
+#    ifdef _MSC_VER
     using T0_IT = typename std::make_signed<T0>::type;
-    #else
+#    else
     using T0_IT = T0;
-    #endif
+#    endif
 
-    #if IE_THREAD == IE_THREAD_OMP
-        #pragma omp parallel for reduction(+ : sum) schedule(static)
-    #endif
+#    if IE_THREAD == IE_THREAD_OMP
+#        pragma omp parallel for reduction(+ : sum) schedule(static)
+#    endif
     for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
         sum += static_cast<R>(func(dim1));
     }
@@ -257,17 +257,17 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 #else
     R sum = input;
 
-    #ifdef _MSC_VER
+#    ifdef _MSC_VER
     using T0_IT = typename std::make_signed<T0>::type;
     using T1_IT = typename std::make_signed<T1>::type;
-    #else
+#    else
     using T0_IT = T0;
     using T1_IT = T1;
-    #endif
+#    endif
 
-    #if IE_THREAD == IE_THREAD_OMP
-        #pragma omp parallel for collapse(2) reduction(+ : sum) schedule(static)
-    #endif
+#    if IE_THREAD == IE_THREAD_OMP
+#        pragma omp parallel for collapse(2) reduction(+ : sum) schedule(static)
+#    endif
     for (T0_IT dim2 = 0; dim2 < D0; dim2++) {
         for (T1_IT dim1 = 0; dim1 < D1; dim1++) {
             sum += func(dim2, dim1);
@@ -299,19 +299,19 @@ R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const
 #else
     R sum = input;
 
-    #ifdef _MSC_VER
+#    ifdef _MSC_VER
     using T0_IT = typename std::make_signed<T0>::type;
     using T1_IT = typename std::make_signed<T1>::type;
     using T2_IT = typename std::make_signed<T2>::type;
-    #else
+#    else
     using T0_IT = T0;
     using T1_IT = T1;
     using T2_IT = T2;
-    #endif
+#    endif
 
-    #if IE_THREAD == IE_THREAD_OMP
-        #pragma omp parallel for collapse(3) reduction(+ : sum) schedule(static)
-    #endif
+#    if IE_THREAD == IE_THREAD_OMP
+#        pragma omp parallel for collapse(3) reduction(+ : sum) schedule(static)
+#    endif
     for (T0_IT dim1 = 0; dim1 < static_cast<T0_IT>(D0); dim1++) {
         for (T1_IT dim2 = 0; dim2 < static_cast<T1_IT>(D1); dim2++) {
             for (T2_IT dim3 = 0; dim3 < static_cast<T2_IT>(D2); dim3++) {
@@ -414,7 +414,7 @@ void parallel_for(const T0& D0, const F& func) {
         for_1d(ithr, nthr, D0, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #pragma omp parallel
+#    pragma omp parallel
     for_1d(parallel_get_thread_num(), parallel_get_num_threads(), D0, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_1d(0, 1, D0, func);
@@ -462,7 +462,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
         for_2d(ithr, nthr, D0, D1, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #pragma omp parallel
+#    pragma omp parallel
     for_2d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_2d(0, 1, D0, D1, func);
@@ -511,7 +511,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
         for_3d(ithr, nthr, D0, D1, D2, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #pragma omp parallel
+#    pragma omp parallel
     for_3d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_3d(0, 1, D0, D1, D2, func);
@@ -561,7 +561,7 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_4d(ithr, nthr, D0, D1, D2, D3, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #pragma omp parallel
+#    pragma omp parallel
     for_4d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_4d(0, 1, D0, D1, D2, D3, func);
@@ -612,7 +612,7 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
         for_5d(ithr, nthr, D0, D1, D2, D3, D4, func);
     });
 #elif IE_THREAD == IE_THREAD_OMP
-    #pragma omp parallel
+#    pragma omp parallel
     for_5d(parallel_get_thread_num(), parallel_get_num_threads(), D0, D1, D2, D3, D4, func);
 #elif IE_THREAD == IE_THREAD_SEQ
     for_5d(0, 1, D0, D1, D2, D3, D4, func);

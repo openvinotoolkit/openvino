@@ -175,7 +175,7 @@ bool equal(const std::vector<T, A>& v1, const std::vector<T, A>& v2) {
 }
 
 #ifdef _WIN32
-    #define strncasecmp _strnicmp
+#    define strncasecmp _strnicmp
 #endif
 
 /**

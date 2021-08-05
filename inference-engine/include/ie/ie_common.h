@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 #ifndef NDEBUG
-    #include <cassert>
+#    include <cassert>
 #endif
 namespace InferenceEngine {
 /**
@@ -402,9 +402,9 @@ struct ThrowNow final {
 
 /// @cond
 #ifndef NDEBUG
-    #define IE_LOCATION '\n' << __FILE__ << ':' << __LINE__ << ' '
+#    define IE_LOCATION '\n' << __FILE__ << ':' << __LINE__ << ' '
 #else
-    #define IE_LOCATION ""
+#    define IE_LOCATION ""
 #endif  // NDEBUG
 
 // WARNING: DO NOT USE THIS MACRO! Use openvino/pp.hpp macro library
@@ -438,7 +438,7 @@ struct ThrowNow final {
  * exception otherwise
  */
 #ifdef NDEBUG
-    #define IE_ASSERT(EXPRESSION) \
+#    define IE_ASSERT(EXPRESSION) \
         if (!(EXPRESSION))        \
         IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION  // NOLINT
 #else
@@ -452,7 +452,7 @@ struct NullStream {
     }
 };
 
-    #define IE_ASSERT(EXPRESSION) \
+#    define IE_ASSERT(EXPRESSION) \
         assert((EXPRESSION));     \
         InferenceEngine::details::NullStream()
 #endif  // NDEBUG
@@ -495,7 +495,7 @@ struct NullStream {
 }  // namespace details
 }  // namespace InferenceEngine
 #if defined(_WIN32)
-    #define __PRETTY_FUNCTION__ __FUNCSIG__
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
 #else
-    #define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
+#    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
 #endif

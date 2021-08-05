@@ -90,11 +90,11 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 int getNumberOfCPUCores(bool) {
     return parallel_get_max_threads();
 }
-    #if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#    if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
     return {-1};
 }
-    #endif
+#    endif
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))

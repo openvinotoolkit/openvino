@@ -12,8 +12,8 @@
 #include "ie_system_conf.h"
 
 #if !(defined(__APPLE__) || defined(_WIN32))
-    #include <sched.h>
-    #include <unistd.h>
+#    include <sched.h>
+#    include <unistd.h>
 #endif
 
 namespace InferenceEngine {

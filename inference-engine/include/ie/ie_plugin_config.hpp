@@ -38,9 +38,9 @@ namespace Metrics {
 #define EXEC_NETWORK_METRIC_KEY(name) METRIC_KEY(name)
 
 #ifndef DECLARE_METRIC_KEY_IMPL
-    #define DECLARE_METRIC_KEY(name, ...) static constexpr auto METRIC_##name = #name
+#    define DECLARE_METRIC_KEY(name, ...) static constexpr auto METRIC_##name = #    name
 #else
-    #define DECLARE_METRIC_KEY(name, ...)            \
+#    define DECLARE_METRIC_KEY(name, ...)            \
         static constexpr auto METRIC_##name = #name; \
         DECLARE_METRIC_KEY_IMPL(name, __VA_ARGS__)
 #endif
