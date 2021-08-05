@@ -15,6 +15,7 @@
 #include <iomanip>
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+#include "threading/ie_parallel_custom_arena.hpp"
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #endif
@@ -32,9 +33,10 @@ void compile_graph::run(program& p) {
     }
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    const auto n_threads = p.get_engine().configuration().n_threads;
-    auto arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-    arena->initialize(n_threads);
+    const auto core_type = p.get_engine().get_task_arena_configuration().core_type;
+    const auto concurrency = p.get_engine().get_task_arena_configuration().max_concurrency;
+    auto arena = std::unique_ptr<custom::task_arena>(new custom::task_arena{
+                           custom::task_arena::constraints{}.set_core_type(core_type).set_max_concurrency(concurrency)});
     arena->execute([this, &p] {
         auto& proc_order = p.get_processing_order();
         tbb::parallel_for(tbb::blocked_range<size_t>(0, proc_order.size()), [&proc_order, &p](const tbb::blocked_range<size_t>& r) {

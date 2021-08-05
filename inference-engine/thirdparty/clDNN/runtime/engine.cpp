@@ -10,6 +10,10 @@
 #include "cldnn/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+#include "ie_system_conf.h"
+#include "threading/ie_parallel_custom_arena.hpp"
+#endif
 
 #include <string>
 #include <vector>
@@ -21,7 +25,19 @@ namespace cldnn {
 
 engine::engine(const device::ptr device, const engine_configuration& configuration)
 : _device(device)
-, _configuration(configuration) {}
+, _configuration(configuration) {
+#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
+    _task_arena_configuration.core_type = custom::task_arena::automatic;
+    _task_arena_configuration.max_concurrency = static_cast<int>(configuration.n_threads);
+    if ((custom::info::core_types().size() > 1 /*Hybrid CPUs*/)) {
+        _task_arena_configuration.core_type = custom::info::core_types().back(); // Now only big core supports
+        _task_arena_configuration.max_concurrency = std::min(InferenceEngine::getNumberOfCPUCores(true), _task_arena_configuration.max_concurrency);
+    }
+#else
+    _task_arena_configuration.core_type = -1;
+    _task_arena_configuration.max_concurrency = static_cast<int>(configuration.n_threads);
+#endif
+}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -136,6 +152,10 @@ void engine::add_memory_used(size_t bytes) {
 
 void engine::subtract_memory_used(size_t bytes) {
     memory_usage -= bytes;
+}
+
+task_arena_config engine::get_task_arena_configuration() const {
+    return _task_arena_configuration;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,

@@ -75,18 +75,35 @@ source_group("${__CLDNN_Label__module_tests}" FILES ${__CLDNN_Sources__module_te
 
 # ===================================== Include/Link directories =======================================
 
-include_directories(
-    "${CLDNN__MAIN_DIR}"
-    "${CLDNN__MAIN_DIR}/src"
-    "${CLDNN__MAIN_DIR}/src/include/"
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CLDNN__RUNTIME_DIR}"
-    "${__CLDNN_Directory__test_utils}"
-    "${__CLDNN_Directory__ks_core}"
-    "${__CLDNN_Directory__ks_core}/common"
-    "${__CLDNN_Directory__ks_actual_kernels}"
-    "${__CLDNN_Directory__ks_common}"
-  )
+if(CLDNN_THREADING MATCHES "TBB")
+  include_directories(
+      "${CLDNN__MAIN_DIR}"
+      "${CLDNN__MAIN_DIR}/src"
+      "${CLDNN__MAIN_DIR}/src/include/"
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+      "${CLDNN__RUNTIME_DIR}"
+      "${__CLDNN_Directory__test_utils}"
+      "${__CLDNN_Directory__ks_core}"
+      "${__CLDNN_Directory__ks_core}/common"
+      "${__CLDNN_Directory__ks_actual_kernels}"
+      "${__CLDNN_Directory__ks_common}"
+      "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src/"
+      "${IE_MAIN_SOURCE_DIR}/src/inference_engine/include/ie/"
+    )
+else()
+  include_directories(
+      "${CLDNN__MAIN_DIR}"
+      "${CLDNN__MAIN_DIR}/src"
+      "${CLDNN__MAIN_DIR}/src/include/"
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+      "${CLDNN__RUNTIME_DIR}"
+      "${__CLDNN_Directory__test_utils}"
+      "${__CLDNN_Directory__ks_core}"
+      "${__CLDNN_Directory__ks_core}/common"
+      "${__CLDNN_Directory__ks_actual_kernels}"
+      "${__CLDNN_Directory__ks_common}"
+    )
+endif()
 
 # =================================== Link targets and dependencies ====================================
 
@@ -111,6 +128,9 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
 
+if(CLDNN_THREADING MATCHES "TBB")
+  target_link_libraries("${CLDNN_BUILD__PROJ}" INTERFACE inference_engine_s)
+endif()
 # ======================================================================================================
 
 ie_sse42_optimization_flags(sse4_2_flags)

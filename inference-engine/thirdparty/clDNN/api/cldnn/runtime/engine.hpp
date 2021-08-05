@@ -30,6 +30,12 @@ using stream_ptr = std::shared_ptr<stream>;
 
 using primitive_id = std::string;
 
+/// configuration for task_arena
+struct task_arena_config {
+    int max_concurrency;
+    int core_type;
+};
+
 class engine {
 public:
     /// Default destructor
@@ -117,6 +123,9 @@ public:
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
 
+    /// Returns task arena configuraion to set number of threads and core type in TBB task_arena for multi-processing in load_network
+    task_arena_config get_task_arena_configuration() const;
+
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
@@ -141,6 +150,7 @@ protected:
     engine(const device::ptr device, const engine_configuration& configuration);
     const device::ptr _device;
     engine_configuration _configuration;
+    task_arena_config _task_arena_configuration;
 
     std::atomic<uint64_t> memory_usage = {0};
     std::atomic<uint64_t> peak_memory_usage = {0};

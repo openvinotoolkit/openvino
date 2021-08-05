@@ -411,9 +411,10 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_mutex);
         get_program_source(_kernels_code, &batches);
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        int n_threads = _engine.configuration().n_threads;
-        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-        arena->initialize(n_threads);
+        const auto core_type = _engine.get_task_arena_configuration().core_type;
+        const auto concurrency = _engine.get_task_arena_configuration().max_concurrency;
+        arena.reset(new custom::task_arena{
+                            custom::task_arena::constraints{}.set_core_type(core_type).set_max_concurrency(concurrency)});
 #elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
         int n_threads = _engine.configuration().n_threads;
         pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
