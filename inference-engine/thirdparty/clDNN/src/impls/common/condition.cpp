@@ -3,7 +3,6 @@
 //
 
 #include "condition_inst.h"
-#include "network_impl.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
 
@@ -106,7 +105,7 @@ private:
         return true;
     }
 
-    memory::ptr execute_branch(network_impl::ptr branch,
+    memory::ptr execute_branch(network::ptr branch,
                            const primitive_id& input_id,
                            memory::ptr input_memory) const {
         branch->set_input_data(input_id, input_memory);
