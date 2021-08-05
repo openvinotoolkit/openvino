@@ -27,18 +27,12 @@ public:
                 opset5::NonMaxSuppression>();
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-            auto nms_node = dynamic_pointer_cast<Node>(m.get_match_root());
-            if (!nms_node)
-                return false;
-
-            bool res = false;
-            const auto& out_nodes = nms_node->output(0).get_target_inputs();
+            const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
                 auto& out_rt_info = out_node.get_node()->get_rt_info();
                 out_rt_info["NMS_SELECTED_INDICES"] = std::make_shared<ngraph::VariantWrapper<string>>("");
-                res = true;
             }
-            return res;
+            return true;
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(nms_pattern, matcher_name);
@@ -68,18 +62,14 @@ public:
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
             auto node = m.get_match_root();
-            auto& rt_info = node->get_rt_info();
-            bool res = false;
-
-            for (const auto& in_node : node->input_values()) {
-                if (in_node.get_node()->get_rt_info().count("NMS_SELECTED_INDICES")) {
-                    rt_info["NMS_SELECTED_INDICES"] = std::make_shared<ngraph::VariantWrapper<string>>("");
-                    res = true;
-                    break;
-                }
+            const auto & inputs = node->input_values();
+            if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node> & output) {
+                return output.get_node()->get_rt_info().count("NMS_SELECTED_INDICES");
+            })) {
+                auto & rt_info = node->get_rt_info();
+                rt_info["NMS_SELECTED_INDICES"] = std::make_shared<ngraph::VariantWrapper<string>>("");
             }
-
-            return res;
+            return true;
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(node_pattern, matcher_name);
@@ -109,12 +99,11 @@ public:
             if (!rt_info.count("NMS_SELECTED_INDICES"))
                 return false;
 
-            auto out_type = element::Type_t::u32;
-            if (indices.get_element_type() == element::Type_t::i64)
-                out_type = element::Type_t::u64;
-
-            if (auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr())) {
+            auto out_type = (indices.get_element_type() == element::i64 ?  element::u64 : element::u32);
+            auto existing_convert = dynamic_pointer_cast<opset8::Convert>(indices.get_node_shared_ptr());
+            if (existing_convert && indices.get_target_inputs().size() == 1) {
                 existing_convert->set_convert_element_type(out_type);
+                existing_convert->validate_and_infer_types();
             } else {
                 auto new_convert_to_unsigned = make_shared<opset8::Convert>(indices, out_type);
                 gather->input(1).replace_source_output(new_convert_to_unsigned);
@@ -130,15 +119,12 @@ public:
 
 NGRAPH_RTTI_DEFINITION(UpdateConvertGather, "UpdateConvertGather", 0);
 
-bool pass::ConvertNmsGatherPathToUnsigned::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(ConvertToUnsignedNmsGather);
+pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
+    MATCHER_SCOPE(ConvertToUnsignedNmsGather);
 
-    ngraph::pass::Manager manager;
-    manager.register_pass<InitNMSPath>();
-    manager.register_pass<PropagateNMSPath>();
-    manager.register_pass<UpdateConvertGather>();
-    manager.run_passes(f);
-    return true;
+    add_matcher<InitNMSPath>();
+    add_matcher<PropagateNMSPath>();
+    add_matcher<UpdateConvertGather>();
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNmsGatherPathToUnsigned, "ConvertNmsGatherPathToUnsigned", 0);
