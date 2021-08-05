@@ -171,7 +171,7 @@ public:
             ngraph::element::undefined,
             {},
             testValues.axis);
-
+        ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.actual").run_on_function(actualFunction);
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
                 ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::AvgPool>({{0, testValues.params.precisionsOnActivations}})
             });
@@ -187,7 +187,7 @@ public:
         //SimpleLowPrecisionTransformer transformer({}, {});
         transformer.commonGraphRewrite->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>(params);
         transformer.transform(actualFunction);
-
+        ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.transform").run_on_function(actualFunction);
         // dequantization output precision depends on input precision
         // to avoid huge amount of tests cases let's define dequantization output precision as input precision
         if (!testValues.result.dequantizationAfter.multiply.empty()) {
@@ -218,6 +218,8 @@ public:
             testValues.result.precisionAfterOperation,
             {},
             testValues.axis);
+        ngraph::pass::VisualizeTree("c:\\Users\\ndemasho\\rep\\Visual\\MFQtest.reference").run_on_function(referenceFunction);
+
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeParams> obj) {

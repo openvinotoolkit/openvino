@@ -198,7 +198,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_function(std::shared_ptr<
     prerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
     prerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
-    //prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
+    prerequisites->add_matcher<ngraph::pass::low_precision::MoveFakeQuantize>();
 
     manager.register_pass<TypeRelaxedReplacer>();
 
