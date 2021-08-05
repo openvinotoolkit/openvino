@@ -30,16 +30,16 @@ o_{i} = a_{i} \lor b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
-* **2**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *LogicalOr* operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise *LogicalOr* operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
-* *T*: boolean type.
+* *T_BOOL*: `boolean`.
 
 **Examples**
 

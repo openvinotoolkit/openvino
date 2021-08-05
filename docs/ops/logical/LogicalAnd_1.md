@@ -20,16 +20,16 @@
 
 **Inputs**
 
-* **1**: A tensor of type *T*. **Required.**
-* **2**: A tensor of type *T*. **Required.**
+* **1**: A tensor of type *T_BOOL*. **Required.**
+* **2**: A tensor of type *T_BOOL*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical AND operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise logical AND operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
-* *T*: boolean type.
+* *T_BOOL*: `boolean`.
 
 **Detailed description**
 Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
