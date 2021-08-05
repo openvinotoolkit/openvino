@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "program_helpers.h"
 #include "runtime/cldnn_itt.hpp"
 #include <vector>
@@ -18,7 +18,7 @@
 
 using namespace cldnn;
 
-void basic_memory_dependencies::run(program_impl& p) {
+void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
     std::vector<primitive_id> past_outputs;
