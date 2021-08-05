@@ -28,6 +28,14 @@ const std::vector<ReshapeTransformationParam> params = {
         "Reshape",
         "U8"
     },
+    // 3D -> 1D
+    {
+        { 1, 3, 32 },
+        { -1 },
+        { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "FP32"
+    },
     // 4D -> 3D
     {
         { 1, 3, 16, 16 },
@@ -82,8 +90,7 @@ const std::vector<ReshapeTransformationParam> params = {
         "Reshape",
         "U8"
     },
-
-    // per-channel + CPU limitation
+    // per-channel
     // 4D -> 3D
     {
         { 1, 3, 4, 8 },

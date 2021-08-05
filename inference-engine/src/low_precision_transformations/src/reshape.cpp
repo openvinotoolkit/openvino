@@ -38,87 +38,80 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
 }
 
 void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
-    if (dequantization.multiplyConstant->get_shape().size() > 1ul) {
-        // Reshape Subtract or Multiply operation Constant.
-        //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
-        //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
-        //    where '4' calculated for temporary broadcast before reshape.
-        //    2. Broadcast dequantization Constant, if channels are changed
-        //    3. Reshape and replace
-        auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
-            const size_t constantIndex = as_type<ngraph::opset1::Constant>(op->get_input_node_ptr(1)) ? 1 : 0;
-            const auto originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(constantIndex));
-
-            // reshape for element-wise constant is not required
-            auto constantShape = originalConstant->get_shape();
-            if (shape_size(constantShape) == 1ul) {
-                if (constantShape.size() > 1ul) {
-                    const Shape newConstShape = Shape(reshape->get_output_partial_shape(0).rank().get_length(), 1ul);
-                    const auto newConstant = opset1::Constant::create(
-                        originalConstant->get_element_type(),
-                        newConstShape,
-                        originalConstant->cast_vector<float>());
-                    replace_node(op->get_input_node_shared_ptr(constantIndex), newConstant);
-                }
-
-                return;
+    // Reshape dequantization operation Constant.
+    //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
+    //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
+    //    where '4' calculated for temporary broadcast before reshape.
+    //    2. Broadcast dequantization Constant, if channels are changed
+    //    3. Reshape and replace
+    auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
+        // reshape for element-wise constant is not required
+        auto constantShape = originalConstant->get_shape();
+        if (shape_size(constantShape) == 1ul) {
+            if (!constantShape.empty()) {
+                const auto newConstant = NetworkHelper::toScalar(originalConstant);
+                replace_node(originalConstant, newConstant);
             }
+            return;
+        }
 
-            auto const reshapeInputRank = reshape->get_input_partial_shape(0).rank();
-            assert(reshapeInputRank.is_static());
-            if ((constantShape.size() > 1ul) && (constantShape.size() < static_cast<size_t>(reshapeInputRank.get_length()))) {
+        auto const reshapeInputRank = reshape->get_input_partial_shape(0).rank();
+        assert(reshapeInputRank.is_static());
+        if (constantShape.size() > 1ul) {
+            while (constantShape.size() < static_cast<size_t>(reshapeInputRank.get_length())) {
                 constantShape.insert(constantShape.begin(), 1ul);
             }
+        }
 
-            auto const reshapeOutputPShape = reshape->output(0).get_partial_shape();
-            auto const reshapeOutputRank = reshapeOutputPShape.rank();
-            assert(reshapeOutputRank.is_static());
-            assert(reshapeOutputRank.get_length() >= 2);
-            assert(reshapeOutputPShape[1].is_static());
-            assert(reshapeOutputPShape[1].get_length() >= constantShape[1]);
-            assert(reshapeOutputPShape[1].get_length() % constantShape[1] == 0);
-            const size_t dimensionsToBroadcast = reshapeOutputPShape[1].get_length() / constantShape[1];
-            if (dimensionsToBroadcast == 0ul) {
-                return;
-            }
+        const auto reshapeOutputPShape = reshape->output(0).get_partial_shape();
+        const auto reshapeOutputRank = reshapeOutputPShape.rank();
+        assert(reshapeOutputRank.is_static());
+        assert(reshapeOutputRank.get_length() >= 2);
+        assert(reshapeOutputPShape[1].is_static());
+        assert(static_cast<size_t>(reshapeOutputPShape[1].get_length()) >= constantShape[1]);
+        assert(reshapeOutputPShape[1].get_length() % constantShape[1] == 0);
+        const size_t dimensionsToBroadcast = reshapeOutputPShape[1].get_length() / constantShape[1];
+        if (dimensionsToBroadcast == 0ul) {
+            return;
+        }
 
-            Shape newOperationConstantBroadcastedShape = originalConstant->output(0).get_shape();
-            // add dimensions to broadcast values
-            if (newOperationConstantBroadcastedShape.size() == 2ul) {
-                newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
-            } else {
-                newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
-            }
-            const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
-                originalConstant,
-                std::make_shared<opset1::Constant>(
-                    element::i32,
-                    Shape({static_cast<size_t>(newOperationConstantBroadcastedShape.size())}),
-                    newOperationConstantBroadcastedShape));
-
-            std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
-            newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
-            const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+        Shape newOperationConstantBroadcastedShape = originalConstant->output(0).get_shape();
+        // add dimensions to broadcast values
+        if (newOperationConstantBroadcastedShape.size() == 2ul) {
+            newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
+        } else {
+            newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
+        }
+        const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
+            originalConstant,
+            std::make_shared<opset1::Constant>(
                 element::i32,
-                Shape({ newReshapeConstValues.size() }),
-                newReshapeConstValues);
+                Shape({ newOperationConstantBroadcastedShape.size() }),
+                newOperationConstantBroadcastedShape));
 
-            const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
-                broadcastedConstant,
-                newReshapeConstant,
-                reshape->get_special_zero());
+        std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
+        newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
+        const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
+            element::i32,
+            Shape({ newReshapeConstValues.size() }),
+            newReshapeConstValues);
 
-            replace_node(op->get_input_node_shared_ptr(constantIndex), resultConstant);
-        };
+        const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
+            broadcastedConstant,
+            newReshapeConstant,
+            reshape->get_special_zero());
 
-        if (dequantization.subtract != nullptr) {
-            replaceConstant(reshape, dequantization.subtract);
-        }
+        replace_node(originalConstant, resultConstant);
+    };
 
-        if (dequantization.multiply != nullptr) {
-            replaceConstant(reshape, dequantization.multiply);
-        }
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+
+    if (dequantization.subtract != nullptr) {
+        replaceConstant(reshape, dequantization.subtractConstant);
+    }
+
+    if (dequantization.multiply != nullptr) {
+        replaceConstant(reshape, dequantization.multiplyConstant);
     }
 }
 
