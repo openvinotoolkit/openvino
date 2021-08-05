@@ -131,7 +131,7 @@ class If(Op):
 
         if outputs_number == 0 and len(if_node.out_ports(True)) != 0:
             # Some models have if with control flow outputs.
-            # These shape inference for such models
+            # These shape inference for such ifs
             for node in if_node.out_nodes(True).values():
                 node.shape = int64_array([])
             return
