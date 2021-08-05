@@ -153,6 +153,7 @@ set(SRC
     type_prop/idft.cpp
     type_prop/interpolate.cpp
     type_prop/logical_and.cpp
+    type_prop/logical_not.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
@@ -274,6 +275,7 @@ set(SRC
     visitors/op/log.cpp
     visitors/op/logical_and.cpp
     visitors/op/logical_or.cpp
+    visitors/op/logical_not.cpp
     visitors/op/logical_xor.cpp
     visitors/op/lrn.cpp
     visitors/op/lstm_cell.cpp
