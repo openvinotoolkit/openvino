@@ -194,7 +194,7 @@ namespace ngraph
                 }
 
             } // namespace fake_quantize_details
-            namespace v0
+            inline namespace v0
             {
                 template <typename T>
                 void fake_quantize(const T* const arg,
@@ -264,35 +264,6 @@ namespace ngraph
                     }
                 }
             } // namespace v0
-
-            template <typename T>
-            void fake_quantize(const T* const arg,
-                               const T* const in_low,
-                               const T* const in_high,
-                               const T* const out_low,
-                               const T* const out_high,
-                               T* const out,
-                               const Shape& arg_shape,
-                               const Shape& in_low_shape,
-                               const Shape& in_high_shape,
-                               const Shape& out_low_shape,
-                               const Shape& out_high_shape,
-                               size_t levels)
-            {
-                v0::fake_quantize(arg,
-                                  in_low,
-                                  in_high,
-                                  out_low,
-                                  out_high,
-                                  out,
-                                  arg_shape,
-                                  in_low_shape,
-                                  in_high_shape,
-                                  out_low_shape,
-                                  out_high_shape,
-                                  levels,
-                                  op::AutoBroadcastType::NUMPY);
-            }
-        } // namespace reference
-    }     // namespace runtime
+        }     // namespace reference
+    }         // namespace runtime
 } // namespace ngraph
