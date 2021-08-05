@@ -107,9 +107,9 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
             auto status = could_propagate(input_value, order);
             if (status)
             {
-                for (const auto &node : order)
+                for (const auto& node : order)
                 {
-                    const auto &rt_info = node->get_rt_info();
+                    const auto& rt_info = node->get_rt_info();
                     if (rt_info.count("DISABLED_CONSTANT_FOLDING"))
                     {
                         status = false;

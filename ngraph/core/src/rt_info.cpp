@@ -42,7 +42,7 @@ void ngraph::copy_runtime_info(std::shared_ptr<ngraph::Node> from, std::shared_p
     auto& attrs = to->get_rt_info();
     attrs.clear();
 
-    for (const auto & item : from->get_rt_info())
+    for (const auto& item : from->get_rt_info())
     {
         if (item.second->is_copyable())
         {
