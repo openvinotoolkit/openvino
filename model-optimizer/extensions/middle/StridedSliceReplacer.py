@@ -24,9 +24,10 @@ def replace_strided_slice(node, mask, op):
 
 
 class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
-
     enabled = True
     force_clean_up = True
+
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_nhwc_to_nchw]
 
     def run_before(self):
         return [InsertLayoutPropagationTranspose]
@@ -45,13 +46,34 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
             shrink_axis_mask = node.soft_get('shrink_axis_mask', np.zeros(len(input_shape)))
             new_axis_mask = node.soft_get('new_axis_mask', np.zeros(len(input_shape)))
 
-            if all(x == 0 for x in shrink_axis_mask):
-                if all(y == 0 for y in new_axis_mask):
-                    return
-                else:
-                    replace_strided_slice(node, new_axis_mask, Unsqueeze)
+            is_shrink_axis_mask = any(x == 1 for x in shrink_axis_mask)
+            is_new_axis_mask = any(x == 1 for x in new_axis_mask)
+
+            if is_shrink_axis_mask and is_new_axis_mask:
+                unsqueeze_axes = np.where(new_axis_mask == 1)[0]
+                squeeze_axes = np.where(shrink_axis_mask == 1)[0]
+                assert np.all(unsqueeze_axes != squeeze_axes), 'new_axis_mask and shrink_axis_mask are' \
+                                                               'inconsistent: {} and {}'.format(new_axis_mask,
+                                                                                                shrink_axis_mask)
+
+                for sq_axis_index, sq_axis in enumerate(squeeze_axes):
+                    for unsq_axis_index, unsq_axis in enumerate(unsqueeze_axes):
+                        if sq_axis < unsq_axis:
+                            unsqueeze_axes[unsq_axis_index] -= 1
+
+                node_name = node.soft_get('name', node.id)
+                squeeze_node = create_op_node_with_second_input(graph, Squeeze, squeeze_axes,
+                                                                op_attrs=dict(name=node_name + 'Squeeze'))
+                unsqueeze_node = create_op_node_with_second_input(graph, Unsqueeze, unsqueeze_axes,
+                                                                  input_node=squeeze_node)
+                node.in_port(0).get_connection().set_destination(squeeze_node.in_port(0))
+                node.out_port(0).get_connection().set_source(unsqueeze_node.out_port(0))
+
+                rename_nodes([(node, node_name + '/ShouldBeDeleted'), (unsqueeze_node, node_name)])
+
+            elif is_shrink_axis_mask and not is_new_axis_mask:
+                replace_strided_slice(node, shrink_axis_mask, Squeeze)
+            elif not is_shrink_axis_mask and is_new_axis_mask:
+                replace_strided_slice(node, new_axis_mask, Unsqueeze)
             else:
-                if any(y != 0 for y in new_axis_mask):
-                    return
-                else:
-                    replace_strided_slice(node, shrink_axis_mask, Squeeze)
+                return
