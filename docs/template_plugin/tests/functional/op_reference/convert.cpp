@@ -20,10 +20,6 @@ namespace reference_tests {
 namespace ConversionOpsRefTestDefinitions {
 namespace {
 
-TEST_P(ReferenceConversionLayerTest, CompareWithHardcodedRefs) {
-    Exec();
-}
-
 INSTANTIATE_TEST_SUITE_P(
     smoke_Conversion_With_Hardcoded_Refs, ReferenceConversionLayerTest,
     ::testing::Values(
