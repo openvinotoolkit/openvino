@@ -7,10 +7,13 @@ from typing import Iterable, List, Union
 import numpy as np
 
 dynamic_dimension = np.ma.masked
+# numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
+# value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension the big prime
+# (by modulo) negative number is selected as such a value
 dynamic_dimension_value = -1000000007
 
 
-def shape_array(value, dtype=np.int64, dyn_value=dynamic_dimension_value):
+def shape_array(value, dtype=np.int64):
     # if the input already have masked values then we need to explicitly convert to dynamic_dimension_value and create
     # masked array from scratch, because otherwise method masked_equal will convert masked elements to "nan" value
     new_value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
@@ -20,6 +23,7 @@ def shape_array(value, dtype=np.int64, dyn_value=dynamic_dimension_value):
 def compare_dimensions(dim1, dim2):
     """
     Compare if dim1 is equal to dim2 or any of them is dynamic
+
     :param dim1: dimension to compare
     :param dim2: dimension to compare
     :return: boolean result of the comparison
@@ -28,7 +32,17 @@ def compare_dimensions(dim1, dim2):
 
 
 def compare_shapes(shape1, shape2):
+    """
+    Compares with two shape tensors. The shapes are considered equal if they have the same rank and the corresponding
+    dimensions are either equal or at least one of them is dynamic.
+
+    :param shape1: the first shape to compare
+    :param shape2: the second shape to compare
+    :return: boolean result of the comparison
+    """
     if shape1.ndim != shape2.ndim:
+        return False
+    if shape1.size != shape2.size:
         return False
     for d1, d2 in zip(shape1, shape2):
         if not compare_dimensions(d1, d2):
@@ -37,6 +51,12 @@ def compare_shapes(shape1, shape2):
 
 
 def unmask_shape(value):
+    """
+    Converts all dynamic_dimension values from the input tensor to -1. Used to generate shapes for the IR.
+
+    :param value: the value to be unmasked.
+    :return: the value where dynamic_dimension elements are converted to -1.
+    """
     if not isinstance(value, np.ma.masked_array):
         return value
     else:
@@ -44,14 +64,21 @@ def unmask_shape(value):
 
 
 def is_fully_defined(value):
-    if isinstance(value, np.ma.masked_array):
+    """
+    Checks that provided input tensor is fully defined. The input value can be of different types: scalar, list, array,
+    masked array.
+
+    :param value: the value to check
+    :return: the result of the check
+    """
+    if value is None:
+        return False
+    elif isinstance(value, np.ma.masked_array):
         return not np.ma.is_masked(value)
-    elif isinstance(value, np.ndarray):
-        if value.ndim == 0:
-            return value is not dynamic_dimension
-        return np.all([item is not dynamic_dimension for item in value])
-    elif isinstance(value, list):
-        return np.ma.masked not in value
+    elif isinstance(value, np.ndarray):  # numpy array cannot contain dynamic values
+        return True
+    elif isinstance(value, list) or isinstance(value, tuple):
+        return dynamic_dimension not in value
     elif value is dynamic_dimension:
         return False
     return True
