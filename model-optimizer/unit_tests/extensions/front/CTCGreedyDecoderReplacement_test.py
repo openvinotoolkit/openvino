@@ -23,7 +23,7 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
 
             # new nodes
-            'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'use_mask_format': True},
+            'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen'},
             **const('squeeze_axes', int64_array([2, 3])),
             'squeeze_dec_seq': {'kind': 'op', 'op': 'Squeeze'},
             'cast_to_int': {'kind': 'op', 'op': 'Cast'},
@@ -66,7 +66,7 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
 
             # new nodes
-            'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'use_mask_format': True},
+            'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen'},
             **const('squeeze_axes', int64_array([2, 3])),
             'squeeze_dec_seq': {'kind': 'op', 'op': 'Squeeze'},
             'cast_to_int': {'kind': 'op', 'op': 'Cast'},
