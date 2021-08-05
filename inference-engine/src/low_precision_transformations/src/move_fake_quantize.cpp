@@ -74,14 +74,11 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         as_type_ptr<opset1::FakeQuantize>(fq)->get_levels());
 
     auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
-    auto& rtInfo = new_concat->get_rt_info();
-    new_concat->set_friendly_name("output");
-    rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
 
     replace_node(concat, new_concat);
     replace_node(fq, new_concat);
 
-    //updateOutput(context, new_concat, fq);
+    updateOutput(context, new_concat, fq);
     return true;
 }
 
