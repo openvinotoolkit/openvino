@@ -54,6 +54,9 @@ enum class shared_mem_type {
     /// @brief Structure describes shared CL buffer.
     shared_mem_buffer,
 
+    /// @brief Structure describes shared USM buffer
+    shared_mem_usm,
+
     /// @brief Structure describes shared CL image.
     shared_mem_image,
 

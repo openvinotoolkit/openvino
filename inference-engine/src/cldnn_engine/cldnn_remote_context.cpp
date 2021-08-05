@@ -34,7 +34,13 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
     case BT_BUF_INTERNAL:
     case BT_BUF_SHARED:
         return{
-            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
+                { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
+                { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+                { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_BUF_USM:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_BUFFER) },
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
@@ -105,6 +111,17 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     }
     case BlobType::BT_BUF_SHARED: {
         m_memObject = eng->share_buffer(m_layout, m_mem);
+        break;
+    }
+    case BlobType::BT_BUF_USM: {
+        cldnn::shared_mem_params params = { cldnn::shared_mem_type::shared_mem_usm, nullptr, nullptr, m_mem,
+#ifdef _WIN32
+                                            nullptr,
+#else
+                                            0,
+#endif
+                                            0 };
+        m_memObject = eng->reinterpret_handle(m_layout, params);
         break;
     }
 #ifdef _WIN32

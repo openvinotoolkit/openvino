@@ -128,6 +128,43 @@ public:
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
+ * which can be shared with user-supplied OpenCL buffer.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * @note User can obtain OpenCL buffer handle from this class.
+ */
+class USMBufferBlob : public ClBlob, public details::param_map_obj_getter {
+public:
+    /**
+     * @brief A smart pointer to the USMBufferBlob object
+     */
+    using Ptr = std::shared_ptr<USMBufferBlob>;
+
+    /**
+     * @brief Creates a USMBufferBlob object with the specified dimensions and layout.
+     * @param tensorDesc Tensor description
+     */
+    explicit USMBufferBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
+
+    /**
+     * @brief Returns the underlying USM memory pointer
+     * @return underlying USM memory pointer
+     */
+    void* get() {
+        return _ObjFromParams<void*, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
+                                                        GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_BUFFER));
+    }
+
+    /**
+     * @brief OpenCL memory handle conversion operator.
+     * @return `cl_mem`
+     */
+    explicit operator void*() {
+        return get();
+    }
+};
+
+/**
+ * @brief This class represents an abstraction for GPU plugin remote blob
  * which can be shared with user-supplied OpenCL 2D Image.
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can obtain OpenCL image handle from this class.
@@ -286,6 +323,26 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
     ParamMap params = {
         { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D) },
         { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get()) }
+    };
+    return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
+}
+
+/**
+ * @brief This function is used to obtain remote blob object from user-supplied USM pointer
+ * @param desc A tensor descriptor object representing remote blob configuration
+ * @param ctx A remote context used to create remote blob
+ * @param image A memory pointer pointing to a USM allocated memory region
+ * @return A remote blob instance
+ */
+static inline Blob::Ptr make_shared_blob_usm(const TensorDesc& desc, RemoteContext::Ptr ctx, void* p) {
+    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+    if (nullptr == casted) {
+        IE_THROW() << "Invalid remote context passed";
+    }
+
+    ParamMap params = {
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_BUFFER) },
+            { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(p) }
     };
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }

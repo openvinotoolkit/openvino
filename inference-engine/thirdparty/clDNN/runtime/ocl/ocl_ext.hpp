@@ -629,14 +629,18 @@ private:
 */
 class UsmHolder {
 public:
-    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper), _ptr(ptr) { }
+    UsmHolder(const cl::UsmHelper &usmHelper, void *ptr, bool reuse = false)
+            : _usmHelper(usmHelper), _ptr(ptr), _ownsMemory(!reuse) {}
     void* ptr() { return _ptr; }
     ~UsmHolder() {
-        _usmHelper.free_mem(_ptr);
+        if (_ownsMemory) {
+            _usmHelper.free_mem(_ptr);
+        }
     }
 private:
     const cl::UsmHelper& _usmHelper;
     void* _ptr;
+    bool _ownsMemory;
 };
 /*
     USM base class. Different usm types should derive from this class.
@@ -644,6 +648,11 @@ private:
 class UsmMemory {
 public:
     explicit UsmMemory(const cl::UsmHelper& usmHelper) : _usmHelper(usmHelper) { }
+
+    // Reuse existing USM pointer
+    explicit UsmMemory(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper) {
+       _allocate(ptr, true);
+    }
 
     // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }
@@ -676,10 +685,10 @@ protected:
     std::shared_ptr<UsmHolder> _usm_pointer = nullptr;
 
 private:
-    void _allocate(void* ptr) {
+    void _allocate(void* ptr, bool reuse = false) {
         if (!ptr)
             throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
-        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr);
+        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr, reuse);
     }
 };
 

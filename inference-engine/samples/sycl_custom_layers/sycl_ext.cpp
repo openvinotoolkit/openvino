@@ -1,5 +1,6 @@
 //#include <CL/sycl.hpp>
 #include "sycl_ext.hpp"
+#include <gpu/gpu_context_api_ocl.hpp>
 
 #include <regex>
 
@@ -129,6 +130,7 @@ InferenceEngine::StatusCode SYCLLayerImpl::execute(std::vector<InferenceEngine::
                                                    std::vector<InferenceEngine::Blob::Ptr>& outputs,
                                                    InferenceEngine::ResponseDesc *resp) noexcept
 {
+    using InferenceEngine::gpu::USMBufferBlob;
     std::cout << "execute" << std::endl;
 
     // Note, we enforce SYCL input/outputs in LayerImpl::getSupportedConfigurations()
@@ -137,11 +139,20 @@ InferenceEngine::StatusCode SYCLLayerImpl::execute(std::vector<InferenceEngine::
     auto outputRemoteBlob = outputs[0]->as<InferenceEngine::RemoteBlob>();
     assert(outputRemoteBlob != nullptr);
 
-//    // Note, we enforce SYCL input/outputs in LayerImpl::getSupportedConfigurations()
-//    sycl::buffer inputSYCLBuffer = inputRemoteBlob->as<InferenceEngine::SYCLBlob>->get();
-//    assert(inputSyclBuffer != nullptr);
-//    sycl::buffer outputSYCLBuffer = outputRemoteBlob->as<InferenceEngine::SYCLBlob>->get();
-//    assert(outputSyclBuffer != nullptr);
+    // Note, we enforce SYCL input/outputs in LayerImpl::getSupportedConfigurations()
+    auto inputBuffer = inputRemoteBlob->as<InferenceEngine::gpu::USMBufferBlob>();
+    assert(inputBuffer != nullptr);
+    auto outputBuffer = outputRemoteBlob->as<InferenceEngine::gpu::USMBufferBlob>();
+    assert(inputBuffer != nullptr);
+
+    float* in = static_cast<float*>(inputBuffer->get());
+    float* out = static_cast<float*>(outputBuffer->get());
+
+    // Implement operation on USM memory
+    for(size_t idx = 0; idx < inputs[0]->size(); ++idx) {
+        out[idx] = in[idx] + 3.0;
+    };
+
 //
 //    // Get the SYCL queue from the remoteContext (don't even need the sycl context)
 //    RemoteContext::Ptr remoteContext = inputSYCLBuffer->getContext();

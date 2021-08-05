@@ -1,8 +1,8 @@
 #include "sycl_ext.hpp"
 
 int main (int argc, char** argv) {
-    std::vector<size_t> inpShape{1, 3, 10, 11};
-    std::vector<size_t> outShape{1, 3, 10, 11};
+    std::vector<size_t> inpShape{1, 3, 2, 2};
+    std::vector<size_t> outShape{1, 3, 2, 2};
 
     // Build network topology
     std::shared_ptr<ngraph::Node> input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape(inpShape));
@@ -15,7 +15,8 @@ int main (int argc, char** argv) {
                                                                                     ngraph::op::RoundingType::FLOOR,
                                                                                     ngraph::op::PadType::VALID);
     std::shared_ptr<ngraph::Node> relu = std::make_shared<ngraph::op::Relu>(pool);
-    std::shared_ptr<ngraph::Node> ocl_layer = std::make_shared<SYCLLayerOp>(relu);
+    // std::shared_ptr<ngraph::Node> ocl_layer = std::make_shared<SYCLLayerOp>(relu1);
+    std::shared_ptr<ngraph::Node> ocl_layer = std::make_shared<SYCLLayerOp>(input);
 
     auto ngraph_function = std::make_shared<ngraph::Function>(
             ocl_layer, ngraph::ParameterVector{std::dynamic_pointer_cast<ngraph::op::Parameter>(input)});
@@ -36,7 +37,7 @@ int main (int argc, char** argv) {
     std::cout << "Input shape: " << inpShape[0] << "," << inpShape[1] << "," << inpShape[2] << "," << inpShape[3] << std::endl;
     std::cout << "Output shape: " << outShape[0] << "," << outShape[1] << "," << outShape[2] << "," << outShape[3] << std::endl;
 
-    std::vector<float> inpData(inpShape[0] * inpShape[1] * inpShape[2] * inpShape[3], 0);
+    std::vector<float> inpData{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
     std::vector<float> outData(inpShape[0] * inpShape[1] * inpShape[2] * inpShape[3], 0);
 
     InferenceEngine::BlobMap inputBlobs, outputBlobs;
@@ -44,14 +45,23 @@ int main (int argc, char** argv) {
         InferenceEngine::Precision::FP32,
         inpShape,
         InferenceEngine::Layout::ANY}, inpData.data());
-    outputBlobs[net.getOutputsInfo().begin()->first] = InferenceEngine::make_shared_blob<float>({
+    InferenceEngine::Blob::Ptr outputBlob = InferenceEngine::make_shared_blob<float>({
         InferenceEngine::Precision::FP32,
         outShape,
         InferenceEngine::Layout::ANY}, outData.data());
+    outputBlobs[net.getOutputsInfo().begin()->first] = outputBlob;
 
     infRequest.SetInput(inputBlobs);
     infRequest.SetOutput(outputBlobs);
     infRequest.Infer();
+
+    const auto lockedMemory = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->rmap();
+    const float* out = lockedMemory.as<float*>();
+    printf("Output: ");
+    for (size_t i = 0; i < outputBlob->size(); ++i) {
+        printf("%f,", out[i]);
+    }
+    printf("\n");
 
     return 0;
 }

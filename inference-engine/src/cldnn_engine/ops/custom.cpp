@@ -304,9 +304,17 @@ void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& o
             TensorDesc desc = IETensorFromClnnLayout(input->get_layout());
 
             auto params = input->get_internal_params();
-            assert(params.mem_type == cldnn::shared_mem_type::shared_mem_buffer);
-
-            inputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+            switch(params.mem_type) {
+                case cldnn::shared_mem_type::shared_mem_buffer:
+                    inputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+                    break;
+                case cldnn::shared_mem_type::shared_mem_usm:
+                    inputBlobs[i] = InferenceEngine::gpu::make_shared_blob_usm(desc, context, static_cast<void*>(params.mem));
+                    break;
+                default:
+                    IE_THROW() << "clDNN: memory can't be shared...";
+            }
+            inputBlobs[i]->allocate(); // TODO: should this be done inside gpu::make_shared_blob_usm()?
         }
 
         std::vector<InferenceEngine::Blob::Ptr> outputBlobs(outputs.size());
@@ -315,9 +323,17 @@ void CreateGenericPrimitiveOp(Program &p, const std::shared_ptr<ngraph::Node>& o
             TensorDesc desc = IETensorFromClnnLayout(output->get_layout());
 
             auto params = output->get_internal_params();
-            assert(params.mem_type == cldnn::shared_mem_type::shared_mem_buffer);
-
-            outputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+            switch(params.mem_type) {
+                case cldnn::shared_mem_type::shared_mem_buffer:
+                    outputBlobs[i] = InferenceEngine::gpu::make_shared_blob(desc, context, static_cast<cl_mem>(params.mem));
+                    break;
+                case cldnn::shared_mem_type::shared_mem_usm:
+                    outputBlobs[i] = make_shared_blob_usm(desc, context, static_cast<void*>(params.mem));
+                    break;
+                default:
+                    IE_THROW() << "clDNN: memory can't be shared...";
+            }
+            outputBlobs[i]->allocate(); // TODO: should this be done inside gpu::make_shared_blob_usm()?
         }
 
         InferenceEngine::ResponseDesc resp;

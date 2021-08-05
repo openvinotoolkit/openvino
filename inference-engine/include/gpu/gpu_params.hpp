@@ -83,6 +83,10 @@ DECLARE_GPU_PARAM_VALUE(OCL_BUFFER);
 */
 DECLARE_GPU_PARAM_VALUE(OCL_IMAGE2D);
 /**
+* @brief Shared Unified Shared Memory buffer
+*/
+DECLARE_GPU_PARAM_VALUE(USM_BUFFER);
+/**
 * @brief Shared video decoder surface or D3D 2D texture blob
 */
 DECLARE_GPU_PARAM_VALUE(VA_SURFACE);

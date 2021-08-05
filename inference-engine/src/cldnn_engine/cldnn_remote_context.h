@@ -36,6 +36,7 @@ public:
         BT_EMPTY,
         BT_BUF_INTERNAL,
         BT_BUF_SHARED,
+        BT_BUF_USM,
         BT_IMG_SHARED,
         BT_SURF_SHARED,
         BT_DX_BUF_SHARED,
@@ -125,6 +126,7 @@ protected:
 };
 
 using CLDNNRemoteCLbuffer = typedCLDNNRemoteBlob<InferenceEngine::gpu::ClBufferBlob>;
+using CLDNNRemoteUSMbuffer = typedCLDNNRemoteBlob<InferenceEngine::gpu::USMBufferBlob>;
 using CLDNNRemoteCLImage2D = typedCLDNNRemoteBlob<InferenceEngine::gpu::ClImage2DBlob>;
 #ifdef _WIN32
 using CLDNNRemoteD3DBuffer = typedCLDNNRemoteBlob<InferenceEngine::gpu::D3DBufferBlob>;
@@ -340,6 +342,9 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                 layout.format = ImageFormatFromLayout(tensorDesc.getLayout());
                 ret = std::make_shared<CLDNNRemoteCLImage2D>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
+            case CLDNNRemoteBlobImpl::BlobType::BT_BUF_USM:
+                ret = std::make_shared<CLDNNRemoteUSMbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
+                break;
 #ifdef _WIN32
             case CLDNNRemoteBlobImpl::BlobType::BT_DX_BUF_SHARED:
                 ret = std::make_shared<CLDNNRemoteD3DBuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
@@ -408,7 +413,12 @@ public:
                     mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
                 } else if (GPU_PARAM_VALUE(OCL_IMAGE2D) == memTypeStr) {
                     blob_type = CLDNNRemoteBlobImpl::BlobType::BT_IMG_SHARED;
-                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
+                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params,
+                                                                                          GPU_PARAM_KEY(MEM_HANDLE));
+                } else if (GPU_PARAM_VALUE(USM_BUFFER) == memTypeStr) {
+                    blob_type = CLDNNRemoteBlobImpl::BlobType::BT_BUF_USM;
+                    mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params,
+                                                                                          GPU_PARAM_KEY(MEM_HANDLE));
 #ifdef _WIN32
                 } else if (GPU_PARAM_VALUE(DX_BUFFER) == memTypeStr) {
                     blob_type = CLDNNRemoteBlobImpl::BlobType::BT_DX_BUF_SHARED;

@@ -27,4 +27,5 @@
                DEPENDENCIES format_reader ie_samples_utils)
 
  find_package(ngraph REQUIRED)
- target_link_libraries(sycl_custom_layers PRIVATE ${NGRAPH_LIBRARIES})
+ find_package(OpenCL)
+ target_link_libraries(sycl_custom_layers PRIVATE ${NGRAPH_LIBRARIES} OpenCL)

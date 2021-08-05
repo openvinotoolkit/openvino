@@ -331,10 +331,10 @@ event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto cl_engine = downcast<const ocl_engine>(_engine);
     return {
-        shared_mem_type::shared_mem_empty,  // shared_mem_type
+        shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(cl_engine->get_cl_context().get()),  // context handle
         nullptr,  // user_device handle
-        nullptr,  // mem handle
+        get_buffer().get(),  // mem handle
 #ifdef _WIN32
         nullptr,  // surface handle
 #else
