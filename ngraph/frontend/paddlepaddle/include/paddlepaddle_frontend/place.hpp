@@ -48,6 +48,8 @@ namespace ngraph
             bool is_output() const override;
             bool is_equal(Ptr another) const override { return this == another.get(); }
 
+            const InputModelPDPD& get_input_model() const { return m_input_model; }
+
             std::vector<std::string> get_names() const override { return m_names; }
             void add_name(const std::string& name) { m_names.push_back(name); }
             void set_name(const std::string& name) { m_names.assign({name}); }

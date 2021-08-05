@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <queue>
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "paddlepaddle_frontend/place.hpp"
 
 namespace ngraph
 {
@@ -45,6 +47,16 @@ namespace ngraph
                 }
                 return false;
             }
+
+            std::shared_ptr<TensorPlacePDPD> castToTensorPlace(const Place::Ptr& place);
+
+            void traverse_down(const std::vector<Place::Ptr>& start_nodes,
+                               std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+                               std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors);
+
+            void traverse_up(const std::vector<Place::Ptr>& start_nodes,
+                             std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+                             std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors);
 
         } // namespace pdpd
     }     // namespace frontend
