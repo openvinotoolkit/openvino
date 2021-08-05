@@ -16,7 +16,7 @@ def replace_ctc_greedy_decoder(graph: Graph, match: dict):
     sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
     ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
-    # for normalizing input chanel need to transpose input data from [T, N, C] to [N, T, C]
+    # for normalizing input channel need to transpose input data from [T, N, C] to [N, T, C]
     # which supported CTCGreedyDecoderSeqLen op.
     ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                    {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
@@ -89,3 +89,28 @@ class CTCGreedyDecoderWithSparseToDenseShapeReplacement(FrontReplacementSubgraph
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         replace_ctc_greedy_decoder(graph, match)
+
+
+class CTCGreedyDecoder_Replacement(FrontReplacementSubgraph):
+    """
+    # TODO Add appropriate description
+    """
+    enabled = True
+
+
+    def find_and_replace_pattern(self, graph: Graph):
+        for ctc_greedy_decoder_tf in graph.get_op_nodes(op='CTCGreedyDecoderSeqLen'):
+            ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
+            # TODO Add appropriate description
+
+            # for normalizing input channel need to transpose input data from [T, N, C] to [N, T, C]
+            # which supported CTCGreedyDecoderSeqLen op.
+            ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
+                                                           {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
+
+            assert ctc_greedy_decoder_tf.has_valid('merge_repeated'), \
+                'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(ctc_greedy_decoder_tf_name)
+
+            ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
+            ctc_greedy_decoder_tf.in_port(0).disconnect()
+            ctc_data_permute.out_port(0).connect(ctc_greedy_decoder_tf.in_port(0))
