@@ -76,7 +76,7 @@ def make_build(openvino_root_dir, build_dir, install_dir, build_target=None, cma
     additional_args_line = " ".join(cmake_additional_args) + " " if cmake_additional_args else ""
     sea_itt_lib_path = os.path.join(openvino_root_dir, "build_instrumented", "thirdparty", "itt_collector",
                                     "sea_itt_lib")
-    build_target_arg_line = f"cmake --build {sea_itt_lib_path} --target  {' '.join(build_target)} && " if build_target else ""
+    build_target_arg_line = f"cmake --build {sea_itt_lib_path} --target  {build_target} && " if build_target else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
         f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "

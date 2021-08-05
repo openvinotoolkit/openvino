@@ -140,7 +140,7 @@ def openvino_ref(request, artifacts):
         openvino_root_dir,
         build_dir,
         openvino_ref_path,
-        build_target=["sea_itt_lib"],
+        build_target="sea_itt_lib",
         cmake_additional_args=["-DSELECTIVE_BUILD=COLLECT"],
         log=log
     )
