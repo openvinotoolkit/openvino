@@ -28,7 +28,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         {},
-        "relu",
+        "",
         { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
         {},
         {},

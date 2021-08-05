@@ -321,7 +321,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     }
 
     manager.run_passes(nGraphFunc);
-
+    ngraph::pass::VisualizeTree("C:/Users/ndemasho/rep/Visual/BeforeMFQ.cpu").run_on_function(nGraphFunc);
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPE(FIRST_INFERENCE, MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
