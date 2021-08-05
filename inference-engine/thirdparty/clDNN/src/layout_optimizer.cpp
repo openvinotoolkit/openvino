@@ -3,8 +3,6 @@
 //
 
 #include "layout_optimizer.h"
-#include "topology_impl.h"
-#include "network_impl.h"
 #include "primitive_inst.h"
 #include "cldnn/runtime/error_handler.hpp"
 

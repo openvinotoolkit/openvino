@@ -40,7 +40,7 @@
 	ignore = dirty
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx/onnx
-	url = https://github.com/openvinotoolkit/onnx.git
+	url = https://github.com/onnx/onnx.git
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
