@@ -47,12 +47,14 @@ namespace ngraph
             void set_tensor_value(Place::Ptr place, const void* value) override;
             Place::Ptr add_output(Place::Ptr place) override;
             void remove_output(Place::Ptr place) override;
-            void cut_and_add_new_output(Place::Ptr place, const std::string& new_name_optional = "") override;
-            void cut_and_add_new_input(Place::Ptr place, const std::string& new_name_optional = "") override;
+            void cut_and_add_new_output(Place::Ptr place,
+                                        const std::string& new_name_optional = "") override;
+            void cut_and_add_new_input(Place::Ptr place,
+                                       const std::string& new_name_optional = "") override;
 
             void free_name_for_tensor(const std::string& name) override;
             void add_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
-            void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)  override;
+            void set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) override;
         };
 
     } // namespace frontend

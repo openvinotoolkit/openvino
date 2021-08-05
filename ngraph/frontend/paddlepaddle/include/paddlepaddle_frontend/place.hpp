@@ -51,7 +51,10 @@ namespace ngraph
             std::vector<std::string> get_names() const override { return m_names; }
             void add_name(const std::string& name) { m_names.push_back(name); }
             void set_name(const std::string& name) { m_names.assign({name}); }
-            void remove_name(const std::string& name) { m_names.erase(std::remove(m_names.begin(), m_names.end(), name), m_names.end()); }
+            void remove_name(const std::string& name)
+            {
+                m_names.erase(std::remove(m_names.begin(), m_names.end(), name), m_names.end());
+            }
 
         protected:
             const InputModelPDPD& m_input_model;

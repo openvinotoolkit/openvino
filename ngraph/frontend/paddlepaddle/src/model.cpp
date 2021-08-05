@@ -55,7 +55,8 @@ namespace ngraph
             {
                 return m_tensor_values;
             };
-            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarNames() const {
+            std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarNames() const
+            {
                 return m_var_names;
             }
             Place::Ptr addOutput(Place::Ptr place);
@@ -74,10 +75,13 @@ namespace ngraph
                             std::istream* weight_stream);
             std::vector<std::shared_ptr<OpPlacePDPD>> determine_cut_nodes() const;
 
-            void traverse_up(const std::vector<Place::Ptr>& start_nodes, std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+            void traverse_up(const std::vector<Place::Ptr>& start_nodes,
+                             std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
                              std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const;
-            void traverse_down(const std::vector<Place::Ptr>& start_nodes, std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                               std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const;
+            void
+                traverse_down(const std::vector<Place::Ptr>& start_nodes,
+                              std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+                              std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const;
 
             std::vector<std::shared_ptr<OpPlacePDPD>> m_op_places;
             std::vector<std::shared_ptr<TensorPlacePDPD>> m_var_places;
@@ -469,45 +473,58 @@ namespace ngraph
             m_tensor_values[name] = constant;
         }
 
-        Place::Ptr InputModelPDPD::InputModelPDPDImpl::addOutput(Place::Ptr place) {
+        Place::Ptr InputModelPDPD::InputModelPDPDImpl::addOutput(Place::Ptr place)
+        {
             auto tensor_place = pdpd::castToTensorPlace(place);
-            if (!tensor_place->is_output()) {
+            if (!tensor_place->is_output())
+            {
                 m_outputs.push_back(place);
                 return tensor_place;
             }
             FRONT_END_THROW("Place is already output.");
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::removeOutput(Place::Ptr place) {
+        void InputModelPDPD::InputModelPDPDImpl::removeOutput(Place::Ptr place)
+        {
             auto tensor_place = pdpd::castToTensorPlace(place);
-            m_outputs.erase(std::remove(m_outputs.begin(), m_outputs.end(), tensor_place), m_outputs.end());
+            m_outputs.erase(std::remove(m_outputs.begin(), m_outputs.end(), tensor_place),
+                            m_outputs.end());
             m_graph_changed = true;
         }
 
-        void
-        InputModelPDPD::InputModelPDPDImpl::cutAndAddNewOutput(Place::Ptr place, const std::string &new_name_optional) {
+        void InputModelPDPD::InputModelPDPDImpl::cutAndAddNewOutput(
+            Place::Ptr place, const std::string& new_name_optional)
+        {
             auto tensor_place = pdpd::castToTensorPlace(place);
-            if (tensor_place) {
+            if (tensor_place)
+            {
                 std::vector<std::shared_ptr<TensorPlacePDPD>> new_tensors;
 
-                // Find outputs that are connected to the cut place. These target outputs should be cut off.
+                // Find outputs that are connected to the cut place. These target outputs should be
+                // cut off.
                 traverse_down({tensor_place}, nullptr, &new_tensors);
                 std::vector<std::shared_ptr<TensorPlacePDPD>> target_out_tensor;
-                for (const auto& tensor : new_tensors) {
-                    if (tensor->is_output()) {
+                for (const auto& tensor : new_tensors)
+                {
+                    if (tensor->is_output())
+                    {
                         target_out_tensor.push_back(tensor);
                     }
                 }
                 m_outputs.push_back(tensor_place);
 
-                // If some target outputs still connected with the model inputs, the selected cut place is incorrect.
+                // If some target outputs still connected with the model inputs, the selected cut
+                // place is incorrect.
                 new_tensors.clear();
                 traverse_down(m_inputs, nullptr, &new_tensors);
                 std::vector<Place::Ptr> new_outputs;
-                for (const auto& tensor : new_tensors) {
-                    if (tensor->is_output()) {
-                        FRONT_END_GENERAL_CHECK(std::find(target_out_tensor.begin(), target_out_tensor.end(), tensor) !=
-                                                target_out_tensor.end(),
+                for (const auto& tensor : new_tensors)
+                {
+                    if (tensor->is_output())
+                    {
+                        FRONT_END_GENERAL_CHECK(std::find(target_out_tensor.begin(),
+                                                          target_out_tensor.end(),
+                                                          tensor) != target_out_tensor.end(),
                                                 "Incorrect Place for cutting.");
                         new_outputs.push_back(tensor);
                     }
@@ -515,52 +532,67 @@ namespace ngraph
 
                 std::swap(new_outputs, m_outputs);
                 m_graph_changed = true;
-                if (!new_name_optional.empty()) {
+                if (!new_name_optional.empty())
+                {
                     setNameForTensor(place, new_name_optional);
                 }
             }
         }
 
-        void
-        InputModelPDPD::InputModelPDPDImpl::cutAndAddNewInput(Place::Ptr place, const std::string &new_name_optional) {
+        void InputModelPDPD::InputModelPDPDImpl::cutAndAddNewInput(
+            Place::Ptr place, const std::string& new_name_optional)
+        {
             auto tensor_place = pdpd::castToTensorPlace(place);
-            if (tensor_place) {
+            if (tensor_place)
+            {
                 m_inputs.push_back(tensor_place);
                 std::vector<std::shared_ptr<TensorPlacePDPD>> new_tensors;
                 traverse_up(m_outputs, nullptr, &new_tensors);
 
                 std::vector<Place::Ptr> new_inputs;
-                for (const auto& in : m_inputs) {
+                for (const auto& in : m_inputs)
+                {
                     if (std::find(new_tensors.begin(), new_tensors.end(), in) != new_tensors.end())
                         new_inputs.push_back(in);
                 }
                 std::swap(m_inputs, new_inputs);
                 m_graph_changed = true;
-                if (!new_name_optional.empty()) {
+                if (!new_name_optional.empty())
+                {
                     setNameForTensor(place, new_name_optional);
                 }
             }
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::freeNameForTensor(const std::string &name) {
-            if (m_var_names.count(name) != 0) {
+        void InputModelPDPD::InputModelPDPDImpl::freeNameForTensor(const std::string& name)
+        {
+            if (m_var_names.count(name) != 0)
+            {
                 m_var_names[name]->remove_name(name);
                 m_var_names.erase(name);
             }
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::addNameForTensor(Place::Ptr tensor, const std::string &new_name) {
+        void InputModelPDPD::InputModelPDPDImpl::addNameForTensor(Place::Ptr tensor,
+                                                                  const std::string& new_name)
+        {
             auto it = std::find(m_var_places.begin(), m_var_places.end(), tensor);
-            FRONT_END_GENERAL_CHECK(it != m_var_places.end(), "Model doesn't own the provided tensor.");
-            FRONT_END_GENERAL_CHECK(m_var_names.count(new_name) == 0, "The provided name is already used in the model");
+            FRONT_END_GENERAL_CHECK(it != m_var_places.end(),
+                                    "Model doesn't own the provided tensor.");
+            FRONT_END_GENERAL_CHECK(m_var_names.count(new_name) == 0,
+                                    "The provided name is already used in the model");
             (*it)->add_name(new_name);
             m_var_names[new_name] = *it;
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::setNameForTensor(Place::Ptr tensor, const std::string &new_name) {
+        void InputModelPDPD::InputModelPDPDImpl::setNameForTensor(Place::Ptr tensor,
+                                                                  const std::string& new_name)
+        {
             auto it = std::find(m_var_places.begin(), m_var_places.end(), tensor);
-            FRONT_END_GENERAL_CHECK(it != m_var_places.end(), "Model doesn't own the provided tensor.");
-            for (const auto& name : (*it)->get_names()) {
+            FRONT_END_GENERAL_CHECK(it != m_var_places.end(),
+                                    "Model doesn't own the provided tensor.");
+            for (const auto& name : (*it)->get_names())
+            {
                 freeNameForTensor(name);
             }
 
@@ -568,14 +600,17 @@ namespace ngraph
             m_var_names[new_name] = *it;
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::traverse_down(const std::vector<Place::Ptr> &start_nodes,
-                                                               std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                                                               std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const {
+        void InputModelPDPD::InputModelPDPDImpl::traverse_down(
+            const std::vector<Place::Ptr>& start_nodes,
+            std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+            std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const
+        {
             std::queue<OpPlacePDPD*> q;
             std::unordered_set<OpPlacePDPD*> visited;
 
             auto check_and_update = [&](const std::shared_ptr<OpPlacePDPD>& op) -> bool {
-                if (op && !visited.count(op.get())) {
+                if (op && !visited.count(op.get()))
+                {
                     visited.insert(op.get());
                     q.push(op.get());
                     if (ordered_ops)
@@ -587,11 +622,13 @@ namespace ngraph
 
             for (const auto& node : start_nodes)
             {
-                if(!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) && !node->is_output())
+                if (!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) &&
+                    !node->is_output())
                 {
-                    if(ordered_tensors)
+                    if (ordered_tensors)
                         ordered_tensors->push_back(pdpd::castToTensorPlace(node));
-                    for (const auto& op : node->get_consuming_operations()) {
+                    for (const auto& op : node->get_consuming_operations())
+                    {
                         auto pdpd_output_op = std::dynamic_pointer_cast<OpPlacePDPD>(op);
                         PDPD_ASSERT(pdpd_output_op != nullptr, "Invalid consuming operation");
                         check_and_update(pdpd_output_op);
@@ -606,13 +643,15 @@ namespace ngraph
                 {
                     for (const auto& port : map_pair.second)
                     {
-                        auto tensor = std::dynamic_pointer_cast<TensorPlacePDPD>(port->get_target_tensor());
+                        auto tensor =
+                            std::dynamic_pointer_cast<TensorPlacePDPD>(port->get_target_tensor());
                         if (tensor && !tensor->is_output() &&
                             !m_tensor_values.count(tensor->get_names()[0]))
                         {
                             if (ordered_tensors)
                                 ordered_tensors->push_back(tensor);
-                            for (const auto& op : tensor->get_consuming_operations()) {
+                            for (const auto& op : tensor->get_consuming_operations())
+                            {
                                 check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(op));
                             }
                         }
@@ -621,14 +660,17 @@ namespace ngraph
             }
         }
 
-        void InputModelPDPD::InputModelPDPDImpl::traverse_up(const std::vector<Place::Ptr> &start_nodes,
-                                                             std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                                                             std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const {
+        void InputModelPDPD::InputModelPDPDImpl::traverse_up(
+            const std::vector<Place::Ptr>& start_nodes,
+            std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
+            std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors) const
+        {
             std::queue<OpPlacePDPD*> q;
             std::unordered_set<OpPlacePDPD*> visited;
 
             auto check_and_update = [&](const std::shared_ptr<OpPlacePDPD>& op) -> bool {
-                if (op && !visited.count(op.get())) {
+                if (op && !visited.count(op.get()))
+                {
                     visited.insert(op.get());
                     q.push(op.get());
                     if (ordered_ops)
@@ -640,12 +682,15 @@ namespace ngraph
 
             for (const auto& node : start_nodes)
             {
-                if(!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) && !node->is_input())
+                if (!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) &&
+                    !node->is_input())
                 {
                     if (ordered_tensors)
                         ordered_tensors->push_back(pdpd::castToTensorPlace(node));
-                    auto pdpd_output_op = std::dynamic_pointer_cast<OpPlacePDPD>(node->get_producing_operation());
-                    FRONT_END_GENERAL_CHECK(pdpd_output_op != nullptr, "Output doesn't have producing operation");
+                    auto pdpd_output_op =
+                        std::dynamic_pointer_cast<OpPlacePDPD>(node->get_producing_operation());
+                    FRONT_END_GENERAL_CHECK(pdpd_output_op != nullptr,
+                                            "Output doesn't have producing operation");
                     check_and_update(pdpd_output_op);
                 }
             }
@@ -657,13 +702,15 @@ namespace ngraph
                 {
                     for (const auto& port : map_pair.second)
                     {
-                        auto tensor = std::dynamic_pointer_cast<TensorPlacePDPD>(port->get_source_tensor());
+                        auto tensor =
+                            std::dynamic_pointer_cast<TensorPlacePDPD>(port->get_source_tensor());
                         if (tensor && !tensor->is_input() &&
                             !m_tensor_values.count(tensor->get_names()[0]))
                         {
                             if (ordered_tensors)
                                 ordered_tensors->push_back(tensor);
-                            check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(tensor->get_producing_operation()));
+                            check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(
+                                tensor->get_producing_operation()));
                         }
                     }
                 }
@@ -741,35 +788,39 @@ namespace ngraph
             _impl->setTensorValue(place, value);
         }
 
-        void InputModelPDPD::set_name_for_tensor(Place::Ptr tensor, const std::string &new_name) {
+        void InputModelPDPD::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
+        {
             _impl->setNameForTensor(tensor, new_name);
         }
 
-        void InputModelPDPD::add_name_for_tensor(Place::Ptr tensor, const std::string &new_name) {
+        void InputModelPDPD::add_name_for_tensor(Place::Ptr tensor, const std::string& new_name)
+        {
             _impl->addNameForTensor(tensor, new_name);
         }
 
-        void InputModelPDPD::free_name_for_tensor(const std::string &name) {
+        void InputModelPDPD::free_name_for_tensor(const std::string& name)
+        {
             _impl->freeNameForTensor(name);
         }
 
-        void InputModelPDPD::cut_and_add_new_input(Place::Ptr place, const std::string &new_name_optional) {
+        void InputModelPDPD::cut_and_add_new_input(Place::Ptr place,
+                                                   const std::string& new_name_optional)
+        {
             _impl->cutAndAddNewInput(place, new_name_optional);
         }
 
-        void InputModelPDPD::cut_and_add_new_output(Place::Ptr place, const std::string &new_name_optional) {
+        void InputModelPDPD::cut_and_add_new_output(Place::Ptr place,
+                                                    const std::string& new_name_optional)
+        {
             _impl->cutAndAddNewOutput(place, new_name_optional);
         }
 
-        void InputModelPDPD::remove_output(Place::Ptr place) {
-            _impl->removeOutput(place);
-        }
+        void InputModelPDPD::remove_output(Place::Ptr place) { _impl->removeOutput(place); }
 
-        Place::Ptr InputModelPDPD::add_output(Place::Ptr place) {
-            return _impl->addOutput(place);
-        }
+        Place::Ptr InputModelPDPD::add_output(Place::Ptr place) { return _impl->addOutput(place); }
 
-        std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarNames() const {
+        std::map<std::string, std::shared_ptr<TensorPlacePDPD>> InputModelPDPD::getVarNames() const
+        {
             return _impl->getVarNames();
         }
 
