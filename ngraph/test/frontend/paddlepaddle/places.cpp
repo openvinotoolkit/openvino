@@ -65,7 +65,6 @@ TEST(PDPD_Places, check_tensor_names)
     for (const auto& tensor_name : tensor_names)
     {
         auto place = input_model->get_place_by_tensor_name(tensor_name);
-        auto op_place = place->get_producing_operation();
         EXPECT_NE(place, nullptr);
     }
 }

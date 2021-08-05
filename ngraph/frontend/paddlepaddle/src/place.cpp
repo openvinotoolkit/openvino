@@ -25,9 +25,16 @@ bool PlacePDPD::is_output() const
 }
 
 OpPlacePDPD::OpPlacePDPD(const InputModelPDPD& input_model,
-                         const paddle::framework::proto::OpDesc& op_desc)
-    : PlacePDPD(input_model)
+                         const paddle::framework::proto::OpDesc& op_desc,
+                         const std::vector<std::string>& names)
+    : PlacePDPD(input_model, names)
     , m_op_desc(op_desc)
+{
+}
+
+OpPlacePDPD::OpPlacePDPD(const InputModelPDPD& input_model,
+                         const paddle::framework::proto::OpDesc& op_desc)
+    : OpPlacePDPD(input_model, op_desc, {})
 {
 }
 
@@ -240,8 +247,9 @@ Place::Ptr OpPlacePDPD::get_target_tensor(int outputPortIndex) const
 }
 
 TensorPlacePDPD::TensorPlacePDPD(const InputModelPDPD& input_model,
+                                 const std::vector<std::string>& names,
                                  const paddle::framework::proto::VarDesc& var_desc)
-    : PlacePDPD(input_model)
+    : PlacePDPD(input_model, names)
     , m_var_desc(var_desc)
 {
     const auto& var_type = var_desc.type();
@@ -252,6 +260,12 @@ TensorPlacePDPD::TensorPlacePDPD(const InputModelPDPD& input_model,
         m_pshape = PartialShape(
             std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
     }
+}
+
+TensorPlacePDPD::TensorPlacePDPD(const InputModelPDPD& input_model,
+                                 const paddle::framework::proto::VarDesc& var_desc)
+    : TensorPlacePDPD(input_model, {var_desc.name()}, var_desc)
+{
 }
 
 std::vector<Place::Ptr> TensorPlacePDPD::get_consuming_ports() const
