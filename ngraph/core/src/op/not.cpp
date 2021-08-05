@@ -11,6 +11,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 
+#include "ngraph/validation_util.hpp"
+
 using namespace ngraph;
 using namespace std;
 
@@ -81,6 +83,7 @@ bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_LogicalNot_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
