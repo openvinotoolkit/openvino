@@ -74,8 +74,7 @@ def run_infer(model, out_file, install_dir):
 def make_build(openvino_root_dir, build_dir, install_dir, build_target=None, cmake_additional_args=None, log=None):
     """Parametrized build and install OpenVINO package."""
     additional_args_line = " ".join(cmake_additional_args) + " " if cmake_additional_args else ""
-    sea_itt_lib_path = os.path.join(openvino_root_dir, "build_instrumented", "thirdparty", "itt_collector",
-                                    "sea_itt_lib")
+    sea_itt_lib_path = Path(openvino_root_dir / "thirdparty" / "itt_collector" / "sea_itt_lib")
     build_target_arg_line = f"cmake --build {sea_itt_lib_path} --target  {build_target} && " if build_target else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
