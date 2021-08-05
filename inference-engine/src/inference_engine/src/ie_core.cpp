@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 
 #include <ie_core.hpp>
+#include <openvino/runtime/core.hpp>
 #include <ie_icore.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/ngraph.hpp>
@@ -1160,3 +1161,124 @@ void Core::UnregisterPlugin(const std::string& deviceName_) {
 }
 
 }  // namespace InferenceEngine
+
+namespace ov {
+namespace runtime {
+
+class Core::Impl: public InferenceEngine::Core::Impl {};
+
+Core::Core(const std::string& xmlConfigFile) {
+    _impl = std::make_shared<Impl>();
+
+    std::string xmlConfigFile_ = xmlConfigFile;
+    if (xmlConfigFile_.empty()) {
+        // register plugins from default plugins.xml config
+        FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(),
+                                                                       FileUtils::toFilePath("plugins.xml"));
+        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
+    }
+
+    register_plugins(xmlConfigFile_);
+}
+
+std::map<std::string, InferenceEngine::Version> Core::get_versions(const std::string& deviceName) const {
+    IE_THROW() << "Not implemented!";
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<ngraph::Function> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
+    IE_THROW() << "Not implemented!";
+}
+#endif
+std::shared_ptr<ngraph::Function> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
+    IE_THROW() << "Not implemented!";
+}
+std::shared_ptr<ngraph::Function> Core::read_model(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const {
+    IE_THROW() << "Not implemented!";
+}
+InferenceEngine::ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+InferenceEngine::ExecutableNetwork Core::compile_model(const std::string& modelPath,
+                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::ExecutableNetwork Core::compile_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                       InferenceEngine::RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+
+void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::ExecutableNetwork Core::import_model(const std::string& modelFileName,
+                                                      const std::string& deviceName, const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel,
+                                                      const std::string& deviceName, const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
+                                                      const std::map<std::string, std::string>& config) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::QueryNetworkResult Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                      const std::string& deviceName,
+                                                      const std::map<std::string, std::string>& config) const {
+    IE_THROW() << "Not implemented!";
+}
+void Core::set_config(const std::map<std::string, std::string>& config, const std::string& deviceName) {
+    IE_THROW() << "Not implemented!";
+}
+InferenceEngine::Parameter Core::set_config(const std::string& deviceName, const std::string& name) const {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::Parameter Core::get_metric(const std::string& deviceName, const std::string& name) const {
+    IE_THROW() << "Not implemented!";
+}
+
+std::vector<std::string> Core::get_available_devices() const {
+    IE_THROW() << "Not implemented!";
+}
+
+void Core::register_plugin(const std::string& pluginName, const std::string& deviceName) {
+    IE_THROW() << "Not implemented!";
+}
+
+void Core::unregister_plugin(const std::string& deviceName) {
+    IE_THROW() << "Not implemented!";
+}
+
+void Core::register_plugins(const std::string& xmlConfigFile) {
+    IE_THROW() << "Not implemented!";
+}
+
+InferenceEngine::RemoteContext::Ptr Core::create_context(const std::string& deviceName, const InferenceEngine::ParamMap& params) {
+    IE_THROW() << "Not implemented";
+}
+
+InferenceEngine::RemoteContext::Ptr Core::get_default_context(const std::string& deviceName) {
+    if (deviceName.find("HETERO") == 0) {
+        IE_THROW() << "HETERO device does not support remote context";
+    }
+    if (deviceName.find("MULTI") == 0) {
+        IE_THROW() << "MULTI device does not support remote context";
+    }
+    if (deviceName.find("AUTO") == 0) {
+        IE_THROW() << "AUTO device does not support remote context";
+    }
+
+    auto parsed = InferenceEngine::parseDeviceNameIntoConfig(deviceName, InferenceEngine::ParamMap());
+    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
+}
+
+} // namespace runtime
+} // namespace ov

@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief This is a header file for the Inference Engine Core class C++ API
+ * @brief This is a header file for the OpenVINO Runtime Core class C++ API
  *
  * @file ie_core.hpp
  */
@@ -20,14 +20,10 @@
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
-
+#include "ngraph/function.hpp"
 
 namespace ov {
 namespace runtime {
-class Core;
-}  // namespace runtime
-}  // namespace ov
-namespace InferenceEngine {
 
 /**
  * @brief This class represents Inference Engine Core entity.
@@ -37,8 +33,6 @@ namespace InferenceEngine {
 class INFERENCE_ENGINE_API_CLASS(Core) {
     class Impl;
     std::shared_ptr<Impl> _impl;
-
-    friend class ov::runtime::Core;
 
 public:
     /** @brief Constructs Inference Engine Core instance using XML configuration file with
@@ -57,7 +51,7 @@ public:
      * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
-    std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
+    std::map<std::string, InferenceEngine::Version> get_versions(const std::string& deviceName) const;
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
@@ -69,9 +63,9 @@ public:
      *  * if bin file with the same name was not found, will load IR without weights.
      * For ONNX format (*.onnx or *.prototxt):
      *  * binPath parameter is not used.
-     * @return CNNNetwork
+     * @return Function
      */
-    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
+    std::shared_ptr<ngraph::Function> read_model(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
 #endif
 
     /**
@@ -83,9 +77,9 @@ public:
      *  * if bin file with the same name was not found, will load IR without weights.
      * For ONNX format (*.onnx or *.prototxt):
      *  * binPath parameter is not used.
-     * @return CNNNetwork
+     * @return Function
      */
-    CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
+    std::shared_ptr<ngraph::Function> read_model(const std::string& modelPath, const std::string& binPath = {}) const;
     /**
      * @brief Reads models from IR and ONNX formats
      * @param model string with model in IR or ONNX format
@@ -100,7 +94,7 @@ public:
      * constant datas become to point to invalid memory.
      * @return CNNNetwork
      */
-    CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;
+    std::shared_ptr<ngraph::Function> read_model(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -114,8 +108,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(
-        const CNNNetwork& network, const std::string& deviceName,
+    InferenceEngine::ExecutableNetwork compile_model(
+        const std::shared_ptr<const ngraph::Function>& network, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {});
 
     /**
@@ -131,15 +125,9 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(
+    InferenceEngine::ExecutableNetwork compile_model(
         const std::string& modelPath, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @brief Registers extension
-     * @param extension Pointer to already loaded extension
-     */
-    void AddExtension(const IExtensionPtr& extension);
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -149,17 +137,15 @@ public:
      * operation
      * @return An executable network object
      */
-    ExecutableNetwork LoadNetwork(
-        const CNNNetwork& network, RemoteContext::Ptr context,
+    InferenceEngine::ExecutableNetwork compile_model(
+        const std::shared_ptr<const ngraph::Function>& network, InferenceEngine::RemoteContext::Ptr context,
         const std::map<std::string, std::string>& config = {});
 
     /**
-     * @brief Registers extension for the specified plugin
-     *
+     * @brief Registers extension
      * @param extension Pointer to already loaded extension
-     * @param deviceName Device name to identify plugin to add an executable extension
      */
-    void AddExtension(IExtensionPtr extension, const std::string& deviceName);
+    void add_extension(const InferenceEngine::IExtensionPtr& extension);
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -170,7 +156,7 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(
+    InferenceEngine::ExecutableNetwork import_model(
         const std::string& modelFileName, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {});
 
@@ -182,17 +168,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @deprecated Use Core::ImportNetwork with explicit device name
-     * @brief Creates an executable network from a previously exported network
-     * @param networkModel network model stream
-     * @return An executable network reference
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::ImportNetwork with explicit device name")
-    ExecutableNetwork ImportNetwork(std::istream& networkModel);
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
@@ -204,8 +181,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel,
-                                    const RemoteContext::Ptr& context,
+    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
+                                    const InferenceEngine::RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config = {});
 
     /**
@@ -216,8 +193,8 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    QueryNetworkResult QueryNetwork(
-        const CNNNetwork& network, const std::string& deviceName,
+    InferenceEngine::QueryNetworkResult query_model(
+        const std::shared_ptr<const ngraph::Function>& network, const std::string& deviceName,
         const std::map<std::string, std::string>& config = {}) const;
 
     /**
@@ -228,7 +205,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName = {});
+    void set_config(const std::map<std::string, std::string>& config, const std::string& deviceName = {});
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
@@ -239,7 +216,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
+    InferenceEngine::Parameter set_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -251,7 +228,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    Parameter GetMetric(const std::string& deviceName, const std::string& name) const;
+    InferenceEngine::Parameter get_metric(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Returns devices available for neural networks inference
@@ -259,7 +236,7 @@ public:
      * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
-    std::vector<std::string> GetAvailableDevices() const;
+    std::vector<std::string> get_available_devices() const;
 
     /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
@@ -270,7 +247,7 @@ public:
      * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
      * plugin itself.
      */
-    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
+    void register_plugin(const std::string& pluginName, const std::string& deviceName);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine
@@ -279,7 +256,7 @@ public:
      *
      * @param deviceName Device name identifying plugin to remove from Inference Engine
      */
-    void UnregisterPlugin(const std::string& deviceName);
+    void unregister_plugin(const std::string& deviceName);
 
     /** @brief Registers plugin to Inference Engine Core instance using XML configuration file with
      * plugins description.
@@ -309,7 +286,7 @@ public:
      *
      * @param xmlConfigFile A path to .xml file with plugins to register.
      */
-    void RegisterPlugins(const std::string& xmlConfigFile);
+    void register_plugins(const std::string& xmlConfigFile);
 
     /**
      * @brief Create a new shared context object on specified accelerator device
@@ -318,13 +295,14 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    RemoteContext::Ptr CreateContext(const std::string& deviceName, const ParamMap& params);
+    InferenceEngine::RemoteContext::Ptr create_context(const std::string& deviceName, const InferenceEngine::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
      * @param deviceName  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
+    InferenceEngine::RemoteContext::Ptr get_default_context(const std::string& deviceName);
 };
-}  // namespace InferenceEngine
+}  // namespace runtime
+}  // namespace ov
