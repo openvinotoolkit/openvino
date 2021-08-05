@@ -411,6 +411,7 @@ namespace ngraph
                 }
                 FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
             }
+
         } // namespace pdpd
 
         void InputModelPDPD::InputModelPDPDImpl::overrideAllInputs(
@@ -718,10 +719,17 @@ namespace ngraph
             }
         }
 
-        InputModelPDPD::InputModelPDPD(const WSTRING& path)
+        InputModelPDPD::InputModelPDPD(const std::string& path)
             : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
         {
         }
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        InputModelPDPD::InputModelPDPD(const std::wstring& path)
+            : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)}
+        {
+        }
+#endif
 
         InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams)
             : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this)}

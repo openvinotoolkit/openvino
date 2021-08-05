@@ -7,12 +7,6 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-#define WSTRING std::wstring
-#else
-#define WSTRING std::string
-#endif
-
 namespace ngraph
 {
     namespace frontend
@@ -22,7 +16,6 @@ namespace ngraph
         class PDPD_API InputModelPDPD : public InputModel
         {
             friend class FrontEndPDPD;
-            friend class TensorPlacePDPD;
             class InputModelPDPDImpl;
             std::shared_ptr<InputModelPDPDImpl> _impl;
 
@@ -32,7 +25,10 @@ namespace ngraph
             std::map<std::string, std::shared_ptr<TensorPlacePDPD>> getVarNames() const;
 
         public:
-            explicit InputModelPDPD(const WSTRING& path);
+            explicit InputModelPDPD(const std::string& path);
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            explicit InputModelPDPD(const std::wstring& path);
+#endif
             explicit InputModelPDPD(const std::vector<std::istream*>& streams);
             std::vector<Place::Ptr> get_inputs() const override;
             std::vector<Place::Ptr> get_outputs() const override;
