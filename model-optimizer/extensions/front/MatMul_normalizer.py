@@ -75,26 +75,27 @@ class GemmDecomposer(FrontReplacementSubgraph):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='Gemm'):
-            name = node.soft_get('name', node.id)
+            if not node.in_port(2).disconnected():
+                name = node.soft_get('name', node.id)
 
-            # biases normalization
-            bias_node = Add(graph, {'name': name + '/Bias_', 'can_be_scaleshift': False}).create_node()
-            node_name = node.name + '/WithoutBiases'
-            bias_node_name = node.name
-            rename_nodes([(node, node_name), (bias_node, bias_node_name)])
-            node.out_port(0).get_connection().set_source(bias_node.out_port(0))
-            node.in_port(2).get_connection().set_destination(bias_node.in_port(1))
-            node.out_port(0).connect(bias_node.in_port(0))
-            
-            if node.has_valid('alpha') and not math.isclose(node.alpha, 1):
-                bias_node.insert_op_on_input_port(in_port_idx=0, new_op_class=Mul, value=np.array(node.alpha),
-                                                  new_op_attrs={'name': name + '/Alpha_', 'can_be_scaleshift': False})
-                del node['alpha']
+                # biases normalization
+                bias_node = Add(graph, {'name': name + '/Bias_', 'can_be_scaleshift': False}).create_node()
+                node_name = node.name + '/WithoutBiases'
+                bias_node_name = node.name
+                rename_nodes([(node, node_name), (bias_node, bias_node_name)])
+                node.out_port(0).get_connection().set_source(bias_node.out_port(0))
+                node.in_port(2).get_connection().set_destination(bias_node.in_port(1))
+                node.out_port(0).connect(bias_node.in_port(0))
 
-            if not bias_node.in_port(1).disconnected() and node.has_valid('beta') and not math.isclose(node.beta, 1):
-                bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=np.array(node.beta),
-                                                  new_op_attrs={'name': name + '/Beta_', 'can_be_scaleshift': False})
-                del node['beta']
+                if node.has_valid('alpha') and not math.isclose(node.alpha, 1):
+                    bias_node.insert_op_on_input_port(in_port_idx=0, new_op_class=Mul, value=np.array(node.alpha),
+                                                      new_op_attrs={'name': name + '/Alpha_', 'can_be_scaleshift': False})
+                    del node['alpha']
+
+                if not bias_node.in_port(1).disconnected() and node.has_valid('beta') and not math.isclose(node.beta, 1):
+                    bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=np.array(node.beta),
+                                                      new_op_attrs={'name': name + '/Beta_', 'can_be_scaleshift': False})
+                    del node['beta']
 
             MatMul.update_node_stat(node, {
                 'transpose_a': node.has_and_set('transpose_a'),
