@@ -76,7 +76,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
     const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
-    lastDequantization->set_friendly_name("output");
+    lastDequantization->set_friendly_name("fakeQuantizeBefore");
     if (!fqOnData3.empty()) {
         std::shared_ptr<Node> fq;
         if (operation == "relu") {
@@ -86,6 +86,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         else {
             fq = makeFakeQuantize(concat, inputPrecision, fqOnData3);
         }
+        fq->set_friendly_name("fakeQuantizeBefore");
         ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(fq) };
         std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
             results,
