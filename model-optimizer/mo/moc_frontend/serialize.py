@@ -6,7 +6,7 @@ import os
 from mo.moc_frontend.mean_scale import process_mean_scale
 from mo.pipeline.common import get_ir_version
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
-from mo.utils.cli_parser import get_meta_info
+from mo.utils.cli_parser import get_meta_info, parse_transform
 
 from ngraph import Function  # pylint: disable=no-name-in-module,import-error
 from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-error
@@ -16,6 +16,8 @@ def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
     network = function_to_cnn(ngraph_function)
+    from mo.back.offline_transformations import apply_moc_transformations
+    apply_moc_transformations(network, parse_transform(argv.transform))
 
     process_mean_scale(network=network, ngraph_function=ngraph_function, argv=argv)
 
