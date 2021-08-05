@@ -12,6 +12,7 @@
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -24,8 +25,6 @@ namespace ngraph
     class Output
     {
     };
-
-    class Variant;
 
     /// \brief A handle for one of a node's outputs.
     template <>
@@ -79,7 +78,6 @@ namespace ngraph
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
 
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
         /// \return The reference to runtime info map
         RTMap& get_rt_info();
         /// \return The constant reference to runtime info map
@@ -161,7 +159,6 @@ namespace ngraph
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
 
-        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
         /// \return The constant reference to runtime info map
         const RTMap& get_rt_info() const;
         /// \return A set containing handles for all inputs targeted by the output referenced by
