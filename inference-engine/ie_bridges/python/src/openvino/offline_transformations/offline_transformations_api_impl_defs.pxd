@@ -20,6 +20,8 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void GenerateMappingFile(IENetwork network, string path, bool extract_names)
 
+    # TODO: this is helper class to create ngraph::Constant as it is not exposed to python via 'cython'
+    # This class shall not be used when migrated to 'pybind11' (task 33021)
     cdef cppclass ConstantInfo:
         ConstantInfo(vector[float], int, int) except +
         vector[float] data;
