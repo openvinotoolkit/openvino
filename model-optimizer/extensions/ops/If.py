@@ -190,7 +190,7 @@ class If(Op):
     @staticmethod
     def update_if_output_ports_type(if_node: Node):
         """
-        Update shape and values for If output ports.
+        Update types for If output ports.
 
         :param if_node: The If node to update output ports and shapes
         :return: None
@@ -238,6 +238,9 @@ class If(Op):
 
     @staticmethod
     def re_numerate_internal_id_and_get_if_id(if_node):
+        """
+            This method is called before IR generation. This method sets internal_layer_id.
+        """
         then_graph_nodes = if_node.then_graph.nodes()
         for idx in range(len(if_node.then_graph.get_op_nodes())):
             then_graph_nodes[idx]['internal_layer_id'] = idx
@@ -277,37 +280,24 @@ class If(Op):
         })
 
     @staticmethod
-    def generate_port_map(node: Node, condition: bool, dir: str):
-        """ Extract port_map attributes from node and node.body attributes.
+    def generate_port_map(if_node: Node, condition: bool, dir: str):
+        """ Extract port_map attributes from if_node and its subgraphs attributes.
 
-            It iterates over src_port_map and substitute external_port_id, internal_port_id and
-            internal_layer_id by real values queried from node ports and node.body attributes.
+            :param if_node: The If node
+            :param condition: the boolean defining a condition (then/else) graph
+            :param dir: the str value defining type (for inputs or for putputs) of port_map
+            :return: port_map -> list of dictionaries with to values(external_port_id or internal_layer_id)
         """
         port_map = []
-        subgraph = node.then_graph if condition else node.else_graph
+        subgraph = if_node.then_graph if condition else if_node.else_graph
         name_of_connection = 'input_id' if dir == 'in' else 'output_id'
-        connection_nodes = []
+
         for internal_node in subgraph.get_op_nodes():
             if internal_node.has(name_of_connection):
-                connection_nodes.append(internal_node)
-        for connection_node in connection_nodes:
-            port_map.append({'external_port_id': connection_node[name_of_connection],
-                             'internal_layer_id': connection_node['internal_layer_id']})
+                port_map.append({'external_port_id': internal_node[name_of_connection],
+                                 'internal_layer_id': internal_node['internal_layer_id']})
+
         return port_map
-
-    @staticmethod
-    def find_port_id(node: Node, virtual_id: str, attr: str):
-        attrs = node.edge({attr: virtual_id})[2]
-        assert bool('in' in attrs) != bool('out' in attrs), attrs
-        return attrs['in' if 'in' in attrs else 'out']
-
-    @staticmethod
-    def get_body_node_by_internal_id(if_node: Node, condition: bool, internal_id: int):
-        sub_graph = if_node.then_graph if condition else if_node.else_graph
-        suitable_nodes = sub_graph.get_op_nodes(internal_layer_id=internal_id)
-        assert len(suitable_nodes) <= 1, \
-            'Expected 0 or 1 node with `internal_layer_id`={}, {} found'.format(internal_id, len(suitable_nodes))
-        return suitable_nodes[0] if len(suitable_nodes) == 1 else None
 
     @staticmethod
     def infer(if_node: Node):
