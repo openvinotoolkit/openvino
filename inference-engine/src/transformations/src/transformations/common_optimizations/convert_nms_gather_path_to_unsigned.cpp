@@ -15,31 +15,23 @@
 using namespace ngraph;
 using namespace std;
 
-namespace ngraph {
-namespace pass {
-
-class TRANSFORMATIONS_API InitNMSPath;
-class TRANSFORMATIONS_API PropagateNMSPath;
-class TRANSFORMATIONS_API UpdateConvertGather;
-
-}  // namespace pass
-}  // namespace ngraph
-
-class ngraph::pass::InitNMSPath: public ngraph::pass::MatcherPass {
+class InitNMSPath: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
     InitNMSPath() {
         MATCHER_SCOPE(InitNMSPath);
 
-        auto nms_pattern = pattern::wrap_type<opset8::NonMaxSuppression>();
+        auto nms_pattern = pattern::wrap_type<opset1::NonMaxSuppression,
+                opset3::NonMaxSuppression,
+                opset5::NonMaxSuppression>();
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-            auto nms_node = dynamic_pointer_cast<opset8::NonMaxSuppression>(m.get_match_root());
-            bool res = false;
+            auto nms_node = dynamic_pointer_cast<Node>(m.get_match_root());
             if (!nms_node)
                 return false;
 
+            bool res = false;
             const auto& out_nodes = nms_node->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
                 auto& out_rt_info = out_node.get_node()->get_rt_info();
@@ -54,10 +46,10 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNMSPath, "InitNMSPath", 0);
+NGRAPH_RTTI_DEFINITION(InitNMSPath, "InitNMSPath", 0);
 
 
-class ngraph::pass::PropagateNMSPath: public ngraph::pass::MatcherPass {
+class PropagateNMSPath: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -95,9 +87,9 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateNMSPath, "PropagateNMSPath", 0);
+NGRAPH_RTTI_DEFINITION(PropagateNMSPath, "PropagateNMSPath", 0);
 
-class ngraph::pass::UpdateConvertGather: public ngraph::pass::MatcherPass {
+class UpdateConvertGather: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -136,15 +128,15 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::UpdateConvertGather, "UpdateConvertGather", 0);
+NGRAPH_RTTI_DEFINITION(UpdateConvertGather, "UpdateConvertGather", 0);
 
 bool pass::ConvertNmsGatherPathToUnsigned::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(ConvertToUnsignedNmsGather);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNMSPath>();
-    manager.register_pass<ngraph::pass::PropagateNMSPath>();
-    manager.register_pass<ngraph::pass::UpdateConvertGather>();
+    manager.register_pass<InitNMSPath>();
+    manager.register_pass<PropagateNMSPath>();
+    manager.register_pass<UpdateConvertGather>();
     manager.run_passes(f);
     return true;
 }
