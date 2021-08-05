@@ -16,8 +16,13 @@ class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
 }  // namespace ngraph
 
 /**
- * The final result of theese transformations is that it converts Gather indices to unsigned
- * if indices are from NMS 1st output.
+ * Converts Gather indices to unsigned if indices are from NMS selected indices output.
+ * NMS returns -1 for not selected boxes, old version of Gather fill corresponding
+ * output for such indices with zero.
+ * But new * Gather-8 has support negative indices indicating count from the end.
+ * In order to keep such behaviour (until dynamism is not supported) instead of -1 new
+ * Gather-8 will accept UINT32_MAX which is always outside of the bounds
+ * and corresponding output for such indices in gather always will be filled with zeros.
  */
 class ngraph::pass::ConvertNmsGatherPathToUnsigned: public ngraph::pass::FunctionPass {
 public:
