@@ -7204,6 +7204,7 @@ struct eltwise_test_params {
 #define CASE_ELTWISE_FP32_5         {1,  5, 4, 4}, data_types::f32, data_types::f32, format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
 #define CASE_ELTWISE_FP32_6         {2, 32, 4, 8}, data_types::f32, data_types::f32, format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
 #define CASE_ELTWISE_FP16_5         {2, 32, 4, 8}, data_types::f16, data_types::f16, format::b_fs_yx_fsv4,  data_types::f16,  format::b_fs_yx_fsv4,    eltwise_mode::sum
+#define CASE_ELTWISE_FP16_6         {1, 32, 4, 8}, data_types::f16, data_types::f16, format::byxf,          data_types::f16,  format::byxf,            eltwise_mode::sum
 #define CASE_ELTWISE_I8_4           {2, 16, 4, 4}, data_types::i8,  data_types::i8,  format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
 #define CASE_ELTWISE_U8_4           {2, 16, 4, 4}, data_types::u8,  data_types::u8,  format::b_fs_yx_fsv4,  data_types::f32,  format::b_fs_yx_fsv4,    eltwise_mode::sum
 
@@ -7555,6 +7556,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu,
                         eltwise_fp32_scale,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
                             eltwise_test_params{CASE_ELTWISE_FP32_4, 3, 4},
+                        }));
+
+class eltwise_fp16_byxf : public EltwiseFusingTest {};
+TEST_P(eltwise_fp16_byxf, add) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, p.default_type),
+                      eltwise("add", {"eltwise", "add_data"}, eltwise_mode::sum),
+                      activation("activation", "add", activation_func::negative),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
+    bo_fused.set_option(build_option::force_implementations({ {"eltwise", eltw_impl} }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                        eltwise_fp16_byxf,
+                        ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                            eltwise_test_params{CASE_ELTWISE_FP16_6, 3, 5}
                         }));
 
 /* ----------------------------------------------------------------------------------------------------- */
