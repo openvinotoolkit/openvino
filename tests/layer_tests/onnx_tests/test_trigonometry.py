@@ -256,6 +256,7 @@ class TestTrigonomery(OnnxRuntimeLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_precommit)
+    @pytest.mark.skip(reason="--date_type is not supported on FE API path, ticket: 61890")
     @pytest.mark.precommit
     def test_cos_const_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_net_const(**params, ir_version=ir_version, precision=precision, op='Cos'),
