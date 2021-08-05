@@ -14,6 +14,7 @@
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
 #include "op/add.hpp"
+#include "op/affine.hpp"
 #include "op/and.hpp"
 #include "op/argmax.hpp"
 #include "op/argmin.hpp"
@@ -421,7 +422,6 @@ namespace ngraph
             REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
             REGISTER_OPERATOR("Round", 1, round);
-            REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
             REGISTER_OPERATOR("Selu", 1, selu);
@@ -459,13 +459,17 @@ namespace ngraph
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
             REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
-            REGISTER_OPERATOR("Upsample", 1, upsample);
-            REGISTER_OPERATOR("Upsample", 7, upsample);
-            REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
-            // custom OPs
+            // deprecated ops
+            REGISTER_OPERATOR("Affine", 1, affine);
+            REGISTER_OPERATOR("Scatter", 1, scatter_elements);
+            REGISTER_OPERATOR("Upsample", 1, upsample);
+            REGISTER_OPERATOR("Upsample", 7, upsample);
+            REGISTER_OPERATOR("Upsample", 9, upsample);
+
+            // custom ops
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DeformableConv2D", 1, deformable_conv_2d);
             REGISTER_OPERATOR_WITH_DOMAIN(
