@@ -345,7 +345,7 @@ void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Bl
     }
 
     auto& preproc_ptr = ppDataIt->second;
-    //preproc_ptr->isApplicable(from,  to);
+    preproc_ptr->isApplicable(from,  to);
     // Stores the given blob as ROI blob. It will be used to fill in network input
     // during pre-processing
     preproc_ptr->setRoiBlob(from);
