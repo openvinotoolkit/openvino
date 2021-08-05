@@ -6,7 +6,6 @@
 #pragma once
 #include "cldnn/primitives/eltwise.hpp"
 #include "primitive_inst.h"
-#include "topology_impl.h"
 #include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
 
 #include <memory>
@@ -64,7 +63,7 @@ struct typed_program_node<eltwise> : public typed_program_node_base<eltwise> {
     using parent = typed_program_node_base<eltwise>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {
         support_padding_all(true);
     }
@@ -90,7 +89,7 @@ public:
     static std::string to_string(eltwise_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, eltwise_node const& node);
+    typed_primitive_inst(network& network, eltwise_node const& node);
 };
 
 using eltwise_inst = typed_primitive_inst<eltwise>;
