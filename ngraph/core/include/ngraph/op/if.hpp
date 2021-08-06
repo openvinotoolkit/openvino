@@ -84,7 +84,7 @@ namespace ngraph
                 /// of each sub-graphs
                 ///
                 /// \param     then_result     result from then_body
-                /// \param     else_parameter  pesult from else_body
+                /// \param     else_parameter  result from else_body
                 /// \return    output from operation
                 Output<Node> set_output(const std::shared_ptr<Result>& then_result,
                                         const std::shared_ptr<Result>& else_result);

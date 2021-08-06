@@ -94,6 +94,7 @@ void op::v8::If::validate_and_infer_type_body(
     }
     body->validate_nodes_and_infer_types();
 }
+
 void op::v8::If::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v8_If_validate_and_infer_types);
