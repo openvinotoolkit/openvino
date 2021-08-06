@@ -29,8 +29,8 @@ o_{i} = a_{i} \wedge b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type *T_BOOL*. **Required.**
-* **2**: A tensor of type *T_BOOL*. **Required.**
+* **1**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
 **Outputs**
 
