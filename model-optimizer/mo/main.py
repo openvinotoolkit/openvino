@@ -100,7 +100,11 @@ def prepare_ir(argv: argparse.Namespace):
     fem = argv.feManager
     available_moc_front_ends = []
     moc_front_end = None
-    if fem:  # in future, check of 'use_legacy_frontend' in argv can be added here
+
+    # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
+    force_use_legacy_frontend = False
+
+    if fem and not force_use_legacy_frontend:
         available_moc_front_ends = fem.get_available_front_ends()
         if argv.input_model:
             if not argv.framework:
@@ -267,7 +271,7 @@ def prepare_ir(argv: argparse.Namespace):
         send_framework_info('kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx:  # in future check of 'use_legacy_frontend' can be added here
+    elif is_onnx:
         send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
@@ -275,8 +279,7 @@ def prepare_ir(argv: argparse.Namespace):
     graph = None
     ngraph_function = None
 
-    # In future check of use_legacy_frontend option can be added here
-    if argv.feManager is None or argv.framework not in available_moc_front_ends:
+    if argv.framework not in available_moc_front_ends:
         graph = unified_pipeline(argv)
     else:
         ngraph_function = moc_pipeline(argv, moc_front_end)
