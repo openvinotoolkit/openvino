@@ -87,7 +87,12 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)" AND NOT CMAKE_CROSSCOMPILING)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
+  set(AARCH64 ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+  set(ARM ON)
+endif()
+if(ARM AND NOT CMAKE_CROSSCOMPILING)
     add_compile_options(-march=armv7-a)
 endif()
 
