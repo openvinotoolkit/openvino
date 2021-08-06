@@ -6,11 +6,18 @@ if(NOT COMMAND ie_check_pip_package)
     message(FATAL_ERROR "ncc_naming_style.cmake must be included after ie_check_pip_package")
 endif()
 
-# find_host_package(LLVM QUIET)
-# if(NOT LLVN_FOUND)
-#     message(WARNING "LLVN was not found (required for ncc naming style check)")
-#     set(ENABLE_NCC_STYLE OFF)
-# endif()
+set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+
+find_host_package(Clang QUIET)
+if(Clang_FOUND AND TARGET libclang)
+    get_target_property(libclang_location libclang LOCATION)
+    set(ncc_wrapper_py "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style/ncc_wrapper.py")
+    configure_file("${ncc_style_dir}/ncc_wrapper.py.in" ${ncc_wrapper_py} @ONLY)
+    message(STATUS "Found libclang: ${libclang_location}")
+else()
+    message(WARNING "libclang is not found (required for ncc naming style check)")
+    set(ENABLE_NCC_STYLE OFF)
+endif()
 
 find_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
@@ -25,7 +32,6 @@ endif()
 
 # check python requirements
 
-set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
 set(req_file "${ncc_style_dir}/requirements_dev.txt")
 file(STRINGS ${req_file} req_lines)
 
@@ -76,7 +82,7 @@ function(ov_ncc_naming_style)
                 "${CMAKE_COMMAND}" -E env PYTHONPATH=${new_pythonpath}
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
-                -D "NCC_PY_SCRIPT=${ncc_style_dir}/ncc_wrapper.py"
+                -D "NCC_PY_SCRIPT=${ncc_wrapper_py}"
                 -D "INPUT_FILE=${full_header_path}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
@@ -85,7 +91,7 @@ function(ov_ncc_naming_style)
             DEPENDS
                 "${full_header_path}"
                 "${ncc_script_py}"
-                "${ncc_style_dir}/ncc_wrapper.py"
+                "${ncc_wrapper_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
                 "[ncc naming style] ${header}"

@@ -12,7 +12,7 @@ from ncc import Options, RulesDb, do_validate, Validator
 
 if __name__ == "__main__":
     # set path to speicific clang library location
-    Config.set_library_file('/usr/lib/llvm-7/lib/libclang-7.so')
+    Config.set_library_file('@libclang_location@')
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
                         filename='log.txt', filemode='w')

@@ -257,6 +257,9 @@ function(ie_check_pip_package name message_type)
     get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
 
     # TODO: check version
+    # if(name MATCHES "^\w+[~=]+()$")
+    #     set(version)
+    # endif()
 
     execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
