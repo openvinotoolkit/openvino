@@ -18,9 +18,11 @@ AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
 BinPackArguments: false
 BinPackParameters: false
-# Specialize this comment pragma in order to avoid changes in SEA copyrights
 CommentPragmas: '^#'
 DerivePointerAlignment: false
 FixNamespaceComments: true
 IndentCaseLabels: false
 IndentPPDirectives: AfterHash
+ForEachMacros:
+  - foreach
+  - FOREACH_CHILD
