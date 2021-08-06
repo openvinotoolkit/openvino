@@ -27,7 +27,7 @@ set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${g
 get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
 
-set(gtest_targets gtest gtest_main gmock gmock_main)
+set(gtest_targets "gtest;gtest_main;gmock;gmock_main")
 
 foreach(target IN LISTS gtest_targets)
 
