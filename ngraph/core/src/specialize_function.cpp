@@ -9,6 +9,7 @@
 #include "ngraph/op/util/op_types.hpp"
 
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START;
 
 std::shared_ptr<Function>
     ngraph::specialize_function(std::shared_ptr<Function> f,

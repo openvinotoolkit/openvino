@@ -41,7 +41,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
 
 bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     auto multiply = m.get_match_root();
-    if (!LayerTransformation::canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(context, multiply)) {
         return false;
     }
 
@@ -116,7 +116,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
-        std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
+        std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath, deqPrecision);
 
         // check if empty path shifts are not zero
         if (!NetworkHelper::isZeroConst(subtractValuesEmptyPath)) {
@@ -126,7 +126,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
-        std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath);
+        std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath, deqPrecision);
 
 
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
@@ -158,6 +158,24 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     return true;
+}
+
+bool MultiplyTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
+
+    if ((dequantization1.data.get_node() == nullptr) ||
+        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        return false;
+    }
+
+    if ((dequantization2.data.get_node() == nullptr) ||
+        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        return false;
+    }
+    return EltwiseBaseTransformation::canBeTransformed(context, layer);
 }
 
 } // namespace low_precision
