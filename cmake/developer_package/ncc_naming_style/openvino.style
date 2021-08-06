@@ -1,5 +1,5 @@
 # custom OpenVINO values
-CppMethod: '^(operator\W+|[a-z_\d]+)$'
+CppMethod: '^(operator\W+|[a-z_\d]+|signaling_NaN|quiet_NaN)$'
 # TODO: remove stopwatch|unsupported_op
 ClassName: '^([A-Z][\w]+|b?float16|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
 # TODO: remove oi_pair
