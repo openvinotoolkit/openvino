@@ -28,10 +28,13 @@ NGRAPH_RTTI_DEFINITION(Decompose2DConvTransposedWithBiasAF, "Decompose2DConvTran
 
 struct GraphData {
     std::shared_ptr<ngraph::opset7::Transpose>leading_transpose;
+    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_conv;
     std::shared_ptr<ngraph::opset7::Convolution>conv;
     std::shared_ptr<ngraph::opset7::Transpose>trailing_transpose;
-    std::shared_ptr<ngraph::op::util::UnaryElementwiseArithmetic>af;
+    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_bias;
     std::shared_ptr<ngraph::opset7::MaxPool>max_pool;
+    std::shared_ptr<ngraph::op::util::UnaryElementwiseArithmetic>af;
+    std::shared_ptr<ngraph::opset7::FakeQuantize>fq_af;
     std::shared_ptr<ngraph::Node>last_op_in_sequence_for_replacement;
     std::shared_ptr<ngraph::Node>bias_const;
     size_t conv_count;
@@ -86,7 +89,9 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
     auto pool_strides = max_pool->get_strides();
 
     // Check Max Pool padding and limitations
-    if (max_pool->get_auto_pad() != ngraph::op::PadType::VALID ||
+    if ((max_pool->get_auto_pad() != ngraph::op::PadType::VALID &&
+        (max_pool->get_auto_pad() != ngraph::op::PadType::EXPLICIT ||
+            max_pool->get_pads_begin() != ngraph::Shape({0, 0}) || max_pool->get_pads_end() != ngraph::Shape({0, 0}))) ||
         pool_filter.size() != 2 || pool_strides.size() != 2 ||
         pool_filter[0] > GNALimitations::maxPoolMaxWindowSize)
         return false;
@@ -203,7 +208,10 @@ static ngraph::OutputVector SplitInput(const GraphData& graph_data, ConvData& co
 static std::vector<std::shared_ptr<ngraph::Node>> SplitFilters(const GraphData& graph_data, ConvData& conv_data) {
     // If the input plane exceeds GNA limits and we have split into several convolutions, then we need to split filter data as well;
     // we also need to take filter height and potential dilation into account when modifying the filters
-    auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.conv->input_value(1).get_node_shared_ptr());
+
+    // Take account of fake quantize when getting filter values
+    auto filter_values = std::dynamic_pointer_cast<ngraph::opset7::Constant>(graph_data.fq_conv == nullptr ?
+        graph_data.conv->input_value(1).get_node_shared_ptr() : graph_data.fq_conv->input_value(0).get_node_shared_ptr());
     bool vertical_permute = (conv_data.filter_height > 1);
     bool horizontal_permute = (conv_data.filter_dilation_width > 1);
     std::vector<std::shared_ptr<ngraph::Node>> h_1_filters{};
@@ -227,17 +235,38 @@ static void TransformInput(const GraphData& graph_data, const ConvData& conv_dat
     *              Transpose
     */
 
-    // First we need to prepare flat (height = 1) slices of input data proper for flattened (height = 1) filter size
+    // First we need to prepare flat (height = 1) slices of input data proper for flattened (height = 1) filters created later on;
+    // the input datat is overlapping (duplicated)
     ngraph::OutputVector dilated_input_planes;
     for (size_t filter_height = 0; filter_height < conv_data.filter_height; filter_height++) {
-        size_t offset = filter_height * conv_data.filter_dilation_height * conv_data.input_width * conv_data.input_channel_count;
-        auto slice = FlatCrop(split_input_plane, offset, conv_data.input_width * conv_data.input_channel_count * conv_data.output_height);
-        copy_runtime_info(graph_data.conv, slice);
-        dilated_input_planes.push_back(slice);
+        size_t offset;
+
+        if (conv_data.filter_stride_height > 1) {
+            // Prepare strided slices of input data
+            for (size_t output_height = 0; output_height < conv_data.output_height; output_height++) {
+                offset = (filter_height * conv_data.filter_dilation_height + output_height * conv_data.filter_stride_height) *
+                    conv_data.input_width * conv_data.input_channel_count;
+                auto slice = FlatCrop(split_input_plane, offset, conv_data.input_width * conv_data.input_channel_count);
+                copy_runtime_info(graph_data.conv, slice);
+                dilated_input_planes.push_back(slice);
+            }
+        } else {
+            offset = filter_height * conv_data.filter_dilation_height * conv_data.input_width * conv_data.input_channel_count;
+            auto slice = FlatCrop(split_input_plane, offset, conv_data.input_width * conv_data.input_channel_count * conv_data.output_height);
+            copy_runtime_info(graph_data.conv, slice);
+            dilated_input_planes.push_back(slice);
+        }
     }
 
     // Interleaving dilated input planes
-    auto dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_input_planes, 0);
+    std::shared_ptr<ngraph::Node> dilated_chunks_concat = std::make_shared<ngraph::opset7::Concat>(dilated_input_planes, 0);
+
+    // Additional reshape is required for strided slices of input intended for each filter row
+    if (conv_data.filter_stride_height > 1) {
+        dilated_chunks_concat = std::make_shared<ngraph::opset7::Reshape>(dilated_chunks_concat,
+            ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+                {conv_data.filter_height, conv_data.input_width * conv_data.input_channel_count * conv_data.output_height}), false);
+    }
 
     auto transposed_dilated_chunks = std::make_shared<ngraph::opset7::Transpose>(dilated_chunks_concat,
         ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0})->output(0));
@@ -251,12 +280,25 @@ static void TransformInput(const GraphData& graph_data, const ConvData& conv_dat
     split_input_plane = flattened_dilated_transposed_input;
 }
 
+static void InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fqLayer,
+    std::shared_ptr<ngraph::Node> lastNode) {
+    if (fqLayer != nullptr) {
+        lastNode = fqLayer->clone_with_new_inputs({lastNode,
+            fqLayer->input_value(1), fqLayer->input_value(2),
+            fqLayer->input_value(3), fqLayer->input_value(4)});
+        ngraph::copy_runtime_info(fqLayer, lastNode);
+    }
+}
+
 // Valid 1D (decomposed 2D) convolution wrapped with transposes NHWC => NCHW => conv => NCHW => NHWC
 static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, const ConvData& conv_data, const ngraph::Output<ngraph::Node>& input,
     std::shared_ptr<ngraph::Node> filters, const size_t conv_index, const size_t h_index) {
         // Transpose NHWC => NCHW
         std::shared_ptr<ngraph::Node> nchw_input = std::make_shared<ngraph::opset7::Transpose>(input,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2})->output(0));
+
+        // Fake quantize
+        InsertFQLayer(graph_data.fq_conv, filters);
 
         // 1D Convolution
         auto conv = std::make_shared<ngraph::opset7::Convolution>(nchw_input, filters,
@@ -265,11 +307,12 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         std::string conv_name = graph_data.conv->get_friendly_name() + "_H_" + std::to_string(h_index) + "_CH_" + std::to_string(0);
         conv->set_friendly_name(conv_name);
 
-        // Bias
+        // Bias & fake quantize
         std::shared_ptr<ngraph::Node> last_conv_block_op = conv;
         if (graph_data.bias_const && conv_index == 0) {
             last_conv_block_op = std::make_shared<ngraph::opset7::Add>(conv, graph_data.bias_const);
             copy_runtime_info(graph_data.conv, last_conv_block_op);
+            InsertFQLayer(graph_data.fq_bias, last_conv_block_op);
         }
 
         // Max pooling
@@ -279,11 +322,11 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
                 ngraph::Shape{1, graph_data.pool_size_width}, graph_data.max_pool->get_rounding_type(), ngraph::op::PadType::VALID);
         }
 
-        // Activation function
+        // Activation function & fake quantize
         if (graph_data.af && graph_data.conv_count == 1) {
-            auto af_result = graph_data.af->copy_with_new_inputs({last_conv_block_op});
-            copy_runtime_info(conv, af_result);
-            last_conv_block_op = af_result;
+            last_conv_block_op = graph_data.af->copy_with_new_inputs({last_conv_block_op});
+            copy_runtime_info(conv, last_conv_block_op);
+            InsertFQLayer(graph_data.fq_af, last_conv_block_op);
         }
 
         // Transpose NCHW => NHWC
@@ -300,7 +343,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
     bool horizontal_permute = (conv_data.filter_dilation_width > 1);
     size_t h_1_filter_channel_count = (conv_data.input_channel_count * conv_data.filter_height);
 
-    for (size_t output_height = 0; output_height < conv_data.output_height; output_height += conv_data.filter_stride_height) {
+    for (size_t output_height = 0; output_height < conv_data.output_height; output_height++) {
         size_t offset = output_height * conv_data.input_width * h_1_filter_channel_count;
         auto row = (conv_data.output_height == 1) ? reduced_input_plane :
             FlatCrop(reduced_input_plane, offset, conv_data.input_width * h_1_filter_channel_count);
@@ -328,10 +371,15 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
             ngraph::OutputVector dilated_chunks;
             std::shared_ptr<ngraph::Node> dilated_chunks_concat = nhwc_conv_y_input.get_node_shared_ptr();
 
+            // We need to calculate some parameters in case horizontal stride > 1 is used, because if we use the ones available from the original convolution
+            // we won't take into account the fact horizontal strides will be supported by the newly created 1D convolution, and not by decomposition
+            size_t filter_dilation_width = conv_data.filter_width > 1 ? conv_data.filter_dilation_width : 1;
+            size_t output_width = (conv_data.input_width - (conv_data.filter_width + filter_dilation_width - 2));
+
             if (conv_data.filter_width > 1) {
                 for (size_t filter_width = 0; filter_width < conv_data.filter_width; filter_width++) {
                     size_t offset = filter_width * conv_data.filter_dilation_width * h_1_filter_channel_count;
-                    auto slice = FlatCrop(row, offset, h_1_filter_channel_count * conv_data.output_width);
+                    auto slice = FlatCrop(row, offset, h_1_filter_channel_count * output_width);
                     copy_runtime_info(graph_data.conv, slice);
                     dilated_chunks.push_back(slice);
                 }
@@ -344,7 +392,7 @@ static std::shared_ptr<ngraph::Node> CreateDecomposedConv(const GraphData& graph
 
             auto flattened_dilated_conv_input = std::make_shared<ngraph::opset7::Reshape>(transposed_dilated_chunks,
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-                    ngraph::Shape{1, 1, conv_data.output_width, h_1_filter_channel_count * conv_data.filter_width}), false);
+                    ngraph::Shape{1, 1, output_width, h_1_filter_channel_count * conv_data.filter_width}), false);
 
             copy_runtime_info(graph_data.conv, ngraph::NodeVector{flattened_dilated_conv_input, transposed_dilated_chunks, dilated_chunks_concat});
 
@@ -388,7 +436,7 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
         ngraph::Output<ngraph::Node>& split_input_plane = split_planes[conv_index];
 
         // Input data needs to be prepared before 2D convolution decomposition
-        if (conv_data.filter_height > 1) {
+        if (conv_data.filter_height > 1 || conv_data.filter_stride_height > 1) {
             TransformInput(graph_data, conv_data, split_input_plane);
         }
 
@@ -420,18 +468,24 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
 }
 
 static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
+    std::shared_ptr<ngraph::Node> fq_conv,
     std::shared_ptr<ngraph::Node> conv,
     std::shared_ptr<ngraph::Node> trailing_transpose,
     std::shared_ptr<ngraph::Node> bias,
+    std::shared_ptr<ngraph::Node> fq_bias,
     std::shared_ptr<ngraph::Node> max_pool,
     std::shared_ptr<ngraph::Node> af,
+    std::shared_ptr<ngraph::Node> fq_af,
     std::shared_ptr<ngraph::Node> last_op_for_replacement) {
 
     GraphData graph_data{std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose),
+        std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_conv),
         std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv),
         std::dynamic_pointer_cast<ngraph::opset7::Transpose>(trailing_transpose),
-        std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(af),
+        std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_bias),
         std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(max_pool),
+        std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(af),
+        std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(fq_af),
         last_op_for_replacement, nullptr, 1, 1, 1};
     ConvData conv_data;
 
@@ -483,36 +537,66 @@ Decompose2DConv::Decompose2DConv() {
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
         consumers_and_rank(1, 4));
-    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>(
-        {leading_transpose, ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4))},
+    auto filters_const = ngraph::pattern::wrap_type<ngraph::opset7::Constant>(ngraph::pattern::rank_equals(4));
+    auto fq_conv = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({const_input, const_input, const_input, const_input, const_input},
+        consumers_and_rank(1, 4));
+    auto filters = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{filters_const, fq_conv});
+    auto conv = ngraph::pattern::wrap_type<ngraph::opset7::Convolution>({leading_transpose, filters},
         consumers_and_rank(1, 4));
     auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Add>({conv, const_input},
         ngraph::pattern::consumers_count(1));
-    auto max_pool = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({bias},
+    auto fq_bias = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({bias, const_input, const_input, const_input, const_input},
+        ngraph::pattern::consumers_count(1));
+    auto max_pool1 = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({bias},
+        ngraph::pattern::consumers_count(1));
+    auto max_pool2 = ngraph::pattern::wrap_type<ngraph::opset7::MaxPool>({fq_bias},
         ngraph::pattern::consumers_count(1));
     auto af1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
         ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
     auto af2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool}, ngraph::pattern::consumers_count(1));
-    auto transpose_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool, af1, af2});
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq_bias}, ngraph::pattern::consumers_count(1));
+    auto af3 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+    auto af4 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool2}, ngraph::pattern::consumers_count(1));
+    auto fq_af = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af4, const_input, const_input, const_input, const_input},
+        ngraph::pattern::consumers_count(1));
+    auto transpose_input =
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, fq_af});
     auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input},
         consumers_and_rank(1, 4));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
+        auto fq_conv_it = pattern_map.find(fq_conv);
+        auto fq_conv_node = (fq_conv_it == std::end(pattern_map) ? nullptr : fq_conv_it->second.get_node_shared_ptr());
         auto bias_it = pattern_map.find(bias);
         auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
-        auto max_pool_it = pattern_map.find(max_pool);
-        auto max_pool_node = (max_pool_it == std::end(pattern_map) ? nullptr : max_pool_it->second.get_node_shared_ptr());
-        auto af1_it = pattern_map.find(af1);
-        auto af2_it = pattern_map.find(af2);
-        auto af_node = (af1_it == std::end(pattern_map) ?
-            ((af2_it == std::end(pattern_map) ? nullptr : af2_it->second.get_node_shared_ptr())) : af1_it->second.get_node_shared_ptr());
+        auto fq_bias_it = pattern_map.find(fq_bias);
+        auto fq_bias_node = (fq_bias_it == std::end(pattern_map) ? nullptr : fq_bias_it->second.get_node_shared_ptr());
+        auto fq_af_it = pattern_map.find(fq_af);
+        auto fq_af_node = (fq_af_it == std::end(pattern_map) ? nullptr : fq_af_it->second.get_node_shared_ptr());
+        auto max_pool1_it = pattern_map.find(max_pool1);
+        auto max_pool2_it = pattern_map.find(max_pool2);
+        auto max_pool_node = (max_pool1_it == std::end(pattern_map) ?
+            ((max_pool2_it == std::end(pattern_map) ? nullptr : max_pool2_it->second.get_node_shared_ptr())) : max_pool1_it->second.get_node_shared_ptr());
+        std::shared_ptr<ngraph::Node> af_node = nullptr;
+        std::vector<ngraph::pattern::PatternValueMap::const_iterator> af_it
+        {pattern_map.find(af1), pattern_map.find(af2), pattern_map.find(af3), pattern_map.find(af4)};
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node, max_pool_node, af_node,
+        for (auto const& af : af_it) {
+            if (af != std::end(pattern_map)) {
+                af_node = af->second.get_node_shared_ptr();
+                break;
+            }
+        }
+
+        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), fq_conv_node, pattern_map.at(conv).get_node_shared_ptr(),
+            pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node, fq_bias_node, max_pool_node, af_node, fq_af_node,
             pattern_map.at(trailing_transpose).get_node_shared_ptr());
     };
 
@@ -540,9 +624,9 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias() {
         if (!VerifyBias(pattern_map.at(conv).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr()))
             return false;
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
+        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), nullptr, pattern_map.at(conv).get_node_shared_ptr(),
             pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr, nullptr,
-            pattern_map.at(bias).get_node_shared_ptr());
+            nullptr, nullptr, pattern_map.at(bias).get_node_shared_ptr());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(bias, matcher_name);
@@ -573,9 +657,9 @@ Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF() {
         if (!VerifyBias(pattern_map.at(conv).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr()))
             return false;
 
-        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
-            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(),
-            nullptr, pattern_map.at(af).get_node_shared_ptr(), pattern_map.at(af).get_node_shared_ptr());
+        return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), nullptr, pattern_map.at(conv).get_node_shared_ptr(),
+            pattern_map.at(trailing_transpose).get_node_shared_ptr(), pattern_map.at(bias).get_node_shared_ptr(), nullptr,
+            nullptr, pattern_map.at(af).get_node_shared_ptr(), nullptr, pattern_map.at(af).get_node_shared_ptr());
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(af, matcher_name);

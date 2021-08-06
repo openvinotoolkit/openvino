@@ -233,7 +233,7 @@ const std::vector<std::vector<size_t >> kernels2D = {{1, 2}, {2, 1}, {2, 2}};
 const std::vector<std::vector<size_t >> strides2D = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{3, 1}};
-const std::vector<std::vector<size_t >> dilations2D = {{1, 2}, {2, 1}, {2, 2}};
+const std::vector<std::vector<size_t >> dilations2D = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
 const std::vector<size_t> numOutChannels2D = {4};
 const std::vector<std::vector<size_t >> biases2D = {{1, 4, 1, 1}};
 const std::vector<std::vector<size_t >> transp_biases2D = {{1, 1, 1, 4}};
@@ -266,6 +266,51 @@ INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv, Decompose2DConvTest,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
+    Decompose2DConvTest::getTestCaseName);
+
+
+/* ============= Strides & Dilations Combination ============= */
+
+const std::vector<std::map<std::string, std::string>> configsStrides = {
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+        {"GNA_SCALE_FACTOR_0", "1"},
+        {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}
+    }
+};
+
+const std::vector<op::PadType> padTypesStrides = {
+    op::PadType::VALID,
+};
+
+const std::vector<modelType> modelsStrides = {
+    modelType::TranspConvTransp,
+};
+
+const std::vector<std::vector<size_t>> input2DNHWCStrides = {{1, 8, 8, 32}};
+const std::vector<std::vector<size_t >> kernels2DStrides = {{1, 2}, {2, 1}, {2, 2}};
+const std::vector<std::vector<size_t >> strides2DStrides = {{1, 1}, {2, 1}, {1, 2}, {2, 2}};
+const std::vector<std::vector<size_t >> dilations2DStrides = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
+
+const auto conv2DParamsStrides = ::testing::Combine(
+    ::testing::ValuesIn(kernels2DStrides),
+    ::testing::ValuesIn(strides2DStrides),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2DStrides),
+    ::testing::ValuesIn(numOutChannels2D),
+    ::testing::ValuesIn(padTypesStrides)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConvStridesDilations, Decompose2DConvTest,
+    ::testing::Combine(
+        conv2DParamsStrides,
+        miscParams,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configsStrides),
+        ::testing::ValuesIn(input2DNHWCStrides),
+        ::testing::ValuesIn(modelsStrides)),
     Decompose2DConvTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
