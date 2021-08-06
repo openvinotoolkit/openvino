@@ -6,8 +6,7 @@
 
 **Short description**: *LogicalOr* performs element-wise logical OR operation with two given tensors applying multi-directional broadcast rules.
 
-**Detailed description**
-Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+**Detailed description**: Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
 
 After broadcasting *LogicalOr* does the following with the input tensors *a* and *b*:
 

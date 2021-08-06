@@ -34,7 +34,7 @@ o_{i} = a_{i} \wedge b_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise logical AND operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise *LogicalAnd* operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
