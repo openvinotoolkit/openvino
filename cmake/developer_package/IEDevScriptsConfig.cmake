@@ -255,6 +255,9 @@ function(ie_check_pip_package name message_type)
     find_package(PythonInterp 3 REQUIRED)
 
     get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
+
+    # TODO: check version
+
     execute_process(
         COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
         WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
@@ -274,6 +277,7 @@ endfunction()
 
 include(cpplint/cpplint)
 include(clang_format/clang_format)
+include(ncc_naming_style/ncc_naming_style)
 
 # Restore state
 set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})
