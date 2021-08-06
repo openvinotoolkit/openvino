@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert
 
 
 def make_equal_rank(shape_1: np.array, shape_2: np.array):
@@ -16,10 +16,10 @@ def make_equal_rank(shape_1: np.array, shape_2: np.array):
     :return: tuple with updated shapes
     """
     while len(shape_1) < len(shape_2):
-        shape_1 = np.insert(shape_1, 0, 1)
+        shape_1 = shape_insert(shape_1, 0, 1)
 
     while len(shape_2) < len(shape_1):
-        shape_2 = np.insert(shape_2, 0, 1)
+        shape_2 = shape_insert(shape_2, 0, 1)
 
     return shape_1, shape_2
 

@@ -74,7 +74,7 @@ def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
         raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
 
 
-def shape_insert(shape: np.ma.masked_array, pos: int, obj: [int, list, np.ndarray, dynamic_dimension]):
+def shape_insert(shape: np.ndarray, pos: int, obj: [int, list, np.ndarray, dynamic_dimension]):
     """
     Insert element(s) in the input tensor shape (presumably the numpy masked array) specified by position pos.
     The function is implemented to avoid usage of np.insert which corrupts information about the masked elements.

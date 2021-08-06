@@ -70,9 +70,10 @@ class Pad(Op):
 
         node.out_port(0).data.set_shape(input_shape + pad_beg + pad_end)
 
-        if input_value is not None and is_fully_defined(input_value):
+        if input_value is not None and is_fully_defined(input_value) and is_fully_defined(pad_beg) and \
+                is_fully_defined(pad_end):
             pads = np.insert(pad_end, np.arange(len(pad_end)), pad_beg)
-            pads = np.ma.reshape(pads, (len(pad_end), 2))
+            pads = np.reshape(pads, (len(pad_end), 2))
             pad_val = 0
             if len(node.in_nodes()) == 4:
                 pad_val = node.in_port(3).data.get_value() if node.in_port(3).data is not None else 0
