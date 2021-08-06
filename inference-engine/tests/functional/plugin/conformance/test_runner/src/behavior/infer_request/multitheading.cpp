@@ -14,34 +14,34 @@ namespace {
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-const std::vector<std::map<std::string, std::string>> configs = {
+const std::vector<std::map<std::string, std::string>> configsMultithreading = {
         {},
 };
 
-const std::vector<std::map<std::string, std::string>> Multiconfigs = {
+const std::vector<std::map<std::string, std::string>> MulticonfigsMultithreading = {
         {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES), targetDevice }}
 };
 
-const std::vector<std::map<std::string, std::string>> Autoconfigs = {
+const std::vector<std::map<std::string, std::string>> AutoconfigsMultithreading = {
         {{ AUTO_CONFIG_KEY(DEVICE_LIST), targetDevice}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(configsMultithreading)),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(Multiconfigs)),
+                                ::testing::ValuesIn(MulticonfigsMultithreading)),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(Autoconfigs)),
+                                ::testing::ValuesIn(AutoconfigsMultithreading)),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace
