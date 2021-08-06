@@ -78,7 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_crop_with_scale)
                                             {27.f, 28.f, 29.f, 30.f},
                                             {31.f, 32.f, 33.f, 34.f}}}}).get_vector();
 
-    // output shape (1, 1, 2, 2)
+    // output shape (1, 1, 2, 3)
     auto expected_output = test::NDArray<float, 4>{{{{24.f, 25.f, 26.f}, {28.f, 29.f, 30.f}}}}.get_vector();
 
     auto test_case = test::TestCase<TestEngine>(function);
