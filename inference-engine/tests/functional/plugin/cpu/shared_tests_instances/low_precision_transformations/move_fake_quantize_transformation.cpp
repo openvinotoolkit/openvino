@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "low_precision_transformations/move_fake_quantize_transformation.hpp"
-#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -21,7 +20,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 };
 
 const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
-    {
+   {
         {},
         {},
         {},
@@ -35,70 +34,20 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         "Concatenation",
         "U8"
     },
-    /*{
+    {
         {},
-        false,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "FP32"
-    },
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        false,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
+        {},
+        {},
+        {},
+        {},
+        {},
+        "relu",
+        { 256ul, {}, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f }},
+        {},
+        {},
+        "Concatenation",
         "U8"
     },
-    {
-        { 256ul, ngraph::Shape {}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        false,
-        { 255ul, ngraph::Shape {}, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "U8"
-    },
-    {
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        false,
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "FP32"
-    },
-    {
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        false,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "FP32"
-    },
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-        false,
-        { 16ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "FP32"
-    },
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.7f }, { 12.8f } },
-        true,
-        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
-        false,
-        "Convolution",
-        "U8"
-    },
-    {
-        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
-        true,
-        { 255ul, ngraph::Shape { 1 }, { 0.f }, { 254.f }, { -18.7f }, { 18.7f } },
-        false,
-        "Convolution",
-        "U8"
-    },*/
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -114,28 +63,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     MoveFakeQuantizeTransformation::getTestCaseName);
-
-//const std::vector<LayerTestsDefinitions::ConvolutionWIthIncorrectWeightsParam> incorrectWeightsParams = {
-//    // incorrect weights
-//    {
-//        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-//        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//        false
-//    },
-//    // correct weights
-//    {
-//        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
-//        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//        true
-//    }
-//};
-//
-//INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformation,
-//    ::testing::Combine(
-//        ::testing::ValuesIn(netPrecisions),
-//        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
-//        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//        ::testing::ValuesIn(trasformationParamValues),
-//        ::testing::ValuesIn(incorrectWeightsParams)),
-//    ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 }  // namespace
