@@ -7,18 +7,19 @@
  * @file ie_iplugin_internal.hpp
  */
 
-#include <ie_iextension.h>
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
-#include <blob_factory.hpp>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
 #include <fstream>
-#include <ie_icore.hpp>
-#include <ie_input_info.hpp>
-#include <ie_parameter.hpp>
 #include <istream>
 #include <map>
 #include <memory>
 #include <string>
+
+#include "blob_factory.hpp"
+#include "ie_icore.hpp"
+#include "ie_iextension.h"
+#include "ie_input_info.hpp"
+#include "ie_parameter.hpp"
 
 namespace InferenceEngine {
 

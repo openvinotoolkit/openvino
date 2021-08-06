@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_core.hpp"
+
 #include <sys/stat.h>
 
-#include <ie_core.hpp>
-#include <ie_icore.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -19,6 +19,7 @@
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
+#include "ie_icore.hpp"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_plugin_config.hpp"

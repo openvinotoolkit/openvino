@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-
 #include <algorithm>
-#include <ie_precision.hpp>
-#include <ngraph/type/element_type.hpp>
 #include <string>
+
+#include "cpp/ie_cnn_network.h"
+#include "ie_precision.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {

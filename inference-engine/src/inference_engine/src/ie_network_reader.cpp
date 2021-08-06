@@ -4,18 +4,17 @@
 
 #include "ie_network_reader.hpp"
 
-#include <file_utils.h>
-
-#include <details/ie_so_pointer.hpp>
-#include <frontend_manager/frontend_manager.hpp>
 #include <fstream>
-#include <ie_ir_version.hpp>
-#include <ie_reader.hpp>
 #include <istream>
 #include <map>
 #include <mutex>
 
+#include "details/ie_so_pointer.hpp"
+#include "file_utils.h"
+#include "frontend_manager/frontend_manager.hpp"
+#include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
+#include "ie_reader.hpp"
 
 namespace InferenceEngine {
 

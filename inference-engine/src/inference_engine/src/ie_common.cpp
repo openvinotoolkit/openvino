@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_blob.h>
-#include <ie_common.h>
-#include <ie_extension.h>
-#include <ie_iextension.h>
+#include "ie_common.h"
 
 #include <cassert>
-#include <exec_graph_info.hpp>
-#include <ie_parameter.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include "exec_graph_info.hpp"
+#include "ie_blob.h"
+#include "ie_extension.h"
+#include "ie_iextension.h"
+#include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"
 
 namespace ExecGraphInfoSerialization {

@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <ie_blob.h>
-#include <ie_common.h>
-
-#include <cpp/ie_infer_request.hpp>
-#include <ie_input_info.hpp>
-#include <ie_preprocess_data.hpp>
 #include <map>
 #include <memory>
 #include <string>
+
+#include "cpp/ie_infer_request.hpp"
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_input_info.hpp"
+#include "ie_preprocess_data.hpp"
 
 namespace InferenceEngine {
 

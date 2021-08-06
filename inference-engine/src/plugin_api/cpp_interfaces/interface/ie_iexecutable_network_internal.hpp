@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <details/ie_so_pointer.hpp>
-#include <ie_parameter.hpp>
-#include <ie_remote_context.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "cpp/ie_cnn_network.h"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "details/ie_so_pointer.hpp"
+#include "ie_parameter.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_blob.h>
-#include <ie_iextension.h>
-
 #include <string>
+
+#include "cpp/ie_cnn_network.h"
+#include "ie_blob.h"
+#include "ie_iextension.h"
 
 namespace InferenceEngine {
 namespace details {

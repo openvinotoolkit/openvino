@@ -9,8 +9,6 @@
  */
 #pragma once
 
-#include <ie_api.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <iterator>
@@ -21,6 +19,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "ie_api.h"
+
 #ifndef NDEBUG
 #    include <cassert>
 #endif

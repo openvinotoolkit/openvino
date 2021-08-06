@@ -9,12 +9,12 @@
 
 #pragma once
 
-#include <ie_api.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <type_traits>
+
+#include "ie_api.h"
 
 /**
  * @brief Inference Engine Plugin API namespace

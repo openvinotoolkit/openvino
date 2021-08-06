@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_api.h>
+#include "cpp/ie_cnn_network.h"
+#include "ie_api.h"
 
 namespace InferenceEngine {
 

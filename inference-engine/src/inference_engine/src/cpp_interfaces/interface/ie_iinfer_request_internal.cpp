@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <debug.h>
-#include <ie_blob.h>
-#include <ie_common.h>
-#include <ie_compound_blob.h>
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/plugin_itt.hpp>
-#include <ie_algorithm.hpp>
-#include <ie_preprocess.hpp>
-#include <ie_remote_context.hpp>
 #include <map>
 #include <memory>
 #include <string>
+
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/plugin_itt.hpp"
+#include "debug.h"
+#include "ie_algorithm.hpp"
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_compound_blob.h"
+#include "ie_preprocess.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 

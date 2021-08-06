@@ -9,14 +9,13 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-
 #include <array>
-#include <ie_parameter.hpp>
 #include <memory>
 #include <string>
 
+#include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "ie_parameter.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
