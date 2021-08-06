@@ -50,6 +50,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         else {
             parent1 = makeFakeQuantize(input1, inputPrecision, fqOnData1);
         }
+        parent1->set_friendly_name("fakeQuantizeAfter1");
         if (!convert1.empty()) {
             parent1 = std::make_shared<opset1::Convert>(parent1, convert1.outPrecision);
         }
@@ -65,6 +66,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         else {
             parent2 = makeFakeQuantize(input1, inputPrecision, fqOnData2);
         }
+        parent2->set_friendly_name("fakeQuantizeAfter2");
         if (!convert2.empty()) {
             parent1 = std::make_shared<opset1::Convert>(parent2, convert2.outPrecision);
         }

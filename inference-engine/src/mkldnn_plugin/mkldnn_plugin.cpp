@@ -143,7 +143,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         };
 
         if (!with_cpu_x86_avx512_core())
-            array.push_back({ ngraph::element::bf16, ngraph::element::f32 });
+            array.push_back({ngraph::element::bf16, ngraph::element::f32});
 
         return array;
     };
@@ -184,37 +184,34 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
-        ngraph::pass::ConvertDepthToSpace>(
-            [](const_node_ptr& node) -> bool {
+            ngraph::pass::ConvertDepthToSpace>(
+            [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_shape().size() <= 5lu &&
-                    node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+                       node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
             });
 
     pass_config->set_callback<ngraph::pass::ConvertBatchToSpace,
-        ngraph::pass::ConvertSpaceToBatch>(
-            [](const_node_ptr& node) -> bool {
-                const auto& rank = node->input(0).get_partial_shape().rank().get_length();
+                              ngraph::pass::ConvertSpaceToBatch>(
+            [](const_node_ptr &node) -> bool {
+                const auto & rank = node->input(0).get_partial_shape().rank().get_length();
                 return rank == 4lu || rank == 5lu;
             });
 
-    auto isCellPrimitiveSupported = [](const_node_ptr& node) -> bool {
-        if (const auto& rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
+    auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        if (const auto &rnn_cell = std::dynamic_pointer_cast<const ngraph::opset4::RNNCell>(node)) {
             return rnn_cell->get_clip() == 0.0f;
-        }
-        else if (const auto& gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
-            node)) {
+        } else if (const auto &gru_cell = std::dynamic_pointer_cast<const ngraph::opset4::GRUCell>(
+                node)) {
             return gru_cell->get_clip() == 0.0f
-                && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
-        }
-        else if (const auto& lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
-            node)) {
+                   && gru_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ngraph::opset4::LSTMCell>(
+                node)) {
             return lstm_cell->get_clip() == 0.0f &&
-                lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
-        }
-        else if (const auto& lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
-            node)) {
+                   lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ngraph::opset1::LSTMCell>(
+                node)) {
             return lstm_cell_v1->get_clip() == 0.0f &&
-                lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                   lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
         }
         return false;
     };
@@ -223,53 +220,51 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     // sequence_length input is not supported in all Sequences, so if is_seq_len_provided() == true, we
     // should always convert to TensorIterator.
     // RNN/GRU/LSTM Sequences are supported with clip == 0, and with default activations.
-    auto isSequencePrimitiveSupported = [](const_node_ptr& node) -> bool {
+    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
         const auto& data = node->input(0);
         const auto& data_pshape = data.get_partial_shape();
         if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
             return false;
         auto max_seq_len = data.get_shape().at(1);
-        if (const auto& rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
             return rnn_seq->get_clip() == 0.0f &&
-                !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
-                    max_seq_len);
-        }
-        else if (const auto& gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
-            node)) {
+                   !ngraph::op::util::is_seq_len_provided(rnn_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
+                node)) {
             return gru_seq->get_clip() == 0.0f &&
-                gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
-                    max_seq_len);
-        }
-        else if (const auto& lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
-            node)) {
+                   gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(2),
+                                                          max_seq_len);
+        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
+                node)) {
             return lstm_seq->get_clip() == 0.0f &&
-                lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
-                    max_seq_len);
+                   lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                   !ngraph::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(3),
+                                                          max_seq_len);
         }
         return false;
     };
 
     pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator, ngraph::pass::ConvertGRUSequenceToTensorIterator,
-        ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
-            [isSequencePrimitiveSupported](const_node_ptr& node) -> bool {
+            ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+            [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
                 return isSequencePrimitiveSupported(node);
             });
 
     pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
-        ngraph::pass::LSTMCellDecomposition>(
-            [isCellPrimitiveSupported](const_node_ptr& node) -> bool {
+            ngraph::pass::LSTMCellDecomposition>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return isCellPrimitiveSupported(node);
             });
 
     pass_config->set_callback<ngraph::pass::ConvertTensorIteratorToRNNSequence,
-        ngraph::pass::ConvertTensorIteratorToLSTMSequence,
-        ngraph::pass::ConvertTensorIteratorToGRUSequence>(
-            [isCellPrimitiveSupported](const_node_ptr& node) -> bool {
+                              ngraph::pass::ConvertTensorIteratorToLSTMSequence,
+                              ngraph::pass::ConvertTensorIteratorToGRUSequence>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 if (const auto& ti_op = std::dynamic_pointer_cast<const ngraph::op::TensorIterator>(node)) {
                     size_t count_rnn = 0;
-                    for (const auto& op : ti_op->get_body()->get_ops())
+                    for (const auto &op : ti_op->get_body()->get_ops())
                         count_rnn += isCellPrimitiveSupported(op);
                     return count_rnn != 1;
                 }
@@ -277,10 +272,10 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             });
 
     pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
-        [](const_node_ptr& node) -> bool {
-            std::string errorMessage;
-            return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
-        });
+            [](const_node_ptr &node) -> bool {
+                std::string errorMessage;
+                return MKLDNNMVNNode::isSupportedOperation(node, errorMessage);
+            });
 
     pass_config->set_callback<ngraph::pass::NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
@@ -289,11 +284,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
             });
 
     pass_config->set_callback<ngraph::pass::SoftmaxFusion>(
-        [](const_node_ptr& node) -> bool {
-            return node->input_value(0).get_partial_shape().rank().get_length() > 5;
-        });
+            [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_partial_shape().rank().get_length() > 5;
+            });
 
-    auto normalizeL2FusionCallback = [](const_node_ptr& node) -> bool {
+    auto normalizeL2FusionCallback = [](const_node_ptr &node) -> bool {
         std::string errorMsg;
         return !MKLDNNNormalizeL2Node::isSupportedOperation(node, errorMsg);
     };
@@ -322,13 +317,13 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
     if (useLpt) {
-        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr& node) -> bool {
+        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
-            });
+        });
 
-        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr& node) -> bool {
+        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
-            });
+        });
     }
 
     manager.run_passes(nGraphFunc);
@@ -354,12 +349,12 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 {0, {ngraph::element::u8}},
                 {1, {ngraph::element::i8}},
             }),
-            });
+        });
 
         auto perTensorQuantization = std::vector<OperationPerTensorQuantizationRestriction>({
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>({0}),
             OperationPerTensorQuantizationRestriction::create<ngraph::opset1::ConvolutionBackpropData>({0})
-            });
+        });
 
         ngraph::pass::Manager lptManager;
         lptManager.register_pass<ngraph::pass::low_precision::LowPrecision>(supportedPrecisions, perTensorQuantization);
@@ -368,13 +363,13 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
             }
             return false;
-            });
+        });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionBackpropDataTransformation>([](const_node_ptr& node) -> bool {
             return LayerTransformation::isAsymmetricQuantization(node) || WeightableLayerTransformation::isAsymmetricOnWeights(node);
-            });
+        });
         lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>([](const_node_ptr& node) -> bool {
             return MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(node);
-            });
+        });
         lptManager.run_passes(nGraphFunc);
     }
 
@@ -382,27 +377,27 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     postLPTPassManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     postLPTPassManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr& node) -> bool {
+    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         std::string errMsg;
         return MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
-        });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr& node) -> bool {
+    });
+    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
             auto constant = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(mul_op->get_input_node_shared_ptr(1));
             bool is_dequantization = mul_op->get_rt_info().count("DEQUANTIZATION") != 0;
             if (add_op && constant && is_dequantization) {
                 return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
-                    ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
-                    ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+                       ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                       ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
             }
         }
         return false;
-        });
-    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr& node) -> bool {
+    });
+    postLPTPassManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
-        });
+    });
 
     postLPTPassManager.run_passes(nGraphFunc);
 
@@ -410,12 +405,12 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
-    for (const auto& ii : _networkInputs) {
+    for (const auto &ii : _networkInputs) {
         auto input_precision = ii.second->getPrecision();
         if (input_precision != InferenceEngine::Precision::FP32 &&
             input_precision != InferenceEngine::Precision::I32 &&
@@ -428,7 +423,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const std
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64) {
             IE_THROW(NotImplemented)
-                << "Input image format " << input_precision << " is not supported yet...";
+                               << "Input image format " << input_precision << " is not supported yet...";
         }
     }
 
@@ -449,7 +444,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network, const std
     return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
-void Engine::SetConfig(const std::map<std::string, std::string>& config) {
+void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
     engConfig.readProperties(config);
 }
@@ -459,8 +454,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
-    }
-    else {
+    } else {
         IE_THROW() << "Unsupported config key " << name;
     }
     return result;
@@ -468,7 +462,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 
 static bool hasAVX512() {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-    unsigned int regs[4] = { 7, 0, 0, 0 };
+    unsigned int regs[4] = {7, 0, 0, 0};
 #ifdef _WIN32
     __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
@@ -491,8 +485,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
-    }
-    else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
+    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         std::string brand_string;
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
         unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
@@ -504,7 +497,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
 #else
             __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
 #endif
-            char* ch = reinterpret_cast<char*>(&regs[0]);
+            char *ch = reinterpret_cast<char*>(&regs[0]);
             for (size_t j = 0; j < sizeof(regs); j++)
                 brand_string += ch[j];
         }
@@ -512,12 +505,10 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         brand_string = "Non Intel Architecture";
 #endif
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, brand_string);
-    }
-    else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
+    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { "" };
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
-    }
-    else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         std::vector<std::string> capabilities;
         if (with_cpu_x86_bfloat16())
             capabilities.push_back(METRIC_VALUE(BF16));
@@ -528,22 +519,18 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    }
-    else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto&& opt : engConfig._config)
+        for (auto && opt : engConfig._config)
             configKeys.push_back(opt.first);
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    }
-    else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
-    }
-    else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
+    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
-    }
-    else {
+    } else {
         IE_THROW() << "Unsupported metric key " << name;
     }
 }
@@ -580,9 +567,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
             auto layerIsSupported = [&] {
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {
-                    ptr.reset(MKLDNNNode::factory().create(op, { mkldnn::engine::kind::cpu, 0 }, extensionManager, fake_w_cache));
-                }
-                catch (InferenceEngine::Exception&) {
+                    ptr.reset(MKLDNNNode::factory().create(op, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                } catch (InferenceEngine::Exception&) {
                     return false;
                 }
                 return true;
@@ -591,8 +577,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
-                    }
-                    else {
+                    } else {
                         unsupported.emplace(fusedLayerName);
                     }
                 }
@@ -621,8 +606,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                 if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
                     supported.erase(node->get_friendly_name());
                 }
-            }
-            else if (ngraph::op::is_output(node)) {
+            } else if (ngraph::op::is_output(node)) {
                 if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
                     supported.erase(node->get_friendly_name());
                 }
@@ -632,13 +616,12 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
         }
-    }
-    else {
+    } else {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
 
     return res;
 }
 
-static const Version version = { {2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin" };
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
