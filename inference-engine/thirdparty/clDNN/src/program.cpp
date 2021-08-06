@@ -837,8 +837,10 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node) {
-    auto itr = old_node.users.begin();
-    while (itr != old_node.users.end()) {
+    // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
+    const std::list<program_node*> users(old_node.users);
+    auto itr = users.begin();
+    while (itr != users.end()) {
         auto user = *(itr++);
         user->replace_dependency(old_node, new_node);
     }
