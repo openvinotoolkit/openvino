@@ -1440,22 +1440,20 @@ std::shared_ptr<opset1::Constant> NetworkHelper::normalizeDequantizationShape(co
     return normalizedConstant;
 }
 
-FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization) {
-    std::shared_ptr<Node> parent = dequantization.convert ? dequantization.convert : dequantization.data.get_node_shared_ptr();
+FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision) {
+    const std::shared_ptr<Node> multiplyConstant = dequantization.multiply ?
+        dequantization.multiplyConstant->get_element_type() != precision ?
+            foldConvert(dequantization.multiplyConstant, precision) :
+            dequantization.multiplyConstant :
+        std::make_shared<opset1::Constant>(precision, Shape({}), std::vector<float>({ 1.f }));
 
-    std::shared_ptr<Node> multiply1Const = dequantization.multiply ?
-        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
-        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
+    const std::shared_ptr<Node> subtractConstant = dequantization.subtract ?
+        dequantization.subtractConstant->get_element_type() != precision ?
+            foldConvert(dequantization.subtractConstant, precision) :
+            dequantization.subtractConstant :
+        std::make_shared<opset1::Constant>(precision, Shape({}), std::vector<float>({ 0.f }));
 
-    std::shared_ptr<Node> subtract1Const = dequantization.subtract ?
-        (dequantization.subtractConvert == nullptr ?
-            dequantization.subtractConstant->clone_with_new_inputs({}) :
-            foldConvert(dequantization.subtractConstant, dequantization.subtractConvert->get_element_type())) :
-        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 0.f }));
-
-    subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
-
-    return FakeQuantizeDequantizationValues(subtract1Const, multiply1Const);
+    return FakeQuantizeDequantizationValues(subtractConstant, multiplyConstant);
 }
 
 bool NetworkHelper::isZeroConst(const std::shared_ptr<Node>& node) {
