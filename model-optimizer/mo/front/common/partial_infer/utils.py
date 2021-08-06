@@ -67,6 +67,7 @@ def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
         return shape_delete(shape, obj.tolist())
     elif isinstance(obj, list):
         result = shape.copy()
+        obj = [item if item >= 0 else len(shape) + item for item in obj]
         for index in sorted(obj, reverse=True):
             result = np.ma.concatenate((result[:index], result[index + 1:]))
         return result
@@ -87,7 +88,7 @@ def shape_insert(shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarra
     if isinstance(obj, int) or obj is dynamic_dimension_value:
         return shape_insert(shape, pos, [obj])
     elif isinstance(obj, (np.ndarray, list)):
-        return np.ma.concatenate((shape[:pos], obj, shape[pos:]))
+        return np.ma.concatenate((shape_array(shape[:pos]), shape_array(obj), shape_array(shape[pos:])))
     else:
         raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
 

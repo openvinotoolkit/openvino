@@ -98,6 +98,8 @@ class ShapeDeleteTest(unittest.TestCase):
                 (gen_masked_array([1, 2, 3, 4], [2]), 3, gen_masked_array([1, 2, 3], [2])),  # [1, 2, d, 4] -> [1, 2, d]
                 ([1, 2, 3, 4], [1], [1, 3, 4]),  # [1, 2, 3, 4] -> [1, 3, 4]. Input is a regular lists
                 (np.array([1, 2, 3, 4]), [1], [1, 3, 4]),  # [1, 2, 3, 4] -> [1, 3, 4]. Input is a regular arrays
+                (np.array([1, 2, 3, 4]), [-1, -3], [1, 3]),  # [1, 2, 3, 4] -> [1, 3]. Negative indices
+                (np.array([1, 2, 3, 4]), -2, [1, 2, 4]),  # [1, 2, 3, 4] -> [1, 2, 4]. Negative index
                 ])
     def test_shape_delete(self, shape, indices, result):
         self.assertTrue(np.ma.allequal(shape_delete(shape, indices), result))
