@@ -32,8 +32,6 @@
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
-namespace InferenceEngine {
-
 namespace {
 
 template <typename T>
@@ -42,7 +40,19 @@ struct Parsed {
     std::map<std::string, T> _config;
 };
 
-template <typename T = Parameter>
+std::string parseXmlConfig(const std::string& xmlFile) {
+    std::string xmlConfigFile_ = xmlFile;
+    if (xmlConfigFile_.empty()) {
+        // register plugins from default plugins.xml config
+        FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(),
+                                                                       FileUtils::toFilePath("plugins.xml"));
+        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
+    }
+    return xmlConfigFile_;
+}
+
+
+template <typename T = InferenceEngine::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
     auto config_ = config;
     auto deviceName_ = deviceName;
@@ -65,7 +75,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
         if (deviceName_.empty()) {
             deviceName_ = "AUTO";
         }
-        DeviceIDParser parser(deviceName_);
+        InferenceEngine::DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
         std::string deviceIDLocal = parser.getDeviceID();
 
@@ -76,7 +86,7 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
     return {deviceName_, config_};
 }
 
-Parameter copyParameterValue(const Parameter & value) {
+InferenceEngine::Parameter copyParameterValue(const InferenceEngine::Parameter & value) {
     if (value.is<bool>()) {
         return { value.as<bool>() };
     } else if (value.is<int>()) {
@@ -108,10 +118,13 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const NotImplemented&) { }
+    } catch (const InferenceEngine::NotImplemented&) { }
 }
 
 }  // namespace
+
+
+namespace InferenceEngine {
 
 DeviceIDParser::DeviceIDParser(const std::string& deviceNameWithID) {
     deviceName = deviceNameWithID;
@@ -873,14 +886,7 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = xmlConfigFile;
-    if (xmlConfigFile_.empty()) {
-        // register plugins from default plugins.xml config
-        FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(getInferenceEngineLibraryPath(), FileUtils::toFilePath("plugins.xml"));
-        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
-    }
-
-    RegisterPlugins(xmlConfigFile_);
+    RegisterPlugins(parseXmlConfig(xmlConfigFile));
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -1170,15 +1176,7 @@ class Core::Impl: public InferenceEngine::Core::Impl {};
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    std::string xmlConfigFile_ = xmlConfigFile;
-    if (xmlConfigFile_.empty()) {
-        // register plugins from default plugins.xml config
-        FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(),
-                                                                       FileUtils::toFilePath("plugins.xml"));
-        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
-    }
-
-    register_plugins(xmlConfigFile_);
+    register_plugins(parseXmlConfig(xmlConfigFile));
 }
 
 std::map<std::string, InferenceEngine::Version> Core::get_versions(const std::string& deviceName) const {
@@ -1211,22 +1209,45 @@ InferenceEngine::ExecutableNetwork Core::compile_model(const std::shared_ptr<con
 }
 
 void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
-    IE_THROW() << "Not implemented!";
+    _impl->AddExtension(extension);
 }
 
 InferenceEngine::ExecutableNetwork Core::import_model(const std::string& modelFileName,
                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
-    IE_THROW() << "Not implemented!";
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
+    return { exec, exec };
 }
 
 InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel,
                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
-    IE_THROW() << "Not implemented!";
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+    auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
+    return { exec, exec };
 }
 
 InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
                                                       const std::map<std::string, std::string>& config) {
-    IE_THROW() << "Not implemented!";
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+
+    using ExportMagic = std::array<char, 4>;
+    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
+
+    std::string deviceName;
+    ExportMagic magic = {};
+    auto currentPos = networkModel.tellg();
+    networkModel.read(magic.data(), magic.size());
+    if (exportMagic == magic) {
+        std::getline(networkModel, deviceName);
+    } else {
+        IE_THROW() << "Passed compiled stream does not contain device name. "
+            "Please, provide device name manually";
+    }
+    networkModel.seekg(currentPos, networkModel.beg);
+
+    auto exec = _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, {});
+    return { exec, exec };
 }
 
 InferenceEngine::QueryNetworkResult Core::query_model(const std::shared_ptr<const ngraph::Function>& network,
@@ -1276,7 +1297,8 @@ InferenceEngine::RemoteContext::Ptr Core::get_default_context(const std::string&
         IE_THROW() << "AUTO device does not support remote context";
     }
 
-    auto parsed = InferenceEngine::parseDeviceNameIntoConfig(deviceName, InferenceEngine::ParamMap());
+    auto parsed = parseDeviceNameIntoConfig(deviceName, InferenceEngine::ParamMap());
+
     return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
 }
 

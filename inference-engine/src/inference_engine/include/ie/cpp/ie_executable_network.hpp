@@ -23,6 +23,12 @@
 #include "details/ie_so_loader.h"
 #include "ie_iexecutable_network.hpp"
 
+namespace ov {
+namespace runtime {
+class Core;
+}  // namespace runtime
+}  // namespace ov
+
 namespace InferenceEngine {
 class IExecutableNetworkInternal;
 
@@ -41,6 +47,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
     ExecutableNetwork(const details::SharedObjectLoader&                   so,
                       const std::shared_ptr<IExecutableNetworkInternal>&   impl);
     friend class Core;
+    friend class ov::runtime::Core;
 
 public:
     /**
