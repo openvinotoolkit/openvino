@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins, shape_array
+from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.ops.op import Op
 
@@ -113,7 +113,7 @@ def rnn_infer(node: Node, out_ports=None):
             out_shape[-1] *= num_directions
         else:
             # ONNX-like, insert extra dimension to output shape for num_directions
-            out_shape.insert(1, np.int64(num_directions))
+            out_shape = shape_insert(out_shape, 1, np.int64(num_directions))
 
     # 0 output is required creating it if doesn't exist
     if 0 not in node.out_nodes():
@@ -131,7 +131,7 @@ def rnn_infer(node: Node, out_ports=None):
     # 3. Extra outputs for hidden/cell states shape calculations (optional)
     state_size = [input_shape[node.batch_dim], node.hidden_size]
     if node.has_num_directions:
-        state_size.insert(0, num_directions)
+        state_size = shape_insert(state_size, 0, num_directions)
 
     if node.multilayers:
         # For multilayer case state sizes from every layer will be concatenated by last axis

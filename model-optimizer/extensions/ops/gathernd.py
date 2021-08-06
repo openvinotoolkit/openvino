@@ -63,8 +63,7 @@ class GatherND(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input values are defined
-        if data_value is not None and indices_value is not None and is_fully_defined(indices_value) and \
-                is_fully_defined(data_value):
+        if is_fully_defined(indices_value) and is_fully_defined(data_value):
             output_value = np.zeros(output_shape, dtype=data_value.dtype)
             if batch_dims == 0:
                 output_indices_range = int64_array(indices_shape[:-1])

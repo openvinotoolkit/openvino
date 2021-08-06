@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compare_dimensions, compare_shapes, \
-    shape_array, is_fully_defined, shape_delete
+    shape_array, is_fully_defined, shape_delete, shape_insert
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -63,11 +63,10 @@ class MatMul(Op):
             if rank != 1 and ((i == 0 and transpose_a) or (i == 1 and transpose_b)):
                 input_shape[-2], input_shape[-1] = input_shape[-1], input_shape[-2]
             if rank == 1:
-                pos = int(i == 1)
-                input_shape = np.ma.concatenate([input_shape[:pos], [1], input_shape[pos:]])
+                input_shape = shape_insert(input_shape, int(i == 1), 1)
 
             max_shape_length = max(input_shapes[0].size, input_shapes[1].size)
-            input_shape = np.ma.concatenate([[1] * (max_shape_length - input_shape.size), input_shape])
+            input_shape = shape_insert(input_shape, 0, [1] * (max_shape_length - input_shape.size))
             transformed_shapes.append(input_shape)
 
         A_shape = shape_array(transformed_shapes[0])

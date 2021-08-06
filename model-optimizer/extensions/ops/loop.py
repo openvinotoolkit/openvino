@@ -136,7 +136,6 @@ class Loop(TensorIterator):
                                                            'output for Loop node "{}" for loop output port "{}"'.\
                         format(loop_name, loop_port_idx)
                     output_shape[concat_axis] = Loop.iterations_count(loop_node)
-                    print("calculated output shape for the loop port {}: {}".format(loop_port_idx, output_shape))
                 # MO does not support evaluation of Loop scan outputs with const values
                 if concat_axis is None and output_value is not None:
                     loop_node.out_port(loop_port_idx).data.set_value(output_value)
@@ -155,7 +154,7 @@ class Loop(TensorIterator):
 
         if loop_node.is_in_port_connected(1):
             execution_condition = loop_node.in_port(1).data.get_value()
-            if execution_condition is None or not is_fully_defined(execution_condition):  # dynamic execution condition
+            if not is_fully_defined(execution_condition):  # dynamic execution condition
                 return dynamic_dimension_value
             execution_condition = execution_condition.item()
             if not execution_condition:  # 0 iterations

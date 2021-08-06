@@ -113,6 +113,8 @@ class ShapeInsertTest(unittest.TestCase):
                 (gen_masked_array([1, 2, 3], [1]), 1, [5], gen_masked_array([1, 5, 2, 3], [2])),
                 (gen_masked_array([1, 2, 3], [1]), 1, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [1, 2])),
                 (gen_masked_array([1, 2, 3], [1]), 0, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [0, 1])),
+                (gen_masked_array([1, 2, 3], [1]), np.int64(0), [dynamic_dimension],
+                 gen_masked_array([1, 5, 2, 3], [0, 1])),
                 (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension], gen_masked_array([1, 2, 3, 5], [0, 3])),
                 (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension, dynamic_dimension],
                  gen_masked_array([1, 2, 3, 5, 6], [0, 3, 4])),
