@@ -4,6 +4,9 @@
 
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/op/util/broadcast_base.hpp>
 #include <ngraph/op/util/gather_base.hpp>
@@ -15,7 +18,7 @@
 using namespace ngraph;
 using namespace std;
 
-class InitNMSPath: public ngraph::pass::MatcherPass {
+class InitNMSPath: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -26,16 +29,16 @@ public:
                 opset3::NonMaxSuppression,
                 opset5::NonMaxSuppression>();
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        matcher_pass_callback callback = [=](pattern::Matcher &m) {
             const auto& out_nodes = m.get_match_root()->output(0).get_target_inputs();
             for (const auto& out_node : out_nodes) {
                 auto& out_rt_info = out_node.get_node()->get_rt_info();
-                out_rt_info["NMS_SELECTED_INDICES"] = std::make_shared<ngraph::VariantWrapper<string>>("");
+                out_rt_info["NMS_SELECTED_INDICES"] = make_shared<VariantWrapper<string>>("");
             }
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(nms_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(nms_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -43,7 +46,7 @@ public:
 NGRAPH_RTTI_DEFINITION(InitNMSPath, "InitNMSPath", 0);
 
 
-class PropagateNMSPath: public ngraph::pass::MatcherPass {
+class PropagateNMSPath: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -60,26 +63,26 @@ public:
                 opset8::Concat,
                 opset8::Convert>();
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        matcher_pass_callback callback = [=](pattern::Matcher &m) {
             auto node = m.get_match_root();
             const auto & inputs = node->input_values();
-            if (std::any_of(inputs.begin(), inputs.end(), [](const Output<Node> & output) {
+            if (any_of(inputs.begin(), inputs.end(), [](const Output<Node> & output) {
                 return output.get_node()->get_rt_info().count("NMS_SELECTED_INDICES");
             })) {
                 auto & rt_info = node->get_rt_info();
-                rt_info["NMS_SELECTED_INDICES"] = std::make_shared<ngraph::VariantWrapper<string>>("");
+                rt_info["NMS_SELECTED_INDICES"] = make_shared<VariantWrapper<string>>("");
             }
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(node_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
 
 NGRAPH_RTTI_DEFINITION(PropagateNMSPath, "PropagateNMSPath", 0);
 
-class UpdateConvertGather: public ngraph::pass::MatcherPass {
+class UpdateConvertGather: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -88,7 +91,7 @@ public:
 
         auto node_pattern = pattern::wrap_type<op::util::GatherBase>();
 
-        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        matcher_pass_callback callback = [=](pattern::Matcher &m) {
             auto gather = dynamic_pointer_cast<op::util::GatherBase>(m.get_match_root());
             if (!gather)
                 return false;
@@ -112,7 +115,7 @@ public:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(node_pattern, matcher_name);
+        auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
         register_matcher(m, callback);
     }
 };
@@ -127,4 +130,4 @@ pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
     add_matcher<UpdateConvertGather>();
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNmsGatherPathToUnsigned, "ConvertNmsGatherPathToUnsigned", 0);
+NGRAPH_RTTI_DEFINITION(pass::ConvertNmsGatherPathToUnsigned, "ConvertNmsGatherPathToUnsigned", 0);
