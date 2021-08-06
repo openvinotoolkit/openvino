@@ -13,7 +13,7 @@
 For each element from the input tensor calculates corresponding
  element in the output tensor with the following formula:
  \f[
- y = max(0, min(1, alpha * x + beta))
+ y = max(0, min(1, alpha \cdot x + beta))
  \f]
 
 **Inputs**

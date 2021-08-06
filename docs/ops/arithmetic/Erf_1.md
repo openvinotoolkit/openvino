@@ -11,7 +11,7 @@
 *Erf* performs element-wise erf operation on a given input tensor, based on the following mathematical formula:
 
 \f[
-erf(x) = \pi^{-1} \int_{-x}^{x} e^{-t^2} dt
+erf(x) = \pi^{-1} \displaystyle{\int_{-x}^{x} e^{-t^2} dt}
 \f]
 
 **Attributes**: *Erf* operation has no attributes.

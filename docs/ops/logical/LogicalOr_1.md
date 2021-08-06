@@ -37,7 +37,7 @@ Before performing logical operation, input tensors *a* and *b* are broadcasted i
 After broadcasting *LogicalOr* does the following with the input tensors *a* and *b*:
 
 \f[
-o_{i} = a_{i} or b_{i}
+o_{i} = a_{i} \lor b_{i}
 \f]
 
 **Examples**
