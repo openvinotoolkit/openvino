@@ -83,6 +83,10 @@ public:
     std::string getRuntimePrecision(const std::string& layerName);
     std::string getRuntimePrecisionByType(const std::string& layerType);
 
+#ifndef NDEBUG
+    void showRuntimePrecisions();
+#endif
+
     template<class T_IE, class T_NGRAPH>
     static void Compare(const T_NGRAPH *expected, const T_IE *actual, std::size_t size, float threshold) {
         for (std::size_t i = 0; i < size; ++i) {

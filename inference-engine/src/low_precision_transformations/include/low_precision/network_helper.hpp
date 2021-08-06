@@ -151,7 +151,7 @@ public:
 
     static bool isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<const Node>& node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
