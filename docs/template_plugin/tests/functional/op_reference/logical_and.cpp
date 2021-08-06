@@ -19,9 +19,6 @@ using LogicalTypes = ngraph::helpers::LogicalTypes;
 namespace reference_tests {
 namespace LogicalOpsRefTestDefinitions {
 namespace {
-TEST_P(ReferenceLogicalLayerTest, LogicalWithHardcodedRefs) {
-    Exec();
-}
 
 std::vector<RefLogicalParams> generateLogicalParams() {
     std::vector<RefLogicalParams> logicalParams {
@@ -43,8 +40,9 @@ std::vector<RefLogicalParams> generateLogicalParams() {
     return logicalParams;
 }
 
-}  // namespace
-INSTANTIATE_TEST_SUITE_P(smoke_LogicalOr_With_Hardcoded_Refs, ReferenceLogicalLayerTest, ::testing::ValuesIn(generateLogicalParams()),
+INSTANTIATE_TEST_SUITE_P(smoke_LogicalAnd_With_Hardcoded_Refs, ReferenceLogicalLayerTest, ::testing::ValuesIn(generateLogicalParams()),
                          ReferenceLogicalLayerTest::getTestCaseName);
+
+}  // namespace
 }  // namespace LogicalOpsRefTestDefinitions
 }  // namespace reference_tests
