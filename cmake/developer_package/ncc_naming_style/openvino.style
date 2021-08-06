@@ -10,21 +10,17 @@ NamespaceAlias: '^[a-z\d_]+$'
 UnionName: '[A-Z][\w]+$'
 TemplateTemplateParameter: '[A-Z][\w]+'
 NamespaceReference: '^[a-z\d_]+$'
+TemplateNonTypeParameter: '^[A-Z]+$'
+ClassTemplate: '^[A-Z][\w]+'
+TemplateTypeParameter: '^\w+$'
+ParameterName: '^[a-z_\d]+$'
+FunctionTemplate: '^[a-z_\d]+$'
+TypeAliasName: '^\w+$'
 
-# TODO: align
-EnumConstantName: '^.*$'
-EnumName: '^.*$'
-TypeAliasName: '^.*$'
-
-# TODO: try
-FunctionTemplate: '^.*$'
-ClassTemplate: '^.*$'
-TypedefName: '^.*$'
-ParameterName: '^.*$'
-TemplateNonTypeParameter: '^.*$'
-TemplateTypeParameter: '^.*$'
-
-# default values
+# not needed values
+EnumConstantName: ''
+EnumName: ''
+TypedefName: ''
 ClassTemplatePartialSpecialization: ''
 ConversionFunction: ''
 UsingDirective: ''
