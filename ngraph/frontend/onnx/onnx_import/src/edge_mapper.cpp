@@ -270,7 +270,7 @@ bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) co
     return false;
 }
 
-std::string onnx_editor::EdgeMapper::get_input_port_name(const InputEdge& edge) const
+std::string onnx_editor::EdgeMapper::get_source_tensor_name(const InputEdge& edge) const
 {
     if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_inputs.size()) &&
         edge.m_port_idx >= 0 &&
@@ -281,7 +281,7 @@ std::string onnx_editor::EdgeMapper::get_input_port_name(const InputEdge& edge) 
     return "";
 }
 
-std::string onnx_editor::EdgeMapper::get_output_port_name(const OutputEdge& edge) const
+std::string onnx_editor::EdgeMapper::get_target_tensor_name(const OutputEdge& edge) const
 {
     if (edge.m_node_idx >= 0 && edge.m_node_idx < static_cast<int>(m_node_outputs.size()) &&
         edge.m_port_idx >= 0 &&
