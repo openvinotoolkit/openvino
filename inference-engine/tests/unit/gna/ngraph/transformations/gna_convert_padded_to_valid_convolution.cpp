@@ -6,7 +6,7 @@
 
 #include <tuple>
 
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
@@ -39,12 +39,12 @@ typedef std::tuple<
     ngraph::Strides,        // Max Pool stride
     ngraph::Shape,          // Max Pool shape
     ngraph::op::PadType     // Padding type
-> padded2ValidConvParams;
+> paddedToValidConvParams;
 
 typedef std::tuple<
     bool,                   // With / without Fake Quantize layers
-    padded2ValidConvParams      // Test parameters
-> fqPadded2ValidConvParams;
+    paddedToValidConvParams      // Test parameters
+> fqPaddedToValidConvParams;
 
 struct ConvData {
     size_t input_height;
@@ -193,17 +193,17 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPadded2ValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
-    public ::testing::WithParamInterface<fqPadded2ValidConvParams> {
+class ConvertPaddedToValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+    public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
 };
 
-void ConvertPadded2ValidConvTestInvalidFixture::SetUp() {
+void ConvertPaddedToValidConvTestInvalidFixture::SetUp() {
     bool fq;
-    padded2ValidConvParams params;
+    paddedToValidConvParams params;
     modelType model;
     ngraph::PartialShape input_shape;
     ngraph::Shape filters_shape, bias_shape, maxpool_shape;
@@ -223,8 +223,8 @@ void ConvertPadded2ValidConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class ConvertPadded2ValidConvTestFixture: public CommonTestUtils::TestsCommon,
-    public ::testing::WithParamInterface<fqPadded2ValidConvParams> {
+class ConvertPaddedToValidConvTestFixture: public CommonTestUtils::TestsCommon,
+    public ::testing::WithParamInterface<fqPaddedToValidConvParams> {
 public:
     void SetUp() override;
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
@@ -244,9 +244,9 @@ public:
     std::shared_ptr<ngraph::Function> function, reference_function;
 };
 
-void ConvertPadded2ValidConvTestFixture::SetUp() {
+void ConvertPaddedToValidConvTestFixture::SetUp() {
     bool fq;
-    padded2ValidConvParams params;
+    paddedToValidConvParams params;
     modelType model;
     ngraph::PartialShape input_shape;
     ngraph::Shape filters_shape, bias_shape, maxpool_shape;
@@ -354,7 +354,7 @@ std::shared_ptr<ngraph::Node> CreatePaddedNet(const ngraph::Output<ngraph::Node>
     return padded_input_plane;
 }
 
-std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_reference(const bool& fq,
+std::shared_ptr<ngraph::Function> ConvertPaddedToValidConvTestFixture::get_reference(const bool& fq,
     const modelType& model,
     const ngraph::PartialShape& input_shape,
     const ngraph::Shape& filters_shape,
@@ -406,18 +406,18 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
 void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<GNAPluginNS::ConvertPadded2ValidConv>();
+    manager.register_pass<GNAPluginNS::ConvertPaddedToValidConv>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
 
-TEST_P(ConvertPadded2ValidConvTestFixture, CompareFunctions) {
+TEST_P(ConvertPaddedToValidConvTestFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidConvTestFixture,
+INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvTestSuite, ConvertPaddedToValidConvTestFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),
@@ -444,11 +444,11 @@ INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidCo
                 ngraph::CoordinateDiff{0, 2}, ngraph::CoordinateDiff{0, 3}, ngraph::Strides{1, 1},
                 ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT))));
 
-TEST_P(ConvertPadded2ValidConvTestInvalidFixture, CompareFunctions) {
+TEST_P(ConvertPaddedToValidConvTestInvalidFixture, CompareFunctions) {
     execute_test(function, reference_function);
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvInvalidTestSuite, ConvertPadded2ValidConvTestInvalidFixture,
+INSTANTIATE_TEST_SUITE_P(ConvertPaddedToValidConvInvalidTestSuite, ConvertPaddedToValidConvTestInvalidFixture,
     ::testing::Combine(
         // With / without Fake Quantize layers
         ::testing::Values(true, false),

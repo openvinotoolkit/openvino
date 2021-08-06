@@ -61,4 +61,21 @@ bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose,
  * @return pointer to the newly created slice
  */
 std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::Node> input, size_t offset, size_t size);
+
+/**
+ * @brief checks whether an add present after convolution is a bias and gets its const input
+ * @param conv convolution layer preceding potential bias
+ * @param bias potential bias layer passed from ngraph matcher
+ * @return bias const if the add layer present after convolution is a bias, nullptr otherwise
+ */
+std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias);
+
+/**
+ * @brief inserts a new fake quantize layer (if it exists) copied from an existing fake quantize layer and conncts it to the output of a given layer
+ * @param fq_layer existing fake quantize layer to be copied
+ * @param last_node the node to which output the new fake quantize layer will be connected
+ * @return new fake quantize layer or the last node
+ */
+std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer, std::shared_ptr<ngraph::Node> last_node);
+
 } // namespace GNAPluginNS

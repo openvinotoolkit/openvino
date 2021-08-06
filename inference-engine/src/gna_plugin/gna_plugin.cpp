@@ -64,8 +64,9 @@
 #include "transformations/convert_matmul_to_pointwise_convolution.hpp"
 #include "transformations/split_convolution_with_large_buffer_size.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
-#include "transformations/decompose_2d_conv.hpp"
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/decompose_2d_convolution.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
+#include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -721,7 +722,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
-        manager.register_pass<ConvertPadded2ValidConv>();
+        manager.register_pass<ConvertDWSCBiasToScaleShifts>();
+        manager.register_pass<ConvertDWSCToScaleShifts>();
+        manager.register_pass<ConvertDWSCWithFqToScaleShifts>();
+        manager.register_pass<ConvertPaddedToValidConv>();
         if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
             manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
             manager.register_pass<Decompose2DConvTransposedWithBias>();
@@ -748,7 +752,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
         const auto& pass_config = manager.get_pass_config();
         pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
                 [](const std::shared_ptr<const ngraph::Node> &node) -> bool {

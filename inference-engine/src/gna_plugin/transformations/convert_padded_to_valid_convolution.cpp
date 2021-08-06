@@ -4,7 +4,7 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 
-#include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/convert_padded_to_valid_convolution.hpp"
 
 #include <memory>
 
@@ -19,7 +19,7 @@
 
 using namespace GNAPluginNS;
 
-NGRAPH_RTTI_DEFINITION(ConvertPadded2ValidConv, "ConvertPadded2ValidConv", 0);
+NGRAPH_RTTI_DEFINITION(ConvertPaddedToValidConv, "ConvertPaddedToValidConv", 0);
 
 static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data) {
     const auto& input = conv->input_value(0);
@@ -32,17 +32,6 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
     GetConvData(conv, conv_data);
 
     return conv_data.pads_begin_height || conv_data.pads_end_height || conv_data.pads_begin_width || conv_data.pads_end_width;
-}
-
-static bool VerifyBias(std::shared_ptr<ngraph::opset7::Add> bias, const size_t& filter_count) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(0).get_node_shared_ptr());
-
-    // We need to check both inputs of Add when looking for constant
-    if (!add_const)
-        add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
-
-    // The add may be a normal add not convolution bias, then we just go further
-    return (add_const && shape_size(add_const->get_shape()) == filter_count);
 }
 
 static void InsertPadding(ngraph::OutputVector& input_rows_to_concat, size_t size, const std::shared_ptr<ngraph::opset7::Convolution>& conv,
@@ -181,9 +170,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> leading_transpose,
     if (!TransposeOrderMatches(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(trailing_transpose), {0, 2, 3, 1}))
         return false;
 
-    if (bias && !VerifyBias(std::dynamic_pointer_cast<ngraph::opset7::Add>(bias), conv_data.filter_count))
-        return false;
-
     GeneratePadding(std::dynamic_pointer_cast<ngraph::opset7::Transpose>(leading_transpose),
         std::dynamic_pointer_cast<ngraph::opset7::Convolution>(conv), conv_data);
 
@@ -196,8 +182,8 @@ static std::function<bool(ngraph::Output<ngraph::Node>)> consumers_and_rank(cons
     };
 }
 
-ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
-    MATCHER_SCOPE(ConvertPadded2ValidConv);
+ConvertPaddedToValidConv::ConvertPaddedToValidConv() {
+    MATCHER_SCOPE(ConvertPaddedToValidConv);
 
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
     auto leading_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({ngraph::pattern::any_input(), const_input},
@@ -236,6 +222,9 @@ ConvertPadded2ValidConv::ConvertPadded2ValidConv() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto bias_it = pattern_map.find(bias);
         auto bias_node = (bias_it == std::end(pattern_map) ? nullptr : bias_it->second.get_node_shared_ptr());
+
+        if (bias_node && !VerifyBiasGetConst(pattern_map.at(conv).get_node_shared_ptr(), bias_node))
+            return false;
 
         return Convert(pattern_map.at(leading_transpose).get_node_shared_ptr(), pattern_map.at(conv).get_node_shared_ptr(),
             pattern_map.at(trailing_transpose).get_node_shared_ptr(), bias_node);

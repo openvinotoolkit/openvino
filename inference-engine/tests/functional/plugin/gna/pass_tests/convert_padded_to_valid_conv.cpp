@@ -57,12 +57,12 @@ typedef std::tuple<
     std::map<std::string, std::string>, // Configuration
     InferenceEngine::SizeVector,        // Input shapes
     modelType                           // Test model
-> padded2ValidParams;
+> paddedToValidParams;
 
-class Padded2ValidConvTest : public testing::WithParamInterface<padded2ValidParams>,
+class PaddedToValidConvTest : public testing::WithParamInterface<paddedToValidParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<padded2ValidParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<paddedToValidParams> obj) {
         convSpecificParams convParams;
         miscSpecificParams miscParams;
         InferenceEngine::Precision netPrecision;
@@ -195,26 +195,26 @@ protected:
     }
 };
 
-class Gna30Padded2ValidConvTest : public Padded2ValidConvTest, GnaLayerTestCheck {
+class Gna30PaddedToValidConvTest : public PaddedToValidConvTest, GnaLayerTestCheck {
 protected:
     void Run() override {
         GnaLayerTestCheck::SkipTestCheck();
 
         if (!GnaLayerTestCheck::skipTest) {
-            Padded2ValidConvTest::Run();
+            PaddedToValidConvTest::Run();
         }
     }
 
     void SetUp() override {
-        Padded2ValidConvTest::SetUp();
+        PaddedToValidConvTest::SetUp();
     }
 };
 
-TEST_P(Padded2ValidConvTest, CompareWithRefs) {
+TEST_P(PaddedToValidConvTest, CompareWithRefs) {
     Run();
 }
 
-TEST_P(Gna30Padded2ValidConvTest, CompareWithRefs) {
+TEST_P(Gna30PaddedToValidConvTest, CompareWithRefs) {
     Run();
 }
 
@@ -322,7 +322,7 @@ const auto misc2DParams = ::testing::Combine(
     ::testing::ValuesIn(maxpool2DStrides)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Padded2ValidConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, PaddedToValidConvTest,
     ::testing::Combine(
         conv1DParams,
         misc1DParams,
@@ -331,9 +331,9 @@ INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Padded2ValidConvTest,
         ::testing::ValuesIn(configs1D),
         ::testing::ValuesIn(input1DNHWC),
         ::testing::ValuesIn(models)),
-    Padded2ValidConvTest::getTestCaseName);
+    PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Gna30Padded2ValidConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_1DPaddedToValid, Gna30PaddedToValidConvTest,
     ::testing::Combine(
         conv1DParams,
         misc1DParams,
@@ -342,9 +342,9 @@ INSTANTIATE_TEST_CASE_P(smoke_1DPadded2Valid, Gna30Padded2ValidConvTest,
         ::testing::ValuesIn(configs1D_Gna30),
         ::testing::ValuesIn(input1DNHWC),
         ::testing::ValuesIn(models)),
-    Gna30Padded2ValidConvTest::getTestCaseName);
+    Gna30PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_2DPadded2Valid, Gna30Padded2ValidConvTest,
+INSTANTIATE_TEST_CASE_P(smoke_2DPaddedToValid, Gna30PaddedToValidConvTest,
     ::testing::Combine(
         conv2DParams,
         misc2DParams,
@@ -353,6 +353,6 @@ INSTANTIATE_TEST_CASE_P(smoke_2DPadded2Valid, Gna30Padded2ValidConvTest,
         ::testing::ValuesIn(configs2D),
         ::testing::ValuesIn(input2DNHWC),
         ::testing::ValuesIn(models)),
-    Gna30Padded2ValidConvTest::getTestCaseName);
+    Gna30PaddedToValidConvTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions

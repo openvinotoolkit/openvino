@@ -28,10 +28,10 @@ namespace GNAPluginNS {
  *   Transpose (NCHW -> NHWC)               Transpose (NCHW -> NHWC)
  *
  */
-class ConvertPadded2ValidConv : public ngraph::pass::MatcherPass {
+class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
 public:
   NGRAPH_RTTI_DECLARATION;
-  ConvertPadded2ValidConv();
+  ConvertPaddedToValidConv();
 };
 
 } // namespace GNAPluginNS
