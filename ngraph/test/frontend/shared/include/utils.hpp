@@ -4,13 +4,32 @@
 
 #pragma once
 
+#include <frontend_manager/frontend_manager.hpp>
+#include <fstream>
 #include <string>
 #include "backend.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
 
 // Helper functions
 namespace FrontEndTestUtils
 {
+    int run_tests(int argc, char** argv);
+
+    std::string get_current_executable_path();
+
+    inline std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>
+        load_from_file(ngraph::frontend::FrontEndManager& fem,
+                       const std::string& frontend_name,
+                       const std::string& model_file)
+    {
+        auto frontend = fem.load_by_framework(frontend_name);
+        auto inputModel = frontend->load(model_file);
+        return std::tuple<ngraph::frontend::FrontEnd::Ptr, ngraph::frontend::InputModel::Ptr>{
+            frontend, inputModel};
+    }
+
     inline std::string fileToTestName(const std::string& fileName)
     {
         // TODO: GCC 4.8 has limited support of regex
@@ -45,5 +64,16 @@ namespace FrontEndTestUtils
         std::string fePath = ngraph::file_util::get_directory(
             ngraph::runtime::Backend::get_backend_shared_library_search_directory());
         set_test_env("OV_FRONTEND_PATH", fePath.c_str());
+    }
+
+    inline bool exists(const std::string& file)
+    {
+        std::ifstream str(file, std::ios::in | std::ifstream::binary);
+        return str.is_open();
+    }
+
+    inline std::string make_model_path(const std::string& modelsRelativePath)
+    {
+        return CommonTestUtils::getModelFromTestModelZoo(modelsRelativePath);
     }
 } // namespace FrontEndTestUtils

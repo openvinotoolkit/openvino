@@ -29,6 +29,12 @@ if (ENABLE_GNA)
     list(APPEND TEST_SRC ${GNA_TESTS})
     list(APPEND TEST_DEPS GNAPlugin_test_static)
 
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/gna/graph_tools/graph_copy_tests.cpp
+                                    engines/gna/graph_tools/graph_tools_test.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
+
     # TODO: fix GNA tests
     if(OFF)
         set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
@@ -54,6 +60,15 @@ endif()
 
 if (ENABLE_MYRIAD)
     include(${XLINK_DIR}/XLink.cmake)
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_source_files_properties(engines/vpu/myriad_tests/helpers/myriad_test_case.cpp
+                                    engines/vpu/mvnc/watchdog_tests.cpp
+                                    engines/vpu/sw_conv_adaptation.cpp
+                                    engines/vpu/myriad_tests/myriad_engine_tests.cpp
+                                    engines/vpu/myriad_tests/myriad_metrics_tests.cpp
+                                    PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+    endif()
 
     file(GLOB
             VPU_TESTS

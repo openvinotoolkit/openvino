@@ -3279,7 +3279,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto build_ops = build_options();
         build_ops.set_option(build_option::outputs({"eltwise"}));
 
-        auto net = network(engine, topo, build_ops);
+        cldnn::network net(engine, topo, build_ops);
         net.set_input_data("input1", input);
         net.set_input_data("input2", input);
 
@@ -3870,7 +3870,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         build_ops.set_option(build_option::outputs({"eltwise"}));
         build_ops.set_option(build_option::force_implementations({ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
 
-        auto net = network(engine, topo, build_ops);
+        cldnn::network net(engine, topo, build_ops);
         net.set_input_data("input1", input1);
         net.set_input_data("input2", input2);
 
@@ -3886,7 +3886,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto buildops_opt = build_options();
         buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
 
-        auto net_opt = network(engine, topo_opt, buildops_opt);
+        cldnn::network net_opt(engine, topo_opt, buildops_opt);
         net_opt.set_input_data("input1", input1);
         net_opt.set_input_data("input2", input2);
 

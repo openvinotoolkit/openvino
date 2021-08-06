@@ -46,7 +46,7 @@
 * *min_size (max_size)*
 
   * **Description**: *min_size (max_size)* is the minimum (maximum) box size (in pixels).
-  * **Range of values**: positive floating point numbers
+  * **Range of values**: positive floating-point numbers
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
@@ -82,7 +82,7 @@
 * *step*
 
   * **Description**: *step* is a distance between box centers.
-  * **Range of values**: floating point non-negative number
+  * **Range of values**: floating-point non-negative number
   * **Type**: `float`
   * **Default value**: 0
   * **Required**: *no*
@@ -90,14 +90,14 @@
 * *offset*
 
   * **Description**: *offset* is a shift of box respectively to top left corner.
-  * **Range of values**: floating point non-negative number
+  * **Range of values**: floating-point non-negative number
   * **Type**: `float`
   * **Required**: *yes*
 
 * *variance*
 
   * **Description**: *variance* denotes a variance of adjusting bounding boxes. The attribute could contain 0, 1 or 4 elements.
-  * **Range of values**: floating point positive numbers
+  * **Range of values**: floating-point positive numbers
   * **Type**: `float[]`
   * **Default value**: []
   * **Required**: *no*
@@ -149,7 +149,7 @@
 **Types**
 
 * *T_INT*: any supported integer type.
-* *T_OUT*: supported floating point type.
+* *T_OUT*: supported floating-point type.
 
 **Example**
 

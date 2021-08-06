@@ -21,7 +21,7 @@
 
 using namespace cldnn;
 
-void compile_graph::run(program_impl& p) {
+void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
     size_t order_idx = 0;
     for (auto& node : p.get_processing_order()) {
@@ -42,7 +42,7 @@ void compile_graph::run(program_impl& p) {
                 auto& node = *(std::next(proc_order.begin(), i));
                 node->set_unique_id(std::to_string(i));
                 if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-                    node->selected_impl = node->type()->choose_impl(p.get_engine(), *node);
+                    node->selected_impl = node->type()->choose_impl(*node);
                 }
             }
         });
@@ -51,7 +51,7 @@ void compile_graph::run(program_impl& p) {
 #else
     for (auto& node : p.get_processing_order()) {
         if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
-            node->selected_impl = node->type()->choose_impl(p.get_engine(), *node);
+            node->selected_impl = node->type()->choose_impl(*node);
         }
     }
 #endif

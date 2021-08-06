@@ -1438,7 +1438,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
         cldnn::reorder("out", "actv", cldnn::format::bfyx, cldnn::data_types::f32)
     );
 
-    auto net = cldnn::network(eng, topo);
+    cldnn::network net(eng, topo);
     set_values(in_mem, flatten_4d(format::bfyx, in_data));
     net.set_input_data("in", in_mem);
 
