@@ -40,13 +40,12 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto operation = fq->get_input_node_shared_ptr(0);
 
     // TODO: temporary to enable other transformations <= update matcher instead this validation
-    if (!is_type<opset1::Relu>(operation) && !is_type<opset1::Concat>(operation)) {
+    /*if (!is_type<opset1::Relu>(operation) && !is_type<opset1::Concat>(operation)) {
         return false;
-    }
+    }*/
 
-    auto type = operation->get_type_name();
     std::shared_ptr<ngraph::Node> concat, fq1input, fq2input;
-    if (strcmp(type, "Concat") == 0) {
+    if (is_type<opset1::Concat>(operation)) {
         concat = operation;
         fq1input = operation->get_input_node_shared_ptr(0);
         fq2input = operation->get_input_node_shared_ptr(1);
@@ -54,9 +53,12 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         concat = operation->get_input_node_shared_ptr(0);
         auto input1 = concat->get_input_node_shared_ptr(0);
         auto input2 = concat->get_input_node_shared_ptr(1);
-        if (strcmp(type, "Relu") == 0) {
+        if (is_type<opset1::Relu>(operation)) {
             fq1input = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
             fq2input = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
+        }
+        else {
+            return false;
         }
     }
 
@@ -76,7 +78,6 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     auto new_concat = concat->clone_with_new_inputs({ fq1->output(0), fq2->output(0) });
 
     replace_node(concat, new_concat);
-    //NetworkHelper::copyInfo(new_concat, fq);
     replace_node(fq, new_concat);
     updateOutput(context, new_concat, fq);
     return true;
