@@ -1251,6 +1251,18 @@ NGRAPH_TEST(onnx_editor, editor_api_find_output_consumers_empty_result)
     EXPECT_EQ(output_consumers.size(), 0);
 }
 
+NGRAPH_TEST(onnx_editor, editor_api_inputs_with_the_same_name)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/add_ab.onnx")};
+
+    std::vector<InputEdge> output_consumers = editor.find_output_consumers("X");
+    EXPECT_EQ(output_consumers[0].m_node_idx, 1);
+    EXPECT_EQ(output_consumers[0].m_port_idx, 0);
+    EXPECT_EQ(output_consumers[1].m_node_idx, 1);
+    EXPECT_EQ(output_consumers[1].m_port_idx, 1);
+}
+
 NGRAPH_TEST(onnx_editor, editor_api_is_correct_and_unambiguous_node)
 {
     ONNXModelEditor editor{file_util::path_join(
@@ -1504,7 +1516,7 @@ NGRAPH_TEST(onnx_editor, get_target_tensor_name)
 
     EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{0, 0}), "relu1");
     EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{1, 0}), "add1");
-    EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{4, 1}), "mul2");
+    EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{4, 0}), "mul2");
     const auto edge1 = editor.find_output_edge("split1");
     EXPECT_EQ(editor.get_target_tensor_name(edge1), "split1");
     EXPECT_EQ(editor.get_target_tensor_name(OutputEdge{999, 999}), "");
