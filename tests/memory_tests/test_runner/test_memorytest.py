@@ -18,9 +18,17 @@ from pathlib import Path
 import logging
 import os
 import shutil
+import sys
 
-from scripts.run_test import run_test
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
+sys.path.insert(0, str(UTILS_DIR))
+
 from path_utils import expand_env_vars
+
+MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(MEMORY_TESTS_DIR)
+
+from scripts.run_memorytest import run_memorytest
 from test_runner.comparators import MetricsComparator
 
 
@@ -55,20 +63,20 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, v
         "niter": niter
     }
     logging.info("Run test once to generate any cache")
-    retcode, msg, _, _ = run_test({**exe_args, "niter": 1}, log=logging)
+    retcode, msg, _, _ = run_memorytest({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"
     if cl_cache_dir:
         assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
     if model_cache_dir:
         assert os.listdir(model_cache_dir), "model_cache isn't generated"
 
-    retcode, msg, aggr_stats, raw_stats = run_test(exe_args, log=logging)
+    retcode, msg, aggr_stats, raw_stats = run_memorytest(exe_args, log=logging)
     assert retcode == 0, f"Run of executable failed: {msg}"
 
     # Add test results to submit to database and save in new test conf as references
     instance["results"] = aggr_stats
     instance["raw_results"] = raw_stats
-    # TODO: add --strict_compare key to compare for memory and not compare for time
+
     # Compare with references
     metrics_comparator = MetricsComparator(aggr_stats)
     metrics_comparator.compare_with(instance["references"])

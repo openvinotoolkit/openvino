@@ -67,13 +67,14 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
     def timeline_key(item):
         """ Defines order for timeline report entries
         """
-        if len(item['results']['vmhwm']) <= 1:
-            return 1
-        order = item['results']['vmhwm'][-1] - item['results']['vmhwm'][-2] + \
-            item['results']['vmrss'][-1] - item['results']['vmrss'][-2]
-        if not item['status']:
-            # ensure failed cases are always on top
-            order += sys.maxsize/2
+        for step_name, _ in item['results'].items():
+            if len(item['results'][step_name]['vmhwm']) <= 1:
+                return 1
+            order = item['results'][step_name]['vmhwm'][-1] - item['results'][step_name]['vmhwm'][-2] + \
+                item['results'][step_name]['vmrss'][-1] - item['results'][step_name]['vmrss'][-2]
+            if not item['status']:
+                # ensure failed cases are always on top
+                order += sys.maxsize/2
         return order
 
     client = MongoClient(db_url)
@@ -97,8 +98,10 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
             pass  # keep only the record if timeline failed to generate
         items += [record]
         timeline = _transpose_dicts(items, template=record)
-        timeline['status'] = bool(timeline['results']['vmrss'][-1] < timeline['ref_results']['vmrss'][-1] and
-                                  timeline['results']['vmhwm'][-1] < timeline['ref_results']['vmhwm'][-1])
+        for step_name, _ in timeline['results'].items():
+            timeline['status'] = bool(
+                timeline['results'][step_name]['vmrss'][-1] < timeline['ref_results'][step_name]['vmrss'][-1] and
+                timeline['results'][step_name]['vmhwm'][-1] < timeline['ref_results'][step_name]['vmhwm'][-1])
         result += [timeline]
 
     result.sort(key=timeline_key, reverse=True)

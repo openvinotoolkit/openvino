@@ -29,13 +29,17 @@ from copy import deepcopy
 from pathlib import Path
 from jsonschema import validate, ValidationError
 
-UTILS_DIR = Path(__file__).parent.parent
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
 from plugins.conftest import *
-from scripts.run_test import check_positive_int
-from test_runner.utils import upload_data, metadata_from_manifest, query_timeline, DATABASES, DB_COLLECTIONS
+from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
+
+MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
+sys.path.append(MEMORY_TESTS_DIR)
+
+from test_runner.utils import upload_data, metadata_from_manifest, query_memory_timeline, DATABASES, DB_COLLECTIONS
 
 
 # -------------------- CLI options --------------------
@@ -69,12 +73,6 @@ def pytest_addoption(parser):
         type=Path,
         help="path to dump test config with references updated with statistics collected while run",
     )
-    helpers_args_parser.addoption(
-        '--timeline_report',
-        type=Path,
-        # TODO:
-        help='path to build manifest to extract commit information'
-    )
     db_args_parser = parser.getgroup("test database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -90,6 +88,12 @@ def pytest_addoption(parser):
         type=str,
         required=is_db_used,
         help='MongoDB URL in a form "mongodb://server:port"'
+    )
+    db_args_parser.addoption(
+        '--timeline_report',
+        type=Path,
+        required=is_db_used,
+        help='path to build manifest to extract commit information'
     )
     db_args_parser.addoption(
         '--db_name',
@@ -346,7 +350,7 @@ def manifest_metadata(request):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collection, args.timeline_report
+def prepare_timeline_report(pytestconfig):  # records, args.db_url, args.db_collection, args.timeline_report
     """ Create memcheck timeline HTML report for records.
     """
     yield
@@ -359,8 +363,11 @@ def prepare_timeline_report(pytestconfig): #records, args.db_url, args.db_collec
         records = [rec["db"] for rec in pytestconfig.session_info]
         records.sort(
             key=lambda item: f"{item['status']}{item['device']['name']}{item['model']['name']}{item['test_name']}")
-        timelines = query_timeline(records, db_url, db_name, db_collection)
+
+        timelines = query_memory_timeline(records, db_url, db_name, db_collection)
+
         import jinja2  # pylint: disable=import-outside-toplevel
+
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
                 searchpath=Path().absolute() / 'memcheck-template'),
@@ -447,6 +454,7 @@ def pytest_runtest_makereport(item, call):
             else:
                 instance["db"]["status"] = "passed"
         instance["db"]["results"] = instance["results"]
+        instance["db"]["raw_results"] = instance["raw_results"]
         logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, db_name, db_collection, instance["db"]))
         # TODO: upload to new DB (memcheck -> memory_tests)
         # upload_data(data, db_url, db_name, db_collection)

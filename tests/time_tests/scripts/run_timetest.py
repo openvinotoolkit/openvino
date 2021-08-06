@@ -26,7 +26,7 @@ sys.path.append(TIME_TESTS_DIR)
 
 from test_runner.utils import filter_timetest_result
 
-UTILS_DIR = Path(__file__).parent.parent
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
 from proc_utils import cmd_exec

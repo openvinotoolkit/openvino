@@ -22,7 +22,7 @@ from pprint import pprint
 
 import yaml
 
-UTILS_DIR = Path(__file__).parent.parent
+UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
 
 from proc_utils import cmd_exec
@@ -139,7 +139,8 @@ if __name__ == "__main__":
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
-    exit_code, _, aggr_stats, _ = run_memorytest(dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+    exit_code, _, aggr_stats, _ = run_memorytest(dict(args._get_kwargs()),
+                                                 log=logging)  # pylint: disable=protected-access
 
     if args.stats_path:
         # Save aggregated results to a file

@@ -24,7 +24,6 @@ import shutil
 import sys
 import pytest
 import yaml
-from copy import deepcopy
 
 from pathlib import Path
 from jsonschema import validate, ValidationError
@@ -349,15 +348,7 @@ def pytest_generate_tests(metafunc):
     with open(metafunc.config.getoption('test_conf'), "r") as file:
         test_cases = yaml.safe_load(file)
     if test_cases:
-        test_cases = [{
-            "instance": case,
-            "orig_instance": deepcopy(case),
-            "results": {}
-        } for case in test_cases]
         metafunc.parametrize("instance", test_cases)
-        setattr(metafunc.config, "session_info", test_cases)
-    # if test_cases:
-    #     metafunc.parametrize("instance", test_cases)
 
 
 def pytest_make_parametrize_id(config, val, argname):
