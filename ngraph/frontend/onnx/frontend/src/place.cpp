@@ -41,6 +41,17 @@ bool PlaceInputEdgeONNX::is_equal(Place::Ptr another) const
     return false;
 }
 
+bool PlaceInputEdgeONNX::is_equal_data(Place::Ptr another) const
+{
+    return get_source_tensor()->is_equal_data(another);
+}
+
+Place::Ptr PlaceInputEdgeONNX::get_source_tensor() const
+{
+    const auto tensor_name = m_editor->get_source_tensor_name(m_edge);
+    return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+}
+
 PlaceOutputEdgeONNX::PlaceOutputEdgeONNX(const onnx_editor::OutputEdge& edge,
                                          std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_edge{edge}
@@ -72,6 +83,17 @@ bool PlaceOutputEdgeONNX::is_equal(Place::Ptr another) const
                (editor_edge.m_port_idx == m_edge.m_port_idx);
     }
     return false;
+}
+
+bool PlaceOutputEdgeONNX::is_equal_data(Place::Ptr another) const
+{
+    return get_target_tensor()->is_equal_data(another);
+}
+
+Place::Ptr PlaceOutputEdgeONNX::get_target_tensor() const
+{
+    const auto tensor_name = m_editor->get_target_tensor_name(m_edge);
+    return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
 }
 
 PlaceTensorONNX::PlaceTensorONNX(const std::string& name,
@@ -131,4 +153,14 @@ bool PlaceTensorONNX::is_equal(Place::Ptr another) const
         return m_name == tensor->get_names().at(0);
     }
     return false;
+}
+
+bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const
+{
+    const auto consuming_ports = get_consuming_ports();
+    bool eq_to_consuming_port =
+        std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
+            return place->is_equal(another);
+        });
+    return is_equal(another) || get_producing_port()->is_equal(another) || eq_to_consuming_port;
 }
