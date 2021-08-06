@@ -46,8 +46,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         if (operation == "relu") {
             auto relu1 = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
             parent1 = makeFakeQuantize(relu1, inputPrecision, fqOnData1);
-        }
-        else {
+        } else {
             parent1 = makeFakeQuantize(input1, inputPrecision, fqOnData1);
         }
         parent1->set_friendly_name("fakeQuantizeAfter1");
@@ -62,8 +61,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         if (operation == "relu") {
             auto relu2 = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
             parent2 = makeFakeQuantize(relu2, inputPrecision, fqOnData2);
-        }
-        else {
+        } else {
             parent2 = makeFakeQuantize(input1, inputPrecision, fqOnData2);
         }
         parent2->set_friendly_name("fakeQuantizeAfter2");
@@ -84,8 +82,7 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         if (operation == "relu") {
             auto relu = std::make_shared<ngraph::opset1::Relu>(concat->output(0));
             fq = makeFakeQuantize(relu, inputPrecision, fqOnData3);
-        }
-        else {
+        } else {
             fq = makeFakeQuantize(concat, inputPrecision, fqOnData3);
         }
         fq->set_friendly_name("fakeQuantizeBefore");
