@@ -28,6 +28,7 @@ const std::vector<InferenceEngine::Precision> intPrecisions = {
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sigmoid,               {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
         {Relu,                  {}},
         {Exp,                   {}},
@@ -59,7 +60,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
         {RoundHalfAwayFromZero, {}},
-        {Erf,                   {}},
         {GeluErf,               {}},
         {GeluTanh,              {}},
         {Swish,                 {{0.4f}}}
@@ -73,9 +73,11 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> intActivationTy
         {Negative,              {}},
         {Ceiling,               {}},
         {Cos,                   {}},
+        {Cosh,                  {}},
         {Sign,                  {}},
         {Sinh,                  {}},
         {Sqrt,                  {}},
+        {Tan,                   {}},
         {Tanh,                  {}},
 };
 

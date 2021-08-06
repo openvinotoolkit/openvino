@@ -3,7 +3,6 @@
 //
 
 #include "detection_output_inst.h"
-#include "network_impl.h"
 #include "impls/implementation_map.hpp"
 #include "math_utils.h"
 #include "register.hpp"

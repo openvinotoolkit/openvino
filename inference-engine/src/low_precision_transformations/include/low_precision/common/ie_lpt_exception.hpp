@@ -19,7 +19,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API Exception : std::exception {
+class LP_TRANSFORMATIONS_API Exception : public std::exception {
     std::shared_ptr<std::ostringstream> buffer;
     mutable std::string buffer_str;
 public:
