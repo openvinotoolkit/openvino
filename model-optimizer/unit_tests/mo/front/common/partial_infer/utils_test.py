@@ -7,10 +7,18 @@ import numpy as np
 from generator import generator, generate
 
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
-    dynamic_dimension, shape_array, compare_shapes
+    dynamic_dimension, shape_array, compare_shapes, shape_delete, shape_insert
+from mo.utils.error import Error
 
 
 def gen_masked_array(array, masked_indices):
+    """
+    Creates a masked array from the input array by masking specific elements.
+
+    :param array: the input array
+    :param masked_indices: element indices to be masked
+    :return: the result masked array
+    """
     res = np.ma.masked_array(array)
     for index in masked_indices:
         res[index] = np.ma.masked
@@ -67,3 +75,53 @@ class CompareShapesTest(unittest.TestCase):
                 ])
     def test_compare_shapes(self, input1, input2, result):
         self.assertEqual(compare_shapes(input1, input2), result)
+
+
+@generator
+class ShapeDeleteTest(unittest.TestCase):
+    @generate(*[(gen_masked_array([1, 2, 3], []), [], gen_masked_array([1, 2, 3], [])),
+                # [1, d, 3] -> [d, 3]. Indices input is a list
+                (gen_masked_array([1, 2, 3], [1]), [0], gen_masked_array([2, 3], [0])),
+                # [1, d, 3] -> [d, 3]. Indices input is a numpy array
+                (gen_masked_array([1, 2, 3], [1]), np.array([0]), gen_masked_array([2, 3], [0])),
+                # [1, d, 3] -> [d, 3]. Indices input is a masked array
+                (gen_masked_array([1, 2, 3], [1]), gen_masked_array([0], []), gen_masked_array([2, 3], [0])),
+                # [1, d, 3] -> [d, 3]. Indices input is a numpy array with scalar
+                (gen_masked_array([1, 2, 3], [1]), np.array(0), gen_masked_array([2, 3], [0])),
+                # [1, d, 3] -> [d, 3]. Indices input is an integer
+                (gen_masked_array([1, 2, 3], [1]), 0, gen_masked_array([2, 3], [0])),  # [1, d, 3] -> [d, 3]
+                (gen_masked_array([1, 2, 3, 4], [1]), [0, 2], gen_masked_array([2, 4], [0])),  # [1, d, 3, 4] -> [d, 4]
+                (gen_masked_array([1, 2, 3], [1]), [0, 2, 1], gen_masked_array([], [])),  # [1, d, 3] -> []
+                (gen_masked_array([1, 2, 3], [1]), [0, 2], gen_masked_array([2], [0])),  # [1, d, 3] -> [d]
+                # [1, d, d, 4] -> [d, d]
+                (gen_masked_array([1, 2, 3, 4], [1, 2]), [3, 0], gen_masked_array([2, 3], [0, 1])),
+                (gen_masked_array([1, 2, 3, 4], [2]), 3, gen_masked_array([1, 2, 3], [2])),  # [1, 2, d, 4] -> [1, 2, d]
+                ([1, 2, 3, 4], [1], [1, 3, 4]),  # [1, 2, 3, 4] -> [1, 3, 4]. Input is a regular lists
+                (np.array([1, 2, 3, 4]), [1], [1, 3, 4]),  # [1, 2, 3, 4] -> [1, 3, 4]. Input is a regular arrays
+                ])
+    def test_shape_delete(self, shape, indices, result):
+        self.assertTrue(np.ma.allequal(shape_delete(shape, indices), result))
+
+    def test_shape_delete_raise_exception(self):
+        with self.assertRaisesRegex(Error, '.*Incorrect parameter type.*'):
+            shape_delete(gen_masked_array([1, 2, 3], []), {})
+
+
+@generator
+class ShapeInsertTest(unittest.TestCase):
+    @generate(*[(gen_masked_array([1, 2, 3], []), 1, [5], gen_masked_array([1, 5, 2, 3], [])),
+                (gen_masked_array([1, 2, 3], [1]), 1, [5], gen_masked_array([1, 5, 2, 3], [2])),
+                (gen_masked_array([1, 2, 3], [1]), 1, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [1, 2])),
+                (gen_masked_array([1, 2, 3], [1]), 0, [dynamic_dimension], gen_masked_array([1, 5, 2, 3], [0, 1])),
+                (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension], gen_masked_array([1, 2, 3, 5], [0, 3])),
+                (gen_masked_array([1, 2, 3], [1]), 3, [dynamic_dimension, dynamic_dimension],
+                 gen_masked_array([1, 2, 3, 5, 6], [0, 3, 4])),
+                (gen_masked_array([1], [0]), 0, [7, dynamic_dimension], gen_masked_array([7, 5, 2], [1, 2])),
+                ])
+    def test_shape_delete(self, shape, pos, values, result):
+        self.assertTrue(np.ma.allequal(shape_insert(shape, pos, values), result))
+
+    def test_shape_delete_raise_exception(self):
+        with self.assertRaisesRegex(Error, '.*Incorrect parameter type.*'):
+            shape_insert(gen_masked_array([1, 2, 3], []), 2, {})
+

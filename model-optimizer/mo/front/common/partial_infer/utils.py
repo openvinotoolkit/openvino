@@ -6,6 +6,8 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
+from mo.utils.error import Error
+
 dynamic_dimension = np.ma.masked
 # numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
 # value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension the big prime
@@ -50,7 +52,47 @@ def compare_shapes(shape1, shape2):
     return True
 
 
-def unmask_shape(value):
+def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
+    """
+    Removes element in the input tensor shape (presumably the numpy masked array) specified by index/indices obj.
+    The function is implemented to avoid usage of np.delete which corrupts information about the masked elements.
+
+    :param shape: the shape object to remove elements from
+    :param obj: the list or a single integer defining index(es) of elements to remove
+    :return: shape with removed selected elements
+    """
+    if isinstance(obj, int):
+        return shape_delete(shape, [obj])
+    elif isinstance(obj, np.ndarray):
+        return shape_delete(shape, obj.tolist())
+    elif isinstance(obj, list):
+        result = shape.copy()
+        for index in sorted(obj, reverse=True):
+            result = np.ma.concatenate((result[:index], result[index + 1:]))
+        return result
+    else:
+        raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
+
+
+def shape_insert(shape: np.ma.masked_array, pos: int, obj: [int, list, np.ndarray, dynamic_dimension]):
+    """
+    Insert element(s) in the input tensor shape (presumably the numpy masked array) specified by position pos.
+    The function is implemented to avoid usage of np.insert which corrupts information about the masked elements.
+
+    :param shape: the shape object to insert element(s) to
+    :param pos: the position to insert the elements into
+    :param obj: the list or a single integer or the dynamic_dimension_value or numpy array to insert
+    :return: shape with inserted elements
+    """
+    if isinstance(obj, int) or obj is dynamic_dimension_value:
+        return shape_insert(shape, pos, [obj])
+    elif isinstance(obj, (np.ndarray, list)):
+        return np.ma.concatenate((shape[:pos], obj, shape[pos:]))
+    else:
+        raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
+
+
+def unmask_shape(value: [np.ma.masked_array, np.array]):
     """
     Converts all dynamic_dimension values from the input tensor to -1. Used to generate shapes for the IR.
 
