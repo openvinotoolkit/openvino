@@ -11,19 +11,19 @@ The kernel dimensions are calculated using the following formulae for the `NCDHW
 
 \f[
 \begin{array}{lcl}
-d_{start} &=& floor(i*D_{in}/D_{out})\\
-d_{end}   &=& ceil((i+1)*D_{in}/D_{out})\\
-h_{start} &=& floor(j*H_{in}/H_{out})\\
-h_{end}   &=& ceil((j+1)*H_{in}/H_{out})\\
-w_{start} &=& floor(k*W_{in}/W_{out})\\
-w_{end}   &=& ceil((k+1)*W_{in}/W_{out})
+d_{start} &=& floor(i \cdot D_{in}/D_{out})\\
+d_{end}   &=& ceil((i+1) \cdot D_{in}/D_{out})\\
+h_{start} &=& floor(j \cdot H_{in}/H_{out})\\
+h_{end}   &=& ceil((j+1) \cdot H_{in}/H_{out})\\
+w_{start} &=& floor(k \cdot W_{in}/W_{out})\\
+w_{end}   &=& ceil((k+1) \cdot W_{in}/W_{out})
 \end{array}
 \f]
 
 The output is calculated with the following formula:
 
 \f[
-Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}]}{(d_{end}-d_{start})*(h_{end}-h_{start})*(w_{end}-w_{start})}
+Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}]}{(d_{end}-d_{start}) \cdot (h_{end}-h_{start}) \cdot (w_{end}-w_{start})}
 \f]
 
 **Inputs**:
