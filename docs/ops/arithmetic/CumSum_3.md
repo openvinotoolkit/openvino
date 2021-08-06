@@ -6,7 +6,9 @@
 
 **Short description**: *CumSum* performs cumulative summation of the input elements along the given axis.
 
-**Detailed description**: By default, it will do the sum inclusively meaning the first element is copied as is. Through an "exclusive" attribute, this behavior can change to exclude the first element. It can also perform summation in the opposite direction of the axis. For that, set reverse attribute to `true`.
+**Detailed description**: *CumSum* performs cumulative summation of the input elements along the `axis` specified by second input. By default, the `j-th` output element is the inclusive sum of the first `j` elements in the given sequence and first element in the sequence is copied to the output as is.
+In the `exclusive` mode the `j-th` output element is the sum of the first `j-1` elements and the first element in the output sequence is `0`.
+To perform the summation in the opposite direction of the axis, set reverse attribute to `true`.
 
 **Attributes**:
 
