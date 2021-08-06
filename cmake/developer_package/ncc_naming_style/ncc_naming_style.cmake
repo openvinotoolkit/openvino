@@ -8,6 +8,7 @@ endif()
 
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
 
+# sudo apt-get install clang-9 libclang-9-dev
 find_host_package(Clang QUIET)
 if(Clang_FOUND AND TARGET libclang)
     get_target_property(libclang_location libclang LOCATION)
@@ -48,11 +49,11 @@ if(NOT EXISTS ${ncc_script_py})
 endif()
 
 #
-# ov_ncc_naming_style(TARGET_NAME target_name
+# ov_ncc_naming_style(FOR_TARGET target_name
 #                     INCLUDE_DIRECTORY dir
 #                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..])
 #
-# TARGET_NAME - name of the target
+# FOR_TARGET - name of the target
 # INCLUDE_DIRECTORY - directory to check headers from
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
 #
@@ -62,7 +63,7 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE ""
-        "TARGET_NAME;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES" ${ARGN})
+        "FOR_TARGET;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES" ${ARGN})
 
     file(GLOB_RECURSE headers
          RELATIVE "${NCC_STYLE_INCLUDE_DIRECTORY}"
@@ -99,9 +100,11 @@ function(ov_ncc_naming_style)
         list(APPEND output_files ${output_file})
     endforeach()
 
-    add_custom_target(${NCC_STYLE_TARGET_NAME}_ncc_check
+    set(ncc_target ${NCC_STYLE_FOR_TARGET}_ncc_check)
+    add_custom_target(${ncc_target}
         DEPENDS ${output_files}
-        COMMENT "[ncc naming style] ${NCC_STYLE_TARGET_NAME}")
+        COMMENT "[ncc naming style] ${NCC_STYLE_FOR_TARGET}")
 
-    add_dependencies(ncc_all ${NCC_STYLE_TARGET_NAME}_ncc_check)
+    add_dependencies(${NCC_STYLE_FOR_TARGET} ${ncc_target})
+    add_dependencies(ncc_all ${ncc_target})
 endfunction()

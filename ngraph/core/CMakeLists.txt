@@ -43,7 +43,7 @@ target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference)
 
 ie_mark_target_as_cc(ngraph)
 
-ov_ncc_naming_style(TARGET_NAME ngraph
+ov_ncc_naming_style(FOR_TARGET ngraph
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
