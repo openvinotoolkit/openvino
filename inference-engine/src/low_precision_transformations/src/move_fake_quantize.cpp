@@ -78,7 +78,6 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     replace_node(concat, new_concat);
     //NetworkHelper::copyInfo(new_concat, fq);
     replace_node(fq, new_concat);
-    
     updateOutput(context, new_concat, fq);
     return true;
 }
