@@ -1,12 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.middle.RNNSequenceNormalizeToIE import RNNSequenceNormalize
 from extensions.ops.lstm_cell import LSTMCell
 from extensions.ops.tensor_iterator import TensorIterator
-from mo.front.common.partial_infer.utils import shape_array, shape_delete
+from mo.front.common.partial_infer.utils import shape_delete
 from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const

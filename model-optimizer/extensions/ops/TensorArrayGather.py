@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_array
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import symm_match_shapes

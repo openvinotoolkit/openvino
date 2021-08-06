@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -37,7 +35,7 @@ class TensorArrayWriter(Op):
                 'Shapes are not compatible: {} and {}'.format(ta_node['element_shape'], value.shape)
         ta_node['element_shape'] = value_shape
 
-        assert flow_in.value is not None, 'The value os not specified for the TensorArrayWriteV3 op {}' \
+        assert flow_in.value is not None, 'The value is not specified for the TensorArrayWriteV3 op {}' \
                                           ''.format(node.soft_get('name', node.id))
 
         for _, out_node in node.graph.out_edges(node.id):
