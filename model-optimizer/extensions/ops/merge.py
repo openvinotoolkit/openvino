@@ -36,7 +36,7 @@ class Merge(Op):
                                        'executable' in n and n['executable']]
             tensor = inferred_and_executable[0]
 
-            if all([np.all(tensor.value == n.value) for n in inferred_and_executable]):
+            if all([np.ma.allequal(tensor.value, n.value) for n in inferred_and_executable]):
                 if tensor.has_valid('value'):
                     node.out_node().value = tensor.value.copy()
 
