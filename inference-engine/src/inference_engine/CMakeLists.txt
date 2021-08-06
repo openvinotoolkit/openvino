@@ -12,11 +12,11 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 endif()
 
 file (GLOB LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
@@ -30,38 +30,38 @@ set(LEGACY_LIBRARY_SHARED_SRCS
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
     COMPILE_DEFINITIONS "USE_STATIC_IE")
 
-set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
+set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 file (GLOB LIBRARY_HEADERS
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-       ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
 if (LINUX)
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/*.hpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 elseif (UNIX)
     list (APPEND LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/os/lin/lin_shared_object_loader.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/lin_shared_object_loader.cpp)
 endif()
 
 if (WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.cpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/os/win/*.hpp)
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
-    file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp)
-    file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp)
+    file(GLOB SSE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.cpp)
+    file(GLOB SSE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/cpu_x86_sse42/*.hpp)
 
     list(APPEND LIBRARY_HEADERS ${SSE_HEADERS})
     list(APPEND LIBRARY_SRC ${SSE_SRC})
@@ -75,9 +75,9 @@ if(ENABLE_SSE42)
     endif()
 endif()
 
-addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
+addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
 
-set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include/ie")
+set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/ie")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
        ${PUBLIC_HEADERS_DIR}/*.hpp
@@ -116,7 +116,7 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${PUBLIC_HEADERS})
 
 ie_faster_build(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "precomp.hpp"
+    UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
@@ -128,7 +128,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
                                                              $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
@@ -195,7 +195,7 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 
