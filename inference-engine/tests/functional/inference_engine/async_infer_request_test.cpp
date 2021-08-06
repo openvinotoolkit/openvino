@@ -52,11 +52,6 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
     ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::NotAllocated);
 }
 
-TEST(InferRequestCPPTests, throwsOnUninitializedSetShape) {
-    InferRequest req;
-    ASSERT_THROW(req.SetShape("data", {}), InferenceEngine::NotAllocated);
-}
-
 TEST(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
     InferRequest req;
     ASSERT_THROW(req.SetBatch({}), InferenceEngine::NotAllocated);
