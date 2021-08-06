@@ -9,10 +9,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <string>
 #include <vector>
 
@@ -26,6 +22,10 @@
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_plugin_config.hpp"
+#include "ngraph/graph_util.hpp"
+#include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset.hpp"
+#include "ngraph/pass/constant_folding.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;

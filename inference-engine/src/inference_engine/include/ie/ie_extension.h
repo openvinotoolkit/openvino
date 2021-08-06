@@ -12,12 +12,12 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <vector>
 
 #include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
+#include "ngraph/opsets/opset.hpp"
 
 namespace InferenceEngine {
 namespace details {

@@ -11,7 +11,6 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +20,7 @@
 #include "ie_data.h"
 #include "ie_extension.h"
 #include "ie_icnn_network.hpp"
+#include "ngraph/function.hpp"
 
 namespace InferenceEngine {
 

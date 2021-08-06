@@ -4,8 +4,8 @@
 
 #include "ie_transformations.hpp"
 
-#include <ngraph/pass/low_latency.hpp>
-#include <ngraph/pass/manager.hpp>
+#include "ngraph/pass/low_latency.hpp"
+#include "ngraph/pass/manager.hpp"
 
 using namespace InferenceEngine;
 

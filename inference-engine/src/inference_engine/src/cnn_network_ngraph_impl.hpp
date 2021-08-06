@@ -9,19 +9,15 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-
 #include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/node.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "cpp/ie_cnn_network.h"
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -29,6 +25,9 @@
 #include "ie_data.h"
 #include "ie_extension.h"
 #include "ie_input_info.hpp"
+#include "ngraph/attribute_visitor.hpp"
+#include "ngraph/function.hpp"
+#include "ngraph/node.hpp"
 
 namespace InferenceEngine {
 namespace details {

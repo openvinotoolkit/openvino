@@ -11,7 +11,6 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <vector>
 
@@ -20,6 +19,7 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_version.hpp"
+#include "ngraph/opsets/opset.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)

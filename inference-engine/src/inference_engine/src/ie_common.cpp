@@ -12,10 +12,11 @@
 #include <ie_parameter.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/opsets/opset.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
+
+#include "ngraph/opsets/opset.hpp"
 
 namespace ExecGraphInfoSerialization {
 //

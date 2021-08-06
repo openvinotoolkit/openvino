@@ -11,13 +11,13 @@
 
 #include <map>
 #include <memory>
-#include <ngraph/function.hpp>
 #include <string>
 
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+#include "ngraph/function.hpp"
 
 namespace InferenceEngine {
 

@@ -15,8 +15,6 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
 #include <numeric>
 #include <ostream>
 #include <set>
@@ -28,3 +26,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "ngraph/ngraph.hpp"
+#include "ngraph/ops.hpp"

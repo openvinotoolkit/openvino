@@ -4,28 +4,28 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_common.h>
-#include <ie_memcpy.h>
 #include <math.h>
 
-#include <blob_factory.hpp>
 #include <cassert>
 #include <map>
 #include <memory>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <set>
 #include <string>
-#include <transformations/smart_reshape/set_batch_size.hpp>
-#include <transformations/smart_reshape/smart_reshape.hpp>
-#include <transformations/utils/utils.hpp>
 #include <unordered_set>
 #include <vector>
 
+#include "blob_factory.hpp"
+#include "cpp/ie_cnn_network.h"
+#include "ie_common.h"
+#include "ie_memcpy.h"
+#include "ngraph/graph_util.hpp"
+#include "ngraph/ngraph.hpp"
+#include "ngraph/pass/constant_folding.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "transformations/serialize.hpp"
+#include "transformations/smart_reshape/set_batch_size.hpp"
+#include "transformations/smart_reshape/smart_reshape.hpp"
+#include "transformations/utils/utils.hpp"
 
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
