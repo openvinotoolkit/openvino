@@ -19,8 +19,7 @@ namespace ngraph
             class NGRAPH_API Atan : public util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Atan", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Constructs an arctan operation.
                 Atan() = default;
 
@@ -35,11 +34,7 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool visit_attributes(AttributeVisitor& visitor) override
-                {
-                    (void)visitor;
-                    return true;
-                }
+                bool visit_attributes(AttributeVisitor&) override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
                 bool has_evaluate() const override;

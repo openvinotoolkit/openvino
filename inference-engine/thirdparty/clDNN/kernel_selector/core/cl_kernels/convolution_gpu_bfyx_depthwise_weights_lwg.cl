@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 #if FP16_UNIT_USED
     #define ALIGNED_BLOCK_READ(ptr, byte_offset) as_half(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))

@@ -48,4 +48,8 @@ class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
         (const, noexcept));
     MOCK_METHOD(InferenceEngine::StatusCode, serialize,
         (const std::string &, const std::string &, InferenceEngine::ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, serialize,
+        (std::ostream &, std::ostream &, InferenceEngine::ResponseDesc*), (const, noexcept));
+    MOCK_METHOD(InferenceEngine::StatusCode, serialize,
+        (std::ostream &, InferenceEngine::Blob::Ptr &, InferenceEngine::ResponseDesc*), (const, noexcept));
 };

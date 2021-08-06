@@ -4,7 +4,7 @@
 
 **Category**: Data movement operation
 
-**Short description**: *StridedSlice* extracts a strided slice of a tensor. 
+**Short description**: *StridedSlice* extracts a strided slice of a tensor.
 
 **Attributes**
 
@@ -50,22 +50,22 @@
 
 **Inputs**:
 
-*   **1**: `data` - input tensor to be sliced of type `T` and arbitrary shape. **Required.**
+*   **1**: `data` - input tensor to be sliced of type *T* and arbitrary shape. **Required.**
 
-*   **2**: `begin` - 1D tensor of type `T_IND` with begin indexes for input tensor slicing. **Required.**  
+*   **2**: `begin` - 1D tensor of type *T_IND* with begin indexes for input tensor slicing. **Required.**
     Out-of-bounds values are silently clamped. If `begin_mask[i]` is `1`, the value of `begin[i]` is ignored and the range of the appropriate dimension starts from `0`. Negative values mean indexing starts from the end. For example, if `data=[1,2,3]`, `begin[0]=-1` means `begin[0]=3`.
 
-*   **3**: `end` - 1D tensor of type `T_IND` with end indexes for input tensor slicing. **Required.**  
+*   **3**: `end` - 1D tensor of type *T_IND* with end indexes for input tensor slicing. **Required.**
     Out-of-bounds values will be silently clamped. If `end_mask[i]` is `1`, the value of `end[i]` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if `data=[1,2,3]`, `end[0]=-1` means `end[0]=3`.
 
-*   **4**: `stride` - 1D tensor of type `T_IND` with strides. **Optional.**
+*   **4**: `stride` - 1D tensor of type *T_IND* with strides. **Optional.**
 
 **Types**
 * *T*: any supported type.
 * *T_IND*: any supported integer type.
 
-**Example**  
-Example of `begin_mask` & `end_mask` usage.  
+**Example**
+Example of `begin_mask` & `end_mask` usage.
 ```xml
 <layer ... type="StridedSlice" ...>
     <data begin_mask="0,1,1" ellipsis_mask="0,0,0" end_mask="1,1,0" new_axis_mask="0,0,0" shrink_axis_mask="0,0,0"/>
@@ -86,7 +86,7 @@ Example of `begin_mask` & `end_mask` usage.
         </port>
     </input>
     <output>
-        <port id="4">            
+        <port id="4">
             <dim>1</dim>
             <dim>3</dim>
             <dim>2</dim>

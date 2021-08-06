@@ -28,8 +28,8 @@ Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{e
 
 **Inputs**:
 
-*   **1**: 3D, 4D, or 5D input tensor of shape `[N, C, H]`, `[N, C, H, W]` or `[N, C, D, H, W]` and type *T*. Required.
-*   **2**: 1D tensor describing output shape for spatial dimensions. Can be `[H_out]` for 3D input, `[H_out, W_out]` for 4D input, `[D_out, H_out, W_out]` for 5D input and of type *T_SHAPE*. Required.
+*   **1**: 3D, 4D, or 5D input tensor of shape `[N, C, H]`, `[N, C, H, W]` or `[N, C, D, H, W]` and type *T*. **Required.**
+*   **2**: 1D tensor describing output shape for spatial dimensions. Can be `[H_out]` for 3D input, `[H_out, W_out]` for 4D input, `[D_out, H_out, W_out]` for 5D input and of type *T_SHAPE*. **Required.**
 
 **Outputs**:
 
@@ -45,7 +45,7 @@ Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{e
 ```xml
 <layer ... type="AdaptiveAvgPool" ... >
     <data output_type="i64"/>
-    <input> 
+    <input>
         <port id="0">
             <dim>1</dim>
             <dim>3</dim>
@@ -53,7 +53,7 @@ Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{e
             <dim>32</dim>
         </port>
     </input>
-    <input> 
+    <input>
         <port id="1">
             <dim>2</dim>
         </port>

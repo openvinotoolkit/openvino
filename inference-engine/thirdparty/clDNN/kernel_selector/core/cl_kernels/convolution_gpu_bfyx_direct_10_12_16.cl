@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/include_all.cl"
+#include "include/data_types.cl"
+#include "include/fetch_data.cl"
 
 //////////////////////////////////////////////////////////////////////////////
 // Direct Convolution
@@ -159,7 +160,7 @@ KERNEL(convolution_f16_10x12x16)(
 #elif BIAS_PER_OFM
         const half bias = biases[g * FILTER_OFM_NUM + g_out_fm];
 #endif
-        
+
         if ( OUTPUT_SIZE_X % TILE_K == 0 ||
              group_x < max_group_x - 1 )
         {
@@ -170,7 +171,7 @@ KERNEL(convolution_f16_10x12x16)(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < TILE_K; i++) 
+                    for (unsigned i = 0; i < TILE_K; i++)
                     {
                     #if BIAS_TERM && BIAS_PER_OUTPUT
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);
@@ -192,7 +193,7 @@ KERNEL(convolution_f16_10x12x16)(
                 {
                     half_t vBlockC;
                     half *pvBlockC = (half*)&vBlockC;
-                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++) 
+                    for (unsigned i = 0; i < RIGHT_PARTIAL_TILE_K; i++)
                     {
                     #if BIAS_TERM && BIAS_PER_OUTPUT
                         const unsigned bias_index = out_fm*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + ( global_y * TILE_M + y )*OUTPUT_SIZE_X + ( global_x * TILE_K + i);

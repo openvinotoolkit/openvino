@@ -98,7 +98,7 @@ class SharedObjectLoader::Impl {
     // Exclude current directory from DLL search path process wise.
     // If application specific path was configured before then
     // current directory is already excluded.
-    // GetDLLDirectory does not distinguish if aplication specific
+    // GetDLLDirectory does not distinguish if application specific
     // path was set to "" or NULL so reset it to "" to keep
     // application safe.
     void ExcludeCurrentDirectoryA() {

@@ -109,8 +109,7 @@ public:
         return std::make_shared<CustomReluOp>(new_args.at(0));
     }
 
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
-        (void)visitor;
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };

@@ -6,6 +6,7 @@
 
 #include "cldnn/primitives/primitive.hpp"
 #include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/implementation_desc.hpp"
 
 #include "kernel_selector_helper.h"
 #include "meta_utils.h"
@@ -19,7 +20,7 @@
 
 namespace cldnn {
 
-struct program_impl;
+struct program;
 struct primitive_impl;
 class reorder_inputs;
 class graph_initializations;
@@ -55,7 +56,7 @@ struct fused_primitive_desc {
     to API level where all primitives store only ids of related ones.
 */
 struct program_node {
-    friend struct program_impl;                     // to be removed when possible
+    friend struct program;                     // to be removed when possible
     friend class compile_graph;                     // to be removed when possible
     friend class graph_initializations;             // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
@@ -69,7 +70,7 @@ struct program_node {
     template <class PType>
     friend struct typed_program_node;
 
-    program_node(std::shared_ptr<primitive> prim, program_impl& prog);
+    program_node(std::shared_ptr<primitive> prim, program& prog);
 
     program_node(program_node const&) = delete;
 
@@ -88,11 +89,14 @@ public:
         return type() == PType::type_id();
     }
 
-    program_impl& get_program() { return myprog; }
-    program_impl& get_program() const { return myprog; }
+    program& get_program() { return myprog; }
+    program& get_program() const { return myprog; }
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);
+
+    void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
+    impl_types get_preferred_impl_type() const { return impl_type; }
 
     std::vector<program_node*> const& get_dependencies() const { return dependencies; }
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
@@ -305,9 +309,14 @@ public:
 
     bool need_lockable_memory() const;
 
+    std::string get_unique_id() const { return unique_id; }
+    void set_unique_id(std::string id) { unique_id = id; }
+
 protected:
+    std::string unique_id;
+
     std::shared_ptr<primitive> desc;
-    program_impl& myprog;
+    program& myprog;
 
     std::unique_ptr<primitive_impl> selected_impl;
 
@@ -320,6 +329,7 @@ protected:
     // list of primitives that can reuse same memory buffers due to execution order conflicts
     std::set<primitive_id> memory_dependencies;
 
+    impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
 
@@ -363,7 +373,7 @@ struct typed_program_node_base : public program_node {
     friend class cldnn::graph_initializations;
     friend class cldnn::pre_replace_deconv;
     friend class cldnn::prepare_quantization;
-    friend struct cldnn::program_impl;
+    friend struct cldnn::program;
     friend class cldnn::reorder_inputs;
 
 public:

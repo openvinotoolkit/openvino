@@ -4,15 +4,6 @@
 
 set(TARGET_NAME sharedTestClasses)
 
-list(APPEND EXPORT_DEPENDENCIES
-        funcTestUtils
-        ngraphFunctions
-        )
-
-set(DEPENDENCIES
-    template_extension
-)
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC
@@ -27,10 +18,9 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                ${EXPORT_DEPENDENCIES}
-        EXPORT_DEPENDENCIES
-            ${EXPORT_DEPENDENCIES}
-        DEPENDENCIES ${DEPENDENCIES}
+                pugixml::static
+                funcTestUtils
+                ngraphFunctions
 )
 
 # CVS-55373

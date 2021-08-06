@@ -56,6 +56,10 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "Also, using nstreams>1 is inherently throughput-oriented option, "
                                                 "while for the best-latency estimations the number of streams should be set to 1.";
 
+/// @brief message for latency percentile settings
+static const char infer_latency_percentile_message[] =
+    "Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).";
+
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] = "Optional. By default floating point operations execution in bfloat16 precision are enforced "
                                            "if supported by platform.\n"
@@ -143,6 +147,14 @@ static constexpr char iop_message[] = "Optional. Specifies precision for input a
                                       "                                             Overwrites precision from ip and op options for "
                                       "specified layers.";
 
+static constexpr char input_image_scale_message[] = "Optional. Scale values to be used for the input image per channel.\n"
+                                                    "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.\n"
+                                                    "Example: -iscale data[255,255,255],info[255,255,255]\n";
+
+static constexpr char input_image_mean_message[] = "Optional. Mean values to be used for the input image per channel.\n"
+                                                   "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
+                                                   "Example: -imean data[255,255,255],info[255,255,255]\n";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -188,6 +200,9 @@ DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
+
+/// @brief The percentile which will be reported in latency metric
+DEFINE_uint32(latency_percentile, 50, infer_latency_percentile_message);
 
 /// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
 DEFINE_bool(enforcebf16, false, enforce_bf16_message);
@@ -252,6 +267,12 @@ DEFINE_string(cache_dir, "", cache_dir_message);
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
 
+/// @brief Define flag for using input image scale <br>
+DEFINE_string(iscale, "", input_image_scale_message);
+
+/// @brief Define flag for using input image mean <br>
+DEFINE_string(imean, "", input_image_mean_message);
+
 /**
  * @brief This function show a help message
  */
@@ -278,6 +299,7 @@ static void showUsage() {
     std::cout << "    -layout                   " << layout_message << std::endl;
     std::cout << "    -cache_dir \"<path>\"        " << cache_dir_message << std::endl;
     std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
+    std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
@@ -296,4 +318,6 @@ static void showUsage() {
     std::cout << "    -ip                          <value>     " << inputs_precision_message << std::endl;
     std::cout << "    -op                          <value>     " << outputs_precision_message << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
+    std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
+    std::cout << "    -imean                     " << input_image_mean_message << std::endl;
 }

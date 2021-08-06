@@ -3,10 +3,9 @@
 //
 
 #include "ocl_stream.hpp"
-#include "ocl_base_event.hpp"
+#include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
 #include "ocl_command_queues_builder.hpp"
-#include "ocl_events_pool.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
 
@@ -274,7 +273,6 @@ ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration()
     queue_builder.set_throttle_mode(config.throttle_mode, throttle_extensions);
 
     _command_queue = queue_builder.build(context, device);
-    _events_pool.reset(new events_pool());
 }
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
@@ -326,7 +324,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         throw ocl_error(err);
     }
 
-    return _events_pool->get_from_base_pool(_engine.get_cl_context(), ret_ev, ++_queue_counter);
+    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
 void ocl_stream::enqueue_barrier() {
@@ -335,7 +333,7 @@ void ocl_stream::enqueue_barrier() {
 
 event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     if (deps.empty())
-        return _events_pool->get_from_user_pool(_engine.get_cl_context(), true);
+        return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true);
 
     if (sync_method == sync_methods::events) {
         cl::Event ret_ev;
@@ -355,31 +353,27 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
             throw ocl_error(err);
         }
 
-        return _events_pool->get_from_base_pool(_engine.get_cl_context(), ret_ev, ++_queue_counter);
+        return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
     } else if (sync_method == sync_methods::barriers) {
         sync_events(deps, is_output);
-        return _events_pool->get_from_base_pool(_engine.get_cl_context(), _last_barrier_ev, _last_barrier);
+        return std::make_shared<ocl_event>(_last_barrier_ev, _last_barrier);
     } else {
-        return _events_pool->get_from_user_pool(_engine.get_cl_context(), true);
+        return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true);
     }
 }
 
 event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
-    return _events_pool->get_from_group_pool(_engine.get_cl_context(), deps);
+    return std::make_shared<ocl_events>(deps);
 }
 
 event::ptr ocl_stream::create_user_event(bool set) {
-    return _events_pool->get_from_user_pool(_engine.get_cl_context(), set);
+    return std::make_shared<ocl_user_event>(_engine.get_cl_context(), set);
 }
 
 event::ptr ocl_stream::create_base_event() {
     cl::Event ret_ev;
-    return _events_pool->get_from_base_pool(_engine.get_cl_context(), ret_ev, ++_queue_counter);
+    return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
-
-void ocl_stream::reset_events() { _events_pool->reset_events(); }
-
-void ocl_stream::release_events_pool() { _events_pool.reset(); }
 
 void ocl_stream::flush() const { get_cl_queue().flush(); }
 void ocl_stream::finish() const { get_cl_queue().finish(); }
