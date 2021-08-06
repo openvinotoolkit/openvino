@@ -34,13 +34,13 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
-* **2**: Scalar axis of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is 0. **Optional.**
+* **2**: Axis index along which the cumulative sum is performed. A scalar of type *T_AXIS*. Negative value means counting dimensions from the back. Default value is `0`. **Optional.**
 
 **Outputs**
 
-* **1**: Output tensor with cumulative sums of the input's elements. A tensor of type *T* of the same shape as 1st input.
+* **1**: Output tensor with cumulative sums of the input elements. A tensor of type *T* of the same shape as the first input.
 
 **Types**
 
