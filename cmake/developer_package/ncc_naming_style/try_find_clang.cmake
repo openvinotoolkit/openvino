@@ -3,5 +3,6 @@
 #
 
 cmake_minimum_required(VERSION 3.13)
+project(try_find_clang)
 
 find_package(Clang QUIET)

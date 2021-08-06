@@ -22,8 +22,6 @@ execute_process(
     OUTPUT_VARIABLE output
     ERROR_VARIABLE output)
 
-message(WARNING "Output: ${output}")
-
 if(NOT clang_find_result EQUAL "0")
     message(WARNING "Please, install libclang-[N]-dev package (required for ncc naming style check)")
     set(ENABLE_NCC_STYLE OFF)
@@ -119,6 +117,7 @@ function(ov_ncc_naming_style)
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
                 "${full_header_path}"
+                "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
                 "${ncc_wrapper_py}"
                 "${ncc_style_dir}/ncc_run.cmake"

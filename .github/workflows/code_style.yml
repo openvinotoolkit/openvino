@@ -68,18 +68,18 @@ jobs:
         working-directory: build
 
   NamingConventionCheck:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
 
       - name: Install Clang dependency
-        run: sudo apt --assume-yes install libclang-11-dev
+        run: sudo apt --assume-yes install libusb-1.0-0-dev libclang-9-dev
 
       - name: Install Python-based dependencies
         run: |
-          python3 -m pip install pyyaml argparse clang==11.0
+          python3 -m pip install pyyaml clang==9.0
 
       - name: CMake
         run: |
