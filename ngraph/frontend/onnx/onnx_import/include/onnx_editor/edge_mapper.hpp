@@ -121,7 +121,9 @@ namespace ngraph
             std::vector<int> find_node_indexes(const std::string& node_name,
                                                const std::string& output_name) const;
 
-            int get_node_input_idx(int node_index, const std::string& input_name) const;
+            // note: a single node can have more than one inputs with the same name
+            std::vector<int> get_node_input_indexes(int node_index,
+                                                    const std::string& input_name) const;
             int get_node_output_idx(int node_index, const std::string& output_name) const;
 
             std::vector<std::vector<std::string>> m_node_inputs;

@@ -81,7 +81,9 @@ int onnx_editor::EdgeMapper::get_node_output_idx(int node_index,
     return (out_port_idx - std::begin(node_outputs));
 }
 
-int onnx_editor::EdgeMapper::get_node_input_idx(int node_index, const std::string& input_name) const
+std::vector<int>
+    onnx_editor::EdgeMapper::get_node_input_indexes(int node_index,
+                                                    const std::string& input_name) const
 {
     NGRAPH_CHECK(node_index >= 0 && node_index < static_cast<int>(m_node_inputs.size()),
                  "Node with index: ",
@@ -89,21 +91,22 @@ int onnx_editor::EdgeMapper::get_node_input_idx(int node_index, const std::strin
                  "is out of scope outputs list");
 
     const auto& node_inputs = m_node_inputs[node_index];
-    const auto matched_inputs =
-        std::count(std::begin(node_inputs), std::end(node_inputs), input_name);
-    if (matched_inputs == 0)
+    std::vector<int> node_inputs_indexes;
+    int index = 0;
+    for (const auto& in : node_inputs)
+    {
+        if (in == input_name)
+        {
+            node_inputs_indexes.push_back(index);
+        }
+        ++index;
+    }
+    if (node_inputs_indexes.size() == 0)
     {
         throw ngraph_error("Node with index: " + std::to_string(node_index) +
                            " has not input with name: " + input_name);
     }
-    if (matched_inputs > 1) // more indexes with the same name
-    {
-        throw ngraph_error("Node with index: " + std::to_string(node_index) +
-                           " has more than one inputs with name: " + input_name +
-                           ". You should use port indexes to distinguish them.");
-    }
-    const auto in_port_idx = std::find(std::begin(node_inputs), std::end(node_inputs), input_name);
-    return (in_port_idx - std::begin(node_inputs));
+    return node_inputs_indexes;
 }
 
 InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
@@ -162,8 +165,14 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node,
     }
     if (!in.m_input_name.empty())
     {
-        const auto input_idx = get_node_input_idx(node_index, in.m_input_name);
-        return InputEdge{node_index, input_idx, in.m_new_input_name};
+        const auto input_indexes = get_node_input_indexes(node_index, in.m_input_name);
+        if (input_indexes.size() > 1) // more indexes with the same name
+        {
+            throw ngraph_error("Node with index: " + std::to_string(node_index) +
+                               " has more than one inputs with name: " + in.m_input_name +
+                               ". You should use port indexes to distinguish them.");
+        }
+        return InputEdge{node_index, input_indexes[0], in.m_new_input_name};
     }
     else
     {
@@ -241,14 +250,15 @@ std::vector<InputEdge>
 {
     const auto matched_nodes_range = m_output_consumers_index.equal_range(output_name);
     std::vector<InputEdge> input_edges;
-    std::transform(matched_nodes_range.first,
-                   matched_nodes_range.second,
-                   std::back_inserter(input_edges),
-                   [&output_name, this](const std::pair<std::string, int>& iter) {
-                       const auto node_idx = iter.second;
-                       const auto port_idx = this->get_node_input_idx(node_idx, output_name);
-                       return InputEdge{node_idx, port_idx};
-                   });
+    for (auto it = matched_nodes_range.first; it != matched_nodes_range.second; ++it)
+    {
+        const auto node_idx = it->second;
+        const auto port_indexes = get_node_input_indexes(node_idx, output_name);
+        for (const auto& idx : port_indexes)
+        {
+            input_edges.push_back(InputEdge{node_idx, idx});
+        }
+    }
     return input_edges;
 }
 
