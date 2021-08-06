@@ -1969,13 +1969,25 @@ namespace
                              const HostTensorVector& outputs,
                              const HostTensorVector& inputs)
         {
-            using TI = typename element_type_traits<ti>::value_type;
-            using TO = typename element_type_traits<to>::value_type;
-            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
-                                                outputs[0]->get_data_ptr<TO>(),
-                                                shape_size(inputs[0]->get_shape()));
-        }
+            outputs[0]->set_shape(inputs[0]->get_shape());
+            size_t element_count = shape_size(outputs[0]->get_shape());
 
+            if (((ti == element::u1) || (to == element::u1)) ||
+            ((ti == element::u4) || (to == element::u4)) ||
+            ((ti == element::i4) || (to == element::i4)))
+            {
+                runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
+                                                       outputs[0]->get_data_ptr<to>(),
+                                                       element_count,
+                                                       ti,
+                                                       to);
+            }
+            else
+            {
+                runtime::reference::convert(
+                    inputs[0]->get_data_ptr<ti>(), outputs[0]->get_data_ptr<to>(), element_count);
+            }
+        }
     } // namespace convert_like_v1
 
     template <element::Type_t OUT_ET>
@@ -1988,6 +2000,12 @@ namespace
         case element::Type_t::boolean:
             convert_like_v1::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
             break;
+        case element::Type_t::u1:
+            convert_like_v1::evaluate<element::Type_t::u1, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u4:
+            convert_like_v1::evaluate<element::Type_t::u4, OUT_ET>(op, outputs, inputs);
+            break;
         case element::Type_t::u8:
             convert_like_v1::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
             break;
@@ -1999,6 +2017,9 @@ namespace
             break;
         case element::Type_t::u64:
             convert_like_v1::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i4:
+            convert_like_v1::evaluate<element::Type_t::i4, OUT_ET>(op, outputs, inputs);
             break;
         case element::Type_t::i8:
             convert_like_v1::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
@@ -2932,6 +2953,8 @@ namespace
             return evaluate<element::Type_t::f64>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f32:
             return evaluate<element::Type_t::f32>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::i4:
+            return evaluate<element::Type_t::i4>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i8:
             return evaluate<element::Type_t::i8>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i16:
@@ -2940,6 +2963,10 @@ namespace
             return evaluate<element::Type_t::i32>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::i64:
             return evaluate<element::Type_t::i64>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u1:
+            return evaluate<element::Type_t::u1>(as_type_ptr<T>(node), outputs, inputs);
+        case element::Type_t::u4:
+            return evaluate<element::Type_t::u4>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u8:
             return evaluate<element::Type_t::u8>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::u16:
