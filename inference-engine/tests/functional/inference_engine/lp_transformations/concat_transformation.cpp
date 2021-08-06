@@ -7,22 +7,18 @@
 #include <sstream>
 #include <memory>
 #include <vector>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include <low_precision/rt_info/precision_preserved_attribute.hpp>
+#include <low_precision/rt_info/intervals_alignment_attribute.hpp>
+#include <low_precision/rt_info/quantization_alignment_attribute.hpp>
 
-#include <low_precision/low_precision.hpp>
-
+#include <low_precision/common/operation_precision_restriction.hpp>
+#include <low_precision/common/operation_per_tensor_quantization_restriction.hpp>
 #include <low_precision/concat.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/rt_info/precision_preserved_attribute.hpp>
-#include <low_precision/align_quantization_parameters.hpp>
 #include <low_precision/fuse_subtract_to_fake_quantize.hpp>
 #include <low_precision/fuse_multiply_to_fake_quantize.hpp>
-#include <low_precision/markup_can_be_quantized.hpp>
-#include <low_precision/markup_per_tensor_quantization.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
