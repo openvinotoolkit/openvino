@@ -38,8 +38,8 @@ Use the following code to create Inference Engine Core to manage available devic
 
 @sphinxdirective
 .. raw:: html
-  <details>
-    <summary>Click to expand</summary>
+
+    <div class="collapsible-section">
 @endsphinxdirective
     
 
@@ -123,7 +123,8 @@ If you want to run inference for multiple images at once, you can use the built-
 
 @sphinxdirective
 .. raw:: html
-  </details>
+
+    </div>
 @endsphinxdirective
 
 ### Step 4. Load the Model to the Device
