@@ -41,6 +41,8 @@ function getDocBlockText(block, context)
 	if not context.codeBlockKind then
 		if ESCAPE_ASTERISKS then
 			text = string.gsub(text, "%*", "\\*")
+			-- workaround for doxygen
+			text = string.gsub(text, "%\\%\\%*", "\\*")
 		end
 
 		if ESCAPE_PIPES then
