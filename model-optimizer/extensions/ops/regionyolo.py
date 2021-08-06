@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim, shape_for_layout
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
 from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -57,7 +58,11 @@ class RegionYoloOp(Op):
         node.axis = axis
         node.end_axis = end_axis
         if node.do_softmax:
-            flat_dim = np.ma.prod(input_shape[axis: end_axis + 1])
+            dims_to_flatten = input_shape[axis: end_axis + 1]
+            if is_fully_defined(dims_to_flatten):
+                flat_dim = np.ma.prod(dims_to_flatten)
+            else:
+                flat_dim = dynamic_dimension_value
             node.out_port(0).data.set_shape([*input_shape[:axis], flat_dim, *input_shape[end_axis + 1:]])
         else:
             layout = node.graph.graph['layout']

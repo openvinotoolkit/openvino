@@ -76,8 +76,7 @@ class Range(Op):
                 if not node.has_valid('output_type'):
                     node['output_type'] = input.dtype
 
-        if start is None or limit is None or delta is None or not is_fully_defined(start) or \
-                not is_fully_defined(limit) or not is_fully_defined(delta):
+        if not is_fully_defined(start) or not is_fully_defined(limit) or not is_fully_defined(delta):
             node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value]))
         else:
             node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node['output_type']))

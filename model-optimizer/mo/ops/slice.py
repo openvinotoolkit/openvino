@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, int64_array, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import get_shape_from_slice, shape_array, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error

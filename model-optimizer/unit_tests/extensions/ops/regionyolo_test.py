@@ -7,6 +7,7 @@ import numpy as np
 
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -53,6 +54,23 @@ class TestRegionYOLOCaffe(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
+
+    def test_region_infer_dynamic_flatten(self):
+        graph = build_graph(nodes_attributes,
+                            [('node_1', 'region'),
+                             ('region', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': None, 'value': None},
+                             'node_1': {'shape': shape_array([1, dynamic_dimension_value, 227, 227])},
+                             'region': {'end_axis': 1, 'axis': 0, 'do_softmax': 1, **layout_attrs()}
+                             })
+        graph.graph['layout'] = 'NCHW'
+        reorg_node = Node(graph, 'region')
+        RegionYoloOp.regionyolo_infer(reorg_node)
+        exp_shape = shape_array([dynamic_dimension_value, 227, 227])
+        res_shape = graph.node['node_3']['shape']
+        self.assertTrue(np.ma.allequal(exp_shape, res_shape))
 
     def test_region_infer_flatten_again(self):
         graph = build_graph(nodes_attributes,
