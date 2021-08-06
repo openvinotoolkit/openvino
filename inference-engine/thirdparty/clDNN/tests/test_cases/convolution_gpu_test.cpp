@@ -7777,7 +7777,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     topology.add(conv_fsv);                                                                                 // format 8 to 8 -> after fusing, format 8 to 3
 
     // Add reorder to bfyx
-    auto reorder_bfyx = reorder("reorder_bfyx", "conv_fsv", { data_types::i8, format::bfyx, input_size });
+    auto reorder_bfyx = reorder("reorder_bfyx", "conv_fsv", { data_types::f32, format::bfyx, input_size });
     topology.add(reorder_bfyx);                                                                             // format 8 to 3 -> after fusing, removed
 
     // Exec ref network (non-fusing)
@@ -7790,7 +7790,7 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto ref_out = network_ref.execute();
 
     auto ref_out_mem = ref_out.begin()->second.get_memory();
-    cldnn::mem_lock<signed char> ref_out_ptr(ref_out_mem, get_test_stream());
+    cldnn::mem_lock<float> ref_out_ptr(ref_out_mem, get_test_stream());
 
     // Exec target network (fusing: conv+reorder)
     build_options options_target;
@@ -7803,14 +7803,14 @@ TEST_P(convolution_gpu_fsv16_to_bfyx, conv_b_fs_yx_fsv16_to_bfyx_different_type)
     auto target_out = network_target.execute();
 
     auto target_out_mem = target_out.begin()->second.get_memory();
-    cldnn::mem_lock<signed char> target_out_ptr(target_out_mem, get_test_stream());
+    cldnn::mem_lock<float> target_out_ptr(target_out_mem, get_test_stream());
 
     // Compare ref and target result
     for (size_t i = 0; i < ref_out_ptr.size(); i++) {
-        auto ref_val = static_cast<int>(ref_out_ptr[i]);
-        auto target_val = static_cast<int>(target_out_ptr[i]);
+        auto ref_val = static_cast<float>(ref_out_ptr[i]);
+        auto target_val = static_cast<float>(target_out_ptr[i]);
         auto diff = std::abs(ref_val - target_val);
-        auto equal = (diff > 0) ? false : true;
+        auto equal = (diff > 1e-5f) ? false : true;
 
         EXPECT_TRUE(equal);
         if (!equal)

@@ -405,22 +405,11 @@ KERNEL(convolution_bfyx_f16)(
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
 #   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-            // Follow reorder_data.cl
-            res[i] = TO_OUTPUT_TYPE(round(FUSED_OPS_RESULT_SCALAR));
-#       else
             res[i] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SCALAR);
-#       endif
 #   else
             res[i] = FUSED_OPS_RESULT_SCALAR;
 #   endif
 #else
-#   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-            // Follow reorder_data.cl
-            dst[i] = round(dst[i]);
-#       endif
-#   endif
             res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif
 
@@ -442,26 +431,12 @@ KERNEL(convolution_bfyx_f16)(
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
 #   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-            dst = FUSED_OPS_RESULT_VEC;
-            // Follow reorder_data.cl
-            for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-                res[i] = TO_OUTPUT_TYPE(round(dst[i]));
-            }
-#       else
             res = TO_OUTPUTVTYPE(FUSED_OPS_RESULT_VEC);
-#       endif
 #   else
             res = FUSED_OPS_RESULT_VEC;
 #   endif
 #else
 #   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-            // Follow reorder_data.cl
-            for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-                dst[i] = round(dst[i]);
-            }
-#       endif
             res = TO_OUTPUTVTYPE(dst);
 #   else
             res = dst;
@@ -494,22 +469,11 @@ KERNEL(convolution_bfyx_f16)(
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
 #   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-                // Follow reorder_data.cl
-                res[i] = TO_OUTPUT_TYPE(round(FUSED_OPS_RESULT_SCALAR));
-#       else
                 res[i] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SCALAR);
-#       endif
 #   else
                 res[i] = FUSED_OPS_RESULT_SCALAR;
 #   endif
 #else
-#   if OUTPUT_FORMAT_BFYX
-#       if INPUT0_IS_FP && !OUTPUT_IS_FP
-                // Follow reorder_data.cl
-                dst[i] = round(dst[i]);
-#       endif
-#   endif
                 res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif
 
