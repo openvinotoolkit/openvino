@@ -59,7 +59,7 @@ Useful documents for model conversion and optimization:
 
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
 
-You can use OpenVINO™ Tuning Utilities with the Inference Engine for trial and test inference on your model. The [Benchmark utility](../inference-engine/tools/benchmark_tool/README.md) uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. 
+You can use OpenVINO™ Tuning Utilities with the Inference Engine for trial and test inference on your model. The [Benchmark utility](../tools/benchmark_tool/README.md) uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. 
 
 OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos) showing how inference is run and output processed for use in retail environments, classrooms, smart camera applications, and other solutions.
 
