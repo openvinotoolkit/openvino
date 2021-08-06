@@ -110,6 +110,9 @@ std::vector<std::string> PlaceTensorONNX::get_names() const
 
 Place::Ptr PlaceTensorONNX::get_producing_port() const
 {
+    FRONT_END_GENERAL_CHECK(
+        !is_input(),
+        "Tensor: " + m_name + " is an input of the model and doesn't have producing port.");
     return std::make_shared<PlaceOutputEdgeONNX>(m_editor->find_output_edge(m_name), m_editor);
 }
 
@@ -162,5 +165,5 @@ bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const
         std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
             return place->is_equal(another);
         });
-    return is_equal(another) || get_producing_port()->is_equal(another) || eq_to_consuming_port;
+    return is_equal(another) || eq_to_consuming_port || (is_input() ? false : get_producing_port()->is_equal(another));
 }
