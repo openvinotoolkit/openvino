@@ -27,60 +27,43 @@ namespace ngraph
                     const auto border =
                         node.get_attribute_value<std::vector<std::int64_t>>("border");
 
-                    
+                    std::shared_ptr<ngraph::Node> end;
 
+                    // Set slice begin values to border values (note order of indexes)
+                    const auto begin = default_opset::Constant::create(
+                        ngraph::element::i64,
+                        Shape{4},
+                        std::vector<std::int64_t>{0, 0, border[1], border[0]});
+
+                    // If scale is given, then start crop at left/top `border`
+                    // and end on left/top `border` + `scale`.
                     if (node.has_attribute("scale"))
                     {
-                        // If scale is given, then start crop between left/top border and end on left/top border + scale.
                         // List of ints height, width
                         const auto scale =
                             node.get_attribute_value<std::vector<std::int64_t>>("scale");
 
-                        CHECK_VALID_NODE(
-                            node,
-                            scale.size() == 2,
-                            "ONNX Crop expects 2 values in 'scale' attribute, found: ",
-                            scale.size());
+                        CHECK_VALID_NODE(node,
+                                         scale.size() == 2,
+                                         "ONNX Crop expects 2 values in 'scale' attribute, found: ",
+                                         scale.size());
 
-                        // Set slice begin values to border[0:1] values
-                        const auto begin = default_opset::Constant::create(
-                            ngraph::element::i64,
-                            Shape{4},
-                            std::vector<std::int64_t>{0, 0, border[1], border[0]});
-
-                        // Set slice end values to leftBorder+widthScale and topBorder+heightScale
+                        // Set slice end values to topBorder+heightScale and leftBorder+widthScale
                         // Note that indexes don't match, e.g. border[0] + scale[1]
-                        const auto end = default_opset::Constant::create(
+                        end = default_opset::Constant::create(
                             ngraph::element::i64,
                             Shape{4},
-                            std::vector<std::int64_t>{0, 0, border[1] + scale[0], border[0] + scale[1]});
-
-                        // Input data shape [N,C,H,W], slicing only along spatial dimensions
-                        std::vector<int64_t> begin_mask{1, 1, 0, 0};
-                        std::vector<int64_t> end_mask{1, 1, 0, 0};
-
-
-                        const auto strides = default_opset::Constant::create(
-                            ngraph::element::i64, Shape{4}, {1, 1, 1, 1});
-
-                        return {std::make_shared<default_opset::StridedSlice>(
-                            input_data, begin, end, strides, begin_mask, end_mask)};
-
+                            std::vector<std::int64_t>{
+                                0, 0, border[1] + scale[0], border[0] + scale[1]});
                     }
+                    // If scale is not provided, crop the image by values provided in `border`.
                     else
                     {
-                        // If scale is not provided, crop the image by values provided in `border`.
                         CHECK_VALID_NODE(
                             node,
                             border.size() == 4,
                             "ONNX Crop expects 4 values in 'border' attribute, found: ",
                             border.size());
-
-                        // Set slice begin values to border[0:1] values
-                        const auto begin = default_opset::Constant::create(
-                            ngraph::element::i64,
-                            Shape{4},
-                            std::vector<std::int64_t>{0, 0, border[1], border[0]});
 
                         // Calculate ends as shape(input) - border[2:3]
                         const auto input_shape =
@@ -89,27 +72,19 @@ namespace ngraph
                             ngraph::element::i64,
                             Shape{4},
                             std::vector<std::int64_t>{0, 0, -border[3], -border[2]});
-                        const auto end =
-                            std::make_shared<default_opset::Add>(input_shape, end_offset);
-
-
-
-                        // Input data shape [N,C,H,W], slicing only along spatial dimensions
-                        std::vector<int64_t> begin_mask{1, 1, 0, 0};
-                        std::vector<int64_t> end_mask{1, 1, 0, 0};
-
-
-                        const auto strides = default_opset::Constant::create(
-                            ngraph::element::i64, Shape{4}, {1, 1, 1, 1});
-
-                        return {std::make_shared<default_opset::StridedSlice>(
-                            input_data, begin, end, strides, begin_mask, end_mask)};
-
+                        end = std::make_shared<default_opset::Add>(input_shape, end_offset);
                     }
 
+                    // Input data shape [N,C,H,W], slicing only along spatial dimensions
+                    std::vector<int64_t> begin_mask{1, 1, 0, 0};
+                    std::vector<int64_t> end_mask{1, 1, 0, 0};
 
+                    // Default strides: 1,1,1,1
+                    const auto strides = default_opset::Constant::create(
+                        ngraph::element::i64, Shape{4}, {1, 1, 1, 1});
 
-
+                    return {std::make_shared<default_opset::StridedSlice>(
+                        input_data, begin, end, strides, begin_mask, end_mask)};
                 }
 
             } // namespace set_1
