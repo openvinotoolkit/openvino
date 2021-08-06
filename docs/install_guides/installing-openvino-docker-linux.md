@@ -27,8 +27,9 @@ Prebuilt images are available on:
 
 ## Build a Docker* Image
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
-You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of OpenVINO™ Docker containers.
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). 
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tree/master/docs/tutorials) which demonstrate the usage of OpenVINO™ Docker containers. You can find device specific steps to configure OpenVINO Docker below.
 
 ## Use Docker* Image for CPU
 
@@ -36,10 +37,9 @@ You can also try our [Tutorials](https://github.com/openvinotoolkit/docker_ci/tr
 - All instructions that are available to host process available for process in container, including, for example, AVX2, AVX512. No restrictions.
 - Docker\* does not use virtualization or emulation. The process in Docker* is just a regular Linux process, but it is isolated from external world on kernel level. Performance penalty is small.
 
-### <a name="building-for-cpu"></a>Build a Docker* Image for CPU
+### <a name="configuring-for-cpu"></a>Configure a Docker* Image for CPU
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
-The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You don't need to do specific steps to configure OpenVINO Dockerfile for CPU.
 
 ### Run the Docker* Image for CPU
 
@@ -48,7 +48,9 @@ Run the image with the following command:
 docker run -it --rm <image_name>
 ```
 ## Use a Docker* Image for GPU
-### Build a Docker* Image for GPU
+### Configure a Docker* Image for GPU
+
+> **NOTE**: Only Intel® integrated graphics are supported.
 
 **Prerequisites:**
 - GPU is not available in container by default, you must attach it to the container.
@@ -57,13 +59,14 @@ docker run -it --rm <image_name>
 - In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 
-Before building a Docker* image on GPU, add the following commands to a Dockerfile:
+To configure a OpenVINO Docker* image with access to GPU, add the following commands to a Dockerfile:
 
 **Ubuntu 18.04/20.04**:
 ```sh
 WORKDIR /tmp/opencl
 RUN useradd -ms /bin/bash -G video,users openvino && \
     chown openvino -R /home/openvino
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
     rm -rf /var/lib/apt/lists/* && \
@@ -76,6 +79,22 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
+
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    rm -rf /var/lib/apt/lists/*
+```
+
 **CentOS 7/RHEL 8**:
 ```sh
 WORKDIR /tmp/opencl
@@ -98,6 +117,24 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
+or you can use the installation script `install_NEO_OCL_driver.sh` if you previously installed OpenVINO in the Dockerfile, where `INTEL_OPENCL` is the variable to store the default version of Intel® Graphics Compute Runtime for OpenCL™ Driver:
+
+
+```sh
+WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
+RUN groupmod -g 44 video
+
+# Please use `20.35.17767` for 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)
+ARG INTEL_OPENCL=19.41.14441
+
+WORKDIR ${INTEL_OPENVINO_DIR}/install_dependencies
+RUN ./install_NEO_OCL_driver.sh --no_numa -y --install_driver ${INTEL_OPENCL} && \
+    yum clean all && rm -rf /var/cache/yum && \
+    yum remove -y epel-release
+```
+
 ### Run the Docker* Image for GPU
 
 To make GPU available in the container, attach the GPU to the container using `--device /dev/dri` option and run the container:
@@ -108,7 +145,7 @@ docker run -it --rm --device /dev/dri <image_name>
 
 ## Use a Docker* Image for Intel® Neural Compute Stick 2
 
-### Build and Run the Docker* Image for Intel® Neural Compute Stick 2
+### Configure and Run the Docker* Image for Intel® Neural Compute Stick 2
 
 **Known limitations:**
 
@@ -203,7 +240,7 @@ docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
 
 ## Use a Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-### Build Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+### Configure Docker* Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs:
 
 1. Set up the environment on the host machine, that is going to be used for running Docker*. 
@@ -261,17 +298,17 @@ docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 
 > **NOTES**:
 > 
-> - The device `/dev/ion` need to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
+> - The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
 > - Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
 
-In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
+In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve, use the following command:
 ```sh
-docker run -it --rm --net=host -v /var/tmp:/var/tmp –ipc=host <image_name>
+docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 ```
 > **NOTES**:
 > 
-> - When building docker images, create a user in the docker file that has the same UID and GID as the user which runs hddldaemon on the host.
-> - Run the application in the docker with this user.
+> - When building Docker images, create a user in the Dockerfile that has the same UID(User Identifier) and GID(Group Identifier) as the user which runs hddldaemon on the host.
+> - Run the application in the Docker with this user.
 > - Alternatively, you can start hddldaemon with the root user on host, but this approach is not recommended.
 
 ### Run Demos in the Docker* Image 
@@ -280,25 +317,25 @@ To run the Security Barrier Camera Demo on a specific inference device, run the 
 
 **CPU**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
 ```
 
 **GPU**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
 ```
 
 **MYRIAD**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
 ```
 
 **HDDL**:
 ```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp --device /dev/dri:/dev/dri --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
+docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
 /bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
 ```
 

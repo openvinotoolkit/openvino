@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Linux* and its further usage.
+This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Windows* and its further usage.
 
 ## System Requirements
 
@@ -21,9 +21,10 @@ Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ## Build a Docker* Image
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). 
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure OpenVINO Docker below.
 
-## Build and Run the Docker* Image for CPU
+## Configure and Run the Docker* Image for CPU
 
 ## Install Additional Dependencies
 
@@ -80,7 +81,7 @@ If you want to try some demos then run image with the root privileges (some addi
 docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deployment_tools\demo && demo_security_barrier_camera.bat -d CPU -sample-options -no_show"
 ~~~
 
-## Build and Run the Docker* Image for GPU
+## Configure and Run the Docker* Image for GPU
 
 GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
 
