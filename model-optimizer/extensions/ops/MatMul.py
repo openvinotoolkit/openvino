@@ -99,7 +99,7 @@ class MatMul(Op):
         """
         a_value = node.in_port(0).get_source().data.get_value()
         b_value = node.in_port(1).get_source().data.get_value()
-        if a_value is not None and b_value is not None and is_fully_defined(a_value) and is_fully_defined(b_value):
+        if is_fully_defined(a_value) and is_fully_defined(b_value):
             if node.transpose_a:
                 a_value = transpose(a_value)
             if node.transpose_b:
