@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import is_fully_defined, compare_shapes
+from mo.front.common.partial_infer.utils import is_fully_defined, compare_shapes, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -39,15 +39,10 @@ class Merge(Op):
             if all([np.all(tensor.value == n.value) for n in inferred_and_executable]):
                 if tensor.has_valid('value'):
                     node.out_node().value = tensor.value.copy()
-            else:
-                for n in inferred_and_executable:
-                    if not is_fully_defined(n.value):
-                        node.out_node().value = n.value.copy()
 
-#        node.out_port(0).data.set_shape(tensor.shape)
         # do not use set_shape(tensor.shape) here because input port shape may be different from the calculated output
         # shape and `set_shape` will raise an error that shape has changed
-        node.out_node(0).shape = tensor.shape
+        node.out_node(0).shape = shape_array(tensor.shape)
 
     @staticmethod
     def control_flow_infer(node: Node, is_executable: bool, mark_executability: callable):
