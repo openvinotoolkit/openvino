@@ -22,6 +22,8 @@ execute_process(
     OUTPUT_VARIABLE output
     ERROR_VARIABLE output)
 
+message(WARNING "Output: ${output}")
+
 if(NOT clang_find_result EQUAL "0")
     message(WARNING "Please, install libclang-[N]-dev package (required for ncc naming style check)")
     set(ENABLE_NCC_STYLE OFF)
