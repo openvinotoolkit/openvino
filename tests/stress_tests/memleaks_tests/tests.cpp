@@ -128,7 +128,6 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
     test_runner(test_params.numthreads, test);
 }
 
-
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
