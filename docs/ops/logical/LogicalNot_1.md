@@ -20,7 +20,7 @@ a_{i} = \lnot a_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise logical negation operation. A tensor of type *T_BOOL*.
+* **1**: The result of element-wise logical negation operation. A tensor of type *T_BOOL* and the same shape as input tensor.
 
 **Types**
 
