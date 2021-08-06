@@ -7,18 +7,42 @@ if(NOT COMMAND ie_check_pip_package)
 endif()
 
 set(ncc_style_dir "${IEDevScripts_DIR}/ncc_naming_style")
+set(ncc_style_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style")
 
-# sudo apt-get install clang-9 libclang-9-dev
-find_host_package(Clang QUIET)
-if(Clang_FOUND AND TARGET libclang)
-    get_target_property(libclang_location libclang LOCATION)
-    set(ncc_wrapper_py "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style/ncc_wrapper.py")
-    configure_file("${ncc_style_dir}/ncc_wrapper.py.in" ${ncc_wrapper_py} @ONLY)
-    message(STATUS "Found libclang: ${libclang_location}")
-else()
-    message(WARNING "libclang is not found (required for ncc naming style check)")
+# try to find_package(Clang QUIET)
+# ClangConfig.cmake contains bug that if libclang-XX-dev is not
+# installed, then find_package fails with errors even in QUIET mode
+configure_file("${ncc_style_dir}/try_find_clang.cmake"
+               "${ncc_style_bin_dir}/source/CMakeLists.txt" COPYONLY)
+execute_process(
+    COMMAND
+        "${CMAKE_COMMAND}" -S "${ncc_style_bin_dir}/source"
+                           -B "${ncc_style_bin_dir}/build"
+    RESULT_VARIABLE clang_find_result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE output)
+
+if(NOT clang_find_result EQUAL "0")
+    message(WARNING "Please, install libclang-[N]-dev package (required for ncc naming style check)")
     set(ENABLE_NCC_STYLE OFF)
 endif()
+
+# Since we were able to find_package(Clang) in a separate process
+# let's try to find in current process
+if(ENABLE_NCC_STYLE)
+    find_host_package(Clang QUIET)
+    if(Clang_FOUND AND TARGET libclang)
+        get_target_property(libclang_location libclang LOCATION)
+        set(ncc_wrapper_py "${ncc_style_bin_dir}/ncc_wrapper.py")
+        configure_file("${ncc_style_dir}/ncc_wrapper.py.in" ${ncc_wrapper_py} @ONLY)
+        message(STATUS "Found libclang: ${libclang_location}")
+    else()
+        message(WARNING "libclang is not found (required for ncc naming style check)")
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
+endif()
+
+# find python3
 
 find_package(PythonInterp 3 QUIET)
 if(NOT PYTHONINTERP_FOUND)
@@ -26,12 +50,7 @@ if(NOT PYTHONINTERP_FOUND)
     set(ENABLE_NCC_STYLE OFF)
 endif()
 
-if(ENABLE_NCC_STYLE AND NOT TARGET ncc_all)
-    add_custom_target(ncc_all ALL)
-    set_target_properties(ncc_all PROPERTIES FOLDER ncc_naming_style)
-endif()
-
-# check python requirements
+# check python requirements_dev.txt
 
 set(req_file "${ncc_style_dir}/requirements_dev.txt")
 file(STRINGS ${req_file} req_lines)
@@ -46,6 +65,13 @@ set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
 if(NOT EXISTS ${ncc_script_py})
     message(WARNING "ncc.py is not downloaded via submodule")
     set(ENABLE_NCC_STYLE OFF)
+endif()
+
+# create high-level target
+
+if(ENABLE_NCC_STYLE AND NOT TARGET ncc_all)
+    add_custom_target(ncc_all ALL)
+    set_target_properties(ncc_all PROPERTIES FOLDER ncc_naming_style)
 endif()
 
 #
@@ -73,7 +99,7 @@ function(ov_ncc_naming_style)
     list(APPEND ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
 
     foreach(header IN LISTS headers)
-        set(output_file "${CMAKE_CURRENT_BINARY_DIR}/ncc_naming_style/${header}.ncc_style")
+        set(output_file "${ncc_style_bin_dir}/${header}.ncc_style")
         set(full_header_path "${NCC_STYLE_INCLUDE_DIRECTORY}/${header}")
 
         add_custom_command(
