@@ -33,7 +33,13 @@ foreach(req IN LISTS req_lines)
     ie_check_pip_package(${req} STATUS)
 endforeach()
 
-set(ncc_script_dir "/home/sandye51/Documents/Programming/git_repo/ncc/")
+set(ncc_script_dir "${ncc_style_dir}/ncc/")
+set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
+
+if(NOT EXISTS ${ncc_script_py})
+    message(WARNING "ncc.py is not downloaded via submodule")
+    set(ENABLE_NCC_STYLE OFF)
+endif()
 
 #
 # ov_ncc_naming_style(TARGET_NAME target_name
@@ -78,7 +84,7 @@ function(ov_ncc_naming_style)
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
                 "${full_header_path}"
-                "${ncc_script_dir}/ncc.py"
+                "${ncc_script_py}"
                 "${ncc_style_dir}/ncc_wrapper.py"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
