@@ -21,8 +21,7 @@ from mo.utils.error import Error
 class ApplyPermutation(MiddleReplacementPattern):
     enabled = True
     force_clean_up = True
-    # can't be turned on for Kaldi until permutation logic will be aligned
-    graph_condition = [lambda graph: graph.graph['fw'] != 'kaldi']
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC']
 
     def run_after(self):
         return [ApplyNHWCtoNCHWpermutation, PostMiddleStart]
