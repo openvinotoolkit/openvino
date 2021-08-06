@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -70,7 +70,7 @@ class VariadicSplitBase(Op):
         for i in reversed(range(len(split_lengths))):
             if split_lengths[i] == 0:
                 if node.out_port(i).disconnected():
-                    split_lengths = np.ma.concatenate([split_lengths[:i], split_lengths[i + 1:]])
+                    split_lengths = shape_delete(split_lengths, i)
                     if op == 'VariadicSplit':
                         node.in_port(2).data.set_value(split_lengths)
                     else:

@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compare_dimensions, compare_shapes, \
-    shape_array, is_fully_defined
+    shape_array, is_fully_defined, shape_delete
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -136,10 +136,10 @@ class MatMul(Op):
 
         if node.in_port(0).data.get_shape().size == 1:
             assert compare_dimensions(output_shape[-2], 1)
-            output_shape = np.delete(output_shape, -2, 0)
+            output_shape = shape_delete(output_shape, -2)
         if node.in_port(1).data.get_shape().size == 1:
             assert compare_dimensions(output_shape[-1], 1)
-            output_shape = np.delete(output_shape, -1, 0)
+            output_shape = shape_delete(output_shape, -1)
 
         node.out_port(0).data.set_shape(output_shape)
 
