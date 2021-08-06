@@ -71,7 +71,11 @@ public:
      * @param dimOffsets per-dimension offset from the padding to actual data,
      * @param strides strides for each dimension
      */
-    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, const SizeVector& dimOffsets, const SizeVector& strides);
+    BlockingDesc(const SizeVector& blocked_dims,
+                 const SizeVector& order,
+                 size_t offset,
+                 const SizeVector& dimOffsets,
+                 const SizeVector& strides);
 
     /**
      * @brief Returns the blocked dimensions vector
@@ -358,7 +362,12 @@ struct ROI {
      * @param sizeX W size of ROI
      * @param sizeY H size of ROI
      */
-    ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY): id(id), posX(posX), posY(posY), sizeX(sizeX), sizeY(sizeY) {}
+    ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY)
+        : id(id),
+          posX(posX),
+          posY(posY),
+          sizeX(sizeX),
+          sizeY(sizeY) {}
 };
 
 /**

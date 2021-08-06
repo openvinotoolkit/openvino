@@ -18,7 +18,9 @@
 
 namespace InferenceEngine {
 
-VariableState::VariableState(const details::SharedObjectLoader& so, const IVariableStateInternal::Ptr& impl): _so(so), _impl(impl) {
+VariableState::VariableState(const details::SharedObjectLoader& so, const IVariableStateInternal::Ptr& impl)
+    : _so(so),
+      _impl(impl) {
     if (_impl == nullptr)
         IE_THROW() << "VariableState was not initialized.";
 }

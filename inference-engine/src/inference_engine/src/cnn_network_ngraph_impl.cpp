@@ -44,7 +44,9 @@ using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
-void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr) {
+void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output,
+                                               const std::string& outName,
+                                               DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
         switch (size) {
         case 0:
@@ -106,7 +108,8 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph, const std::vector<IExtensionPtr>& exts)
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph,
+                                           const std::vector<IExtensionPtr>& exts)
     : _ngraph_function(nGraph),
       _ie_extensions(exts) {
     // Restore usual attributes for CNNNetwork
@@ -116,7 +119,9 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         Precision prc = info->getPrecision();
 
         // Convert precision into native format (keep element size)
-        prc = prc == Precision::Q78 ? Precision::I16 : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
+        prc = prc == Precision::Q78
+                  ? Precision::I16
+                  : prc == Precision::FP16 ? Precision::FP32 : static_cast<Precision::ePrecision>(prc);
 
         info->setPrecision(prc);
         network.setInputInfo(info);
@@ -143,7 +148,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
         if (output.second->getPrecision() == Precision::I64) {
             output.second->setPrecision(Precision::I32);
-        } else if (output.second->getPrecision() != Precision::FP32 && output.second->getPrecision() != Precision::I32) {
+        } else if (output.second->getPrecision() != Precision::FP32 &&
+                   output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
         }
     }
@@ -216,7 +222,9 @@ void CNNNetworkNGraphImpl::validate(int version) {
     _ngraph_function->validate_nodes_and_infer_types();
 }
 
-StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept {
+StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
+                                           size_t outputIndex,
+                                           ResponseDesc* resp) noexcept {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
 
     try {
@@ -226,7 +234,8 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
                 // Check that output port exists
                 if (layer->outputs().size() <= outputIndex) {
                     return DescriptionBuffer(OUT_OF_BOUNDS, resp)
-                           << "port index " << outputIndex << " exceeds the number of layer outputs " << layer->outputs().size();
+                           << "port index " << outputIndex << " exceeds the number of layer outputs "
+                           << layer->outputs().size();
                 }
                 std::string outputName = layerName;
                 if (layer->outputs().size() != 1) {
@@ -303,7 +312,8 @@ void CNNNetworkNGraphImpl::reshape() {
     reshape({});
 }
 
-StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes, ResponseDesc* responseDesc) noexcept {
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                                         ResponseDesc* responseDesc) noexcept {
     if (inputShapes.empty())
         return OK;
 
@@ -386,7 +396,8 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
+                    specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
@@ -446,7 +457,9 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     }
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
+                                           const std::string& binPath,
+                                           ResponseDesc* resp) const noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -454,7 +467,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath, ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlPath,
+                                                       binPath,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -466,7 +482,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -474,7 +491,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
+                                                       binBuf,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -486,7 +506,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
+    noexcept {
     try {
         std::map<std::string, ngraph::OpSet> custom_opsets;
         for (const auto& extension : _ie_extensions) {
@@ -496,7 +517,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::Serialize>(xmlBuf, binBuf, ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+        manager.register_pass<ngraph::pass::Serialize>(xmlBuf,
+                                                       binBuf,
+                                                       ngraph::pass::Serialize::Version::IR_V10,
+                                                       custom_opsets);
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
@@ -516,9 +540,12 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name,
+                                                    const std::string& orig_name,
+                                                    ResponseDesc* resp) const noexcept {
     if (_tensorNames.find(orig_name) == _tensorNames.end())
-        return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
+        return DescriptionBuffer(NOT_FOUND, resp)
+               << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
     ov_name = _tensorNames.at(orig_name);
     return OK;
 }
@@ -529,21 +556,25 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             return OK;
         auto original_parameters = _ngraph_function->get_parameters();
         if (original_parameters.empty())
-            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Function doesn't contain parameters!";
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc)
+                   << "Cannot set batch! Function doesn't contain parameters!";
 
         stringstream ss;
         ss << " Please use reshape method instead. Original parameter shapes are: ";
         for (size_t i = 0; i < original_parameters.size(); ++i) {
             if (i)
                 ss << ", ";
-            ss << "\"" << original_parameters[i]->get_friendly_name() << "\": " << original_parameters[i]->get_partial_shape();
+            ss << "\"" << original_parameters[i]->get_friendly_name()
+               << "\": " << original_parameters[i]->get_partial_shape();
         }
 
         // ill-formed logic from the past setBatchSize (we keep it for backward-compatibility)
         const auto first_parameter =
-            *std::min_element(original_parameters.begin(), original_parameters.end(), [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
-                return lhs->get_friendly_name() < rhs->get_friendly_name();
-            });
+            *std::min_element(original_parameters.begin(),
+                              original_parameters.end(),
+                              [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs) {
+                                  return lhs->get_friendly_name() < rhs->get_friendly_name();
+                              });
         const auto first_parameter_pshape = first_parameter->get_partial_shape();
         if (first_parameter_pshape.is_dynamic())
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
@@ -551,7 +582,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
         const auto first_parameter_rank = first_parameter_pshape.rank().get_length();
         if (first_parameter_rank == 0 || first_parameter_rank == 1 || first_parameter_rank == 3)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
-                   << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+                   << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement."
+                   << ss.str();
 
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto& parameter : original_parameters) {
@@ -562,9 +594,12 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             const auto& rank = pshape.rank().get_length();
             if (rank == 0)
                 return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc)
-                       << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+                       << "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension "
+                          "placement."
+                       << ss.str();
             auto shape = parameter->get_shape();
-            shape[0] = {static_cast<size_t>(std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
+            shape[0] = {static_cast<size_t>(
+                std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
         ngraph::pass::Manager ssr_manager;

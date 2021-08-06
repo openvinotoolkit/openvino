@@ -34,7 +34,8 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
 #if (defined(__APPLE__) || defined(_WIN32))
             _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
-            _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES : IStreamsExecutor::ThreadBindingType::NUMA;
+            _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
+                                                              : IStreamsExecutor::ThreadBindingType::NUMA;
 #endif
         } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
             _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
@@ -65,11 +66,13 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
             try {
                 val_i = std::stoi(value);
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS) << ". Expected only positive numbers (#streams) or "
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                           << ". Expected only positive numbers (#streams) or "
                            << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
             }
             if (val_i < 0) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS) << ". Expected only positive numbers (#streams)";
+                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                           << ". Expected only positive numbers (#streams)";
             }
             _streams = val_i;
         }
@@ -78,10 +81,12 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM) << ". Expected only positive numbers (#threads)";
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                       << ". Expected only positive numbers (#threads)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM) << ". Expected only positive numbers (#threads)";
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                       << ". Expected only positive numbers (#threads)";
         }
         _threads = val_i;
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
@@ -89,10 +94,12 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
         try {
             val_i = std::stoi(value);
         } catch (const std::exception&) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM) << ". Expected only non negative numbers (#threads)";
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
+                       << ". Expected only non negative numbers (#threads)";
         }
         if (val_i < 0) {
-            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM) << ". Expected only non negative numbers (#threads)";
+            IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
+                       << ". Expected only non negative numbers (#threads)";
         }
         _threadsPerStream = val_i;
     } else {
@@ -128,7 +135,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
     return {};
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial, const bool fp_intesive) {
+IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
+                                                                            const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
     const auto& numaNodes = getAvailableNUMANodes();
     const int numaNodesNum = numaNodes.size();
@@ -141,20 +149,25 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     // additional latency-case logic for hybrid processors:
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = custom::info::core_types();
-        const auto num_little_cores = custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
+        const auto num_little_cores =
+            custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.front()));
         const auto num_big_cores_phys = getNumberOfCPUCores(true);
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        const bool bLatencyCaseBigOnly = num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
+        const bool bLatencyCaseBigOnly =
+            num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
         // selecting the preferred core type
         streamExecutorConfig._threadPreferredCoreType =
-            bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG : IStreamsExecutor::Config::PreferredCoreType::ANY)
+            bLatencyCase ? (bLatencyCaseBigOnly ? IStreamsExecutor::Config::PreferredCoreType::BIG
+                                                : IStreamsExecutor::Config::PreferredCoreType::ANY)
                          : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
         // additionally selecting the #cores to use in the "Big-only" case
         if (bLatencyCaseBigOnly) {
-            const int hyper_threading_threshold = 2;  // min #cores, for which the hyper-threading becomes useful for the latency case
-            const auto num_big_cores = custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
+            const int hyper_threading_threshold =
+                2;  // min #cores, for which the hyper-threading becomes useful for the latency case
+            const auto num_big_cores =
+                custom::info::default_concurrency(custom::task_arena::constraints{}.set_core_type(core_types.back()));
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
     }
@@ -171,8 +184,10 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                              //      big-cores only, but the #cores is "enough" (pls see the logic above)
                              // it is usually beneficial not to use the hyper-threading (which is default)
                              : num_cores_default;
-    const auto threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
-    streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
+    const auto threads =
+        streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
+    streamExecutorConfig._threadsPerStream =
+        streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
     return streamExecutorConfig;
 }
 

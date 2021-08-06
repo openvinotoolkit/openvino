@@ -86,7 +86,8 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions) {
+std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
+                                                   const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
@@ -117,13 +118,17 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network, co
 
             if (auto stringData = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(rtMapData.second)) {
                 seed = hash_combine(seed, stringData->get());
-            } else if (auto intData = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second)) {
+            } else if (auto intData =
+                           std::dynamic_pointer_cast<ngraph::VariantWrapper<std::int64_t>>(rtMapData.second)) {
                 seed = hash_combine(seed, intData->get());
-            } else if (auto deq = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::DequantizationAttr>>(rtMapData.second)) {
+            } else if (auto deq = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::DequantizationAttr>>(
+                           rtMapData.second)) {
                 seed = hash_combine(seed, deq->get().getDequantizationAttr());
-            } else if (auto fNames = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
+            } else if (auto fNames =
+                           std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::FusedNames>>(rtMapData.second)) {
                 seed = hash_combine(seed, fNames->get().getNames());
-            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::PrimitivesPriority>>(rtMapData.second)) {
+            } else if (auto prim = std::dynamic_pointer_cast<ngraph::VariantWrapper<ngraph::PrimitivesPriority>>(
+                           rtMapData.second)) {
                 seed = hash_combine(seed, prim->get().getPrimitivesPriority());
             }
         }
@@ -160,7 +165,8 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network, co
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelName, const std::map<std::string, std::string>& compileOptions) {
+std::string NetworkCompilationContext::computeHash(const std::string& modelName,
+                                                   const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
     size_t seed = 0;
     try {
@@ -179,7 +185,9 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
 
 CompiledBlobHeader::CompiledBlobHeader() {}
 
-CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo): m_ieVersion(ieVersion), m_fileInfo(fileInfo) {}
+CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo)
+    : m_ieVersion(ieVersion),
+      m_fileInfo(fileInfo) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;

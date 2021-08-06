@@ -24,7 +24,9 @@ namespace InferenceEngine {
         details::Rethrow();                                               \
     }
 
-InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl): _so(so), _impl(impl) {
+InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl)
+    : _so(so),
+      _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -113,46 +115,49 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
     CATCH_IE_EXCEPTION_RETURN(INFER_CANCELLED, InferCancelled)
 
 void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callbackToSet) {
-    INFER_REQ_CALL_STATEMENT(auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
-                             _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
-                                 StatusCode statusCode = StatusCode::OK;
-                                 if (exceptionPtr != nullptr) {
-                                     statusCode = [&] {
-                                         try {
-                                             std::rethrow_exception(exceptionPtr);
-                                         }
-                                         CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
-                                             return GENERAL_ERROR;
-                                         }
-                                         catch (...) {
-                                             return UNEXPECTED;
-                                         }
-                                     }();
-                                 }
-                                 callbackToSet(weakThis, statusCode);
-                             });)
+    INFER_REQ_CALL_STATEMENT(
+        auto weakThis =
+            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+        _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
+            StatusCode statusCode = StatusCode::OK;
+            if (exceptionPtr != nullptr) {
+                statusCode = [&] {
+                    try {
+                        std::rethrow_exception(exceptionPtr);
+                    }
+                    CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
+                        return GENERAL_ERROR;
+                    }
+                    catch (...) {
+                        return UNEXPECTED;
+                    }
+                }();
+            }
+            callbackToSet(weakThis, statusCode);
+        });)
 }
 
 void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callbackToSet) {
-    INFER_REQ_CALL_STATEMENT(IInferRequest::Ptr weakThis =
-                                 InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
-                             _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
-                                 StatusCode statusCode = StatusCode::OK;
-                                 if (exceptionPtr != nullptr) {
-                                     statusCode = [&] {
-                                         try {
-                                             std::rethrow_exception(exceptionPtr);
-                                         }
-                                         CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
-                                             return GENERAL_ERROR;
-                                         }
-                                         catch (...) {
-                                             return UNEXPECTED;
-                                         }
-                                     }();
-                                 }
-                                 callbackToSet(weakThis, statusCode);
-                             });)
+    INFER_REQ_CALL_STATEMENT(
+        IInferRequest::Ptr weakThis =
+            InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*) {}}};
+        _impl->SetCallback([callbackToSet, weakThis](std::exception_ptr exceptionPtr) {
+            StatusCode statusCode = StatusCode::OK;
+            if (exceptionPtr != nullptr) {
+                statusCode = [&] {
+                    try {
+                        std::rethrow_exception(exceptionPtr);
+                    }
+                    CATCH_IE_EXCEPTIONS_RETURN catch (const std::exception&) {
+                        return GENERAL_ERROR;
+                    }
+                    catch (...) {
+                        return UNEXPECTED;
+                    }
+                }();
+            }
+            callbackToSet(weakThis, statusCode);
+        });)
 }
 
 InferRequest::operator IInferRequest::Ptr() {
@@ -161,7 +166,10 @@ InferRequest::operator IInferRequest::Ptr() {
 
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
-    INFER_REQ_CALL_STATEMENT(for (auto&& state : _impl->QueryState()) { controller.emplace_back(VariableState{_so, state}); })
+    INFER_REQ_CALL_STATEMENT(for (auto&& state
+                                  : _impl->QueryState()) {
+        controller.emplace_back(VariableState{_so, state});
+    })
     return controller;
 }
 

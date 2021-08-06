@@ -32,7 +32,8 @@ class SOCreatorTrait {};
  * @tparam C A char type
  */
 template <typename C>
-using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
  * @brief This class instantiate object using shared library
@@ -64,7 +65,7 @@ public:
      * @param name Name of a shared library file
      */
     template <typename C, typename = enableIfSupportedChar<C>>
-    SOPointer(const std::basic_string<C>& name): _so(name.c_str()) {
+    SOPointer(const std::basic_string<C>& name) : _so(name.c_str()) {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
@@ -73,13 +74,13 @@ public:
      * @brief Constructs an object with existing loader
      * @param soLoader Existing pointer to a library loader
      */
-    SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr): _so{so}, _ptr{ptr} {}
+    SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
 
     /**
      * @brief Constructs an object with existing loader
      * @param so Existing pointer to a library loader
      */
-    explicit SOPointer(const SharedObjectLoader& so): _so(so) {
+    explicit SOPointer(const SharedObjectLoader& so) : _so(so) {
         Load(std::integral_constant<bool, HasRelease::value>{});
     }
 
@@ -89,8 +90,8 @@ public:
      * @param that copied SOPointer object
      */
     template <typename U>
-    SOPointer(const SOPointer<U>& that): _so(that._so),
-                                         _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
+    SOPointer(const SOPointer<U>& that) : _so(that._so),
+                                          _ptr(std::dynamic_pointer_cast<T>(that._ptr)) {
         IE_ASSERT(_ptr != nullptr);
     }
 
@@ -148,7 +149,8 @@ protected:
                 if (sts != OK) {
                     IE_EXCEPTION_SWITCH(sts,
                                         ExceptionType,
-                                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
+                                        InferenceEngine::details::ThrowNow<ExceptionType>{} <<=
+                                        std::stringstream{} << IE_LOCATION << desc.msg)
                 }
                 IE_SUPPRESS_DEPRECATED_START
                 _ptr = std::shared_ptr<T>(object, [](T* ptr) {

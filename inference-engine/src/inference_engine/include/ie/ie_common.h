@@ -298,7 +298,8 @@ using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 namespace details {
-struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGINE_API_CLASS(InferenceEngineException): public std::runtime_error {
+struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGINE_API_CLASS(InferenceEngineException)
+    : public std::runtime_error {
     using std::runtime_error::runtime_error;
     bool hasStatus() const {
         return true;
@@ -311,7 +312,7 @@ struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGI
  * @brief Base Inference Engine exception class
  */
 IE_SUPPRESS_DEPRECATED_START
-struct INFERENCE_ENGINE_API_CLASS(Exception): public details::InferenceEngineException {
+struct INFERENCE_ENGINE_API_CLASS(Exception) : public details::InferenceEngineException {
     using InferenceEngineException::InferenceEngineException;
 };
 IE_SUPPRESS_DEPRECATED_END
@@ -416,14 +417,18 @@ struct ThrowNow final {
 #define IE_PP_NO_ARGS(NAME)         ,
 #define IE_PP_CAT3_(x, y, z)        x##y##z
 #define IE_PP_CAT3(x, y, z)         IE_PP_CAT3_(x, y, z)
-#define IE_PP_OVERLOAD(NAME, ...)   IE_PP_EXPAND(IE_PP_CAT3(NAME, _, IE_PP_EXPAND(IE_PP_NARG(IE_PP_NO_ARGS __VA_ARGS__(NAME))))(__VA_ARGS__))
+#define IE_PP_OVERLOAD(NAME, ...) \
+    IE_PP_EXPAND(IE_PP_CAT3(NAME, _, IE_PP_EXPAND(IE_PP_NARG(IE_PP_NO_ARGS __VA_ARGS__(NAME))))(__VA_ARGS__))
 // ENDWARNING
 
-#define IE_THROW_0() InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{} <<= std::stringstream{} << IE_LOCATION
+#define IE_THROW_0() \
+    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{} <<= std::stringstream{} << IE_LOCATION
 
-#define IE_THROW_1(ExceptionType)                                            \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<= \
-        std::stringstream{} << IE_LOCATION << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
+#define IE_THROW_1(ExceptionType)                                                                                  \
+    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<=                                       \
+        std::stringstream{} << IE_LOCATION                                                                         \
+                            << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() \
+                            << ' '
 /// @endcond
 
 /**
@@ -458,7 +463,9 @@ struct NullStream {
 #endif  // NDEBUG
 
 /// @cond
-#define THROW_IE_EXCEPTION InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} << IE_LOCATION
+#define THROW_IE_EXCEPTION                                                                                           \
+    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
+                                                                                                 << IE_LOCATION
 
 #define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
     case InferenceEngine::STATUS_CODE: {                                \

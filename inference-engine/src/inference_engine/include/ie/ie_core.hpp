@@ -111,7 +111,9 @@ public:
      * parameter value) relevant only for this load operation
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+                                  const std::string& deviceName,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -127,7 +129,9 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(const std::string& modelPath, const std::string& deviceName, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                  const std::string& deviceName,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
@@ -144,7 +148,9 @@ public:
      * parameter value) relevant only for this load operation
      * @return An executable network object
      */
-    ExecutableNetwork LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+                                  RemoteContext::Ptr context,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension for the specified plugin
@@ -164,7 +170,9 @@ public:
      * parameter value) relevant only for this load operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(const std::string& modelFileName, const std::string& deviceName, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::string& deviceName,
+                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -174,7 +182,9 @@ public:
      * parameter value) relevant only for this load operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const std::string& deviceName,
+                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @deprecated Use Core::ImportNetwork with explicit device name
@@ -195,7 +205,9 @@ public:
      * parameter value) relevant only for this load operation
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const RemoteContext::Ptr& context,
+                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Query device if it supports specified network with specified
@@ -208,7 +220,9 @@ public:
      * @return An object containing a map of pairs a layer name -> a device name
      * supporting this layer.
      */
-    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName, const std::map<std::string, std::string>& config = {}) const;
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                    const std::string& deviceName,
+                                    const std::map<std::string, std::string>& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in

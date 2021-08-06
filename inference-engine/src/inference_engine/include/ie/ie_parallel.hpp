@@ -569,7 +569,14 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
 }
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
-void for_5d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
+void for_5d(const int& ithr,
+            const int& nthr,
+            const T0& D0,
+            const T1& D1,
+            const T2& D2,
+            const T3& D3,
+            const T4& D4,
+            const F& func) {
     const size_t work_amount = (size_t)D0 * D1 * D2 * D3 * D4;
     if (work_amount == 0)
         return;

@@ -42,7 +42,10 @@ public:
      * @return Underlying `VADisplay` object handle
      */
     operator VADisplay() {
-        return _ObjFromParams<VADisplay, gpu_handle_param>(getParams(), GPU_PARAM_KEY(VA_DEVICE), GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED));
+        return _ObjFromParams<VADisplay, gpu_handle_param>(getParams(),
+                                                           GPU_PARAM_KEY(VA_DEVICE),
+                                                           GPU_PARAM_KEY(CONTEXT_TYPE),
+                                                           GPU_PARAM_VALUE(VA_SHARED));
     }
 };
 
@@ -65,7 +68,7 @@ public:
      * layout.
      * @param tensorDesc Tensor description
      */
-    explicit VASurfaceBlob(const TensorDesc& tensorDesc): ClImage2DBlob(tensorDesc) {}
+    explicit VASurfaceBlob(const TensorDesc& tensorDesc) : ClImage2DBlob(tensorDesc) {}
 
     /**
      * @brief VASurfaceID conversion operator for the VASurfaceBlob object.
@@ -83,7 +86,10 @@ public:
      * @return Plane ID
      */
     uint32_t plane() {
-        return _ObjFromParams<uint32_t, uint32_t>(getParams(), GPU_PARAM_KEY(VA_PLANE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE));
+        return _ObjFromParams<uint32_t, uint32_t>(getParams(),
+                                                  GPU_PARAM_KEY(VA_PLANE),
+                                                  GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                  GPU_PARAM_VALUE(VA_SURFACE));
     }
 };
 
@@ -97,7 +103,10 @@ public:
  * @param nv12_surf NV12 `VASurfaceID` to create NV12 from
  * @return A remote NV12 blob wrapping `VASurfaceID`
  */
-static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, VASurfaceID nv12_surf) {
+static inline Blob::Ptr make_shared_blob_nv12(size_t height,
+                                              size_t width,
+                                              RemoteContext::Ptr ctx,
+                                              VASurfaceID nv12_surf) {
     // despite of layout, blob dimensions always follow in N, C, H, W order
     TensorDesc ydesc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
     ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
@@ -121,7 +130,8 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, Remot
  * @return A remote context wrapping `VADisplay`
  */
 static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceName, VADisplay device) {
-    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)}, {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                              {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
     return std::dynamic_pointer_cast<VAContext>(core.CreateContext(deviceName, contextParams));
 }
 
@@ -134,7 +144,10 @@ static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceN
  * @param plane An index of a plane inside `VASurfaceID` to create blob from
  * @return A remote blob wrapping `VASurfaceID`
  */
-static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, VASurfaceID surface, uint32_t plane = 0) {
+static inline VASurfaceBlob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                  RemoteContext::Ptr ctx,
+                                                  VASurfaceID surface,
+                                                  uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<VAContext>(ctx);
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";

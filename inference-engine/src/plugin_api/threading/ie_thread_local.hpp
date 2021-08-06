@@ -52,7 +52,7 @@ struct ThreadLocal {
         : _create{[init] {
               return init;
           }} {}
-    ThreadLocal(ThreadLocal&& other): _map{std::move(other._map)}, _create{std::move(other._create)} {}
+    ThreadLocal(ThreadLocal&& other) : _map{std::move(other._map)}, _create{std::move(other._create)} {}
     ThreadLocal& operator=(ThreadLocal&& other) {
         _map = std::move(other._map);
         _create = std::move(other._create);
@@ -60,7 +60,7 @@ struct ThreadLocal {
     }
     ThreadLocal(const ThreadLocal&) = delete;
     ThreadLocal& operator=(const ThreadLocal&&) = delete;
-    explicit ThreadLocal(const Create& create_): _create{create_} {}
+    explicit ThreadLocal(const Create& create_) : _create{create_} {}
 
     T& local() {
         auto threadId = std::this_thread::get_id();

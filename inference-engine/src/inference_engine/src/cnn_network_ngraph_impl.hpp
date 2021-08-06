@@ -39,7 +39,8 @@ IE_SUPPRESS_DEPRECATED_START
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
-    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph, const std::vector<IExtensionPtr>& exts = {});
+    CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
+                         const std::vector<IExtensionPtr>& exts = {});
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -71,15 +72,18 @@ public:
 
     virtual void validate(int = 10);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes, ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                       ResponseDesc* resp) noexcept override;
 
-    StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const noexcept override;
+    StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
+        noexcept override;
 
     StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const noexcept override;
 
     StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const noexcept override;
 
-    StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
+    StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
+        noexcept override;
 
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;

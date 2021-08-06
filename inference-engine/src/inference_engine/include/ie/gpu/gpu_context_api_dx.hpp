@@ -40,7 +40,10 @@ public:
      * @return Pointer to underlying ID3D11Device interface
      */
     operator ID3D11Device*() {
-        return _ObjFromParams<ID3D11Device*, gpu_handle_param>(getParams(), GPU_PARAM_KEY(VA_DEVICE), GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED));
+        return _ObjFromParams<ID3D11Device*, gpu_handle_param>(getParams(),
+                                                               GPU_PARAM_KEY(VA_DEVICE),
+                                                               GPU_PARAM_KEY(CONTEXT_TYPE),
+                                                               GPU_PARAM_VALUE(VA_SHARED));
     }
 };
 
@@ -63,7 +66,7 @@ public:
      * layout.
      * @param tensorDesc Tensor description
      */
-    explicit D3DBufferBlob(const TensorDesc& tensorDesc): ClBufferBlob(tensorDesc) {}
+    explicit D3DBufferBlob(const TensorDesc& tensorDesc) : ClBufferBlob(tensorDesc) {}
 
     /**
      * @brief ID3D11Buffer conversion operator for the D3DContext object.
@@ -96,7 +99,7 @@ public:
      * layout.
      * @param tensorDesc Tensor description
      */
-    explicit D3DSurface2DBlob(const TensorDesc& tensorDesc): ClImage2DBlob(tensorDesc) {}
+    explicit D3DSurface2DBlob(const TensorDesc& tensorDesc) : ClImage2DBlob(tensorDesc) {}
 
     /**
      * @brief ID3D11Texture2D conversion operator for the D3DContext object.
@@ -115,7 +118,10 @@ public:
      * @return Plane ID
      */
     uint32_t plane() {
-        return _ObjFromParams<uint32_t, uint32_t>(getParams(), GPU_PARAM_KEY(VA_PLANE), GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE));
+        return _ObjFromParams<uint32_t, uint32_t>(getParams(),
+                                                  GPU_PARAM_KEY(VA_PLANE),
+                                                  GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                  GPU_PARAM_VALUE(VA_SURFACE));
     }
 };
 
@@ -129,7 +135,10 @@ public:
  * @param nv12_surf A ID3D11Texture2D instance to create NV12 blob from
  * @return NV12 remote blob
  */
-static inline Blob::Ptr make_shared_blob_nv12(size_t height, size_t width, RemoteContext::Ptr ctx, ID3D11Texture2D* nv12_surf) {
+static inline Blob::Ptr make_shared_blob_nv12(size_t height,
+                                              size_t width,
+                                              RemoteContext::Ptr ctx,
+                                              ID3D11Texture2D* nv12_surf) {
     // despite of layout, blob dimensions always follow in N,C,H,W order
     TensorDesc desc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
 
@@ -178,7 +187,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)}, {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(buffer)}};
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
+                       {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(buffer)}};
     return std::dynamic_pointer_cast<D3DBufferBlob>(casted->CreateBlob(desc, params));
 }
 
@@ -195,7 +205,10 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @note The underlying ID3D11Texture2D can also be a plane of output surface of
  * DXGI video decoder
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Texture2D* surface, uint32_t plane = 0) {
+static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                         RemoteContext::Ptr ctx,
+                                         ID3D11Texture2D* surface,
+                                         uint32_t plane = 0) {
     auto casted = std::dynamic_pointer_cast<D3DContext>(ctx);
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";

@@ -49,7 +49,7 @@ public:
      * @param name Full or relative path to extension library
      */
     template <typename C, typename = details::enableIfSupportedChar<C>>
-    explicit Extension(const std::basic_string<C>& name): actual(name) {}
+    explicit Extension(const std::basic_string<C>& name) : actual(name) {}
 
     /**
      * @brief Gets the extension version information

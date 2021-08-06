@@ -32,8 +32,10 @@ IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStre
 
         const auto& executorConfig = it.first;
         if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
-            executorConfig._threadsPerStream == config._threadsPerStream && executorConfig._threadBindingType == config._threadBindingType &&
-            executorConfig._threadBindingStep == config._threadBindingStep && executorConfig._threadBindingOffset == config._threadBindingOffset)
+            executorConfig._threadsPerStream == config._threadsPerStream &&
+            executorConfig._threadBindingType == config._threadBindingType &&
+            executorConfig._threadBindingStep == config._threadBindingStep &&
+            executorConfig._threadBindingOffset == config._threadBindingOffset)
             if (executorConfig._threadBindingType != IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
                 executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
                 return executor;
@@ -61,12 +63,13 @@ void ExecutorManagerImpl::clear(const std::string& id) {
         cpuStreamsExecutors.clear();
     } else {
         executors.erase(id);
-        cpuStreamsExecutors.erase(std::remove_if(cpuStreamsExecutors.begin(),
-                                                 cpuStreamsExecutors.end(),
-                                                 [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
-                                                     return it.first._name == id;
-                                                 }),
-                                  cpuStreamsExecutors.end());
+        cpuStreamsExecutors.erase(
+            std::remove_if(cpuStreamsExecutors.begin(),
+                           cpuStreamsExecutors.end(),
+                           [&](const std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>& it) {
+                               return it.first._name == id;
+                           }),
+            cpuStreamsExecutors.end());
     }
 }
 

@@ -187,8 +187,8 @@ bool equal(const std::vector<T, A>& v1, const std::vector<T, A>& v2) {
  * @return `True` in case of `std::string`s are equal, `false` otherwise
  */
 inline bool equal(const std::string& lhs, const std::string& rhs, bool ignoreCase = true) {
-    return (lhs.size() == rhs.size()) &&
-           (ignoreCase ? 0 == strncasecmp(lhs.c_str(), rhs.c_str(), lhs.size()) : 0 == strncmp(lhs.c_str(), rhs.c_str(), lhs.size()));
+    return (lhs.size() == rhs.size()) && (ignoreCase ? 0 == strncasecmp(lhs.c_str(), rhs.c_str(), lhs.size())
+                                                     : 0 == strncmp(lhs.c_str(), rhs.c_str(), lhs.size()));
 }
 
 /**

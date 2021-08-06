@@ -335,9 +335,12 @@ void blob_copy_5d_merge_u8c3(const uint8_t* src_ptr,
     for (int n = 0; n < N; n++)
         for (int d = 0; d < D; d++) {
             for (int h = 0; h < H; h++) {
-                const uint8_t* src0 = src_ptr + n * N_src_stride + 0 * C_src_stride + d * D_src_stride + h * H_src_stride;
-                const uint8_t* src1 = src_ptr + n * N_src_stride + 1 * C_src_stride + d * D_src_stride + h * H_src_stride;
-                const uint8_t* src2 = src_ptr + n * N_src_stride + 2 * C_src_stride + d * D_src_stride + h * H_src_stride;
+                const uint8_t* src0 =
+                    src_ptr + n * N_src_stride + 0 * C_src_stride + d * D_src_stride + h * H_src_stride;
+                const uint8_t* src1 =
+                    src_ptr + n * N_src_stride + 1 * C_src_stride + d * D_src_stride + h * H_src_stride;
+                const uint8_t* src2 =
+                    src_ptr + n * N_src_stride + 2 * C_src_stride + d * D_src_stride + h * H_src_stride;
 
                 uint8_t* dst = dst_ptr + n * N_dst_stride + d * D_dst_stride + h * H_dst_stride;
 

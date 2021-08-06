@@ -47,7 +47,7 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
 
     friend struct DisableCallbackGuard;
     struct DisableCallbackGuard {
-        explicit DisableCallbackGuard(AsyncInferRequestThreadSafeDefault* this_): _this{this_} {
+        explicit DisableCallbackGuard(AsyncInferRequestThreadSafeDefault* this_) : _this{this_} {
             std::lock_guard<std::mutex> lock{_this->_mutex};
             std::swap(_callback, _this->_callback);
         }
@@ -60,7 +60,8 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
     };
 
     struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
-        explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor): _streamsExecutor{streamsExecutor} {}
+        explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor)
+            : _streamsExecutor{streamsExecutor} {}
         void run(InferenceEngine::Task task) override {
             _streamsExecutor->Execute(std::move(task));
         }
@@ -84,7 +85,8 @@ class AsyncInferRequestThreadSafeDefault : public IInferRequestInternal {
                                               std::end(_futures),
                                               [](const std::shared_future<void>& future) {
                                                   if (future.valid()) {
-                                                      return (std::future_status::ready == future.wait_for(std::chrono::milliseconds{0}));
+                                                      return (std::future_status::ready ==
+                                                              future.wait_for(std::chrono::milliseconds{0}));
                                                   } else {
                                                       return true;
                                                   }
@@ -179,7 +181,8 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout) override {
         if (millis_timeout < InferRequest::WaitMode::RESULT_READY) {
-            IE_THROW(ParameterMismatch) << " Timeout can't be less " << InferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
+            IE_THROW(ParameterMismatch) << " Timeout can't be less " << InferRequest::WaitMode::RESULT_READY
+                                        << " for InferRequest::Wait\n";
         }
         auto status = std::future_status::deferred;
 
@@ -301,7 +304,9 @@ protected:
      * @param[in]  itEndStage End pipeline iterator
      * @param[in]  callbackExecutor Final or error stage executor
      */
-    void RunFirstStage(const Pipeline::iterator itBeginStage, const Pipeline::iterator itEndStage, const ITaskExecutor::Ptr callbackExecutor = {}) {
+    void RunFirstStage(const Pipeline::iterator itBeginStage,
+                       const Pipeline::iterator itEndStage,
+                       const ITaskExecutor::Ptr callbackExecutor = {}) {
         auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
         IE_ASSERT(nullptr != firstStageExecutor);
         firstStageExecutor->run(MakeNextStageTask(itBeginStage, itEndStage, std::move(callbackExecutor)));
@@ -383,7 +388,9 @@ private:
      * callback call
      * @return A next stage task
      */
-    Task MakeNextStageTask(const Pipeline::iterator itStage, const Pipeline::iterator itEndStage, const ITaskExecutor::Ptr callbackExecutor) {
+    Task MakeNextStageTask(const Pipeline::iterator itStage,
+                           const Pipeline::iterator itEndStage,
+                           const ITaskExecutor::Ptr callbackExecutor) {
         return std::bind(
             [this, itStage, itEndStage](ITaskExecutor::Ptr& callbackExecutor) mutable {
                 std::exception_ptr currentException = nullptr;

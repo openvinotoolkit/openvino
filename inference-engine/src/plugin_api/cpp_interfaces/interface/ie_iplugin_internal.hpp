@@ -90,7 +90,7 @@ copyInfo(const OutputsDataMap& networkOutputs);
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferencePlugin): public std::enable_shared_from_this<IInferencePlugin> {
+class INFERENCE_ENGINE_API_CLASS(IInferencePlugin) : public std::enable_shared_from_this<IInferencePlugin> {
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -145,7 +145,8 @@ public:
      * this load operation
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+                                                                    const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network from network object, on specified
@@ -169,7 +170,8 @@ public:
      * this load operation
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                                    const std::map<std::string, std::string>& config);
 
     /**
      * @brief Registers extension within plugin
@@ -223,7 +225,8 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName, const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
+                                                                      const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network from an previously exported network
@@ -233,7 +236,8 @@ public:
      * @param config A string -> string map of parameters
      * @return An Executable network
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+                                                                      const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network from an previously exported network
@@ -267,7 +271,8 @@ public:
      * @param[in]  config   The map of configuration parameters
      * @return     The result of query operator containing supported layers map
      */
-    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const;
+    virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                            const std::map<std::string, std::string>& config) const;
 
 protected:
     ~IInferencePlugin() = default;
@@ -285,7 +290,9 @@ protected:
      * load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network, const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Creates an executable network using remote context from a parsed
@@ -302,9 +309,10 @@ protected:
      * load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(const CNNNetwork& network,
-                                                                           const std::shared_ptr<RemoteContext>& context,
-                                                                           const std::map<std::string, std::string>& config);
+    virtual std::shared_ptr<IExecutableNetworkInternal> LoadExeNetworkImpl(
+        const CNNNetwork& network,
+        const std::shared_ptr<RemoteContext>& context,
+        const std::map<std::string, std::string>& config);
 
     /**
      * @brief Set input and output information to executable network. This method
@@ -314,7 +322,9 @@ protected:
      * @param inputs An input information to set
      * @param outputs An output information to set
      */
-    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork, const ConstInputsDataMap& inputs, const ConstOutputsDataMap& outputs);
+    void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
+                           const ConstInputsDataMap& inputs,
+                           const ConstOutputsDataMap& outputs);
 
     std::string _pluginName;                     //!< A device name that plugins enables
     std::map<std::string, std::string> _config;  //!< A map config keys -> values

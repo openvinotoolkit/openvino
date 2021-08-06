@@ -54,7 +54,11 @@ public:
      *
      * @param that An rvalue reference for the other LockedMemoryBase instance
      */
-    LockedMemoryBase(LockedMemoryBase&& that) noexcept: _allocator(that._allocator), _handle(that._handle), _lockFlag(that._lockFlag), _offset(that._offset) {
+    LockedMemoryBase(LockedMemoryBase&& that) noexcept
+        : _allocator(that._allocator),
+          _handle(that._handle),
+          _lockFlag(that._lockFlag),
+          _offset(that._offset) {
         that._locked = nullptr;
     }
 
@@ -124,7 +128,8 @@ public:
      * @param handle Handle provided by allocator
      * @param offsetInBytes Offset in originally locked region
      */
-    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes = 0): base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
+    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes = 0)
+        : base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
 
     /**
      * @brief A default copy constructor, accepting rvalue
@@ -139,7 +144,7 @@ public:
      * @param that Rvalue reference for the other LockedMemoryBase instance
      * @param offset Offset value
      */
-    LockedMemory(LockedMemory<T>&& that, size_t offset): base(std::move(that)) {
+    LockedMemory(LockedMemory<T>&& that, size_t offset) : base(std::move(that)) {
         base::_offset = offset;
     }
 
@@ -231,7 +236,8 @@ public:
      * @param handle Handle provided by allocator
      * @param offsetInBytes Offset in originally locked region
      */
-    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes): base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
+    LockedMemory(IAllocator* ptr, void* handle, size_t offsetInBytes)
+        : base(ptr, handle, LOCK_FOR_WRITE, offsetInBytes) {}
 
     /**
      * @brief A default copy constructor that accepts rvalue
@@ -246,7 +252,7 @@ public:
      * @param that Rvalue reference for the other LockedMemoryBase instance
      * @param offset Offset value
      */
-    LockedMemory(LockedMemory<void>&& that, size_t offset): base(std::move(that)) {
+    LockedMemory(LockedMemory<void>&& that, size_t offset) : base(std::move(that)) {
         base::_offset = offset;
     }
 
@@ -330,7 +336,7 @@ public:
      * @param handle Handle provided by allocator
      * @param offset Offset in bytes in originally locked region
      */
-    LockedMemory(IAllocator* ptr, void* handle, size_t offset): base(ptr, handle, LOCK_FOR_READ, offset) {}
+    LockedMemory(IAllocator* ptr, void* handle, size_t offset) : base(ptr, handle, LOCK_FOR_READ, offset) {}
 
     /**
      * @brief A default copy constructor that accepts rvalue
@@ -345,7 +351,7 @@ public:
      * @param that Rvalue reference for the other LockedMemoryBase instance
      * @param offset Offset value
      */
-    LockedMemory(LockedMemory<const T>&& that, size_t offset): base(std::move(that)) {
+    LockedMemory(LockedMemory<const T>&& that, size_t offset) : base(std::move(that)) {
         base::_offset = offset;
     }
 

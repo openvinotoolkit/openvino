@@ -72,7 +72,7 @@ public:
      *
      * @param str char array
      */
-    Parameter(const char* str): Parameter(std::string(str)) {}  // NOLINT
+    Parameter(const char* str) : Parameter(std::string(str)) {}  // NOLINT
 
     /**
      * @brief Destructor
@@ -306,10 +306,12 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream, const U& object) const {}
+        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream,
+                                                                                      const U& object) const {}
 
         template <class U>
-        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream, const U& object) const {
+        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream,
+                                                                                     const U& object) const {
             stream << object;
         }
 
@@ -351,8 +353,10 @@ extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::Re
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<std::string>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::vector<unsigned long>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
-extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(
+    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
+extern template struct INFERENCE_ENGINE_API_CLASS(
+    InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
 #endif
 
 }  // namespace InferenceEngine

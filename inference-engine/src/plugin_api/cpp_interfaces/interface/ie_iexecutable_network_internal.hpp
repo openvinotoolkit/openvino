@@ -27,7 +27,8 @@ class IVariableStateInternal;
  * @brief An internal API of executable network to be implemented by plugin,
  * @ingroup ie_dev_api_exec_network_api
  */
-class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal): public std::enable_shared_from_this<IExecutableNetworkInternal> {
+class INFERENCE_ENGINE_API_CLASS(IExecutableNetworkInternal)
+    : public std::enable_shared_from_this<IExecutableNetworkInternal> {
 public:
     /**
      * @brief A shared pointer to IExecutableNetworkInternal interface
@@ -142,7 +143,8 @@ protected:
      * @param[in]  networkOutputs  The network outputs
      * @return     A shared pointer to inference request object.
      */
-    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs, OutputsDataMap networkOutputs);
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
+                                                                          OutputsDataMap networkOutputs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

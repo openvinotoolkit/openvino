@@ -94,7 +94,7 @@ public:
  * @brief This class provides interface for the implementation with the custom
  * execution code
  */
-class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl): public ILayerImpl {
+class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
 public:
     /**
      * @brief A shared pointer to the ILayerExecImpl interface
@@ -132,13 +132,15 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
-    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs,
+                               std::vector<Blob::Ptr>& outputs,
+                               ResponseDesc* resp) noexcept = 0;
 };
 
 /**
  * @brief This class is the main extension interface
  */
-class INFERENCE_ENGINE_API_CLASS(IExtension): public std::enable_shared_from_this<IExtension> {
+class INFERENCE_ENGINE_API_CLASS(IExtension) : public std::enable_shared_from_this<IExtension> {
 public:
     /**
      * @brief Returns operation sets

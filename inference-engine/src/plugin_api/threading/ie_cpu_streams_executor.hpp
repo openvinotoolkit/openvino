@@ -23,7 +23,7 @@ namespace InferenceEngine {
  * groups of threads, that can be pinned to cores or NUMA nodes. It uses custom
  * threads to pull tasks from single queue.
  */
-class INFERENCE_ENGINE_API_CLASS(CPUStreamsExecutor): public IStreamsExecutor {
+class INFERENCE_ENGINE_API_CLASS(CPUStreamsExecutor) : public IStreamsExecutor {
 public:
     /**
      * @brief A shared pointer to a CPUStreamsExecutor object

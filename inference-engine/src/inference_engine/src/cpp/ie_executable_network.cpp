@@ -20,7 +20,9 @@ namespace InferenceEngine {
         details::Rethrow();                                                 \
     }
 
-ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl): _so(so), _impl(impl) {
+ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
+    : _so(so),
+      _impl(impl) {
     IE_ASSERT(_impl != nullptr);
 }
 
@@ -52,7 +54,10 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
 
 std::vector<VariableState> ExecutableNetwork::QueryState() {
     std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT(for (auto&& state : _impl->QueryState()) { controller.emplace_back(VariableState{_so, state}); });
+    EXEC_NET_CALL_STATEMENT(for (auto&& state
+                                 : _impl->QueryState()) {
+        controller.emplace_back(VariableState{_so, state});
+    });
     return controller;
 }
 

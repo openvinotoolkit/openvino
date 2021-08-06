@@ -28,7 +28,7 @@ _IE_SUPPRESS_DEPRECATED_START_GCC
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork): public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_API_CLASS(ICNNNetwork) : public std::enable_shared_from_this<ICNNNetwork> {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
@@ -130,7 +130,9 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0, ResponseDesc* resp = nullptr) noexcept = 0;
+    virtual StatusCode addOutput(const std::string& layerName,
+                                 size_t outputIndex = 0,
+                                 ResponseDesc* resp = nullptr) noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -203,7 +205,8 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const noexcept = 0;
+    virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
+        noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -216,7 +219,8 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(std::ostream& xmlStream, std::ostream& binStream, ResponseDesc* resp) const noexcept = 0;
+    virtual StatusCode serialize(std::ostream& xmlStream, std::ostream& binStream, ResponseDesc* resp) const
+        noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -243,7 +247,8 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
+        noexcept {
         (void)ov_name;
         (void)orig_name;
         (void)resp;

@@ -9,12 +9,14 @@
 
 using namespace InferenceEngine;
 
-TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout): precision(precision), blockingDesc(dims, layout) {
+TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
+    : precision(precision),
+      blockingDesc(dims, layout) {
     this->dims = dims;
     this->layout = layout;
 }
 
-TensorDesc::TensorDesc(const Precision& precision, Layout layout): precision(precision), blockingDesc() {
+TensorDesc::TensorDesc(const Precision& precision, Layout layout) : precision(precision), blockingDesc() {
     this->layout = layout;
 }
 
@@ -44,24 +46,27 @@ TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const
         case 3:
             if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2) {
                 layout = Layout::CHW;
-            } else if (blockingDesc.getOrder()[0] == 1 && blockingDesc.getOrder()[1] == 2 && blockingDesc.getOrder()[2] == 0) {
+            } else if (blockingDesc.getOrder()[0] == 1 && blockingDesc.getOrder()[1] == 2 &&
+                       blockingDesc.getOrder()[2] == 0) {
                 layout = Layout::HWC;
             }
             break;
         case 4:
-            if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2 && blockingDesc.getOrder()[3] == 3) {
+            if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2 &&
+                blockingDesc.getOrder()[3] == 3) {
                 layout = Layout::NCHW;
-            } else if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 2 && blockingDesc.getOrder()[2] == 3 &&
-                       blockingDesc.getOrder()[3] == 1) {
+            } else if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 2 &&
+                       blockingDesc.getOrder()[2] == 3 && blockingDesc.getOrder()[3] == 1) {
                 layout = Layout::NHWC;
             }
             break;
         case 5:
-            if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2 && blockingDesc.getOrder()[3] == 3 &&
-                blockingDesc.getOrder()[4] == 4) {
+            if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 1 && blockingDesc.getOrder()[2] == 2 &&
+                blockingDesc.getOrder()[3] == 3 && blockingDesc.getOrder()[4] == 4) {
                 layout = Layout::NCDHW;
-            } else if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 2 && blockingDesc.getOrder()[2] == 3 &&
-                       blockingDesc.getOrder()[3] == 4 && blockingDesc.getOrder()[4] == 1) {
+            } else if (blockingDesc.getOrder()[0] == 0 && blockingDesc.getOrder()[1] == 2 &&
+                       blockingDesc.getOrder()[2] == 3 && blockingDesc.getOrder()[3] == 4 &&
+                       blockingDesc.getOrder()[4] == 1) {
                 layout = Layout::NDHWC;
             }
             break;
@@ -142,7 +147,8 @@ void TensorDesc::setLayout(Layout l) {
         IE_THROW() << "Size of dims(" << std::to_string(dims.size()) << ") and format(" << l << ") are inconsistent.";
     }
 
-    // HACK: we need to update BlockingDesc after layout change, but if it was set manually not sure how to di this properly
+    // HACK: we need to update BlockingDesc after layout change, but if it was set manually not sure how to di this
+    // properly
     const bool hasDefaultBlockingDesc = blockingDesc == BlockingDesc(dims, layout);
 
     layout = l;
@@ -244,20 +250,24 @@ void TensorDesc::reshape(const SizeVector& dims, const BlockingDesc& blockDesc) 
     this->layout = Layout::BLOCKED;
 }
 
-BlockingDesc::BlockingDesc(const SizeVector& block_dims, const SizeVector& order): offsetPadding(0) {
+BlockingDesc::BlockingDesc(const SizeVector& block_dims, const SizeVector& order) : offsetPadding(0) {
     this->order = order;
     if (block_dims.empty() || order.empty())
         return;
     fillDesc(block_dims, order);
 }
 
-BlockingDesc::BlockingDesc(): BlockingDesc({}, Layout::ANY) {}
+BlockingDesc::BlockingDesc() : BlockingDesc({}, Layout::ANY) {}
 
-BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset): BlockingDesc(blocked_dims, order) {
+BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset)
+    : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
 }
 
-BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, const SizeVector& dimOffsets)
+BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
+                           const SizeVector& order,
+                           size_t offset,
+                           const SizeVector& dimOffsets)
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != dimOffsets.size())
@@ -265,7 +275,11 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
     this->offsetPaddingToData = dimOffsets;
 }
 
-BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, const SizeVector& dimOffsets, const SizeVector& strides)
+BlockingDesc::BlockingDesc(const SizeVector& blocked_dims,
+                           const SizeVector& order,
+                           size_t offset,
+                           const SizeVector& dimOffsets,
+                           const SizeVector& strides)
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != strides.size())
@@ -276,7 +290,7 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
     this->offsetPaddingToData = dimOffsets;
 }
 
-BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout): offsetPadding(0) {
+BlockingDesc::BlockingDesc(const SizeVector& dims, Layout layout) : offsetPadding(0) {
     if (dims.empty())
         return;
 
@@ -377,8 +391,8 @@ void BlockingDesc::fillDesc(const SizeVector& blocked_dims, const SizeVector& or
 }
 
 bool BlockingDesc::operator==(const BlockingDesc& rhs) const {
-    return blockedDims == rhs.blockedDims && strides == rhs.strides && offsetPaddingToData == rhs.offsetPaddingToData && order == rhs.order &&
-           offsetPadding == rhs.offsetPadding;
+    return blockedDims == rhs.blockedDims && strides == rhs.strides && offsetPaddingToData == rhs.offsetPaddingToData &&
+           order == rhs.order && offsetPadding == rhs.offsetPadding;
 }
 
 bool BlockingDesc::operator!=(const BlockingDesc& rhs) const {
@@ -393,7 +407,7 @@ struct DimSlice {
 
     DimSlice() = default;
 
-    DimSlice(size_t startInd, size_t size): startInd(startInd), size(size) {}
+    DimSlice(size_t startInd, size_t size) : startInd(startInd), size(size) {}
 };
 
 using TensorSlice = std::vector<DimSlice>;
@@ -440,7 +454,8 @@ TensorDesc make_roi_desc(const TensorDesc& origDesc, const TensorSlice& roi, boo
     IE_ASSERT(roiBlkDimOffsets.size() == numDims);
 
     // BlockingDesc stores dimensions in memory order, so we need to use origOrder array.
-    // Offsets in `roi` relates to `origDesc` dimensions, while offsets in `BlockingDesc` relates to top parent tensor dimensions.
+    // Offsets in `roi` relates to `origDesc` dimensions, while offsets in `BlockingDesc` relates to top parent tensor
+    // dimensions.
     for (size_t memInd = 0; memInd < numDims; ++memInd) {
         const auto dimInd = origBlkOrder[memInd];
         const auto& roiSlice = roi[dimInd];
@@ -451,8 +466,9 @@ TensorDesc make_roi_desc(const TensorDesc& origDesc, const TensorSlice& roi, boo
         roiBlkOffset += roiSlice.startInd * origBlkStrides[memInd];
     }
 
-    const auto roiBlkDesc =
-        useOrigMemDesc ? BlockingDesc(roiBlkDims, origBlkOrder, roiBlkOffset, roiBlkDimOffsets, origBlkStrides) : BlockingDesc(roiBlkDims, origBlkOrder);
+    const auto roiBlkDesc = useOrigMemDesc
+                                ? BlockingDesc(roiBlkDims, origBlkOrder, roiBlkOffset, roiBlkDimOffsets, origBlkStrides)
+                                : BlockingDesc(roiBlkDims, origBlkOrder);
 
     const auto roiDesc = TensorDesc(origPrecision, roiDims, roiBlkDesc);
 

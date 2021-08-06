@@ -250,7 +250,9 @@ struct parse_result {
      * @param      xml        The `pugi::xml_document`
      * @param[in]  error_msg  The error message
      */
-    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg): xml(std::move(xml)), error_msg(std::move(error_msg)) {}
+    parse_result(std::unique_ptr<pugi::xml_document>&& xml, std::string error_msg)
+        : xml(std::move(xml)),
+          error_msg(std::move(error_msg)) {}
 
     /**
      * @brief A XML document.
@@ -288,7 +290,8 @@ inline parse_result ParseXml(const char* file_path) {
                 return {};
 
             std::ifstream file_stream(file_path);
-            const auto file = std::string(std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{});
+            const auto file =
+                std::string(std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{});
 
             const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
             const auto line_begin = std::find(error_offset, file.rend(), '\n');
@@ -296,7 +299,8 @@ inline parse_result ParseXml(const char* file_path) {
             const auto pos = std::distance(error_offset, line_begin);
 
             std::stringstream ss;
-            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": " << load_result.description();
+            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": "
+               << load_result.description();
             return ss.str();
         }();
 

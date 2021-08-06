@@ -50,8 +50,8 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
     dst_ptr += dst_blk_desc.getOffsetPadding();
 
 #ifdef HAVE_SSE
-    if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3 && C_src_stride == 1 && W_src_stride == 3 &&
-        W_dst_stride == 1 && with_cpu_x86_sse42()) {
+    if (src->getTensorDesc().getLayout() == NHWC && dst->getTensorDesc().getLayout() == NCHW && C == 3 &&
+        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_4d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -81,8 +81,8 @@ static void blob_copy_4d_t(Blob::Ptr src, Blob::Ptr dst) {
         }
     }
 
-    if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC && C == 3 && C_dst_stride == 1 && W_dst_stride == 3 &&
-        W_src_stride == 1 && with_cpu_x86_sse42()) {
+    if (src->getTensorDesc().getLayout() == NCHW && dst->getTensorDesc().getLayout() == NHWC && C == 3 &&
+        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_4d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -211,8 +211,8 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
     const auto W_dst_stride = dst_l == NDHWC ? dst_strides[3] : dst_strides[4];
 
 #ifdef HAVE_SSE
-    if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW && C == 3 && C_src_stride == 1 && W_src_stride == 3 &&
-        W_dst_stride == 1 && with_cpu_x86_sse42()) {
+    if (src->getTensorDesc().getLayout() == NDHWC && dst->getTensorDesc().getLayout() == NCDHW && C == 3 &&
+        C_src_stride == 1 && W_src_stride == 3 && W_dst_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_5d_split_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -248,8 +248,8 @@ static void blob_copy_5d_t(Blob::Ptr src, Blob::Ptr dst) {
         }
     }
 
-    if (src->getTensorDesc().getLayout() == NCDHW && dst->getTensorDesc().getLayout() == NDHWC && C == 3 && C_dst_stride == 1 && W_dst_stride == 3 &&
-        W_src_stride == 1 && with_cpu_x86_sse42()) {
+    if (src->getTensorDesc().getLayout() == NCDHW && dst->getTensorDesc().getLayout() == NDHWC && C == 3 &&
+        C_dst_stride == 1 && W_dst_stride == 3 && W_src_stride == 1 && with_cpu_x86_sse42()) {
         if (PRC == Precision::U8) {
             blob_copy_5d_merge_u8c3(reinterpret_cast<const uint8_t*>(src_ptr),
                                     reinterpret_cast<uint8_t*>(dst_ptr),
@@ -360,8 +360,8 @@ void blob_copy(Blob::Ptr src, Blob::Ptr dst) {
         IE_THROW() << "Cannot copy blob data. Destination is not allocated.";
 
     if (src->getTensorDesc().getPrecision() != dst->getTensorDesc().getPrecision())
-        IE_THROW() << "Unimplemented blob transformation from precision " << src->getTensorDesc().getPrecision() << " to "
-                   << src->getTensorDesc().getPrecision();
+        IE_THROW() << "Unimplemented blob transformation from precision " << src->getTensorDesc().getPrecision()
+                   << " to " << src->getTensorDesc().getPrecision();
 
     if (src->getTensorDesc().getDims() != dst->getTensorDesc().getDims())
         IE_THROW() << "Unimplemented blob transformation from different shapes ";

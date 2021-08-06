@@ -22,7 +22,7 @@ namespace InferenceEngine {
  * Compound blob is a wrapper blob over references to underlying blobs. These
  * blobs should share some properties and can be grouped into a single entity.
  */
-class INFERENCE_ENGINE_API_CLASS(CompoundBlob): public Blob {
+class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
 public:
     /**
      * @brief A smart pointer to the CompoundBlob object
@@ -122,7 +122,7 @@ protected:
  * @brief Represents a blob that contains two planes (Y and UV) in NV12 color
  * format
  */
-class INFERENCE_ENGINE_API_CLASS(NV12Blob): public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(NV12Blob) : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the NV12Blob object
@@ -181,7 +181,7 @@ public:
  * @brief Represents a blob that contains three planes (Y,U and V) in I420 color
  * format
  */
-class INFERENCE_ENGINE_API_CLASS(I420Blob): public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the I420Blob object
@@ -277,7 +277,7 @@ public:
  * @details Plugin which supports BatchedBlob input should report BATCHED_BLOB
  * in the OPTIMIZATION_CAPABILITIES metric.
  */
-class INFERENCE_ENGINE_API_CLASS(BatchedBlob): public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the BatchedBlob object

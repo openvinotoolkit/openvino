@@ -10,11 +10,11 @@
 
 namespace InferenceEngine {
 
-CNNNetwork::CNNNetwork(): network(), actual() {}
+CNNNetwork::CNNNetwork() : network(), actual() {}
 
 IE_SUPPRESS_DEPRECATED_START
 
-CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
+CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network) : network(network) {
     actual = network.get();
     if (actual == nullptr)
         IE_THROW() << "CNNNetwork was not initialized.";

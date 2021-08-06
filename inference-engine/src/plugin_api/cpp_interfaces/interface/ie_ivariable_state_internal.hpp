@@ -17,7 +17,7 @@ namespace InferenceEngine {
  * @brief Minimal interface for variable state implementation
  * @ingroup ie_dev_api_variable_state_api
  */
-class INFERENCE_ENGINE_API_CLASS(IVariableStateInternal): public std::enable_shared_from_this<IVariableStateInternal> {
+class INFERENCE_ENGINE_API_CLASS(IVariableStateInternal) : public std::enable_shared_from_this<IVariableStateInternal> {
 public:
     /**
      * @brief A shared pointer to a IVariableStateInternal interface

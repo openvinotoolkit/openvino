@@ -82,7 +82,7 @@ public:
      * @brief Creates a ClBlob object with the specified dimensions and layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClBlob(const TensorDesc& tensorDesc): RemoteBlob(tensorDesc) {}
+    explicit ClBlob(const TensorDesc& tensorDesc) : RemoteBlob(tensorDesc) {}
 };
 
 /**
@@ -104,7 +104,7 @@ public:
      * layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClBufferBlob(const TensorDesc& tensorDesc): ClBlob(tensorDesc) {}
+    explicit ClBufferBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
@@ -154,7 +154,7 @@ public:
      * layout.
      * @param tensorDesc Tensor description
      */
-    explicit ClImage2DBlob(const TensorDesc& tensorDesc): ClBlob(tensorDesc) {}
+    explicit ClImage2DBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
 
     /**
      * @brief Returns the underlying OpenCL memory object handle.
@@ -195,7 +195,9 @@ public:
  * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
  * @return A shared remote blob instance
  */
-static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2D& nv12_image_plane_y, cl::Image2D& nv12_image_plane_uv) {
+static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
+                                              cl::Image2D& nv12_image_plane_y,
+                                              cl::Image2D& nv12_image_plane_uv) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
@@ -228,7 +230,8 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
  * @return A shared remote context instance
  */
 static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_context ctx) {
-    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)}, {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                              {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
     return core.CreateContext(deviceName, contextParams);
 }
 
@@ -257,7 +260,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get())}};
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
@@ -275,7 +279,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
@@ -293,7 +298,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)}, {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 

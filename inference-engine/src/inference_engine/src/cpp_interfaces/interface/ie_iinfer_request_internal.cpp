@@ -65,7 +65,8 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user input precision";
+            IE_THROW(ParameterMismatch)
+                << "Failed to set Blob with precision not corresponding to user input precision";
         }
 
         auto& devBlob = _deviceInputs[name];
@@ -81,7 +82,8 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
                                    ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                                    : 1;
             if (dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize << ").";
+                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
+                           << ").";
             }
             _inputs[name] = userBlob;
             devBlob = userBlob;
@@ -90,13 +92,16 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         if (compoundBlobPassed) {
             IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
         }
-        size_t outputSize =
-            foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR ? details::product(foundOutput->getTensorDesc().getDims()) : 1;
+        size_t outputSize = foundOutput->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
+                                ? details::product(foundOutput->getTensorDesc().getDims())
+                                : 1;
         if (dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize << ").";
+            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
+                       << ").";
         }
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user output precision";
+            IE_THROW(ParameterMismatch)
+                << "Failed to set Blob with precision not corresponding to user output precision";
         }
         // ilavreno: this condition is valid for most plugins except MYRIAD
         // it is able to perform layout conversion for output blob dynamically
@@ -120,7 +125,11 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
             data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
-            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? foundInput->getTensorDesc().getDims() : oneVector);
+            checkBlob(
+                data,
+                name,
+                true,
+                foundInput->getTensorDesc().getLayout() != SCALAR ? foundInput->getTensorDesc().getDims() : oneVector);
 
             auto& devBlob = _deviceInputs[name];
             if (preProcessingRequired(foundInput, data, devBlob)) {
@@ -130,7 +139,11 @@ Blob::Ptr IInferRequestInternal::GetBlob(const std::string& name) {
         }
     } else {
         data = _outputs[name];
-        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? foundOutput->getTensorDesc().getDims() : oneVector);
+        checkBlob(
+            data,
+            name,
+            false,
+            foundOutput->getTensorDesc().getLayout() != SCALAR ? foundOutput->getTensorDesc().getDims() : oneVector);
     }
     return data;
 }
@@ -193,18 +206,24 @@ void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& prep
     }
 }
 
-bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const {
+bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name,
+                                                         InputInfo::Ptr& foundInput,
+                                                         DataPtr& foundOutput) const {
     foundInput = nullptr;
     foundOutput = nullptr;
     if (_networkOutputs.empty()) {
         IE_THROW() << "Internal error: network outputs is not set";
     }
-    auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs), [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
-        return pair.first == name;
-    });
-    auto foundOutputPair = std::find_if(std::begin(_networkOutputs), std::end(_networkOutputs), [&](const std::pair<std::string, DataPtr>& pair) {
-        return pair.first == name;
-    });
+    auto foundInputPair = std::find_if(std::begin(_networkInputs),
+                                       std::end(_networkInputs),
+                                       [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
+                                           return pair.first == name;
+                                       });
+    auto foundOutputPair = std::find_if(std::begin(_networkOutputs),
+                                        std::end(_networkOutputs),
+                                        [&](const std::pair<std::string, DataPtr>& pair) {
+                                            return pair.first == name;
+                                        });
     bool retVal;
 
     if (foundInputPair != std::end(_networkInputs)) {
@@ -219,7 +238,10 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
     return retVal;
 }
 
-void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& name, bool isInput, const SizeVector& refDims) const {
+void IInferRequestInternal::checkBlob(const Blob::Ptr& blob,
+                                      const std::string& name,
+                                      bool isInput,
+                                      const SizeVector& refDims) const {
     std::string bType = isInput ? "Input" : "Output";
     std::string sType = isInput ? "input" : "output";
     std::string strNotAllocated(bType + " data was not allocated.");
@@ -232,18 +254,22 @@ void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& 
     if (refDims.empty()) {
         SizeVector dims;
         if (isInput) {
-            auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs), [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
-                return pair.first == name;
-            });
+            auto foundInputPair = std::find_if(std::begin(_networkInputs),
+                                               std::end(_networkInputs),
+                                               [&](const std::pair<std::string, InputInfo::Ptr>& pair) {
+                                                   return pair.first == name;
+                                               });
             if (foundInputPair == std::end(_networkInputs)) {
                 IE_THROW(NotFound) << "Failed to find input with name: \'" << name << "\'";
             }
             dims = foundInputPair->second->getTensorDesc().getDims();
             refSize = foundInputPair->second->getTensorDesc().getLayout() != SCALAR ? details::product(dims) : 1;
         } else {
-            auto foundOutputPair = std::find_if(std::begin(_networkOutputs), std::end(_networkOutputs), [&](const std::pair<std::string, DataPtr>& pair) {
-                return pair.first == name;
-            });
+            auto foundOutputPair = std::find_if(std::begin(_networkOutputs),
+                                                std::end(_networkOutputs),
+                                                [&](const std::pair<std::string, DataPtr>& pair) {
+                                                    return pair.first == name;
+                                                });
             if (foundOutputPair == std::end(_networkOutputs)) {
                 IE_THROW(NotFound) << "Failed to find output with name: \'" << name << "\'";
             }
@@ -271,11 +297,14 @@ void IInferRequestInternal::checkBlobs() {
     }
 }
 
-void IInferRequestInternal::setPointerToExecutableNetworkInternal(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork) {
+void IInferRequestInternal::setPointerToExecutableNetworkInternal(
+    const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork) {
     _exeNetwork = exeNetwork;
 }
 
-bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info, const Blob::Ptr& userBlob, const Blob::Ptr& deviceBlob) {
+bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info,
+                                                  const Blob::Ptr& userBlob,
+                                                  const Blob::Ptr& deviceBlob) {
     // pre-processing is required if:
     // 1. resize algorithm is specified (resize required)
     // 2. color format specified:
@@ -303,11 +332,14 @@ bool IInferRequestInternal::preProcessingRequired(const InputInfo::Ptr& info, co
     // FIXME: remove the first part to allow any needed conversion?
     const bool need_layout_conv = (colorFormatSpecified || deviceBlob) && (blob_layout(userBlob) != dst_layout);
 
-    return preProcessInfo.getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE || (colorFormatSpecified && inputColorFormat != networkColorFormat) ||
-           need_layout_conv || (blob_prec(userBlob) != dst_prec);
+    return preProcessInfo.getResizeAlgorithm() != ResizeAlgorithm::NO_RESIZE ||
+           (colorFormatSpecified && inputColorFormat != networkColorFormat) || need_layout_conv ||
+           (blob_prec(userBlob) != dst_prec);
 }
 
-void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to) {
+void IInferRequestInternal::addInputPreProcessingFor(const std::string& name,
+                                                     Blob::Ptr const& from,
+                                                     const Blob::Ptr& to) {
     auto ppDataIt = _preProcData.find(name);
     if (ppDataIt == _preProcData.end()) {
         ppDataIt = (_preProcData.emplace(name, CreatePreprocDataHelper())).first;

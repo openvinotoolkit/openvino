@@ -25,7 +25,7 @@ public:
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName): Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
+    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     ~Impl() {

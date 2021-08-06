@@ -1,6 +1,7 @@
 BasedOnStyle: Google
 IndentWidth: 4
 UseTab: Never
+ColumnLimit: 120
 
 Language: Cpp
 Standard: Cpp11
@@ -17,11 +18,9 @@ AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
 BinPackArguments: false
 BinPackParameters: false
-ColumnLimit: 160
 # Specialize this comment pragma in order to avoid changes in SEA copyrights
 CommentPragmas: '^#'
 DerivePointerAlignment: false
 FixNamespaceComments: true
 IndentCaseLabels: false
 IndentPPDirectives: AfterHash
-SpaceBeforeCtorInitializerColon: false

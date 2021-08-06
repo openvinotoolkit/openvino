@@ -8,7 +8,10 @@
 
 namespace InferenceEngine {
 
-CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard, const std::string& hash, std::shared_ptr<std::mutex> m, std::atomic_int& refCount)
+CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
+                                 const std::string& hash,
+                                 std::shared_ptr<std::mutex> m,
+                                 std::atomic_int& refCount)
     : m_cacheGuard(cacheGuard),
       m_hash(hash),
       m_mutex(m),
@@ -39,7 +42,8 @@ std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash
     std::unique_ptr<CacheGuardEntry> res;
     try {
         // TODO: use std::make_unique when migrated to C++14
-        res = std::unique_ptr<CacheGuardEntry>(new CacheGuardEntry(*this, hash, data.m_mutexPtr, data.m_itemRefCounter));
+        res =
+            std::unique_ptr<CacheGuardEntry>(new CacheGuardEntry(*this, hash, data.m_mutexPtr, data.m_itemRefCounter));
     } catch (...) {
         // In case of exception, we shall remove hash entry if it is not used
         if (data.m_itemRefCounter == 0) {

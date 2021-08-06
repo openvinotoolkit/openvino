@@ -21,7 +21,9 @@ namespace details {
  * @param exts vector with extensions
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
+CNNNetwork ReadNetwork(const std::string& modelPath,
+                       const std::string& binPath,
+                       const std::vector<IExtensionPtr>& exts);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR

@@ -31,7 +31,7 @@ namespace InferenceEngine {
  *        On NUMA hosts GetNumaNodeId() method can be used to define the NUMA
  * node of current stream
  */
-class INFERENCE_ENGINE_API_CLASS(IStreamsExecutor): public ITaskExecutor {
+class INFERENCE_ENGINE_API_CLASS(IStreamsExecutor) : public ITaskExecutor {
 public:
     /**
      * A shared pointer to IStreamsExecutor interface
@@ -87,23 +87,23 @@ public:
          */
         static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
 
-        std::string _name;                                               //!< Used by `ITT` to name executor threads
-        int _streams = 1;                                                //!< Number of streams.
-        int _threadsPerStream = 0;                                       //!< Number of threads per stream that executes `ie_parallel` calls
+        std::string _name;          //!< Used by `ITT` to name executor threads
+        int _streams = 1;           //!< Number of streams.
+        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ie_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
                                                                          //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;                                    //!< In case of @ref CORES binding offset type thread binded to cores
-                                                                         //!< starting from offset
-        int _threads = 0;                                                //!< Number of threads distributed between streams.
-                                                                         //!< Reserved. Should not be used.
+        int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
+                                       //!< starting from offset
+        int _threads = 0;              //!< Number of threads distributed between streams.
+                                       //!< Reserved. Should not be used.
         enum PreferredCoreType {
             ANY,
             LITTLE,
             BIG,
-            ROUND_ROBIN                                       // used w/multiple streams to populate the Big cores first,
-                                                              // then the Little, then wrap around (for large #streams)
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first,
+                         // then the Little, then wrap around (for large #streams)
         } _threadPreferredCoreType = PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB
                                                               //!< to affinitize
 

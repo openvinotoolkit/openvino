@@ -29,7 +29,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @param[in]  err   The error code
      * @param      desc  The response desc to write an error message to
      */
-    DescriptionBuffer(StatusCode err, ResponseDesc* desc): err(err) {
+    DescriptionBuffer(StatusCode err, ResponseDesc* desc) : err(err) {
         init(desc);
     }
 
@@ -38,7 +38,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      *
      * @param[in]  err   The StatusCode value
      */
-    explicit DescriptionBuffer(StatusCode err): err(err) {}
+    explicit DescriptionBuffer(StatusCode err) : err(err) {}
 
     /**
      * @brief      Constructs with ResponseDesc
@@ -66,7 +66,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @param      pBuffer  The buffer to wrtie to.
      * @param[in]  len      The length of `pBuffer`
      */
-    DescriptionBuffer(StatusCode err, char* pBuffer, size_t len): err(err) {
+    DescriptionBuffer(StatusCode err, char* pBuffer, size_t len) : err(err) {
         init(pBuffer, len);
     }
 

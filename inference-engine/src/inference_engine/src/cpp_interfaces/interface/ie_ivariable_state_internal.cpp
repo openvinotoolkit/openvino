@@ -5,7 +5,7 @@
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 
 namespace InferenceEngine {
-IVariableStateInternal::IVariableStateInternal(const std::string& name_): name{name_} {}
+IVariableStateInternal::IVariableStateInternal(const std::string& name_) : name{name_} {}
 
 std::string IVariableStateInternal::GetName() const {
     return name;

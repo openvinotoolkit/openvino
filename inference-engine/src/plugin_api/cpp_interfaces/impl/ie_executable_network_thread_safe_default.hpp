@@ -35,8 +35,10 @@ public:
      * @param[in]  callbackExecutor  The callback executor
      */
     explicit ExecutableNetworkThreadSafeDefault(
-        const ITaskExecutor::Ptr& taskExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Default"}),
-        const ITaskExecutor::Ptr& callbackExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{"Callback"}))
+        const ITaskExecutor::Ptr& taskExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{
+            "Default"}),
+        const ITaskExecutor::Ptr& callbackExecutor = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{
+            "Callback"}))
         : _taskExecutor{taskExecutor},
           _callbackExecutor{callbackExecutor} {}
 

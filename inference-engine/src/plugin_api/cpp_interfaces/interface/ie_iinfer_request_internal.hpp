@@ -25,7 +25,7 @@ class IVariableStateInternal;
  * plugin, which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_infer_request_api
  */
-class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal): public std::enable_shared_from_this<IInferRequestInternal> {
+class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
 public:
     /**
      * @brief A shared pointer to a IInferRequestInternal interface
@@ -233,7 +233,9 @@ protected:
      * @param deviceBlob Blob object in plugin's desired format
      * @return `True` if pre-processing is required, `false` otherwise
      */
-    bool preProcessingRequired(const InputInfo::Ptr& info, const Blob::Ptr& userBlob, const Blob::Ptr& deviceBlob = nullptr);
+    bool preProcessingRequired(const InputInfo::Ptr& info,
+                               const Blob::Ptr& userBlob,
+                               const Blob::Ptr& deviceBlob = nullptr);
 
     void addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to);
 

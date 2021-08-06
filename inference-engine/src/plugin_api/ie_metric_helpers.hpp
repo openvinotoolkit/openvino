@@ -52,8 +52,9 @@ struct MetricType;
  * @return     A metric value wrapped with Parameter and returned to a calling
  * function
  */
-#define IE_SET_METRIC_RETURN(name, ...)                                                                                    \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::name>::type _##name##_value = __VA_ARGS__; \
+#define IE_SET_METRIC_RETURN(name, ...)                                                                       \
+    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::name>::type _##name##_value = \
+        __VA_ARGS__;                                                                                          \
     return _##name##_value
 
 #include "ie_plugin_config.hpp"

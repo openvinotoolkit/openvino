@@ -154,7 +154,8 @@ public:
      * @return `true` if values represent the same precisions, `false` otherwise
      */
     bool operator==(const Precision& p) const noexcept {
-        return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize && areSameStrings(precisionInfo.name, p.precisionInfo.name);
+        return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
+               areSameStrings(precisionInfo.name, p.precisionInfo.name);
     }
 
     /**
@@ -281,10 +282,12 @@ public:
      * @return True if precision is signed, `false` otherwise
      */
     bool isSigned() const noexcept {
-        return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) || (precisionInfo.value == Precision::FP32) ||
-               (precisionInfo.value == Precision::FP64) || (precisionInfo.value == Precision::FP16) || (precisionInfo.value == Precision::Q78) ||
-               (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
-               (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
+        return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
+               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP64) ||
+               (precisionInfo.value == Precision::FP16) || (precisionInfo.value == Precision::Q78) ||
+               (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) ||
+               (precisionInfo.value == Precision::I32) || (precisionInfo.value == Precision::I64) ||
+               (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
                (precisionInfo.value == Precision::CUSTOM) || (precisionInfo.value == Precision::I4);
     }
 
@@ -500,10 +503,11 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<Precision>& 
     return os;
 }
 
-inline constexpr uint32_t getPrecisionMask(InferenceEngine::Precision::ePrecision precision1,
-                                           InferenceEngine::Precision::ePrecision precision2,
-                                           InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
-                                           InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
+inline constexpr uint32_t getPrecisionMask(
+    InferenceEngine::Precision::ePrecision precision1,
+    InferenceEngine::Precision::ePrecision precision2,
+    InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
+    InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
     return (precision1) | (precision2 << 8) | (precision3 << 16) | (precision4 << 24);
 }
 

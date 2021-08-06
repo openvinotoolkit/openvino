@@ -32,7 +32,8 @@ public:
     static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc, void* ptr) {
         return InferenceEngine::make_shared_blob<BlobType>(desc, reinterpret_cast<BlobType*>(ptr));
     }
-    static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc,
+                                           const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
         return InferenceEngine::make_shared_blob<BlobType>(desc, alloc);
     }
 };
@@ -75,7 +76,8 @@ make_blob_with_precision(const InferenceEngine::TensorDesc& desc, void* ptr);
  * @return     A Blob::Ptr pointer
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr)
-make_blob_with_precision(const InferenceEngine::TensorDesc& desc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
+make_blob_with_precision(const InferenceEngine::TensorDesc& desc,
+                         const std::shared_ptr<InferenceEngine::IAllocator>& alloc);
 
 /**
  * @brief      Creates a plain Blob::Ptr

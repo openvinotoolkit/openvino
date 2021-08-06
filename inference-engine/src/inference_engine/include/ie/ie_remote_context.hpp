@@ -45,7 +45,7 @@ public:
      * precision.
      * @param tensorDesc Defines the layout and dims of the blob
      */
-    explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
+    explicit RemoteBlob(const TensorDesc& tensorDesc) : MemoryBlob(tensorDesc) {}
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
