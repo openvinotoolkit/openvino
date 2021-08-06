@@ -14,7 +14,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 * *exclusive*
 
-  * **Description**: If the attribute is set to `true` then an exclusive sum in which the top element is not included is returned. In other terms, if set to `true`, the `j-th` output element would be the sum of the first `(j-1)` elements. Otherwise, it would be the sum of the first `j` elements.
+  * **Description**: If the attribute is set to `true` then an exclusive sums are returned, the `j-th` element is not included in the `j-th` sum. Otherwise, inclusive sum of the first `j` elements for the `j-th` element is calculated.
   * **Range of values**:
     * `false` - include the top element
     * `true` - do not include the top element
