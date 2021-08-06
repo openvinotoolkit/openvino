@@ -30,13 +30,13 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # IE GPU:
 /inference-engine/src/cldnn_engine/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/include/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
-/inference-engine/include/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/inference-engine/src/inference_engine/include/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/inference-engine/src/inference_engine/include/cldnn/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 /inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
 # IE VPU:
 /inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
-/inference-engine/include/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
+/inference-engine/src/inference_engine/include/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/thirdparty/movidius/  @openvinotoolkit/openvino-ie-vpu-maintainers
 /inference-engine/tests_deprecated/unit/engines/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests_deprecated/functional/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers @openvinotoolkit/openvino-ie-tests-maintainers
@@ -49,11 +49,11 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # IE GNA:
 /inference-engine/src/gna_plugin/  @openvinotoolkit/openvino-ie-gna-maintainers
-/inference-engine/include/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
+/inference-engine/src/inference_engine/include/gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 
 # IE MULTI:
 /inference-engine/src/multi_device/  @openvinotoolkit/openvino-ie-multi-maintainers
-/inference-engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
+/inference-engine/src/inference_engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
 
 # IE Tests:
 /inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers

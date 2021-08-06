@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -110,7 +110,7 @@ function(ie_headers_compilation_with_custom_flags)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(IE_TEST_PLUGIN_API)
-        set(IE_TEST_INCLUDE_DIRECTORY 
+        set(IE_TEST_INCLUDE_DIRECTORY
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         set(IE_TEST_INCLUDE_DIRECTORY
