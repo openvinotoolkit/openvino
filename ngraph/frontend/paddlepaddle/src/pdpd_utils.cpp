@@ -27,114 +27,105 @@ namespace ngraph
                 FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
             }
 
-            void traverse_down(const std::vector<Place::Ptr>& start_nodes,
-                               std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                               std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors)
+            void traverse_down(
+                const std::vector<Place::Ptr>& start_tensors,
+                const std::function<void(const std::shared_ptr<OpPlacePDPD>& op_place,
+                                         const std::shared_ptr<TensorPlacePDPD>& tensor_place)>&
+                    callback)
             {
                 std::queue<OpPlacePDPD*> q;
                 std::unordered_set<OpPlacePDPD*> visited;
 
-                auto check_and_update = [&](const std::shared_ptr<OpPlacePDPD>& op) -> bool {
-                    if (op && !visited.count(op.get()))
+                auto check_and_update = [&](const std::shared_ptr<TensorPlacePDPD>& tensor) {
+                    if (tensor)
                     {
-                        visited.insert(op.get());
-                        q.push(op.get());
-                        if (ordered_ops)
-                            ordered_ops->push_back(op);
-                        return true;
-                    }
-                    return false;
-                };
-
-                for (const auto& node : start_nodes)
-                {
-                    if (!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) &&
-                        !node->is_output())
-                    {
-                        if (ordered_tensors)
-                            ordered_tensors->push_back(pdpd::castToTensorPlace(node));
-                        for (const auto& op : node->get_consuming_operations())
+                        if (!tensor->is_output())
                         {
-                            auto pdpd_output_op = std::dynamic_pointer_cast<OpPlacePDPD>(op);
-                            PDPD_ASSERT(pdpd_output_op != nullptr, "Invalid consuming operation");
-                            check_and_update(pdpd_output_op);
+                            bool is_the_same_tensor = false;
+                            const auto& consuming_ops = tensor->get_consuming_operations();
+                            for (const auto& op : consuming_ops)
+                            {
+                                auto pdpd_op = std::dynamic_pointer_cast<OpPlacePDPD>(op);
+                                if (pdpd_op && !visited.count(pdpd_op.get()))
+                                {
+                                    callback(pdpd_op, !is_the_same_tensor ? tensor : nullptr);
+                                    is_the_same_tensor = true;
+
+                                    q.push(pdpd_op.get());
+                                    visited.insert(pdpd_op.get());
+                                }
+                            }
+                        }
+                        else
+                        {
+                            callback(nullptr, tensor);
                         }
                     }
+                };
+
+                for (const auto& tensor : start_tensors)
+                {
+                    check_and_update(std::dynamic_pointer_cast<TensorPlacePDPD>(tensor));
                 }
+
                 while (!q.empty())
                 {
-                    auto p_op = q.front();
+                    auto cur_op = q.front();
                     q.pop();
-                    for (const auto& map_pair : p_op->get_output_ports())
+                    for (const auto& map_pair : cur_op->get_output_ports())
                     {
                         for (const auto& port : map_pair.second)
                         {
-                            auto tensor = std::dynamic_pointer_cast<TensorPlacePDPD>(
-                                port->get_target_tensor());
-                            if (tensor && !tensor->is_output())
-                            {
-                                if (ordered_tensors)
-                                    ordered_tensors->push_back(tensor);
-                                for (const auto& op : tensor->get_consuming_operations())
-                                {
-                                    check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(op));
-                                }
-                            }
+                            check_and_update(std::dynamic_pointer_cast<TensorPlacePDPD>(
+                                port->get_target_tensor()));
                         }
                     }
                 }
             }
 
-            void traverse_up(const std::vector<Place::Ptr>& start_nodes,
-                             std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                             std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors)
+            void traverse_up(
+                const std::vector<Place::Ptr>& start_tensors,
+                const std::function<void(const std::shared_ptr<OpPlacePDPD>& op_place,
+                                         const std::shared_ptr<TensorPlacePDPD>& tensor_place)>&
+                    callback)
             {
                 std::queue<OpPlacePDPD*> q;
                 std::unordered_set<OpPlacePDPD*> visited;
 
-                auto check_and_update = [&](const std::shared_ptr<OpPlacePDPD>& op) -> bool {
-                    if (op && !visited.count(op.get()))
+                auto check_and_update = [&](const std::shared_ptr<TensorPlacePDPD>& tensor) {
+                    if (!tensor->is_input())
                     {
-                        visited.insert(op.get());
-                        q.push(op.get());
-                        if (ordered_ops)
-                            ordered_ops->push_back(op);
-                        return true;
+                        const auto& producing_op = tensor->get_producing_operation();
+                        auto pdpd_op = std::dynamic_pointer_cast<OpPlacePDPD>(producing_op);
+                        if (pdpd_op && !visited.count(pdpd_op.get()))
+                        {
+                            callback(pdpd_op, tensor);
+
+                            q.push(pdpd_op.get());
+                            visited.insert(pdpd_op.get());
+                        }
                     }
-                    return false;
+                    else
+                    {
+                        callback(nullptr, tensor);
+                    }
                 };
 
-                for (const auto& node : start_nodes)
+                for (const auto& tensor : start_tensors)
                 {
-                    if (!check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(node)) &&
-                        !node->is_input())
-                    {
-                        if (ordered_tensors)
-                            ordered_tensors->push_back(pdpd::castToTensorPlace(node));
-                        auto pdpd_output_op =
-                            std::dynamic_pointer_cast<OpPlacePDPD>(node->get_producing_operation());
-                        FRONT_END_GENERAL_CHECK(pdpd_output_op != nullptr,
-                                                "Output doesn't have producing operation");
-                        check_and_update(pdpd_output_op);
-                    }
+                    check_and_update(std::dynamic_pointer_cast<TensorPlacePDPD>(tensor));
                 }
+
                 while (!q.empty())
                 {
-                    auto p_op = q.front();
+                    auto cur_op = q.front();
                     q.pop();
-                    for (const auto& map_pair : p_op->get_input_ports())
+                    for (const auto& map_pair : cur_op->get_input_ports())
                     {
                         for (const auto& port : map_pair.second)
                         {
-                            auto tensor = std::dynamic_pointer_cast<TensorPlacePDPD>(
-                                port->get_source_tensor());
-                            if (tensor && !tensor->is_input())
-                            {
-                                if (ordered_tensors)
-                                    ordered_tensors->push_back(tensor);
-                                check_and_update(std::dynamic_pointer_cast<OpPlacePDPD>(
-                                    tensor->get_producing_operation()));
-                            }
+                            check_and_update(std::dynamic_pointer_cast<TensorPlacePDPD>(
+                                port->get_source_tensor()));
                         }
                     }
                 }

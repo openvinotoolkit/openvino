@@ -264,7 +264,14 @@ namespace ngraph
         {
             std::vector<std::shared_ptr<OpPlacePDPD>> new_op_places;
             new_op_places.reserve(m_op_places.size());
-            pdpd::traverse_up(m_outputs, &new_op_places, nullptr);
+            auto callback_ops = [&](const std::shared_ptr<OpPlacePDPD>& op_place,
+                                    const std::shared_ptr<TensorPlacePDPD>& tensor_place) {
+                if (op_place)
+                {
+                    new_op_places.push_back(op_place);
+                }
+            };
+            pdpd::traverse_up(m_outputs, callback_ops);
             std::reverse(new_op_places.begin(), new_op_places.end());
             return new_op_places;
         }
@@ -471,50 +478,50 @@ namespace ngraph
             auto tensor_place = pdpd::castToTensorPlace(place);
             if (tensor_place)
             {
-                std::vector<std::shared_ptr<TensorPlacePDPD>> new_tensors;
-
                 // Find outputs that are connected to the cut place. These target outputs should be
                 // cut off.
-                pdpd::traverse_down({tensor_place}, nullptr, &new_tensors);
-                std::vector<std::shared_ptr<TensorPlacePDPD>> target_out_tensor;
-                for (const auto& tensor : new_tensors)
-                {
-                    if (tensor->is_output())
+                std::vector<Place::Ptr> target_out_tensor;
+                auto callback_out = [&](const std::shared_ptr<OpPlacePDPD>& op_place,
+                                        const std::shared_ptr<TensorPlacePDPD>& tensor_place) {
+                    if (tensor_place && tensor_place->is_output())
                     {
-                        target_out_tensor.push_back(tensor);
+                        target_out_tensor.push_back(tensor_place);
                     }
-                }
+                };
+                pdpd::traverse_down({tensor_place}, callback_out);
                 m_outputs.push_back(tensor_place);
 
                 // If some target outputs still connected with the model inputs, the selected cut
                 // place is incorrect.
-                new_tensors.clear();
-                pdpd::traverse_down(m_inputs, nullptr, &new_tensors);
-                std::vector<Place::Ptr> new_outputs;
-                for (const auto& tensor : new_tensors)
-                {
-                    if (tensor->is_output())
+                std::vector<Place::Ptr> new_output_tensors;
+                auto callback_new_out = [&](const std::shared_ptr<OpPlacePDPD>& op_place,
+                                            const std::shared_ptr<TensorPlacePDPD>& tensor_place) {
+                    if (tensor_place && tensor_place->is_output())
                     {
-                        if (std::find(target_out_tensor.begin(), target_out_tensor.end(), tensor) !=
-                            target_out_tensor.end())
-                        {
-                            const auto& tensor_names = tensor->get_names();
-                            const auto& out_name = !tensor_names.empty() ? tensor_names[0] : "";
-                            FRONT_END_GENERAL_CHECK(
-                                false,
-                                "Incorrect Place for cutting. After trimming the output ",
-                                out_name,
-                                " is still dependent on the inputs to the model.");
-                        }
-                        new_outputs.push_back(tensor);
+                        new_output_tensors.push_back(tensor_place);
+                    }
+                };
+                pdpd::traverse_down(m_inputs, callback_new_out);
+                for (const auto& tensor : new_output_tensors)
+                {
+                    if (std::find(target_out_tensor.begin(), target_out_tensor.end(), tensor) !=
+                        target_out_tensor.end())
+                    {
+                        const auto& tensor_names = tensor->get_names();
+                        const auto& out_name = !tensor_names.empty() ? tensor_names[0] : "";
+                        FRONT_END_GENERAL_CHECK(
+                            false,
+                            "Incorrect Place for cutting. After trimming the output ",
+                            out_name,
+                            " is still dependent on the inputs to the model.");
                     }
                 }
 
-                std::swap(new_outputs, m_outputs);
+                std::swap(new_output_tensors, m_outputs);
                 m_graph_changed = true;
                 if (!new_name_optional.empty())
                 {
-                    setNameForTensor(place, new_name_optional);
+                    setNameForTensor(tensor_place, new_name_optional);
                 }
             }
         }
@@ -526,20 +533,22 @@ namespace ngraph
             if (tensor_place)
             {
                 m_inputs.push_back(tensor_place);
-                std::vector<std::shared_ptr<TensorPlacePDPD>> new_tensors;
-                pdpd::traverse_up(m_outputs, nullptr, &new_tensors);
+                std::vector<Place::Ptr> new_in_tensors;
+                auto callback_new_in = [&](const std::shared_ptr<OpPlacePDPD>& op_place,
+                                           const std::shared_ptr<TensorPlacePDPD>& tensor_place) {
+                    if (tensor_place->is_input())
+                    {
+                        new_in_tensors.push_back(tensor_place);
+                    }
+                };
+                pdpd::traverse_up(m_outputs, callback_new_in);
 
                 std::vector<Place::Ptr> new_inputs;
-                for (const auto& in : m_inputs)
-                {
-                    if (std::find(new_tensors.begin(), new_tensors.end(), in) != new_tensors.end())
-                        new_inputs.push_back(in);
-                }
-                std::swap(m_inputs, new_inputs);
+                std::swap(m_inputs, new_in_tensors);
                 m_graph_changed = true;
                 if (!new_name_optional.empty())
                 {
-                    setNameForTensor(place, new_name_optional);
+                    setNameForTensor(tensor_place, new_name_optional);
                 }
             }
         }

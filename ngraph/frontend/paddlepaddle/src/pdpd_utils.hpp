@@ -50,13 +50,17 @@ namespace ngraph
 
             std::shared_ptr<TensorPlacePDPD> castToTensorPlace(const Place::Ptr& place);
 
-            void traverse_down(const std::vector<Place::Ptr>& start_nodes,
-                               std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                               std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors);
+            void traverse_down(
+                const std::vector<Place::Ptr>& start_tensors,
+                const std::function<void(const std::shared_ptr<OpPlacePDPD>& op_place,
+                                         const std::shared_ptr<TensorPlacePDPD>& tensor_place)>&
+                    callback);
 
-            void traverse_up(const std::vector<Place::Ptr>& start_nodes,
-                             std::vector<std::shared_ptr<OpPlacePDPD>>* ordered_ops,
-                             std::vector<std::shared_ptr<TensorPlacePDPD>>* ordered_tensors);
+            void traverse_up(
+                const std::vector<Place::Ptr>& start_tensors,
+                const std::function<void(const std::shared_ptr<OpPlacePDPD>& op_place,
+                                         const std::shared_ptr<TensorPlacePDPD>& tensor_place)>&
+                    callback);
 
         } // namespace pdpd
     }     // namespace frontend
