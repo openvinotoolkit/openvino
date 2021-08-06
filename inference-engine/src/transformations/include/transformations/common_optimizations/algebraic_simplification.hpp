@@ -20,5 +20,5 @@ class TRANSFORMATIONS_API AlgebraicSimplification;
 class ngraph::pass::AlgebraicSimplification : public GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    AlgebraicSimplification();
+    AlgebraicSimplification() = default;
 };

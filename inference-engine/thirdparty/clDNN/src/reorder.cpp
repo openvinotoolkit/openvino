@@ -186,7 +186,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     return primitive_description.str();
 }
 
-reorder_inst::typed_primitive_inst(network_impl& network, reorder_node const& node)
+reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
     : parent(network, node, !node.can_be_optimized()) {
     if (node.can_be_optimized())
         reuse_input();
