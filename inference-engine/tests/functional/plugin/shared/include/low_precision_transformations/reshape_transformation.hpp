@@ -17,7 +17,8 @@ public:
     ngraph::PartialShape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
-    bool isTransformed;
+    std::string layerType;
+    std::string expectedKernelType;
 };
 
 typedef std::tuple<
@@ -35,6 +36,7 @@ public:
 
 protected:
     void SetUp() override;
+    void Run() override;
 };
 
 }  // namespace LayerTestsDefinitions
