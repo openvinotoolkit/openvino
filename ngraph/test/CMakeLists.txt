@@ -223,6 +223,7 @@ set(SRC
     type_prop/squared_difference.cpp
     type_prop/squeeze.cpp
     type_prop/swish.cpp
+    type_prop/tan.cpp
     type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
@@ -338,6 +339,7 @@ set(SRC
     visitors/op/strided_slice.cpp
     visitors/op/subtract.cpp
     visitors/op/swish.cpp
+    visitors/op/tan.cpp
     visitors/op/tanh.cpp
     visitors/op/topk.cpp
     visitors/op/transpose.cpp
@@ -519,7 +521,6 @@ set(MULTI_TEST_SRC
     backend/squeeze.in.cpp
     backend/subtract.in.cpp
     backend/swish.in.cpp
-    backend/tan.in.cpp
     backend/tanh.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
@@ -537,6 +538,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
             onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
+            onnx/onnx_import_deprecated.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
