@@ -9,22 +9,22 @@
 **Detailed description**: *LogicalNot* performs element-wise logical negation operation with given tensor, based on the following mathematical formula:
 
 \f[
-a_{i} = not(a_{i})
+a_{i} = \lnot a_{i}
 \f]
 
 **Attributes**: *LogicalNot* operation has no attributes.
 
 **Inputs**
 
-* **1**: An tensor of type *T* and arbitrary shape. **Required.**
+* **1**: An tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise logical negation operation. A tensor of type *T*.
+* **1**: The result of element-wise logical negation operation. A tensor of type *T_BOOL*.
 
 **Types**
 
-* *T*: boolean type.
+* *T_BOOL*: `boolean`.
 
 
 **Example**
