@@ -46,7 +46,7 @@ To perform the summation in the opposite direction of the axis, set reverse attr
 
 * *T*: any numeric type.
 
-* *T_AXIS*: any integer number.
+* *T_AXIS*: `int64` or `int32`.
 
 **Examples**
 
