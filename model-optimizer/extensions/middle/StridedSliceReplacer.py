@@ -33,7 +33,7 @@ class ReplaceStridedSliceWithSqueezeUnsqueeze(MiddleReplacementPattern):
     enabled = True
     force_clean_up = True
 
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_nhwc_to_nchw]
+    graph_condition = [lambda graph: not getattr(graph.graph['cmd_params'], 'disable_nhwc_to_nchw', True)]
 
     def run_before(self):
         return [InsertLayoutPropagationTranspose]
