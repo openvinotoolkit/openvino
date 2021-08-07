@@ -1,0 +1,52 @@
+#!/usr/bin/python3
+
+# Copyright (C) 2018-2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+import logging
+import os
+import sys
+
+from clang.cindex import Config
+from ncc import Options, RulesDb, do_validate, Validator
+
+if __name__ == "__main__":
+    # set path to speicific clang library location
+    Config.set_library_file('@libclang_location@')
+
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s',
+                        filename='log.txt', filemode='w')
+
+    """ Parse all command line arguments and validate """
+    op = Options()
+    op.parse_cmd_line()
+
+    if op.args.path is None:
+        sys.exit(1)
+
+    """ Creating the rules database """
+    rules_db = RulesDb(op._style_file)
+
+    """ Check the source code against the configured rules """
+    errors = 0
+    for path in op.args.path:
+        if os.path.isfile(path):
+            if do_validate(op, path):
+                v = Validator(rules_db, path, op)
+                errors += v.validate()
+        elif os.path.isdir(path):
+            for (root, subdirs, files) in os.walk(path):
+                for filename in files:
+                    path = root + '/' + filename
+                    if do_validate(op, path):
+                        v = Validator(rules_db, path, op)
+                        errors += v.validate()
+
+                if not op.args.recurse:
+                    break
+        else:
+            sys.stderr.write("File '{}' not found!\n".format(path))
+
+    if errors:
+        print("Total number of errors = {}".format(errors))
+        sys.exit(1)

@@ -50,6 +50,8 @@ ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of fail
 
 ie_dependent_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON "UNIX;NOT ANDROID" OFF)
 
+ie_dependent_option (ENABLE_NCC_STYLE "Enable ncc style check" ON "UNIX;NOT ANDROID" OFF)
+
 ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
