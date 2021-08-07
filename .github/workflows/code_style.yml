@@ -28,7 +28,7 @@ jobs:
           cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
 
       - name: Check code style
-        run: cmake --build build --target clang_format_check_all
+        run: cmake --build build --target clang_format_check_all -j8
 
       - name: Create code style diff
         if: failure()
@@ -64,5 +64,29 @@ jobs:
           cmake ..
 
       - name: ShellCheck
-        run: make ie_shellcheck
+        run: cmake --build . --target ie_shellcheck -j8
+        working-directory: build
+
+  NamingConventionCheck:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install Clang dependency
+        run: sudo apt --assume-yes install libusb-1.0-0-dev libclang-9-dev
+
+      - name: Install Python-based dependencies
+        run: |
+          python3 -m pip install pyyaml clang==9.0
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Naming convention check
+        run: cmake --build . --target ncc_all -j8
         working-directory: build
