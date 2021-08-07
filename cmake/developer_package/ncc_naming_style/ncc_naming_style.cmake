@@ -100,9 +100,6 @@ function(ov_ncc_naming_style)
          RELATIVE "${NCC_STYLE_INCLUDE_DIRECTORY}"
          "${NCC_STYLE_INCLUDE_DIRECTORY}/*.hpp")
 
-    set(ncc_wrapper_py "${ncc_style_dir}/ncc_wrapper.py")
-    set(ncc_script_dir "${ncc_style_dir}/ncc/")
-    set(new_pythonpath "${ncc_script_dir}:$ENV{PYTHOPATH}")
     list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
 
     foreach(header IN LISTS headers)
@@ -113,10 +110,9 @@ function(ov_ncc_naming_style)
             OUTPUT
                 ${output_file}
             COMMAND
-                "${CMAKE_COMMAND}" -E env PYTHONPATH=${new_pythonpath}
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
-                -D "NCC_PY_SCRIPT=${ncc_wrapper_py}"
+                -D "NCC_PY_SCRIPT=${ncc_script_py}"
                 -D "INPUT_FILE=${full_header_path}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
@@ -129,7 +125,6 @@ function(ov_ncc_naming_style)
                 "${full_header_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
-                "${ncc_wrapper_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
                 "[ncc naming style] ${header}"

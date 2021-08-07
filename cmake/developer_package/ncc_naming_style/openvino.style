@@ -116,6 +116,7 @@ PreprocessingDirective: 'XXXX'
 MacroDefinition: 'XXXX'
 MacroInstantiation: 'XXXX'
 InclusionDirective: 'XXXX'
+TypeAliasTeplateDeclaration: '^.*$'
 VariableName:
     ScopePrefix:
         Global: ''
