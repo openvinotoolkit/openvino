@@ -10,6 +10,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
 #include "low_precision/network_helper.hpp"
 
@@ -20,7 +21,22 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MoveFakeQuantize, "MoveFakeQuantize", 0);
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
-    auto matcher = ngraph::pattern::wrap_type<opset1::FakeQuantize>();
+    auto concat = ngraph::pattern::wrap_type<opset1::Concat>();
+    auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
+    auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto input_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto output_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto output_high = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    auto fq_with_operation = ngraph::pattern::wrap_type<opset1::FakeQuantize>({ operation,
+        input_low,
+        input_high,
+        output_low,
+        output_high});
+    auto fq = ngraph::pattern::wrap_type<opset1::FakeQuantize>({ concat,
+        input_low,
+        input_high,
+        output_low,
+        output_high });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -31,18 +47,15 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MoveFakeQuantize");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(
+        std::make_shared<pattern::op::Or>(OutputVector{fq, fq_with_operation}),
+        "MoveFakeQuantize");
     this->register_matcher(m, callback);
 }
 
 bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
     auto fq = m.get_match_root();
     auto operation = fq->get_input_node_shared_ptr(0);
-
-    // TODO: temporary to enable other transformations <= update matcher instead this validation
-    /*if (!is_type<opset1::Relu>(operation) && !is_type<opset1::Concat>(operation)) {
-        return false;
-    }*/
 
     std::shared_ptr<ngraph::Node> concat, fq1input, fq2input;
     if (is_type<opset1::Concat>(operation)) {
@@ -56,8 +69,7 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
         if (is_type<opset1::Relu>(operation)) {
             fq1input = std::make_shared<ngraph::opset1::Relu>(input1->output(0));
             fq2input = std::make_shared<ngraph::opset1::Relu>(input2->output(0));
-        }
-        else {
+        } else {
             return false;
         }
     }
