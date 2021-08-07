@@ -1306,7 +1306,7 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
     }
 }
 
-bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
+bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& order)
 {
     bool status = true;
 
@@ -1367,7 +1367,7 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port)
                 auto& rt_info = consumer->get_rt_info();
                 for (const auto& it : orig_rt_info)
                 {
-                    if (rt_info.find(it.first) == rt_info.end())
+                    if (rt_info.find(it.first) == rt_info.end() && it.second->is_copyable())
                         rt_info[it.first] = it.second;
                 }
             }

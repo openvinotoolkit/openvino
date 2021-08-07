@@ -329,6 +329,8 @@ namespace ngraph
     /// that all the HostTensorPtrs are not equal to nullptr
     NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
 
+    NGRAPH_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
+
     namespace opset1
     {
         ///
