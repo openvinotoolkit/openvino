@@ -136,7 +136,7 @@ const std::vector<MulAddToScaleshiftOrPowerParams> testValues = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
+    DISABLED_smoke_LPT,
     MulAddToScaleshiftOrPowerTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precision),

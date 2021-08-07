@@ -110,7 +110,7 @@ std::vector<ConvertMulOrAddFinallyTransformationWithDequantizationTestValues> te
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
+    DISABLED_smoke_LPT,
     ConvertMulOrAddFinallyTransformationWithDequantization,
     ::testing::ValuesIn(testValues),
     ConvertMulOrAddFinallyTransformationWithDequantization::getTestCaseName);
