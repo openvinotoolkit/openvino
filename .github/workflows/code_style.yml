@@ -68,14 +68,14 @@ jobs:
         working-directory: build
 
   NamingConventionCheck:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
 
       - name: Install Clang dependency
-        run: sudo apt --assume-yes install libclang-9-dev
+        run: sudo apt --assume-yes install clang-11 libclang-11-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
