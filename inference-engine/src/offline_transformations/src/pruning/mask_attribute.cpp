@@ -38,6 +38,23 @@ void setMask(Output<Node> output, const Mask::Ptr & mask) {
     rtInfo[MaskWrapper::get_type_info_static().name] = MaskWrapper::create(mask);
 }
 
+Mask::Ptr align_mask(Mask *const mask, const ngraph::AxisSet & dims, int64_t multiplier /* MASK_ALIGNMENT*/) {
+    auto result_mask = std::make_shared<Mask>(mask->size());
+    for (const auto & dim : dims) {
+        auto dim_size = mask->at(dim).size();
+        auto aligned_size = dim_size - dim_size%multiplier;
+        size_t idx = 0;
+        for (const auto & value : mask->at(dim)) {
+            if (idx == aligned_size) {
+                break;
+            }
+            result_mask->at(dim).insert(value);
+            idx++;
+        }
+    }
+    return result_mask;
+}
+
 std::ostream & operator<< (std::ostream & out, const Mask & mask) {
     out << "[ ";
     for (auto & dim : mask) {

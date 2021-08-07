@@ -71,6 +71,9 @@ bool ngraph::pass::ShrinkWeights::run_on_function(std::shared_ptr<ngraph::Functi
                                                                opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                                                                opset6::Constant::create(element::i64, Shape{}, {dim}));
                 NGRAPH_DEBUG << "Transform(" << prev_name << "): " << prev_shape << " to " << last_output.get_partial_shape();
+                if ((mask->at(dim).size() % MASK_ALIGNMENT) != 0) {
+                    throw ngraph_error("[MASK_ALIGNMENT ERROR] Mask size (" + std::to_string(mask->at(dim).size()) + ") for node " + prev_name + " is not aligned!");
+                }
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());

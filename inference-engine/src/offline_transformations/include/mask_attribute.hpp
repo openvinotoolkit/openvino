@@ -18,6 +18,8 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
+enum { MASK_ALIGNMENT = 8 };
+
 namespace ngraph {
 
 /**
@@ -197,6 +199,8 @@ Mask::Ptr getMask(const Output<const Node> & output);
 Mask::Ptr getMask(const Output<Node> & output);
 
 void setMask(Output<Node> output, const Mask::Ptr & mask);
+
+Mask::Ptr align_mask(Mask *const mask, const ngraph::AxisSet & dims, int64_t multiplier=MASK_ALIGNMENT);
 
 }  // namespace ngraph
 

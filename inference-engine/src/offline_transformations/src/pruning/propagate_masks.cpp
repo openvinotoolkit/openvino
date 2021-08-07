@@ -12,6 +12,9 @@
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PropagateMasks, "PropagateMasks", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvolutionPropagate, "ConvolutionPropagate", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::EltwisePropagate, "EltwisePropagate", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConcatPropagate, "ConcatPropagate", 0);
 
 namespace ngraph {
 namespace pass {
@@ -68,7 +71,8 @@ public:
                 // Weights input channel is connected to the convolution input channel dimension
                 // so we update weights mask to be aligned with input shape.
                 weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                    cur_mask->at(1/* weights input channel */) = input_mask_row->at(1 /* input data channel */);
+                    auto aligned_input_mask = align_mask(input_mask_row, std::vector<size_t>{1});
+                    cur_mask->at(1/* weights input channel */) = aligned_input_mask->at(1 /* input data channel */);
                     return true;
                 }, input_mask);
 
@@ -87,7 +91,8 @@ public:
             auto conv_mask_row = conv_mask.get();
 
             conv_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(0/*weights output channel dim */);
+                auto aligned_weight_mask = align_mask(weights_mask_row, std::vector<size_t>{0});
+                cur_mask->at(1) = aligned_weight_mask->at(0/*weights output channel dim */);
                 return true;
             }, weights_mask);
 
@@ -151,7 +156,8 @@ public:
             // Weights input channel is connected to the convolution input channel dimension
             // so we update weights mask to be aligned with input shape.
             weights_mask->add_callback([input_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(0) = input_mask_row->at(1);
+                auto aligned_input_mask = align_mask(input_mask_row, std::vector<size_t>{1});
+                cur_mask->at(0) = aligned_input_mask->at(1);
                 return true;
             }, input_mask);
 
@@ -169,7 +175,8 @@ public:
             auto conv_mask_row = conv_mask.get();
 
             conv_mask->add_callback([weights_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->at(1) = weights_mask_row->at(0);
+                auto aligned_weight_mask = align_mask(weights_mask_row, std::vector<size_t>{0});
+                cur_mask->at(1) = aligned_weight_mask->at(0);
                 return true;
             }, weights_mask);
 
@@ -321,7 +328,8 @@ public:
                 } else {
                     result_mask = input_mask_row->intersect_masks_reversed(weights_mask_row);
                 }
-                cur_mask->copy_value_from_mask_reversed(result_mask.get());
+                auto aligned_result_mask = align_mask(&(*result_mask), std::vector<size_t>{0, 1});
+                cur_mask->copy_value_from_mask_reversed(aligned_result_mask.get());
                 return true;
             };
             output_mask->add_callback(out_mask_callback, input_mask);
@@ -354,7 +362,7 @@ public:
 class ngraph::pass::mask_propagation::FakeQuantize : public MatcherPass{
 public:
     FakeQuantize(){
-        auto input = pattern::any_input(pattern::has_static_shape());
+        auto input = pattern::any_input();
         auto input_low = pattern::any_input(pattern::has_static_shape());
         auto input_high = pattern::any_input(pattern::has_static_shape());
         auto output_low = pattern::any_input(pattern::has_static_shape());
@@ -386,7 +394,8 @@ public:
 
             // Output mask is equal to input mask
             auto output_mask_callback = [input_mask_row](Mask::Ptr cur_mask) -> bool {
-                cur_mask->copy_value_from_mask(input_mask_row);
+                auto aligned_mask = align_mask(input_mask_row, std::vector<size_t>{0, 1});
+                cur_mask->copy_value_from_mask(aligned_mask.get());
                 return true;
             };
 
@@ -469,7 +478,7 @@ public:
             if (!concat_ptr) {
                 return false;
             }
-            auto axis = concat_ptr->get_concatenation_axis();
+            size_t axis = concat_ptr->get_concatenation_axis();
 
             auto inputs = concat_ptr->inputs();
             std::map<int64_t , Mask::Ptr> input_masks;
@@ -508,7 +517,8 @@ public:
 
                 for (size_t i=0; i < input_sizes.size(); ++i) {
                     if (input_masks_row.count(i)) {
-                        for (auto idx : input_masks_row.at(i)->at(axis)) {
+                        auto aligned_input_mask = align_mask(input_masks_row.at(i), std::vector<size_t>{axis});
+                        for (auto idx : aligned_input_mask->at(axis)) {
                             cur_mask->at(axis).insert(idx + cur_size);
                         }
                     }
@@ -613,4 +623,16 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
     add_matcher<mask_propagation::StopPropagation>();
+}
+
+ngraph::pass::ConvolutionPropagate::ConvolutionPropagate() {
+    add_matcher<mask_propagation::Convolution>();
+}
+
+ngraph::pass::EltwisePropagate::EltwisePropagate() {
+    add_matcher<mask_propagation::Elementwise>();
+}
+
+ngraph::pass::ConcatPropagate::ConcatPropagate() {
+    add_matcher<mask_propagation::Concat>();
 }
