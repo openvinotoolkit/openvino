@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var NCC_PY_SCRIPT PYTHON_EXECUTABLE OUTPUT_FILE DEFINITIONS
+foreach(var NCC_PY_SCRIPT PYTHON_EXECUTABLE OUTPUT_FILE DEFINITIONS EXPECTED_FAIL
     INPUT_FILE ADDITIONAL_INCLUDE_DIRECTORIES STYLE_FILE CLANG_LIB_PATH)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is not defined for ncc_run.cmake")
@@ -31,6 +31,14 @@ execute_process(
 file(WRITE "${OUTPUT_FILE}" "${output}")
 
 if(NOT result EQUAL "0")
+    set(failed ON)
+endif()
+
+if(EXPECTED_FAIL AND NOT failed)
+    message(FATAL_ERROR "[ncc self check] Self check is not failed for ${INPUT_FILE}")
+endif()
+
+if(failed AND NOT EXPECTED_FAIL)
     # Display the output to console (to parse it form IDE)
     message("${output}")
     message(FATAL_ERROR  "[ncc naming style] Naming style check failed for ${INPUT_FILE}")
