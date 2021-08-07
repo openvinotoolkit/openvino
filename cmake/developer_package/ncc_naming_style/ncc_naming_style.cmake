@@ -96,7 +96,7 @@ function(ov_ncc_naming_style)
          "${NCC_STYLE_INCLUDE_DIRECTORY}/*.hpp")
 
     set(new_pythonpath "${ncc_script_dir}:$ENV{PYTHOPATH}")
-    list(APPEND ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
+    list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
 
     foreach(header IN LISTS headers)
         set(output_file "${ncc_style_bin_dir}/${header}.ncc_style")
@@ -113,7 +113,7 @@ function(ov_ncc_naming_style)
                 -D "INPUT_FILE=${full_header_path}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
-                -D "ADDITIONAL_INCLUDE_DIRECTORIES=${ADDITIONAL_INCLUDE_DIRECTORIES}"
+                -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
                 "${full_header_path}"
