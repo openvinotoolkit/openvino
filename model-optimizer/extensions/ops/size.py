@@ -43,4 +43,4 @@ class Size(Op):
         if is_fully_defined(input_shape):
             node.out_port(0).data.set_value(np.array(np.prod(input_shape), dtype=node.output_type))
         else:
-            node.out_port(0).data.set_value(shape_array(dynamic_dimension_value), dtype=node.output_type)
+            node.out_port(0).data.set_value(shape_array(dynamic_dimension_value))
