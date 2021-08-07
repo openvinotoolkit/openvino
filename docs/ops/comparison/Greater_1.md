@@ -4,7 +4,7 @@
 
 **Category**: Comparison binary operation
 
-**Short description**: *Greater* performs element-wise comparison operation with two given tensors applying multi-directional broadcast rules specified in the `auto_broadcast` attribute.
+**Short description**: *Greater* performs element-wise comparison operation with two given tensors applying broadcast rules specified in the `auto_broadcast` attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
@@ -35,7 +35,7 @@ o_{i} = a_{i} > b_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise comparison operation applied to the input tensors. A tensor of type `T_BOOL` and  shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise comparison operation applied to the input tensors. A tensor of type *T_BOOL* and  shape equal to broadcasted shape of two inputs.
 
 **Types**
 
