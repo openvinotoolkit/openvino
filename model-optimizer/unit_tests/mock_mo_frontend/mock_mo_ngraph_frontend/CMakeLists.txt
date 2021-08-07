@@ -15,8 +15,13 @@ add_library(${TARGET_FE_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 
 target_include_directories(${TARGET_FE_NAME} PRIVATE ".")
 
-target_include_directories(${TARGET_FE_NAME} PRIVATE ${FRONTEND_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH})
-target_link_libraries(${TARGET_FE_NAME} PRIVATE frontend_manager)
+target_link_libraries(${TARGET_FE_NAME} PRIVATE ngraph::frontend_manager::static)
 target_link_libraries(${TARGET_FE_NAME} PUBLIC ngraph PRIVATE ngraph::builder)
 
 add_clang_format_target(${TARGET_FE_NAME}_clang FOR_TARGETS ${TARGET_FE_NAME})
+
+set(NGRAPH_INSTALL_LIB "deployment_tools/ngraph/lib")
+
+install(TARGETS ${TARGET_FE_NAME}
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT tests EXCLUDE_FROM_ALL)

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "../include/set_element_type.hpp"
-#include "../include/utils.hpp"
+#include "set_element_type.hpp"
+#include "utils.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;
@@ -25,18 +25,14 @@ void FrontEndElementTypeTest::SetUp()
 void FrontEndElementTypeTest::initParamTest()
 {
     m_param = GetParam();
-    m_param.m_modelName = m_param.m_modelsPath + m_param.m_modelName;
+    m_param.m_modelName =
+        FrontEndTestUtils::make_model_path(m_param.m_modelsPath + m_param.m_modelName);
 }
 
 void FrontEndElementTypeTest::doLoadFromFile()
 {
-    std::vector<std::string> frontends;
-    FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName));
-    ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load_from_file(m_param.m_modelName));
-    ASSERT_NE(m_inputModel, nullptr);
+    std::tie(m_frontEnd, m_inputModel) =
+        FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName, m_param.m_modelName);
 }
 
 ///////////////////////////////////////////////////////////////////

@@ -29,7 +29,8 @@ const auto fqParams = ::testing::Combine(
         ::testing::ValuesIn(levels),
         ::testing::ValuesIn(constShapes),
         ::testing::Values(fqArgs),
-        ::testing::Values(inputParams)
+        ::testing::Values(inputParams),
+        ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,

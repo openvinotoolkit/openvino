@@ -402,6 +402,8 @@ std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
         case GatherAxis::Y:       return "Y";
+        case GatherAxis::Z:       return "Z";
+        case GatherAxis::W:       return "W";
         case GatherAxis::FEATURE: return "FEATURE";
         case GatherAxis::BATCH:   return "BATCH";
         default: return "";

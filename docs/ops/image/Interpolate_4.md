@@ -13,7 +13,6 @@
   * **Description**: specifies type of interpolation
   * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
   **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`.
 
@@ -24,7 +23,6 @@
     * `sizes` - an output shape is calculated as `output_shape[axes[i]] = sizes[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
     * `scales` - an output shape is calculated as `output_shape[axes[i]] = floor(scales[i] * (input_shape[axes[i]] + pads_begin[axes[i]] + pads_end[axes[i]]))` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
 
 * *coordinate_transformation_mode*
@@ -82,8 +80,8 @@
 * *cube_coeff*
 
   * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
-  * **Range of values**: floating point number
-  * **Type**: any of supported floating point type
+  * **Range of values**: floating-point number
+  * **Type**: any of supported floating-point type
   * **Default value**: `-0.75`
   * **Required**: *no*
 
@@ -104,7 +102,7 @@
 **Types**
 * *T*: any supported numeric type.
 * *T_SIZE*: any supported integer type.
-* *T_SCALES*: any supported floating point type.
+* *T_SCALES*: any supported floating-point type.
 * *T_AXES*: any supported integer type.
 
 

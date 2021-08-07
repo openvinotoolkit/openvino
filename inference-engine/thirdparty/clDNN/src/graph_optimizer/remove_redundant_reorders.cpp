@@ -22,13 +22,13 @@ remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, b
     : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
     remove_output_reorders(remove_output_reorders) {}
 
-void remove_redundant_reorders::run(program_impl& p) {
+void remove_redundant_reorders::run(program& p) {
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
 
-        auto& eng = p.get_engine();
-        auto new_impl = node.type()->choose_impl(eng, node);
+        node.set_unique_id(node.get_unique_id() + "_reorder");
+        auto new_impl = node.type()->choose_impl(node);
         node.set_selected_impl(std::move(new_impl));
     };
 
@@ -299,7 +299,7 @@ void remove_redundant_reorders::run(program_impl& p) {
                 continue;
 
             input.set_output_layout(output_layout, false);
-            if (input.type()->does_possible_implementation_exist(p.get_engine(), input)) {
+            if (input.type()->does_possible_implementation_exist(input)) {
                 p.replace_all_usages(node, input);
                 p.add_optimized_primitive_info(node.id());
                 p.remove_all_connections(node);

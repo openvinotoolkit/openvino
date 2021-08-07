@@ -9,6 +9,8 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
+#include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {
@@ -25,8 +27,9 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const FakeQuantizeOnData& fqOnData);
+        const ngraph::PartialShape& inputShape,
+        const FakeQuantizeOnData& fqOnData,
+        const Constant& constant);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::PartialShape& inputShape,

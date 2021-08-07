@@ -60,8 +60,8 @@ To run the sample, you need specify a model and image:
 
 Running the application with the `-h` option yields the following usage message:
 
-```sh
-./classification_sample_async -h
+```
+<path_to_sample>/classification_sample_async -h
 InferenceEngine:
     API version ............ <version>
     Build .................. <build>
@@ -85,33 +85,43 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-You can do inference of an image using a trained [AlexNet network](https://docs.openvinotoolkit.org/latest/omz_models_model_alexnet.html) on GPU using the following command:
+### Example
+1. Download a pre-trained model using [Model Downloader](@ref omz_tools_downloader_README):
+```
+python <path_to_omz_tools>/downloader.py --name alexnet
+```
 
-```sh
-./classification_sample_async -m <path_to_model>/alexnet_fp32.xml -i <path_to_image>/cat.bmp -d GPU
+2. If a model is not in the Inference Engine IR or ONNX format, it must be converted. You can do this using the model converter script:
+
+```
+python <path_to_omz_tools>/converter.py --name alexnet
+```
+
+3. Perform inference of `car.bmp` using `alexnet` model on a `GPU`, for example:
+
+```
+<path_to_sample>/classification_sample_async -m <path_to_model>/alexnet.xml -i <path_to_image>/car.bmp -d GPU
 ```
 
 ## Sample Output
 
 By default the application outputs top-10 inference results for each infer request.
 
-```sh
-classification_sample_async -m alexnet_fp32/alexnet.xml -i car_1.bmp -d GPU
+```
 [ INFO ] InferenceEngine:
-        API version ............
-        Build ..................
-        Description ....... API
-[ INFO ] Parsing input parameters
+        IE version ......... 2021.4.0
+        Build ........... 2021.4.0-3839-cd81789d294-releases/2021/4
 [ INFO ] Parsing input parameters
 [ INFO ] Files were added: 1
-[ INFO ]     car_1.bmp
+[ INFO ]     C:\images\car.bmp
 [ INFO ] Loading Inference Engine
 [ INFO ] Device info:
         GPU
-        clDNNPlugin version ......... <version>
-        Build ........... <build>
+        clDNNPlugin version ......... 2021.4.0
+        Build ........... 2021.4.0-3839-cd81789d294-releases/2021/4
+
 [ INFO ] Loading network files:
-        alexnet_fp32/alexnet.xml
+[ INFO ] C:\openvino\deployment_tools\open_model_zoo\tools\downloader\public\alexnet\FP32\alexnet.xml
 [ INFO ] Preparing input blobs
 [ WARNING ] Image is resized from (749, 637) to (227, 227)
 [ INFO ] Batch size is 1
@@ -132,20 +142,20 @@ classification_sample_async -m alexnet_fp32/alexnet.xml -i car_1.bmp -d GPU
 
 Top 10 results:
 
-Image car_1.bmp
+Image C:\images\car.bmp
 
 classid probability
 ------- -----------
-656     0.5491584
-874     0.1101241
-654     0.0559816
-436     0.0488046
-581     0.0330480
-705     0.0307707
-734     0.0185521
-627     0.0162536
-675     0.0145008
-757     0.0125437
+656     0.6645315
+654     0.1121185
+581     0.0698451
+874     0.0334973
+436     0.0259718
+817     0.0173190
+675     0.0109321
+511     0.0109075
+569     0.0083093
+717     0.0063173
 
 [ INFO ] Execution successful
 
