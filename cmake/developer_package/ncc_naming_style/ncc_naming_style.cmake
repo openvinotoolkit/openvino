@@ -57,7 +57,6 @@ foreach(req IN LISTS req_lines)
     ie_check_pip_package(${req} STATUS)
 endforeach()
 
-set(ncc_script_dir "${ncc_style_dir}/ncc/")
 set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
 
 if(NOT EXISTS ${ncc_script_py})
@@ -88,13 +87,20 @@ function(ov_ncc_naming_style)
         return()
     endif()
 
-    cmake_parse_arguments(NCC_STYLE ""
+    cmake_parse_arguments(NCC_STYLE "FAIL"
         "FOR_TARGET;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
+
+    foreach(var FOR_TARGET INCLUDE_DIRECTORY)
+        if(NOT DEFINED NCC_STYLE_${var})
+            message(FATAL_ERROR "${var} is not defined in ov_ncc_naming_style function")
+        endif()
+    endforeach()
 
     file(GLOB_RECURSE headers
          RELATIVE "${NCC_STYLE_INCLUDE_DIRECTORY}"
          "${NCC_STYLE_INCLUDE_DIRECTORY}/*.hpp")
 
+    set(ncc_script_dir "${ncc_style_dir}/ncc/")
     set(new_pythonpath "${ncc_script_dir}:$ENV{PYTHOPATH}")
     list(APPEND NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES "${NCC_STYLE_INCLUDE_DIRECTORY}")
 
@@ -109,18 +115,20 @@ function(ov_ncc_naming_style)
                 "${CMAKE_COMMAND}" -E env PYTHONPATH=${new_pythonpath}
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
-                -D "NCC_PY_SCRIPT=${ncc_script_py}"
+                -D "NCC_PY_SCRIPT=${ncc_wrapper_py}"
                 -D "INPUT_FILE=${full_header_path}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
                 -D "CLANG_LIB_PATH=${libclang_location}"
                 -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
                 -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
+                -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
             DEPENDS
                 "${full_header_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
+                "${ncc_wrapper_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
                 "[ncc naming style] ${header}"
@@ -136,3 +144,9 @@ function(ov_ncc_naming_style)
     add_dependencies(${NCC_STYLE_FOR_TARGET} ${ncc_target})
     add_dependencies(ncc_all ${ncc_target})
 endfunction()
+
+if(TARGET ncc_all)
+    ov_ncc_naming_style(FOR_TARGET ncc_all
+                        INCLUDE_DIRECTORY "${ncc_style_dir}/self_check"
+                        FAIL)
+endif()
