@@ -83,7 +83,6 @@ protected:
         nodes.push_back(inputNode);
         nodes.push_back(preresizeNode);
         nodes.push_back(outputNode);
-        validate_nodes_and_infer_types(nodes);
 
         // Create graph
         ngraph::ParameterVector inputs;
