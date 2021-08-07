@@ -40,7 +40,7 @@ namespace ngraph
             };
 
             /// \brief Layer which performs bilinear interpolation
-            class NGRAPH_API Interpolate : public Op
+            class NGRAPH_API __Interpolate : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;

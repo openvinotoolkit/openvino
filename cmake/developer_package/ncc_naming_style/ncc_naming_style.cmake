@@ -33,8 +33,6 @@ if(ENABLE_NCC_STYLE)
     find_host_package(Clang QUIET)
     if(Clang_FOUND AND TARGET libclang)
         get_target_property(libclang_location libclang LOCATION)
-        set(ncc_wrapper_py "${ncc_style_bin_dir}/ncc_wrapper.py")
-        configure_file("${ncc_style_dir}/ncc_wrapper.py.in" ${ncc_wrapper_py} @ONLY)
         message(STATUS "Found libclang: ${libclang_location}")
     else()
         message(WARNING "libclang is not found (required for ncc naming style check)")
@@ -77,11 +75,13 @@ endif()
 #
 # ov_ncc_naming_style(FOR_TARGET target_name
 #                     INCLUDE_DIRECTORY dir
-#                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..])
+#                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..]
+#                     [DEFINITIONS def1 def2 ..])
 #
 # FOR_TARGET - name of the target
 # INCLUDE_DIRECTORY - directory to check headers from
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
+# DEFINITIONS - additional definitions passed to preprocessor stage
 #
 function(ov_ncc_naming_style)
     if(NOT ENABLE_NCC_STYLE)
@@ -89,7 +89,7 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE ""
-        "FOR_TARGET;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES" ${ARGN})
+        "FOR_TARGET;INCLUDE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
 
     file(GLOB_RECURSE headers
          RELATIVE "${NCC_STYLE_INCLUDE_DIRECTORY}"
@@ -109,9 +109,11 @@ function(ov_ncc_naming_style)
                 "${CMAKE_COMMAND}" -E env PYTHONPATH=${new_pythonpath}
                 "${CMAKE_COMMAND}"
                 -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
-                -D "NCC_PY_SCRIPT=${ncc_wrapper_py}"
+                -D "NCC_PY_SCRIPT=${ncc_script_py}"
                 -D "INPUT_FILE=${full_header_path}"
                 -D "OUTPUT_FILE=${output_file}"
+                -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
+                -D "CLANG_LIB_PATH=${libclang_location}"
                 -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
                 -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
@@ -119,7 +121,6 @@ function(ov_ncc_naming_style)
                 "${full_header_path}"
                 "${ncc_style_dir}/openvino.style"
                 "${ncc_script_py}"
-                "${ncc_wrapper_py}"
                 "${ncc_style_dir}/ncc_run.cmake"
             COMMENT
                 "[ncc naming style] ${header}"

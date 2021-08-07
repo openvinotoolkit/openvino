@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var NCC_PY_SCRIPT PYTHON_EXECUTABLE OUTPUT_FILE
-    INPUT_FILE ADDITIONAL_INCLUDE_DIRECTORIES STYLE_FILE)
+foreach(var NCC_PY_SCRIPT PYTHON_EXECUTABLE OUTPUT_FILE DEFINITIONS
+    INPUT_FILE ADDITIONAL_INCLUDE_DIRECTORIES STYLE_FILE CLANG_LIB_PATH)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is not defined for ncc_run.cmake")
     endif()
@@ -11,12 +11,18 @@ endforeach()
 
 file(REMOVE "${OUTPUT_FILE}")
 
+if(DEFINITIONS)
+    set(defs --definition ${DEFINITIONS})
+endif()
+
 execute_process(
     COMMAND
         "${PYTHON_EXECUTABLE}"
         "${NCC_PY_SCRIPT}"
         --path ${INPUT_FILE}
         --style ${STYLE_FILE}
+        --clang-lib ${CLANG_LIB_PATH}
+        ${defs}
         --include ${ADDITIONAL_INCLUDE_DIRECTORIES}
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
