@@ -261,10 +261,10 @@ function( compile_pyx _name generated_file )
     # check import statements to update in C code
     set(pyx_file ${CMAKE_CURRENT_SOURCE_DIR}/${_name}.pyx)
     file(STRINGS "${pyx_file}" import_statements REGEX "(^from [.]+[^ ]+ import)")
-    unset(pyx_dependences)
+    unset(pyx_dependencies)
     foreach(statement ${import_statements})
       string(REGEX REPLACE "^from [.]+([^ ]+).*" "\\1" module "${statement}")
-      list(APPEND pyx_dependences ${module})
+      list(APPEND pyx_dependencies ${module})
     endforeach()
     add_custom_command( OUTPUT ${_generated_file}
       COMMAND ${CYTHON_EXECUTABLE}
@@ -280,9 +280,9 @@ function( compile_pyx _name generated_file )
                         -i ${_generated_file}
                         --match_string "PyInit_${_name}"
                         --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
-      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_cxx_dependences.py
+      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_cxx_dependencies.py
                         -i ${_generated_file}
-                        --module_names "${pyx_dependences}"
+                        --module_names "${pyx_dependencies}"
                         --debug_postfix "${CMAKE_DEBUG_POSTFIX}")
   else()
     add_custom_command( OUTPUT ${_generated_file}
