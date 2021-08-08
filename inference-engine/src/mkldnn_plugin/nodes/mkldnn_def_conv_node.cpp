@@ -935,6 +935,8 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     } else {
         with_bilinear_pad = false;
     }
+
+    enforceRef = (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info);
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
@@ -971,7 +973,6 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 //    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
 //        enforceRef = true;
 //    }
-    enforceRef = true;
 
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
