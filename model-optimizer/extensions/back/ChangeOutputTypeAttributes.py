@@ -52,7 +52,7 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
                 if node[dst_type] in [np.float32, np.float64] and ir_data_type == np.float16 and \
                         not node.has_and_set('returns_shape_value'):
                     final_type = np.float16
-                elif node.has_and_set('returns_shape_value') and node.dst_type == np.float16:
+                elif node.has_and_set('returns_shape_value') and node[dst_type] == np.float16:
                     # return back FP32 for all nodes with shape values
                     final_type = np.float32
 
