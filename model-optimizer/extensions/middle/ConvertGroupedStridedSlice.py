@@ -89,8 +89,6 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             if len(out_nodes) <= 1:
                 continue
 
-            valid_for_replacement = True
-
             for node in out_nodes:
                 if len(node.slices) != len(out_nodes[0].slices):
                     valid_for_replacement = False

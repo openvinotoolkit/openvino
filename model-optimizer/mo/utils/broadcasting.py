@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert
+from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, shape_insert, is_fully_defined
 
 
 def make_equal_rank(shape_1: np.array, shape_2: np.array):
@@ -78,7 +78,7 @@ def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, a
     """
     Explicit shape broadcasting of input tensor. Function only asserts that values are correct and normalizes axes.
     Resulting shape is equal to target_shape.
-    :param input_value: input value to broadcast
+    :param input_shape: input value to broadcast
     :param target_shape: target shape
     :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
     :return: broadcasted shape and normalized axes
@@ -101,6 +101,7 @@ def uni_directional_broadcasting(input_value: np.array, target_shape: np.array):
     :param target_shape: target shape
     :return: broadcasted value
     """
+    assert is_fully_defined(target_shape)
     assert uni_directional_shape_broadcasting(shape_array(input_value.shape), target_shape) is not None, \
         'The tensor of shape "{}" cannot be uni-directionally broadcasted to shape "{}"'.format(input_value.shape,
                                                                                                 target_shape)
@@ -114,9 +115,10 @@ def bi_directional_broadcasting(input_value: np.array, second_shape: np.array):
     :param second_shape: second tensor shape
     :return: broadcasted value
     """
-    assert bi_directional_shape_broadcasting(shape_array(input_value.shape), second_shape) is not None, \
-        'The tensor of shape "{}" cannot be bi-directionally broadcasted to shape "{}"'.format(input_value.shape,
-                                                                                               second_shape)
+    output_shape = bi_directional_shape_broadcasting(shape_array(input_value.shape), second_shape)
+    assert output_shape is not None, 'The tensor of shape "{}" cannot be bi-directionally broadcasted to shape "{}"' \
+                                     ''.format(input_value.shape, second_shape)
+    assert is_fully_defined(output_shape)
     return input_value * np.ones(second_shape).astype(input_value.dtype)
 
 
