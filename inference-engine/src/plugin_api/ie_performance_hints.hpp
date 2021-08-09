@@ -16,14 +16,6 @@ namespace InferenceEngine {
         int ovPerfHintNumRequests = 0;
 
         /**
-        * @brief Supported Configuration keys
-        * @return vector of supported configuration keys
-        */
-        std::vector<std::string> SupportedKeys() {
-            return {PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS};
-        }
-
-        /**
         * @brief Parses configuration key/value pair
         * @param key configuration key
         * @param value configuration values
@@ -46,7 +38,31 @@ namespace InferenceEngine {
                 return ovPerfHint;
             } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
                 return ovPerfHintNumRequests;
+            } else {
+                IE_THROW() << "Unsupported Performance Hint config: " << key << std::endl;
             }
+        }
+
+        /**
+        * @brief Supported Configuration keys
+        * @return vector of supported configuration keys
+        */
+        static std::vector<std::string> SupportedKeys() {
+            return {PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS};
+        }
+
+        /**
+        * @brief Checks configuration key and value, otherwise throws
+        * @param configuration key + value
+        * @return void
+        */
+        static void CheckConfigAndValue(std::pair<const std::string, const std::string&> kvp ){
+            if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT)
+                CheckPerformanceHintValue(kvp.second);
+            else if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)
+                CheckPerformanceHintRequestValue(kvp.second);
+            else
+                IE_THROW() << "Unsupported Performance Hint config: " << kvp.first << std::endl;
         }
 
         /**
