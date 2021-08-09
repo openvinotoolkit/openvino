@@ -98,8 +98,8 @@ namespace ngraph
                 bool is_reverse() const { return m_reverse; }
 
             private:
-                bool m_exclusive;
-                bool m_reverse;
+                bool m_exclusive = false;
+                bool m_reverse = false;
             };
         } // namespace v0
         using v0::CumSum;
