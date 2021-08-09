@@ -55,11 +55,12 @@ void regclass_pyngraph_FrontEnd(py::module m)
                     Fully converted nGraph function.
              )");
 
-    fem.def("convert",
-            static_cast<std::shared_ptr<ngraph::Function> (ngraph::frontend::FrontEnd::*)(
-                std::shared_ptr<ngraph::Function>) const>(&ngraph::frontend::FrontEnd::convert),
-            py::arg("function"),
-            R"(
+    fem.def(
+        "convert",
+        static_cast<void (ngraph::frontend::FrontEnd::*)(std::shared_ptr<ngraph::Function>) const>(
+            &ngraph::frontend::FrontEnd::convert),
+        py::arg("function"),
+        R"(
                 Completely convert the remaining, not converted part of a function.
 
                 Parameters

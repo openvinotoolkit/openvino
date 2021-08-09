@@ -56,13 +56,13 @@ endif()
 
 add_custom_command(TARGET ie_wheel
     PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/site-packages"
         COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
             --dist-dir ${CMAKE_BINARY_DIR}/wheels
             --build=${WHEEL_BUILD}
             --plat-name=${WHEEL_PLATFORM}
     POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E rm "${CMAKE_CURRENT_SOURCE_DIR}/.env"
+        COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/.env"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
     VERBATIM

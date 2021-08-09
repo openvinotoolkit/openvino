@@ -51,7 +51,7 @@ namespace lessop
 
 // ----------------------------- v1 --------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Less, "Less", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Less, "Less", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Less::Less(const Output<Node>& arg0,
                    const Output<Node>& arg1,
