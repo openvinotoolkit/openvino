@@ -258,6 +258,7 @@ function( compile_pyx _name generated_file )
 
   # Add command to run the compiler
   if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
     # check import statements to update in C code
     set(pyx_file ${CMAKE_CURRENT_SOURCE_DIR}/${_name}.pyx)
     file(STRINGS "${pyx_file}" import_statements REGEX "(^from [.]+[^ ]+ import)")
@@ -276,11 +277,11 @@ function( compile_pyx _name generated_file )
       COMMENT ${comment}
       # add debug postfix to import and PyInit statements in C code
       # it's required if we want to create a library whose name has debug postfix (CVS-29031)
-      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
+      COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
                         -i ${_generated_file}
                         --match_string "PyInit_${_name}"
                         --replace_string "PyInit_${_name}${CMAKE_DEBUG_POSTFIX}"
-      COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_cxx_dependencies.py
+      COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_cxx_dependencies.py
                         -i ${_generated_file}
                         --module_names "${pyx_dependencies}"
                         --debug_postfix "${CMAKE_DEBUG_POSTFIX}")
