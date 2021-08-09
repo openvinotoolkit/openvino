@@ -305,13 +305,11 @@ private:
             return rhs.is(typeid(T)) && equal<T>(*this, rhs);
         }
 
-        template <class U>
-        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream,
-                                                                                      const U& object) const {}
+        template <class U, typename std::enable_if<!HasOutputStreamOperator<U>::value, bool>::type = true>
+        void print(std::ostream& stream, const U& object) const {}
 
-        template <class U>
-        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type print(std::ostream& stream,
-                                                                                     const U& object) const {
+        template <class U, typename std::enable_if<HasOutputStreamOperator<U>::value, bool>::type = true>
+        void print(std::ostream& stream, const U& object) const {
             stream << object;
         }
 
