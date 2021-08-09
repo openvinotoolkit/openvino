@@ -125,6 +125,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto prev_output_layout = prev.get_output_layout();
     auto next_output_layout = next.get_output_layout();
     auto prev_dt = prev.get_output_layout().data_type;
+    auto next_dt = next.get_output_layout().data_type;
 
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
@@ -138,7 +139,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<pooling>() &&
-        ((prev_simple && next_simple) ||
+        (((prev_simple && next_simple) && (prev_dt == next_dt)) ||
         ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
         return true;
 
@@ -169,6 +170,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
+        (prev_dt == next_dt) && (fmt_prev == fmt_next) &&
         fmt_prev == format::bfyx &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
@@ -178,7 +180,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
-        fmt_prev == format::bfyx &&
+        fmt_prev == format::bfyx && prev_dt == next_dt &&
         fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 &&
         next.as<convolution>().get_primitive()->activations_zero_points.empty() &&
         next.as<convolution>().get_primitive()->weights_zero_points.empty())
@@ -191,9 +193,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
 
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-         fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
+    if (next.is_type<quantize>())
         return true;
 
     if (next.is_type<convolution>() &&

@@ -54,10 +54,6 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
-            auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            if (!same_data_type)
-                continue;
-
             bool all_users_fuse = true;
             std::vector<program_node*> recalc_list;
 
