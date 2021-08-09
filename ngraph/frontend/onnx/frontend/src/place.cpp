@@ -161,10 +161,11 @@ bool PlaceTensorONNX::is_equal(Place::Ptr another) const
 bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const
 {
     const auto consuming_ports = get_consuming_ports();
-    bool eq_to_consuming_port =
-        std::any_of(consuming_ports.begin(), consuming_ports.end(), [&another](const Ptr& place) {
-            return place->is_equal(another);
-        });
-    return is_equal(another) || eq_to_consuming_port ||
-           (is_input() ? false : get_producing_port()->is_equal(another));
+    const auto eq_to_consuming_port = [&consuming_ports](const Ptr& another) {
+        return std::any_of(consuming_ports.begin(),
+                           consuming_ports.end(),
+                           [&another](const Ptr& place) { return place->is_equal(another); });
+    };
+    return is_equal(another) || (is_input() ? false : get_producing_port()->is_equal(another)) ||
+           eq_to_consuming_port(another);
 }
