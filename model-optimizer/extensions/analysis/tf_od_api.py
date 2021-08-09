@@ -59,6 +59,17 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                      }
 
     def analyze(self, graph: Graph):
+        tf_1_names = ['image_tensor', 'detection_classes', 'detection_boxes', 'detection_scores']
+        tf_1_cond = all([name in graph.nodes() for name in tf_1_names])
+
+        tf_2_names = ['input_tensor', 'Identity', 'Identity_1', 'Identity_2', 'Identity_3', 'Identity_4', 'Identity_5',
+                      'Identity_6', 'Identity_7']
+        tf_2_cond = all([name in graph.nodes() for name in tf_2_names])
+
+        if not tf_1_cond and not tf_2_cond:
+            log.debug('The model does not contain nodes that must exist in the TF OD API models')
+            return None, None
+
         for flavor, scopes_tuple in self.model_scopes.items():
             for scopes in scopes_tuple:
                 if all([graph_contains_scope(graph, scope) for scope in scopes]):
@@ -72,7 +83,7 @@ class TensorFlowObjectDetectionAPIAnalysis(AnalyzeAction):
                                                       }
                     message = "Your model looks like TensorFlow Object Detection API Model.\n" \
                               "Check if all parameters are specified:\n" \
-                              "\t--tensorflow_use_custom_operations_config\n" \
+                              "\t--transformations_config\n" \
                               "\t--tensorflow_object_detection_api_pipeline_config\n" \
                               "\t--input_shape (optional)\n" \
                               "\t--reverse_input_channels (if you convert a model to use with the Inference Engine sample applications)\n" \
