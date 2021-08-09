@@ -18,7 +18,7 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 
-enum { MASK_ALIGNMENT = 8 };
+enum { MASK_ALIGNMENT = 16 };
 
 namespace ngraph {
 
