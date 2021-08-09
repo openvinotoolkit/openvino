@@ -4,8 +4,10 @@
 import unittest
 
 import numpy as np
+from generator import generate, generator
 
 from mo.front.common.partial_infer.concat import concat_infer
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
@@ -18,8 +20,13 @@ nodes_attributes = {'node_1': {'kind': 'data', 'value': None},
                     }
 
 
+@generator
 class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_concat_infer(self):
+    @generate(*[([1, 3, 227, 227], [1, 3, 220, 227], [1, 3, 447, 227], 2),
+                ([1, 3, 227, 227], [1, 3, 227, 220], [1, 3, 227, 447], -1),
+                ([1, 3, dynamic_dimension_value, 227], [1, dynamic_dimension_value, 227, 220], [1, 3, 227, 447], -1),
+                ])
+    def test_tf_concat_infer(self, shape1, shape2, output_shape, axis):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
@@ -27,37 +34,15 @@ class TestConcatPartialInfer(unittest.TestCase):
                              ('node_3', 'op_output')
                              ],
                             {'node_3': {'shape': None, 'value': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227])},
-                             'node_2': {'shape': np.array([1, 3, 227, 227])},
-                             'concat': {'axis': 2}
+                             'node_1': {'shape': shape_array(shape1)},
+                             'node_2': {'shape': shape_array(shape2)},
+                             'concat': {'axis': axis}
                              })
 
         concat_node = Node(graph, 'concat')
         concat_infer(concat_node)
-        exp_shape = np.array([1, 3, 454, 227])
         res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
-
-    def test_tf_concat_infer_negative_axis(self):
-        graph = build_graph(nodes_attributes,
-                            [('node_1', 'concat'),
-                             ('node_2', 'concat'),
-                             ('concat', 'node_3'),
-                             ('node_3', 'op_output')
-                             ],
-                            {'node_3': {'shape': None, 'value': None},
-                             'node_1': {'shape': np.array([1, 3, 227, 227])},
-                             'node_2': {'shape': np.array([1, 3, 227, 227])},
-                             'concat': {'axis': -1}
-                             })
-
-        concat_node = Node(graph, 'concat')
-        concat_infer(concat_node)
-        exp_shape = np.array([1, 3, 227, 454])
-        res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
+        self.assertTrue(np.ma.allequal(output_shape, res_shape))
 
     def test_tf_concat_infer_not_match(self):
         graph = build_graph(nodes_attributes,

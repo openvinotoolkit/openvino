@@ -54,11 +54,11 @@ def concat_infer(node):
         if is_fully_defined(input):
             output_dtype = input.dtype
 
-    if any([not is_fully_defined(v) for v in values]):
+    if any([v is None for v in values]):
         node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis).astype(output_dtype))
     else:  # there is a serious performance benefit to use concatenation as it is implemented below
         node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
-        node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
+        node.out_node(0).shape = shape_array(node.out_node(0).value.shape)
 
 
 def tf_pack_infer(node):
