@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header for properties that are passed from IE to plguinsor from one
- * plugin to another
+ * @brief A header for properties that are passed from IE to plguinsor from one plugin to another
  * @file ie_internal_plugin_config.hpp
  */
 
@@ -34,16 +33,14 @@ namespace PluginConfigInternalParams {
 DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 
 /**
- * @brief Limit \#threads that are used by CPU Executor Streams to execute
- * `parallel_for` calls
+ * @brief Limit \#threads that are used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
- * @brief This key should be used to force disable export while loading network
- * even if global cache dir is defined Used by HETERO plugin to disable
- * automatic caching of subnetworks (set value to YES)
+ * @brief This key should be used to force disable export while loading network even if global cache dir is defined
+ *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);

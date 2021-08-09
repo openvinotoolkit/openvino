@@ -21,15 +21,12 @@ namespace InferenceEngine {
 /**
  * @interface IStreamsExecutor
  * @ingroup ie_dev_api_threading
- * @brief Interface for Streams Task Executor. This executor groups worker
- * threads into so-called `streams`.
+ * @brief Interface for Streams Task Executor. This executor groups worker threads into so-called `streams`.
  * @par CPU
- *        The executor executes all parallel tasks using threads from one
- * stream. With proper pinning settings it should reduce cache misses for memory
- * bound workloads.
+ *        The executor executes all parallel tasks using threads from one stream.
+ *        With proper pinning settings it should reduce cache misses for memory bound workloads.
  * @par NUMA
- *        On NUMA hosts GetNumaNodeId() method can be used to define the NUMA
- * node of current stream
+ *        On NUMA hosts GetNumaNodeId() method can be used to define the NUMA node of current stream
  */
 class INFERENCE_ENGINE_API_CLASS(IStreamsExecutor) : public ITaskExecutor {
 public:
@@ -45,10 +42,10 @@ public:
         NONE,   //!< Don't bind the inference threads
         CORES,  //!< Bind inference threads to the CPU cores (round-robin)
         // the following modes are implemented only for the TBB code-path:
-        NUMA,         //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on
-                      //!< the Win/MacOS, where the 'CORES' is not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on
-                      //!< the cores type (default mode for the hybrid CPUs)
+        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
+               //!< not implemeneted)
+        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
+                      //!< hybrid CPUs)
     };
 
     /**
@@ -77,12 +74,11 @@ public:
 
         /**
          * @brief Create appropriate multithreaded configuration
-         *        filing unconfigured values from initial configuration using
-         * hardware properties
+         *        filing unconfigured values from initial configuration using hardware properties
          * @param initial Inital configuration
-         * @param fp_intesive additional hint for the the (Hybrid) core-types
-         * selection logic whether the executor should be configured for floating
-         * point intensive work (as opposite to int8 intensive)
+         * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
+         *       whether the executor should be configured for floating point intensive work (as opposite to int8
+         * intensive)
          * @return configured values
          */
         static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
@@ -102,10 +98,10 @@ public:
             ANY,
             LITTLE,
             BIG,
-            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first,
-                         // then the Little, then wrap around (for large #streams)
-        } _threadPreferredCoreType = PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB
-                                                              //!< to affinitize
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
+                         // (for large #streams)
+        } _threadPreferredCoreType =
+            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
 
         /**
          * @brief      A constructor with arguments
@@ -144,21 +140,18 @@ public:
 
     /**
      * @brief Return the index of current stream
-     * @return An index of current stream. Or throw exceptions if called not from
-     * stream thread
+     * @return An index of current stream. Or throw exceptions if called not from stream thread
      */
     virtual int GetStreamId() = 0;
 
     /**
      * @brief Return the id of current NUMA Node
-     * @return `ID` of current NUMA Node, or throws exceptions if called not from
-     * stream thread
+     * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread
      */
     virtual int GetNumaNodeId() = 0;
 
     /**
-     * @brief Execute the task in the current thread using streams executor
-     * configuration and constraints
+     * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void Execute(Task task) = 0;

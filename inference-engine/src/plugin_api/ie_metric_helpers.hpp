@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief Defines set of macro to safely set plugin and executable network
- * metric values
+ * @brief Defines set of macro to safely set plugin and executable network metric values
  * @file ie_metric_helpers.hpp
  */
 
@@ -40,8 +39,7 @@ struct MetricType;
 /**
  * @def        IE_SET_METRIC_RETURN(name, ...)
  * @ingroup    ie_dev_api
- * @brief      Return metric value with specified @p name and arguments `...`.
- * Example:
+ * @brief      Return metric value with specified @p name and arguments `...`. Example:
  * @code
  * IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
  * @endcode
@@ -49,8 +47,7 @@ struct MetricType;
  * @param      name  The metric name
  * @param      ...   A metric value
  *
- * @return     A metric value wrapped with Parameter and returned to a calling
- * function
+ * @return     A metric value wrapped with Parameter and returned to a calling function
  */
 #define IE_SET_METRIC_RETURN(name, ...)                                                                       \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::name>::type _##name##_value = \

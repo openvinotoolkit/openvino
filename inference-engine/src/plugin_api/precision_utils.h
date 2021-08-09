@@ -23,29 +23,23 @@ namespace InferenceEngine {
 
 /**
  * @defgroup ie_dev_api Inference Engine Plugin API
- * @brief Defines Inference Engine Plugin API which can be used in plugin
- * development
+ * @brief Defines Inference Engine Plugin API which can be used in plugin development
  *
  * @{
  * @defgroup ie_dev_api_plugin_api Plugin base classes
  * @brief A set of base and helper classes to implement a plugin class
  *
  * @defgroup ie_dev_api_preproc_api Preprocessing API
- * @brief A set transformations to convert InferenceEngine::PreProcessInfo to
- * ngraph operations
+ * @brief A set transformations to convert InferenceEngine::PreProcessInfo to ngraph operations
  *
  * @defgroup ie_dev_api_exec_network_api Executable Network base classes
- * @brief A set of base and helper classes to implement an executable network
- * class
+ * @brief A set of base and helper classes to implement an executable network class
  *
  * @defgroup ie_dev_api_infer_request_api Inference Request base classes
- * @brief A set of base and helper classes to implement a syncrhonous inference
- * request class.
+ * @brief A set of base and helper classes to implement a syncrhonous inference request class.
  *
- * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request
- * base classes
- * @brief A set of base and helper classes to implement asynchronous inference
- * request class
+ * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request base classes
+ * @brief A set of base and helper classes to implement asynchronous inference request class
  *
  * @defgroup ie_dev_api_variable_state_api Variable state base classes
  * @brief A set of base and helper classes to implement variable state
@@ -54,8 +48,7 @@ namespace InferenceEngine {
  * @brief Threading API providing task executors for asynchronous operations
  *
  * @defgroup ie_dev_api_memory Blob creation and memory utilities
- * @brief An extension for public Blob API allowing to create blobs in uniform
- * manner
+ * @brief An extension for public Blob API allowing to create blobs in uniform manner
  *
  * @defgroup ie_dev_api_precision FP16 to FP32 precision utilities
  * @brief Set of functions to convert from FP32 to FP16 and vice versa.
@@ -94,8 +87,7 @@ using ie_fp16 = short;
 namespace PrecisionUtils {
 
 /**
- * @brief      Converts a single-precision floating point value to a
- * half-precision floating poit value
+ * @brief      Converts a single-precision floating point value to a half-precision floating poit value
  * @ingroup    ie_dev_api_precision
  *
  * @param[in]  x     A single-precision floating point value
@@ -104,8 +96,7 @@ namespace PrecisionUtils {
 INFERENCE_ENGINE_API_CPP(ie_fp16) f32tof16(float x);
 
 /**
- * @brief      Convers a half-precision floating point value to a
- * single-precision floating point value
+ * @brief      Convers a half-precision floating point value to a single-precision floating point value
  * @ingroup    ie_dev_api_precision
  *
  * @param[in]  x     A half-precision floating point value
@@ -114,13 +105,11 @@ INFERENCE_ENGINE_API_CPP(ie_fp16) f32tof16(float x);
 INFERENCE_ENGINE_API_CPP(float) f16tof32(ie_fp16 x);
 
 /**
- * @brief      Converts a half-precision floating point array to
- * single-precision floating point array and applies `scale` and `bias` is
- * needed
+ * @brief      Converts a half-precision floating point array to single-precision floating point array
+ * 	           and applies `scale` and `bias` is needed
  * @ingroup    ie_dev_api_precision
  *
- * @param      dst    A destination array of single-precision floating point
- * values
+ * @param      dst    A destination array of single-precision floating point values
  * @param[in]  src    A source array of half-precision floating point values
  * @param[in]  nelem  A number of elements in arrays
  * @param[in]  scale  An optional scale parameter
@@ -130,12 +119,11 @@ INFERENCE_ENGINE_API_CPP(void)
 f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
 /**
- * @brief      Converts a single-precision floating point array to a
- * half-precision floating point array and applies `scale` and `bias` if needed
+ * @brief      Converts a single-precision floating point array to a half-precision floating point array
+ *             and applies `scale` and `bias` if needed
  * @ingroup    ie_dev_api_precision
  *
- * @param      dst    A destination array of half-precision floating point
- * values
+ * @param      dst    A destination array of half-precision floating point values
  * @param[in]  src    A sources array of single-precision floating point values
  * @param[in]  nelem  A number of elements in arrays
  * @param[in]  scale  An optional scale parameter
@@ -151,8 +139,7 @@ f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, 
 
 namespace details {
 
-// To overcame syntax parse error, when `>` comparison operator is threated as
-// template closing bracket
+// To overcame syntax parse error, when `>` comparison operator is threated as template closing bracket
 constexpr inline bool Greater(size_t v1, size_t v2) {
     return v1 > v2;
 }
@@ -160,8 +147,8 @@ constexpr inline bool Greater(size_t v1, size_t v2) {
 }  // namespace details
 
 /**
- * @brief      Converts one integral type to another saturating the result if
- * the source value doesn't fit into destination type range
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
@@ -196,8 +183,8 @@ inline OutT saturate_cast(const InT& value) {
 }
 
 /**
- * @brief      Converts one integral type to another saturating the result if
- * the source value doesn't fit into destination type range
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted
@@ -229,8 +216,8 @@ inline OutT saturate_cast(const InT& value) {
 #endif
 
 /**
- * @brief      Converts one integral type to another saturating the result if
- * the source value doesn't fit into destination type range
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
  * @ingroup    ie_dev_api_precision
  *
  * @param      value   Value to be converted

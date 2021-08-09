@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief Defines Description buffer to conviniently works with StatusCode and
- * ResponseDesc
+ * @brief Defines Description buffer to conviniently works with StatusCode and ResponseDesc
  * @file description_buffer.hpp
  */
 

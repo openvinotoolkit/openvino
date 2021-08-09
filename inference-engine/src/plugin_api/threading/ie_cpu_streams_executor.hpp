@@ -4,8 +4,7 @@
 
 /**
  * @file ie_cpu_streams_executor.hpp
- * @brief A header file for Inference Engine CPU-Streams-based Executor
- * implementation.
+ * @brief A header file for Inference Engine CPU-Streams-based Executor implementation.
  */
 
 #pragma once
@@ -19,9 +18,9 @@ namespace InferenceEngine {
 /**
  * @class CPUStreamsExecutor
  * @ingroup ie_dev_api_threading
- * @brief CPU Streams executor implementation. The executor splits the CPU into
- * groups of threads, that can be pinned to cores or NUMA nodes. It uses custom
- * threads to pull tasks from single queue.
+ * @brief CPU Streams executor implementation. The executor splits the CPU into groups of threads,
+ *        that can be pinned to cores or NUMA nodes.
+ *        It uses custom threads to pull tasks from single queue.
  */
 class INFERENCE_ENGINE_API_CLASS(CPUStreamsExecutor) : public IStreamsExecutor {
 public:

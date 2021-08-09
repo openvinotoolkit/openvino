@@ -21,8 +21,8 @@ class IVariableStateInternal;
 
 /**
  * @interface IInferRequestInternal
- * @brief An internal API of synchronous inference request to be implemented by
- * plugin, which is used in InferRequestBase forwarding mechanism
+ * @brief An internal API of synchronous inference request to be implemented by plugin,
+ * which is used in InferRequestBase forwarding mechanism
  * @ingroup ie_dev_api_infer_request_api
  */
 class INFERENCE_ENGINE_API_CLASS(IInferRequestInternal) : public std::enable_shared_from_this<IInferRequestInternal> {
@@ -43,19 +43,16 @@ public:
 
     /**
      * @brief Infers specified input(s) in synchronous mode
-     * @note blocks all method of InferRequest while request is ongoing (running
-     * or waiting in queue)
+     * @note blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     virtual void Infer();
 
     /**
-     * @brief The minimal infer function to be implemented by plugins. It infers
-     * specified input(s) in synchronous mode
+     * @brief The minimal infer function to be implemented by plugins. It infers specified input(s) in synchronous mode
      * @note
-     *  * This method is used in IInferRequestInternal::Infer, which calls the
-     * common code first and after uses this plugin dependent implementation.
-     *  * Blocks all method of InferRequest while request is ongoing (running or
-     * waiting in queue)
+     *  * This method is used in IInferRequestInternal::Infer, which calls the common code first and after uses this
+     * plugin dependent implementation.
+     *  * Blocks all method of InferRequest while request is ongoing (running or waiting in queue)
      */
     virtual void InferImpl();
 
@@ -65,9 +62,8 @@ public:
     virtual void Cancel();
 
     /**
-     * @brief Queries performance measures per layer to get feedback of what is
-     * the most time consuming layer. Note: not all plugins may provide meaningful
-     * data
+     * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer.
+     *  Note: not all plugins may provide meaningful data
      *  @return - a map of layer names to profiling information for that layer.
      */
     virtual std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const;
@@ -76,8 +72,8 @@ public:
      * @brief Set input/output data to infer
      * @note Memory allocation doesn't happen
      * @param name - a name of input or output blob.
-     * @param data - a reference to input or output blob. The type of Blob must
-     * correspond to the network input precision and size.
+     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
+     * precision and size.
      */
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data);
 
@@ -85,16 +81,16 @@ public:
      * @brief Get input/output data to infer
      * @note Memory allocation doesn't happen
      * @param name - a name of input or output blob.
-     * @param data - a reference to input or output blob. The type of Blob must
-     * correspond to the network input precision and size.
+     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
+     * precision and size.
      */
     virtual Blob::Ptr GetBlob(const std::string& name);
 
     /**
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
-     * @param data - a reference to input or output blob. The type of Blob must
-     * correspond to the network input precision and size.
+     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
+     * precision and size.
      * @param info Preprocess info for blob.
      */
     virtual void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
@@ -107,10 +103,8 @@ public:
     virtual const PreProcessInfo& GetPreProcess(const std::string& name) const;
 
     /**
-     * @brief Sets new batch size when dynamic batching is enabled in executable
-     * network that created this request.
-     * @param batch - new batch size to be used by all the following inference
-     * calls for this request.
+     * @brief Sets new batch size when dynamic batching is enabled in executable network that created this request.
+     * @param batch - new batch size to be used by all the following inference calls for this request.
      */
     virtual void SetBatch(int batch);
 
@@ -127,25 +121,22 @@ public:
     virtual void StartAsync();
 
     /**
-     * @brief The minimal asynchronous inference function to be implemented by
-     * plugins. It starts inference of specified input(s) in asynchronous mode
+     * @brief The minimal asynchronous inference function to be implemented by plugins.
+     * It starts inference of specified input(s) in asynchronous mode
      * @note
-     *  * The methos is used in AsyncInferRequestInternal::StartAsync which
-     * performs common steps first and calls plugin dependent implementation of
-     * this method after.
+     *  * The methos is used in AsyncInferRequestInternal::StartAsync which performs common steps first and
+     *  calls plugin dependent implementation of this method after.
      *  * It returns immediately. Inference starts also immediately.
      */
     virtual void StartAsyncImpl();
 
     /**
-     * @brief Waits for the result to become available. Blocks until specified
-     * millis_timeout has elapsed or the result becomes available, whichever comes
-     * first.
+     * @brief Waits for the result to become available. Blocks until specified millis_timeout has elapsed or the result
+     * becomes available, whichever comes first.
      * @param millis_timeout - maximum duration in milliseconds to block for
-     * @note There are special cases when millis_timeout is equal some value of
-     * WaitMode enum:
-     * * STATUS_ONLY - immediately returns request status
-     * (InferRequest::StatusCode). It doesn't block or interrupt current thread.
+     * @note There are special cases when millis_timeout is equal some value of WaitMode enum:
+     * * STATUS_ONLY - immediately returns request status (InferRequest::StatusCode). It doesn't block or interrupt
+     * current thread.
      * * RESULT_READY - waits until inference result becomes available
      * @return A status code
      */
@@ -157,8 +148,7 @@ public:
     using Callback = std::function<void(std::exception_ptr)>;
 
     /**
-     * @brief Set callback function which will be called on success or failure of
-     * asynchronous request
+     * @brief Set callback function which will be called on success or failure of asynchronous request
      * @param callback - function to be called with the following description:
      */
     virtual void SetCallback(Callback callback);
@@ -167,16 +157,14 @@ public:
      * @brief      Check that @p blob is valid. Throws an exception if it's not.
      *
      * @param[in]  blob     The blob to check
-     * @param[in]  name     The name of input or output depending of if the @p
-     * blob is input or output
+     * @param[in]  name     The name of input or output depending of if the @p blob is input or output
      * @param[in]  isInput  Indicates if @p is input
      * @param[in]  refDims  The reference dims, empty if not specified
      */
     void checkBlob(const Blob::Ptr& blob, const std::string& name, bool isInput, const SizeVector& refDims = {}) const;
 
     /**
-     * @brief      Check that all of the blobs is valid. Throws an exception if
-     * it's not.
+     * @brief      Check that all of the blobs is valid. Throws an exception if it's not.
      */
     virtual void checkBlobs();
 
@@ -221,8 +209,7 @@ protected:
      * @param foundOutput A pointer to output DataPtr if found.
      * @return `True` - if loaded network has input with provided name,
      *         `false` - if loaded network has output with provided name
-     * @throws [not_found] exception if there is no input and output layers with
-     * given name
+     * @throws [not_found] exception if there is no input and output layers with given name
      */
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
 
@@ -239,12 +226,11 @@ protected:
 
     void addInputPreProcessingFor(const std::string& name, Blob::Ptr const& from, const Blob::Ptr& to);
 
-    InferenceEngine::InputsDataMap _networkInputs;          //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;        //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;                       //!< A map of user passed blobs for network inputs
-    InferenceEngine::BlobMap _deviceInputs;                 //!< A map of actual network inputs,
-                                                            //!< in plugin specific format
-    InferenceEngine::BlobMap _outputs;                      //!< A map of user passed blobs for network outputs
+    InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    InferenceEngine::BlobMap _inputs;                 //!< A map of user passed blobs for network inputs
+    InferenceEngine::BlobMap _deviceInputs;           //!< A map of actual network inputs, in plugin specific format
+    InferenceEngine::BlobMap _outputs;                //!< A map of user passed blobs for network outputs
     std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
     int m_curBatch = -1;                                    //!< Current batch value used in dynamic batching
 

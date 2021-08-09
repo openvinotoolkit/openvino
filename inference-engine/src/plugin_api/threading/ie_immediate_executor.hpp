@@ -17,8 +17,7 @@
 namespace InferenceEngine {
 
 /**
- * @brief Task executor implementation that just run tasks in current thread
- * during calling of run() method
+ * @brief Task executor implementation that just run tasks in current thread during calling of run() method
  * @ingroup ie_dev_api_threading
  */
 class ImmediateExecutor : public ITaskExecutor {

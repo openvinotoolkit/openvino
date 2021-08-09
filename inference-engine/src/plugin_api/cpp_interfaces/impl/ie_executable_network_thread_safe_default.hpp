@@ -17,8 +17,7 @@ namespace InferenceEngine {
 
 /**
  * @brief This class provides optimal thread safe default implementation.
- * The class is recommended to be used as a base class for Executable Network
- * impleentation during plugin development.
+ * The class is recommended to be used as a base class for Executable Network impleentation during plugin development.
  * @ingroup ie_dev_api_exec_network_api
  */
 class ExecutableNetworkThreadSafeDefault : public IExecutableNetworkInternal {
@@ -43,8 +42,8 @@ public:
           _callbackExecutor{callbackExecutor} {}
 
     /**
-     * @brief Given optional implementation of creating asynchronous inference
-     * request to avoid need for it to be implemented by plugin
+     * @brief Given optional implementation of creating asynchronous inference request to avoid
+     * need for it to be implemented by plugin
      * @return shared_ptr for the created asynchronous inference request
      */
     IInferRequestInternal::Ptr CreateInferRequest() override {
@@ -53,10 +52,8 @@ public:
 
 protected:
     /**
-     * @brief Creates asyncronous inference request from synchronous request
-     * returned by CreateInferRequestImpl
-     * @tparam AsyncInferRequestType A type of asynchronous inference request to
-     * use a wrapper for synchronous request
+     * @brief Creates asyncronous inference request from synchronous request returned by CreateInferRequestImpl
+     * @tparam AsyncInferRequestType A type of asynchronous inference request to use a wrapper for synchronous request
      * @return A shared pointer to an asynchronous inference request
      */
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>

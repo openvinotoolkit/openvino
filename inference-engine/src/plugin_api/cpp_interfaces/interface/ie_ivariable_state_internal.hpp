@@ -33,8 +33,8 @@ public:
     virtual std::string GetName() const;
 
     /**
-     * @brief Reset internal variable state for relevant infer request, to a value
-     * specified as default for according `ReadValue` node
+     * @brief Reset internal variable state for relevant infer request, to a value specified as
+     * default for according `ReadValue` node
      */
     virtual void Reset();
 

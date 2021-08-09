@@ -19,19 +19,17 @@
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
  *
- * Executable Graph Info is represented in CNNNetwork format with general
- * ExecutionNode nodes inside including connections between the nodes. Each node
- * describes an executable hardware-specific primitive and stores its parameters
- * within ExecutionNode::get_rt_info map. There is a list of general keys for
- * the parameters map.
+ * Executable Graph Info is represented in CNNNetwork format with general ExecutionNode nodes inside
+ * including connections between the nodes. Each node describes an executable hardware-specific
+ * primitive and stores its parameters within ExecutionNode::get_rt_info map.
+ * There is a list of general keys for the parameters map.
  */
 namespace ExecGraphInfoSerialization {
 
 /**
  * @ingroup ie_dev_exec_graph
  * @brief Used to get a string of layer names separated by a comma
- *        from the original IR, which were fused/merged to the current
- * executable primitive.
+ *        from the original IR, which were fused/merged to the current executable primitive.
  */
 static const char ORIGINAL_NAMES[] = "originalLayersNames";
 
@@ -110,8 +108,7 @@ public:
     ExecutionNode(const ngraph::OutputVector& arguments, size_t output_size = 1) : Node(arguments, output_size) {}
 
     /**
-     * @brief      Creates a new execution node with the same state, but different
-     * input nodes
+     * @brief      Creates a new execution node with the same state, but different input nodes
      *
      * @param[in]  inputs  The input nodes
      *

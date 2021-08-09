@@ -110,8 +110,7 @@ inline std::vector<std::string> split(const std::string& src, const std::string&
 }
 
 /**
- * @brief create a string representation for a vector of values, without any
- * suffixes or prefixes
+ * @brief create a string representation for a vector of values, without any suffixes or prefixes
  * @ingroup ie_dev_api_error_debug
  * @param vec Vector of values
  * @param glue A separator
@@ -129,8 +128,7 @@ std::string joinVec(std::vector<T, A> const& vec, std::string const& glue = std:
 }
 
 /**
- * @brief create a string representation for a vector of values, enclosing text
- * in a square brackets
+ * @brief create a string representation for a vector of values, enclosing text in a square brackets
  * @ingroup ie_dev_api_error_debug
  * @param vec - vector of values
  * @return string representation

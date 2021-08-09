@@ -22,8 +22,7 @@ namespace InferenceEngine {
 
 /**
  * @interface ICore
- * @brief Minimal ICore interface to allow plugin to get information from Core
- * Inference Engine class.
+ * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
  * @ingroup ie_dev_api_plugin_api
  */
 class ICore {
@@ -45,9 +44,8 @@ public:
     /**
      * @brief Reads IR xml and bin files
      * @param modelPath path to IR file
-     * @param binPath path to bin file, if path is empty, will try to read bin
-     * file with the same name as xml and if bin file with the same name was not
-     * found, will load IR without weights.
+     * @param binPath path to bin file, if path is empty, will try to read bin file with the same name as xml and
+     * if bin file with the same name was not found, will load IR without weights.
      * @return CNNNetwork
      */
     virtual CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const = 0;
@@ -60,8 +58,8 @@ public:
      *
      * @param network CNNNetwork object acquired from Core::ReadNetwork
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config
-     * parameter value) relevant only for this load operation
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
@@ -76,8 +74,8 @@ public:
      *
      * @param modelPath Path to model
      * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config
-     * parameter value) relevant only for this load operation
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
@@ -88,8 +86,8 @@ public:
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config
-     * parameter value) relevant only for this load operation*
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
      * @return An executable network reference
      */
     virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
@@ -97,15 +95,12 @@ public:
                                                       const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
-     * @brief Query device if it supports specified network with specified
-     * configuration
+     * @brief Query device if it supports specified network with specified configuration
      *
      * @param deviceName A name of a device to query
      * @param network Network object to query
-     * @param config Optional map of pairs: (config parameter name, config
-     * parameter value)
-     * @return An object containing a map of pairs a layer name -> a device name
-     * supporting this layer.
+     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     virtual QueryNetworkResult QueryNetwork(const CNNNetwork& network,
                                             const std::string& deviceName,
@@ -115,8 +110,7 @@ public:
      * @brief Gets general runtime metric for dedicated hardware.
      *
      * The method is needed to request common device properties
-     * which are executable network agnostic. It can be device name, temperature,
-     * other devices-specific values.
+     * which are executable network agnostic. It can be device name, temperature, other devices-specific values.
      *
      * @param deviceName - A name of a device to get a metric value.
      * @param name - metric name to request.
@@ -127,19 +121,17 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, FPGA.0,
-     * FPGA.1, MYRIAD } If there more than one device of specific type, they are
-     * enumerated with .# suffix.
+     * @return A vector of devices. The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+     * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
-     * @brief Checks whether device supports Export & Import functionality of
-     * network
+     * @brief Checks whether device supports Export & Import functionality of network
      *
      * @param deviceName - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT metric in
-     * SUPPORTED_METRICS and this metric returns 'true', False otherwise.
+     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
+     * this metric returns 'true', False otherwise.
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
 

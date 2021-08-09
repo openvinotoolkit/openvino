@@ -4,37 +4,36 @@
 
 #pragma once
 
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <exception>
 #include <future>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <threading/ie_immediate_executor.hpp>
-#include <threading/ie_istreams_executor.hpp>
-#include <threading/ie_itask_executor.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "threading/ie_immediate_executor.hpp"
+#include "threading/ie_istreams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
 /**
  * @ingroup ie_dev_api_async_infer_request_api
- * @brief Base class with default implementation of asynchronous multi staged
- * inference request. To customize pipeline stages derived class should change
- * the content of AsyncInferRequestThreadSafeDefault::_pipeline member
- * container. It consists of pairs of tasks and executors which will run the
- * task. The class is recommended to be used by plugins as a base class for
- * asynchronous inference request implementation.
+ * @brief Base class with default implementation of asynchronous multi staged inference request.
+ *        To customize pipeline stages derived class should change the content
+ *        of AsyncInferRequestThreadSafeDefault::_pipeline member container.
+ *        It consists of pairs of tasks and executors which will run the task.
+ *        The class is recommended to be used by plugins as a base class for asynchronous inference request
+ * implementation.
  * @note  To synchronize derived context with stages
- *        derived class should call
- * AsyncInferRequestThreadSafeDefault::StopAndWait() function in destructor.
+ *        derived class should call AsyncInferRequestThreadSafeDefault::StopAndWait() function in destructor.
  * @par Example
- *        Here is an example of asynchronous inference request implementation
- * for some accelerator device. It uses 5 different executors to run different
- * stages of a synchronous inference request.
+ *        Here is an example of asynchronous inference request implementation for some accelerator device.
+ *        It uses 5 different executors to run different stages of a synchronous inference request.
  *
  * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
@@ -135,9 +134,9 @@ public:
     using Ptr = std::shared_ptr<AsyncInferRequestThreadSafeDefault>;
 
     /**
-     * @brief      Wraps a IInferRequestInternal::Ptr implementation and
-     * constructs a AsyncInferRequestThreadSafeDefault::_pipeline where
-     * `taskExecutor` is used to run IInferRequestInternal::Infer asynchronously.
+     * @brief      Wraps a IInferRequestInternal::Ptr implementation and constructs a
+     * AsyncInferRequestThreadSafeDefault::_pipeline where `taskExecutor` is used to run IInferRequestInternal::Infer
+     * asynchronously.
      *
      * @param[in]  request           The synchronous request
      * @param[in]  taskExecutor      The task executor
@@ -165,8 +164,7 @@ public:
     }
 
     /**
-     * @brief      Destroys the object, stops
-     * AsyncInferRequestThreadSafeDefault::_pipeline and waits for a finish.
+     * @brief      Destroys the object, stops AsyncInferRequestThreadSafeDefault::_pipeline and waits for a finish.
      */
     ~AsyncInferRequestThreadSafeDefault() {
         StopAndWait();
@@ -175,8 +173,7 @@ public:
     /**
      * @brief Waits for completion of all pipeline stages
      *        If the pipeline raises an exception it will be rethrown here
-     * @param millis_timeout A timeout is `ms` to wait or special enum value of
-     * InferRequest::WaitMode
+     * @param millis_timeout A timeout is `ms` to wait or special enum value of InferRequest::WaitMode
      * @return A status code
      */
     StatusCode Wait(int64_t millis_timeout) override {
@@ -286,8 +283,7 @@ public:
 
 protected:
     /**
-     * @brief Each pipeline stage is a @ref Task that is executed by specified
-     * ITaskExecutor implementation
+     * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation
      */
     using Stage = std::pair<ITaskExecutor::Ptr, Task>;
     /**
@@ -296,9 +292,8 @@ protected:
     using Pipeline = std::vector<Stage>;
 
     /**
-     * @brief Creates and run the first stage task. If destructor was not called
-     * add a new std::future to the AsyncInferRequestThreadSafeDefault::_futures
-     * list that would be used to wait
+     * @brief Creates and run the first stage task. If destructor was not called add a new std::future to the
+     * AsyncInferRequestThreadSafeDefault::_futures list that would be used to wait
      * AsyncInferRequestThreadSafeDefault::_pipeline finish
      * @param[in]  itBeginStage Iterator to begin of pipeline
      * @param[in]  itEndStage End pipeline iterator
@@ -314,8 +309,8 @@ protected:
 
     /**
      * @brief Forbids pipeline start and wait for all started pipelines.
-     * @note Should be called in derived class destructor to wait for completion
-     * of usage of derived context captured by pipeline tasks
+     * @note Should be called in derived class destructor to wait for completion of usage of derived context captured by
+     * pipeline tasks
      */
     void StopAndWait() {
         Futures futures;
@@ -339,19 +334,14 @@ protected:
     }
 
     ITaskExecutor::Ptr _requestExecutor;       //!< Used to run inference CPU tasks.
-    ITaskExecutor::Ptr _callbackExecutor;      //!< Used to run post inference callback
-                                               //!< in asynchronous pipline
-    ITaskExecutor::Ptr _syncCallbackExecutor;  //!< Used to run post inference
-                                               //!< callback in synchronous pipline
-    Pipeline _pipeline;                        //!< Pipeline variable that should be filled by inherited
-                                               //!< class.
-    Pipeline _syncPipeline;                    //!< Synchronous pipeline variable that should be
-                                               //!< filled by inherited class.
+    ITaskExecutor::Ptr _callbackExecutor;      //!< Used to run post inference callback in asynchronous pipline
+    ITaskExecutor::Ptr _syncCallbackExecutor;  //!< Used to run post inference callback in synchronous pipline
+    Pipeline _pipeline;                        //!< Pipeline variable that should be filled by inherited class.
+    Pipeline _syncPipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
 
     /**
      * @brief Starts an asynchronous pipeline thread unsafe.
-     * @note Used by StartAsync which ensures thread-safety and calls this method
-     * after.
+     * @note Used by StartAsync which ensures thread-safety and calls this method after.
      */
     virtual void StartAsync_ThreadUnsafe() {
         RunFirstStage(_pipeline.begin(), _pipeline.end(), _callbackExecutor);
@@ -359,8 +349,7 @@ protected:
 
     /**
      * @brief Performs inference of pipeline in syncronous mode
-     * @note Used by Infer which ensures thread-safety and calls this method
-     * after.
+     * @note Used by Infer which ensures thread-safety and calls this method after.
      */
     virtual void Infer_ThreadUnsafe() {
         RunFirstStage(_syncPipeline.begin(), _syncPipeline.end(), _syncCallbackExecutor);
@@ -376,16 +365,14 @@ protected:
 private:
     /**
      * @brief Create a task with next pipeline stage.
-     * Each call to MakeNextStageTask() generates @ref Task objects for each
-     * stage. On last stage or if the exception is raised from `_pipeline` task
-     * the last stage task is called or passed to callback executor if it is
-     * presented. The last stage task call the callback, if it is presented,
-     * capture the `_promise` member and use it to forward completion or exception
-     * to the one of `_futures` member
+     * Each call to MakeNextStageTask() generates @ref Task objects for each stage.
+     * On last stage or if the exception is raised from `_pipeline` task
+     * the last stage task is called or passed to callback executor if it is presented. The last stage task call the
+     * callback, if it is presented, capture the `_promise` member and use it to forward completion or exception to the
+     * one of `_futures` member
      * @param[in]  itStage Iterator to next stage of pipeline
      * @param[in]  itEndStage End pipeline iterator
-     * @param[in]  callbackExecutor Executor that will run final stage with
-     * callback call
+     * @param[in]  callbackExecutor Executor that will run final stage with callback call
      * @return A next stage task
      */
     Task MakeNextStageTask(const Pipeline::iterator itStage,
