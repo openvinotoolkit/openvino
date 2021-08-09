@@ -3,41 +3,14 @@
 
 """Utility module."""
 
-from pathlib import Path
+import logging
 import sys
 
-import yaml
 from pymongo import MongoClient
 
 # constants
-DATABASES = ['timetests', 'memcheck']
-DB_COLLECTIONS = ["commit", "nightly", "weekly"]
-PRODUCT_NAME = 'dldt'   # product name from build manifest
+REFS_FACTOR = 1.2  # 120%
 TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
-
-
-def upload_data(data, db_url, db_name, db_collection):
-    """ Upload timetest data to database."""
-    client = MongoClient(db_url)
-    collection = client[db_name][db_collection]
-    collection.replace_one({'_id': data['_id']}, data, upsert=True)
-
-
-def metadata_from_manifest(manifest: Path):
-    """ Extract commit metadata from manifest."""
-    with open(manifest, 'r') as manifest_file:
-        manifest = yaml.safe_load(manifest_file)
-    repo_trigger = next(
-        repo for repo in manifest['components'][PRODUCT_NAME]['repository'] if repo['trigger'])
-    return {
-        'product_type': manifest['components'][PRODUCT_NAME]['product_type'],
-        'commit_sha': repo_trigger['revision'],
-        'commit_date': repo_trigger['commit_time'],
-        'repo_url': repo_trigger['url'],
-        'branch': repo_trigger['branch'],
-        'target_branch': repo_trigger['target_branch'] if repo_trigger["target_branch"] else repo_trigger["branch"],
-        'version': manifest['components'][PRODUCT_NAME]['version']
-    }
 
 
 def _transpose_dicts(items, template=None):
@@ -70,8 +43,8 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
         for step_name, _ in item['results'].items():
             if len(item['results'][step_name]['vmhwm']) <= 1:
                 return 1
-            order = item['results'][step_name]['vmhwm'][-1] - item['results'][step_name]['vmhwm'][-2] + \
-                item['results'][step_name]['vmrss'][-1] - item['results'][step_name]['vmrss'][-2]
+            order = item['results'][step_name]['vmhwm']["avg"][-1] - item['results'][step_name]['vmhwm']["avg"][-2] + \
+                item['results'][step_name]['vmrss']["avg"][-1] - item['results'][step_name]['vmrss']["avg"][-2]
             if not item['status']:
                 # ensure failed cases are always on top
                 order += sys.maxsize/2
@@ -100,9 +73,32 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
         timeline = _transpose_dicts(items, template=record)
         for step_name, _ in timeline['results'].items():
             timeline['status'] = bool(
-                timeline['results'][step_name]['vmrss'][-1] < timeline['ref_results'][step_name]['vmrss'][-1] and
-                timeline['results'][step_name]['vmhwm'][-1] < timeline['ref_results'][step_name]['vmhwm'][-1])
+                timeline['results'][step_name]['vmrss']["avg"] < timeline['references'][step_name]['vmrss']["avg"] and
+                timeline['results'][step_name]['vmhwm']["avg"] < timeline['references'][step_name]['vmhwm']["avg"])
         result += [timeline]
 
     result.sort(key=timeline_key, reverse=True)
     return result
+
+
+def compare_with_references(aggr_stats: dict, reference: dict):
+    """Compare values with provided reference"""
+
+    vm_metrics_to_compare = {"vmrss", "vmhw"}
+    status = 0
+
+    for step_name, vm_records in reference.items():
+        for vm_metric, stat_metrics in vm_records.items():
+            if vm_metric not in vm_metrics_to_compare:
+                continue
+            for stat_metric_name, reference_val in stat_metrics.items():
+                if aggr_stats[step_name][vm_metric][stat_metric_name] > reference_val * REFS_FACTOR:
+                    logging.error(f"Comparison failed for '{step_name}' step for '{vm_metric}' for"
+                                  f" '{stat_metric_name}' metric. Reference: {reference_val}."
+                                  f" Current values: {aggr_stats[step_name][vm_metric][stat_metric_name]}")
+                    status = 1
+                else:
+                    logging.info(f"Comparison passed for '{step_name}' step for '{vm_metric}' for"
+                                 f" '{stat_metric_name}' metric. Reference: {reference_val}."
+                                 f" Current values: {aggr_stats[step_name][vm_metric][stat_metric_name]}")
+    return status

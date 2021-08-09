@@ -14,11 +14,11 @@ Options[*]:
 [*] For more information see conftest.py
 """
 
-from pathlib import Path
 import logging
 import os
 import shutil
 import sys
+from pathlib import Path
 
 UTILS_DIR = os.path.join(Path(__file__).parent.parent.parent, "utils")
 sys.path.insert(0, str(UTILS_DIR))
@@ -29,7 +29,7 @@ MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
 from scripts.run_memorytest import run_memorytest
-from test_runner.comparators import MetricsComparator
+from utils import compare_with_references
 
 
 def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, validate_test_case,
@@ -78,6 +78,5 @@ def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, v
     instance["raw_results"] = raw_stats
 
     # Compare with references
-    metrics_comparator = MetricsComparator(aggr_stats)
-    metrics_comparator.compare_with(instance["references"])
-    assert metrics_comparator.executor.status == 0, "Comparison with references failed"
+    metrics_comparator_status = compare_with_references(aggr_stats, instance["orig_instance"]["references"])
+    assert metrics_comparator_status == 0, "Comparison with references failed"

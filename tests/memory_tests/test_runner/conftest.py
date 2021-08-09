@@ -35,11 +35,12 @@ sys.path.insert(0, str(UTILS_DIR))
 from plugins.conftest import *
 from path_utils import check_positive_int
 from platform_utils import get_os_name, get_os_version, get_cpu_info
+from utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
 
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
-from test_runner.utils import upload_data, metadata_from_manifest, query_memory_timeline, DATABASES, DB_COLLECTIONS
+from test_runner.utils import query_memory_timeline
 
 
 # -------------------- CLI options --------------------
@@ -70,7 +71,7 @@ def pytest_addoption(parser):
     helpers_args_parser = parser.getgroup("test helpers")
     helpers_args_parser.addoption(
         "--dump_refs",
-        type=Path,
+        type=str,
         help="path to dump test config with references updated with statistics collected while run",
     )
     db_args_parser = parser.getgroup("test database use")
@@ -91,7 +92,7 @@ def pytest_addoption(parser):
     )
     db_args_parser.addoption(
         '--timeline_report',
-        type=Path,
+        type=str,
         required=is_db_used,
         help='path to build manifest to extract commit information'
     )
@@ -310,6 +311,8 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         request.config.option.db_submit = False
         raise
     yield
+    instance["db"]["results"] = instance["results"]
+    instance["db"]["raw_results"] = instance["raw_results"]
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -370,7 +373,7 @@ def prepare_timeline_report(pytestconfig):  # records, args.db_url, args.db_coll
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
-                searchpath=Path().absolute() / 'memcheck-template'),
+                searchpath=Path().absolute() / 'memory-template'),
             autoescape=False)
         template = env.get_template('timeline_report.html')
         template.stream(records=records, timelines=timelines).dump(report_path)
@@ -385,10 +388,18 @@ def prepare_tconf_with_refs(pytestconfig):
     new_tconf_path = pytestconfig.getoption('dump_refs')
     if new_tconf_path:
         logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
-        upd_cases = pytestconfig.orig_cases.copy()
+
+        upd_cases = []
+        steps_to_dump = {"create_exenetwork", "first_inference"}
+
         for record in pytestconfig.session_info:
-            rec_i = upd_cases.index(record["orig_instance"])
-            upd_cases[rec_i]["references"] = record["results"]
+            rec_i = deepcopy(record["orig_instance"])
+            rec_i["references"] = deepcopy(record["results"])
+            for step in rec_i["references"].copy():
+                if step not in steps_to_dump:
+                    del rec_i["references"][step]
+            upd_cases.append(rec_i)
+
         with open(new_tconf_path, "w") as tconf:
             yaml.safe_dump(upd_cases, tconf)
 
@@ -405,7 +416,8 @@ def pytest_generate_tests(metafunc):
         test_cases = [{
             "instance": case,
             "orig_instance": deepcopy(case),
-            "results": {}
+            "results": {},
+            "raw_results": {}
         } for case in test_cases]
         metafunc.parametrize("instance", test_cases)
         setattr(metafunc.config, "session_info", test_cases)
