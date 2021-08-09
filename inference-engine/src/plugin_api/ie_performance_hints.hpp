@@ -8,7 +8,8 @@
  */
 
 #pragma once
-#include "ie_plugin_config.hpp"
+#include <ie_plugin_config.hpp>
+#include <ie_parameter.hpp>
 
 namespace InferenceEngine {
     struct PerfHintsConfig {

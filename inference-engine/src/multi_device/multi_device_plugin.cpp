@@ -16,6 +16,7 @@
 #include "ngraph_ops/deconvolution_ie.hpp"
 
 #include <ie_metric_helpers.hpp>
+#include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "multi_device_plugin.hpp"
 #include <ie_algorithm.hpp>
@@ -56,10 +57,12 @@ namespace {
         }
         return config;
     }
-    std::vector<std::string> supported_configKeys = {
-        MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-        CONFIG_KEY_INTERNAL(WORK_MODE)
-    };
+    std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
+                    auto res = PerfHintsConfig::SupportedKeys();
+                    res.push_back(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+                    res.push_back(CONFIG_KEY_INTERNAL(WORK_MODE));
+                    return res;
+                }();
 }  // namespace
 
 std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfig(
@@ -142,12 +145,16 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
+    const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto && kvp : config) {
         const auto& name = kvp.first;
-        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
+        if (supported_configKeys.end() != std::find(supported_configKeys.begin(), supported_configKeys.end(), name)) {
+            if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end())
+                PerfHintsConfig::CheckConfigAndValue(kvp);
             _config[name] = kvp.second;
-        else
+        } else {
             IE_THROW() << "Unsupported config key: " << name;
+        }
     }
 }
 
