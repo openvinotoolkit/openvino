@@ -46,7 +46,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
     models["input_model.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph
     input_tensors = [
@@ -58,7 +58,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 2
     input_tensors = [
@@ -72,7 +72,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 3
     input_tensors = [
@@ -86,7 +86,7 @@ def create_test_onnx_models():
                                            outputs=["out1", "out2"], name="split1", axis=0)
     graph = make_graph([expected_split], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for extract_subgraph 4
     input_tensors = [
@@ -105,7 +105,7 @@ def create_test_onnx_models():
                                          outputs=["out4"])
     graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
     models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs
     input_tensors = [
@@ -119,7 +119,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
     models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                          opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_outputs 2
     input_tensors = [
@@ -131,7 +131,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # Expected for test_override_all_inputs
     input_tensors = [
@@ -152,7 +152,7 @@ def create_test_onnx_models():
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
     input_tensors = [
@@ -168,7 +168,7 @@ def create_test_onnx_models():
     ]
     graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
     models["test_partial_shape.onnx"] = make_model(graph, producer_name="ONNX Importer",
-        opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     return models
 
