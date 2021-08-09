@@ -20,6 +20,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
                     public InferenceEngine::gpu::details::param_map_obj_getter {
     struct impl;
     std::shared_ptr<impl> _impl;
+    bool streamsSet = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;

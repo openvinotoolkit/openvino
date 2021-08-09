@@ -566,13 +566,32 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
 }
 
 IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
-                                                                const std::map<std::string, std::string> &config) {
+                                                                const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
+    auto config = orig_config;
+    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
+    if (mode != config.end() || !conf.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = (mode != config.end())
+                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
+                               : conf.perfHintsConfig.ovPerfHint;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        if (streams == config.end() && !streamsSet) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(1);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+                config[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(GPU_THROUGHPUT_AUTO);
+                config[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = std::to_string(1);
+            }
+        }
+    }
+
     UpdateConfig(conf, network, config);
 
     CLDNNRemoteCLContext::Ptr context;
@@ -661,6 +680,7 @@ RemoteContext::Ptr clDNNEngine::GetDefaultContext(const ParamMap& params) {
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
+    streamsSet = (config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) != config.end());
     _impl->m_config.UpdateFromMap(config);
 }
 
