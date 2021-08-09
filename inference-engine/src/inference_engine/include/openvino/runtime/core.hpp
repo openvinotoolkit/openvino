@@ -138,7 +138,7 @@ public:
      * @return An executable network object
      */
     InferenceEngine::ExecutableNetwork compile_model(
-        const std::shared_ptr<const ngraph::Function>& network, InferenceEngine::RemoteContext::Ptr context,
+        const std::shared_ptr<const ngraph::Function>& network, const InferenceEngine::RemoteContext::Ptr& context,
         const std::map<std::string, std::string>& config = {});
 
     /**
