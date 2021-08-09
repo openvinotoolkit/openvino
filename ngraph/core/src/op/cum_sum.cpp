@@ -44,15 +44,7 @@ bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor)
 void op::v0::CumSum::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_CumSum_validate_and_infer_types);
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
-    set_output_type(0, arg_type, arg_shape);
-
-    PartialShape axes_shape{PartialShape::dynamic()};
-    if (get_input_partial_shape(1).is_static())
-    {
-        axes_shape = get_input_partial_shape(1);
-    }
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 
     const auto& axis_type = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
