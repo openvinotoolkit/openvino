@@ -41,7 +41,7 @@ namespace ngraph
                 /// \brief     gets then_body as ngraph::Function.
                 ///
                 /// \return then_body as ngraph::Function.
-                std::shared_ptr<Function> get_then_body() const
+                const std::shared_ptr<Function>& get_then_body() const
                 {
                     return m_bodies[then_body_index];
                 }
@@ -49,7 +49,7 @@ namespace ngraph
                 /// \brief     gets else_body as ngraph::Function.
                 ///
                 /// \return else_body as ngraph::Function.
-                std::shared_ptr<Function> get_else_body() const
+                const std::shared_ptr<Function>& get_else_body() const
                 {
                     return m_bodies[else_body_index];
                 }
@@ -99,7 +99,6 @@ namespace ngraph
                 void validate_and_infer_type_body(
                     const std::shared_ptr<Function>& body,
                     const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors);
-                void clone_to(If& dst, const OutputVector& new_args) const;
 
                 OutputMap get_mapping_outputs_on_body_description(
                     const ngraph::op::util::MultiSubgraphOutputDescriptionVector&

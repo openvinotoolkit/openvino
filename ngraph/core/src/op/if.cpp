@@ -17,7 +17,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::op::v8::If, "If", 8);
+NGRAPH_RTTI_DEFINITION(ngraph::op::v8::If, "If", 8, MultiSubGraphOp);
 
 op::v8::If::If()
     : MultiSubGraphOp(2)
@@ -28,6 +28,40 @@ op::v8::If::If(const Output<Node>& execution_condition)
     : If()
 {
     set_argument(0, execution_condition);
+}
+
+static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
+                                          const ngraph::PartialShape& else_pshape)
+{
+    auto then_rank = then_pshape.rank();
+    auto else_rank = else_pshape.rank();
+    if (then_rank.is_dynamic() || else_rank.is_dynamic() ||
+        then_rank.get_length() != else_rank.get_length())
+    {
+        return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
+    }
+    std::vector<Dimension> new_dims;
+    for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin();
+         then_it != then_pshape.cend();
+         then_it++, else_it++)
+    {
+        if ((*then_it).is_dynamic() || (*else_it).is_dynamic())
+        {
+            new_dims.push_back(Dimension::dynamic());
+        }
+        else if (*then_it == *else_it)
+        {
+            new_dims.push_back(Dimension(*then_it));
+        }
+        else
+        {
+            auto dim_min = std::min((*then_it).get_min_length(), (*else_it).get_min_length());
+            auto dim_max = std::max((*then_it).get_min_length(), (*else_it).get_min_length());
+            new_dims.push_back(Dimension(dim_min, dim_max));
+        }
+    }
+
+    return PartialShape(new_dims);
 }
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor)
@@ -89,7 +123,6 @@ void op::v8::If::validate_and_infer_types()
     // Trying to get cond as const value
     if (const auto& cond_value = get_constant_from_source(if_condition))
     {
-
         // If cond is const shape and inference is run for one of bodies another body is skipped
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(
@@ -102,8 +135,8 @@ void op::v8::If::validate_and_infer_types()
         auto input_descriptors = m_input_descriptions[cond_index];
         validate_and_infer_type_body(body, input_descriptors);
         auto output_nodes = outputs();
-        
-        //shape and type inference for outputs from If operations
+
+        // shape and type inference for outputs from If operations
         for (const auto& output_descr : m_output_descriptions[cond_index])
         {
             auto body_value =
@@ -116,19 +149,20 @@ void op::v8::If::validate_and_infer_types()
     }
     else // condition is non constant
     {
-        
-        //If cond is non const, shape and type inference is run for both bodies
+        // If cond is non const, shape and type inference is run for both bodies
         validate_and_infer_type_body(get_then_body(), m_input_descriptions[then_body_index]);
         validate_and_infer_type_body(get_else_body(), m_input_descriptions[else_body_index]);
         auto output_nodes = outputs();
-        
-        // Getting map<output_index_from_if, output_description>. This map guarantees that each output from the body will be met in it once.
+
+        // Getting map<output_index_from_if, output_description>. This map guarantees that each
+        // output from the body will be met in it once.
         auto then_outputs_map =
             get_mapping_outputs_on_body_description(m_output_descriptions[then_body_index]);
         auto else_outputs_map =
             get_mapping_outputs_on_body_description(m_output_descriptions[else_body_index]);
 
-        //Checking each output from If. Each output must be associated with one output from each body
+        // Checking each output from If. Each output must be associated with one output from each
+        // body
         for (size_t output_index = 0; output_index < output_nodes.size(); ++output_index)
         {
             NODE_VALIDATION_CHECK(this,
@@ -159,8 +193,8 @@ void op::v8::If::validate_and_infer_types()
                                   then_node_result.get_element_type() ==
                                       else_node_result.get_element_type(),
                                   "type of then_body output is not equal type of else_body output");
-            
-            //shape inference for output and associated with it body outputs
+
+            // shape inference for output and associated with it body outputs
             auto partial_shape = resolve_shape(then_node_result.get_partial_shape(),
                                                else_node_result.get_partial_shape());
             set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
@@ -180,7 +214,25 @@ std::shared_ptr<Node> op::v8::If::clone_with_new_inputs(const OutputVector& new_
                  description(),
                  " operation with name ",
                  get_friendly_name());
-    clone_to(*op, new_args);
+
+    op->set_arguments(new_args);
+    op->set_output_size(m_output_descriptions[0].size());
+    op->set_then_body(clone_function(*get_then_body()));
+    op->set_else_body(clone_function(*get_else_body()));
+
+    for (auto body_index = 0; body_index < 2; ++body_index)
+    {
+        for (const auto& m_input_descr : m_input_descriptions[body_index])
+        {
+            op->m_input_descriptions[body_index].push_back(m_input_descr->copy());
+        }
+        for (const auto& m_output_descr : m_output_descriptions[body_index])
+        {
+            op->m_output_descriptions[body_index].push_back(m_output_descr->copy());
+        }
+    }
+    op->validate_and_infer_types();
+
     return op;
 }
 
@@ -208,26 +260,6 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
     }
 
     return outputs_map;
-}
-void op::v8::If::clone_to(op::v8::If& dst, const OutputVector& new_args) const
-{
-    dst.set_arguments(new_args);
-    dst.set_output_size(m_output_descriptions[0].size());
-    dst.set_then_body(clone_function(*get_then_body()));
-    dst.set_else_body(clone_function(*get_else_body()));
-
-    for (auto body_index = 0; body_index < 2; ++body_index)
-    {
-        for (const auto& m_input_descr : m_input_descriptions[body_index])
-        {
-            dst.m_input_descriptions[body_index].push_back(m_input_descr->copy());
-        }
-        for (const auto& m_output_descr : m_output_descriptions[body_index])
-        {
-            dst.m_output_descriptions[body_index].push_back(m_output_descr->copy());
-        }
-    }
-    dst.validate_and_infer_types();
 }
 
 bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -278,40 +310,3 @@ Output<Node> op::v8::If::set_output(const std::shared_ptr<Result>& then_result,
 
     return set_body_outputs({then_result, else_result});
 }
-
-namespace
-{
-    ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
-                                       const ngraph::PartialShape& else_pshape)
-    {
-        auto then_rank = then_pshape.rank();
-        auto else_rank = else_pshape.rank();
-        if (then_rank.is_dynamic() || else_rank.is_dynamic() ||
-            then_rank.get_length() != else_rank.get_length())
-        {
-            return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
-        }
-        std::vector<Dimension> new_dims;
-        for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin();
-             then_it != then_pshape.cend();
-             then_it++, else_it++)
-        {
-            if ((*then_it).is_dynamic() || (*else_it).is_dynamic())
-            {
-                new_dims.push_back(Dimension::dynamic());
-            }
-            else if (*then_it == *else_it)
-            {
-                new_dims.push_back(Dimension(*then_it));
-            }
-            else
-            {
-                auto dim_min = std::min((*then_it).get_min_length(), (*else_it).get_min_length());
-                auto dim_max = std::max((*then_it).get_min_length(), (*else_it).get_min_length());
-                new_dims.push_back(Dimension(dim_min, dim_max));
-            }
-        }
-
-        return PartialShape(new_dims);
-    }
-} // namespace
