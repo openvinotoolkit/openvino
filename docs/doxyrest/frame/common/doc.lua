@@ -213,7 +213,7 @@ function formatDocBlock_heading(block, context)
 	if HEADING_TO_RUBRIC then
 		return "\n\n.. rubric:: " .. text .. "\n\n"
 	else
-		return "\n\n" .. getTitle(text, block.level) .. "\n\n"
+		return "\n\n" .. getTitle(text, block.level + 1) .. "\n\n"
 	end
 end
 
