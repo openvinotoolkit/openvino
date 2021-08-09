@@ -47,7 +47,7 @@ class Tile(Op):
             tile_array = shape_insert(tile_array, 0, [1] * (shape.size - tile_array.size))
 
         input_value = node.in_port(0).data.get_value()
-        if is_fully_defined(input_value) and is_fully_defined(shape) and is_fully_defined(tile_array):
+        if input_value is not None and is_fully_defined(shape) and is_fully_defined(tile_array):
             node.out_port(0).data.set_value(np.tile(input_value.reshape(shape), tile_array))
         else:
             node.out_port(0).data.set_shape(shape * tile_array)
