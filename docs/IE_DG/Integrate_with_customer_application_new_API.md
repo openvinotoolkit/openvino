@@ -157,8 +157,10 @@ Load the model to the device using `InferenceEngine::Core::LoadNetwork()`:
       auto network = CNNNetwork(createNetwork());
       executable_network = core.LoadNetwork(network, "CPU");
 
-.. tab:: Model From Step 2
-
+.. tab:: Model From Step 3
+   
+   Follow this step only if you went through optional "Step 3. Configure Input and Output of the Model", otherwise use another tab for your model type: IR (OpenVINO Intermediate Representation), ONNX or nGraph.
+   
    .. code-block:: c
 
       executable_network = core.LoadNetwork(network, "CPU");
@@ -222,7 +224,12 @@ A blob can be filled before and after `SetBlob()`.
 
 ### Step 7. Start Inference
 
-Start inference in asynchronous or synchronous mode:
+Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
+
+* For synchronous inference request:
+   ```cpp
+   infer_request.Infer();
+   ```
 
 * For asynchronous inference request: 
   ```cpp
@@ -237,10 +244,6 @@ Start inference in asynchronous or synchronous mode:
       * `InferenceEngine::InferRequest::WaitMode::STATUS_ONLY` - immediately returns request status.It does not
       block or interrupts current thread.
    
-* For synchronous inference request:
-   ```cpp
-   infer_request.Infer();
-   ```
 
 Both requests are thread-safe: can be called from different threads without fearing corruption and failures.
 
