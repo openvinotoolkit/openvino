@@ -16,16 +16,4 @@ public:
     NGRAPH_RTTI_DECLARATION;
     SwapInputMatMul();
 };
-
-class SwapInputMatMulWithBias: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    SwapInputMatMulWithBias();
-};
-
-class SwapInputMatMulWithFq: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    SwapInputMatMulWithFq();
-};
 } // namespace GNAPluginNS
