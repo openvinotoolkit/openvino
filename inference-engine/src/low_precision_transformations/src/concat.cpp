@@ -5,9 +5,7 @@
 #include "low_precision/concat.hpp"
 
 #include <algorithm>
-#include <map>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -189,7 +187,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     const auto outPShape = concat->get_output_partial_shape(0);
     const size_t normalizedAxis = ngraph::normalize_axis(concat->get_friendly_name(), axis, outPShape.rank());
 
-    // TODO: LPT: to support current flow: #58269
     if (normalizedAxis != 1ul) {
         return false;
     }
@@ -197,8 +194,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     if (outPShape.rank().is_dynamic() || outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }
-
-    const bool perTensorQuantizationIsRequired = normalizedAxis != 1ul;
 
     element::Type precision;
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
@@ -210,12 +205,6 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         if (precision == element::undefined) {
             precision = dequantization.data.get_element_type();
         } else if (precision != dequantization.data.get_element_type()) {
-            return false;
-        }
-
-        if (perTensorQuantizationIsRequired &&
-            (((dequantization.subtractConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.subtractConstant)) ||
-            ((dequantization.multiplyConstant != nullptr) && !NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
             return false;
         }
     }
