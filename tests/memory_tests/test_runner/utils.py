@@ -70,11 +70,9 @@ def query_memory_timeline(records, db_url, db_name, db_collection, max_items=20,
         except KeyError:
             pass  # keep only the record if timeline failed to generate
         items += [record]
+        for item in items:
+            item["status"] = {"passed": True, "failed": False, "not_finished": False}[item["status"]]
         timeline = _transpose_dicts(items, template=record)
-        for step_name, _ in timeline['results'].items():
-            timeline['status'] = bool(
-                timeline['results'][step_name]['vmrss']["avg"] < timeline['references'][step_name]['vmrss']["avg"] and
-                timeline['results'][step_name]['vmhwm']["avg"] < timeline['references'][step_name]['vmhwm']["avg"])
         result += [timeline]
 
     result.sort(key=timeline_key, reverse=True)

@@ -40,7 +40,7 @@ from utils import upload_data, metadata_from_manifest, DATABASES, DB_COLLECTIONS
 MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
-from test_runner.utils import query_memory_timeline
+from test_runner.utils import query_memory_timeline, REFS_FACTOR
 
 
 # -------------------- CLI options --------------------
@@ -255,6 +255,7 @@ def prepare_db_info(request, instance, executable, niter, manifest_metadata):
         "results": {},
         "raw_results": {},
         "references": instance["instance"].get("references", {}),   # upload actual references that were used
+        "ref_factor": REFS_FACTOR,
     }
     info['_id'] = hashlib.sha256(
         ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()

@@ -29,7 +29,7 @@ MEMORY_TESTS_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(MEMORY_TESTS_DIR)
 
 from scripts.run_memorytest import run_memorytest
-from utils import compare_with_references
+from test_runner.utils import compare_with_references
 
 
 def test(instance, executable, niter, cl_cache_dir, model_cache_dir, temp_dir, validate_test_case,

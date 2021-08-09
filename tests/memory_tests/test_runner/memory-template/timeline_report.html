@@ -12,10 +12,11 @@
 <div class="w3-container">
 <h2>Memory report</h2>
     {% for timeline in timelines %}
+    {% for step_name in timeline['references'] %}
     <div class="w3-container">
-        <h4> {{ timeline['device'][0]|e }} {{ timeline['model']['name'][0]|e }} {{ timeline['test_name'][0]|e }} </h4>
+        <h4> {{ timeline['model']['name'][0]|e }} {{ timeline['test_name'][0]|e }} {{ step_name }} </h4>
         <div class={{ '"w3-text-green"' if timeline['status'] else '"w3-text-red"' }}>
-            {{ "PASS" if timeline['status'] else "FAIL" }}
+            {{ "PASS" if timeline["status"] else "FAIL" }}
         </div>
 
         <div id="{{timeline['_id'][0]|e}}-details" class="w3-show w3-container">
@@ -26,26 +27,26 @@
                 height="100"
                 data-labels='[{% for point in timeline["commit_date"] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
                 data-charttype='line'>
-                {% for step_name in timeline['references'] %}
+
                 <div class="chartjs-item"
                     data-label='vmrss'
                     data-commitid='[{% for point in timeline["commit_sha"] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
-                    data-data='[{% for point in timeline["results"][step_name]["vmrss"] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
+                    data-data='[{% for point in timeline["results"][step_name]["vmrss"]["avg"] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
                     data-rgb='255, 68, 55'
-                    data-waterline='{{ timeline["references"][step_name]["vmrss"][-1] }}'>
+                    data-waterline='{{ timeline["references"][step_name]["vmrss"]["avg"][-1]|float * timeline["ref_factor"][0]|float }}'>
                 </div>
                 <div class="chartjs-item"
                     data-label='vmhwms'
                     data-commitid='[{% for point in timeline["commit_sha"] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
-                    data-data='[{% for point in timeline["results"][step_name]["vmhwm"] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
+                    data-data='[{% for point in timeline["results"][step_name]["vmhwm"]["avg"] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
                     data-rgb='66,133,244'
-                    data-waterline='{{ timeline["references"][step_name]["vmhwm"][-1] }}'>
+                    data-waterline='{{ timeline["references"][step_name]["vmhwm"]["avg"][-1]|float * timeline["ref_factor"][0]|float }}'>
                 </div>
-                {% endfor %}
             </canvas>
             </div>
         </div>
     </div>
+    {% endfor %}
     {% endfor %}
 </div>
 <script>
