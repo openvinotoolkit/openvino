@@ -3,9 +3,10 @@
 
 import numpy as np
 
-from extensions.ops.elementwise import Maximum
+from extensions.ops.elementwise import Equal
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
+from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
@@ -61,7 +62,12 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
                                                        {'name': const_name + '/BroadcastingDim'})
         shapeof_node = Shape(graph, {'name': const_name + '/ShapeOf'}).create_node()
         shapeof_node.out_port(0).connect(gather_for_const.in_port(0))
-        max_node = Maximum(graph, {'name': node_name + '/MaxInputShape'}).create_node([gather, gather_for_const])
+
+        equal_node = create_op_with_const_inputs(graph, Equal, {1: int64_array(1)}, {'name': node_name + '/ConstOne'})
+        gather.out_port(0).connect(equal_node.in_port(0))
+
+        select_node = Select(graph, {'name': node_name + '/Select',
+                                      'auto_broadcast': 'numpy'}).create_node([equal_node, gather_for_const, gather])
 
         const.out_port(0).connect(shapeof_node.in_port(0))
 
@@ -69,7 +75,7 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
                                                  {0: np.array(0, dtype=value.dtype),
                                                   2: np.array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
-        max_node.out_port(0).connect(range_node.in_port(1))
+        select_node.out_port(0).connect(range_node.in_port(1))
 
         node.in_port(1).get_connection().add_destination(gather.in_port(0))
 
