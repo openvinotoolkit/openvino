@@ -79,12 +79,10 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(const ngraph::Sh
     auto matmul_constant = ngraph::opset7::Constant::create(ngraph::element::i64, matmul_shape, data);
     auto matmul = std::make_shared<ngraph::opset7::MatMul>(input_params, matmul_constant);
     const auto matmul_output_shape = matmul->get_output_shape(0);
-    std::cout << "matmul=[" << matmul_output_shape[0] << ", " << matmul_output_shape[1] << "]\n";
 
     auto transpose_order = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {1, 0});
     auto transpose = std::make_shared<ngraph::opset7::Transpose>(matmul, transpose_order);
     const auto transpose_output_shape = transpose->get_output_shape(0);
-    std::cout << "transpose=[" << transpose_output_shape[0] << ", " << transpose_output_shape[1] << "]\n";
 
     std::shared_ptr<ngraph::opset7::Reshape> reshape;
     auto shape_const = ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape);
@@ -97,7 +95,6 @@ std::shared_ptr<ngraph::Function> CreateMatmulTransposeFunction(const ngraph::Sh
     } else {
         reshape = std::make_shared<ngraph::opset7::Reshape>(transpose, shape_const, false);
         const auto reshape_output_shape = reshape->get_output_shape(0);
-        std::cout << "reshape=[" << reshape_output_shape[0] << ", " << reshape_output_shape[1] << "]\n";
     }
 
     auto result = std::make_shared<ngraph::opset7::Result>(reshape);

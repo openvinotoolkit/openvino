@@ -128,7 +128,7 @@ class ModelQuantizer {
                     k--;
                 }
 
-                if ((infiniteLoopHistory.size() - i)%2 == 0 && (infiniteLoopHistory.size() - i)/2 == infiniteLoopHistory.size() - k) {
+                if ((infiniteLoopHistory.size() - i) % 2 == 0 && (infiniteLoopHistory.size() - i) / 2 == infiniteLoopHistory.size() - k) {
                     infiniteLoopPattern.clear();
                     int patternLength = (infiniteLoopHistory.size() - i)/2;
                     for (int j = 0; j < patternLength; j++) {
@@ -159,7 +159,11 @@ class ModelQuantizer {
         }
 
         if (infiniteLoopCount > 0) {
-            THROW_GNA_EXCEPTION << "infinite loop";
+            std::string additionalInformation;
+            for (const auto& p : infiniteLoopPattern) {
+                additionalInformation += '\n' + p;
+            }
+            THROW_GNA_EXCEPTION << "infinite loop: " + additionalInformation;
         }
     }
 };
