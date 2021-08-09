@@ -32,7 +32,7 @@
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
-namespace {
+namespace core_detail {
 
 template <typename T>
 struct Parsed {
@@ -228,7 +228,7 @@ class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_t
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             try {
                 // need to export network for further import from "cache"
-                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Export");
+                OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Export");
                 cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
                     networkStream << InferenceEngine::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                                                         InferenceEngine::NetworkCompilationContext::calculateFileInfo(modelPath));
@@ -255,7 +255,7 @@ class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_t
         IE_ASSERT(cacheManager != nullptr);
         try {
             cacheManager->readCacheEntry(blobId, [&](std::istream &networkStream) {
-                OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
+                OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
                 try {
                     InferenceEngine::CompiledBlobHeader header;
                     networkStream >> header;
@@ -439,7 +439,7 @@ public:
     // TODO: In future this method can be added to ICore interface
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network, const InferenceEngine::RemoteContext::Ptr& context,
                                             const std::map<std::string, std::string>& config) {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
+        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
             IE_THROW() << "Remote context is null";
         }
@@ -464,7 +464,7 @@ public:
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                             const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
+        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         bool forceDisableCache = config.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         if (forceDisableCache) {
@@ -491,7 +491,7 @@ public:
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                             const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
+        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         InferenceEngine::SoExecutableNetworkInternal res;
@@ -618,7 +618,7 @@ public:
      * @return Reference to a CPP plugin wrapper
      */
     InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
@@ -861,7 +861,8 @@ public:
     }
 };
 
-}  // namespace
+}  // namespace core_detail
+using namespace core_detail;
 
 
 namespace InferenceEngine {
