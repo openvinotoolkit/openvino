@@ -21,8 +21,8 @@ Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino)
 
 ## Build a Docker* Image
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). 
-The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure OpenVINO Docker below.
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci).
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can find device specific steps to configure an Intel® Distribution of OpenVINO™ toolkit Dockerfile below.
 
 ## Configure and Run the Docker* Image for CPU
 
