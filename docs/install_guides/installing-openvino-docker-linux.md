@@ -160,7 +160,7 @@ docker run -it --rm --device /dev/dri <image_name>
 
 Use one of the following options as **Possible solutions for Intel® Neural Compute Stick 2:**
 
-#### Option #1
+#### Option 1
 
 1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to a `Dockerfile`):
    - **Ubuntu 18.04/20.04**:
@@ -230,12 +230,12 @@ RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
-1. Run the Docker* image:
+2. Run the Docker* image:
 ```sh
 docker run -it --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 ```
 
-#### Option #2
+#### Option 2
 Run container in the privileged mode, enable the Docker network configuration as host, and mount all devices to the container:
 ```sh
 docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
@@ -253,7 +253,7 @@ To use the Docker container for inference on Intel® Vision Accelerator Design w
 1. Set up the environment on the host machine, that is going to be used for running Docker*.
 It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board.
 To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](installing-openvino-linux-ivad-vpu.md).
-1. Prepare the Docker* image (add the following commands to a Dockerfile).
+2. Prepare the Docker* image (add the following commands to a Dockerfile).
    - **Ubuntu 18.04**:
 ```sh
 WORKDIR /tmp
