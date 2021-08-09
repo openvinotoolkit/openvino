@@ -30,6 +30,9 @@ TEST(attributes, cum_sum_op_default_attributes)
     NodeBuilder builder(cs);
     auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
 
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     EXPECT_EQ(g_cs->is_exclusive(), cs->is_exclusive());
     EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
 }
@@ -48,7 +51,9 @@ TEST(attributes, cum_sum_op_custom_attributes)
     NodeBuilder builder(cs);
     auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
 
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
     EXPECT_EQ(g_cs->is_exclusive(), cs->is_exclusive());
     EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
 }
-
