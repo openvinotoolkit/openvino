@@ -73,7 +73,17 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             input_shape = np.array(input_data.shape)
 
             # Get all unique StridedSlice consumers
-            out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and node.in_node(0).name == input_data.name]
+            out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and
+                         node.in_node(0).name == input_data.name]
+
+            valid_for_replacement = True
+            for n in out_nodes:
+                if any(not isinstance(s, slice) for s in n.slices):
+                    # this is a slice with dynamic dimension. Such operation is not valid for replacement
+                    valid_for_replacement = False
+            if not valid_for_replacement:
+                continue
+
             sorted_out_nodes = sorted(out_nodes, key=lambda n: list(n.slices))
             out_nodes = unique_by(sorted_out_nodes, strided_slices_equality)
             if len(out_nodes) <= 1:
@@ -103,16 +113,12 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             for out_id, node in enumerate(out_nodes):
                 # Check that StridedSlice op has stride eq 1 and splits only feature channel
                 for id, s in enumerate(node.slices):
-                    if isinstance(s, slice):
-                        l, r, stride = s.start, s.stop, s.step
-                        # We don't support StridedSlice with stride != 1
-                        if stride != 1:
-                            valid_for_replacement = False
-                        if id == split_channel_dim:
-                            split_dims.append((s.start, s.stop, node.out_node()))
-                    else:
-                        # this is a slice with dynamic dimension. Such operation is not valid for replacement
+                    l, r, stride = s.start, s.stop, s.step
+                    # We don't support StridedSlice with stride != 1
+                    if stride != 1:
                         valid_for_replacement = False
+                    if id == split_channel_dim:
+                        split_dims.append((s.start, s.stop, node.out_node()))
 
             if not valid_for_replacement:
                 continue
