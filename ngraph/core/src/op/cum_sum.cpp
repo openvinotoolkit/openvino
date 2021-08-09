@@ -52,6 +52,8 @@ void op::v0::CumSum::validate_and_infer_types()
                           "axis element type must be either int64_t or int32_t but got (",
                           axis_type,
                           ").");
+
+    // No axis input shape check for backward compatibility
 }
 
 shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_args) const
