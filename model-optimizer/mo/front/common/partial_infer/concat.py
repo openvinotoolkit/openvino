@@ -59,11 +59,3 @@ def concat_infer(node):
     else:  # there is a serious performance benefit to use concatenation as it is implemented below
         node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
         node.out_node(0).shape = shape_array(node.out_node(0).value.shape)
-
-
-def tf_pack_infer(node):
-    # Constant path is supported only
-    values = [node.in_node(i).value for i in range(node.N)]
-    if any(v is None for v in values):
-        return
-    node.out_port(0).data.set_value(np.stack(values, node.axis))
