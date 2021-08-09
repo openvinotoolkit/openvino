@@ -422,36 +422,6 @@ TEST(OVClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 // ImportNetwork
 //
 
-TEST_P(OVClassBasicTestP, ImportNetworkThrows) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::Core ie = createCoreWithTemplate();
-
-    if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.import_model("model", deviceName), NetworkNotRead);
-
-        const std::string modelName = "compiled_blob.blob";
-        {
-            std::ofstream file(modelName);
-            file << "content";
-        }
-
-        EXPECT_THROW(ie.import_model(modelName, deviceName), NotImplemented);
-        ASSERT_EQ(0, std::remove(modelName.c_str()));
-    }
-}
-
-TEST(OVClassBasicTest, smoke_ImportNetworkHeteroThrows) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::Core ie = createCoreWithTemplate();
-
-    ASSERT_THROW(ie.import_model("model", CommonTestUtils::DEVICE_HETERO), NetworkNotRead);
-}
-
-TEST(OVClassBasicTest, smoke_ImportNetworkMultiThrows) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.import_model("model", CommonTestUtils::DEVICE_MULTI), NetworkNotRead);
-}
 
 TEST_P(OVClassBasicTestP, ImportNetworkWithNullContextThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

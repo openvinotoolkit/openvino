@@ -91,7 +91,7 @@ public:
      * For ONNX case the second parameter should contain empty blob.
      * @note Created Function object shares the weights with `weights` object.
      * So, do not create `weights` on temporary data which can be later freed, since the network
-     * constant data become to point to invalid memory.
+     * constant data becomes to point to invalid memory.
      * @return Function
      */
     std::shared_ptr<ngraph::Function> read_model(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const;
@@ -149,19 +149,6 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     *
-     * @param modelFileName Path to the location of the exported file
-     * @param deviceName Name of device load executable network on
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation*
-     * @return An executable network reference
-     */
-    InferenceEngine::ExecutableNetwork import_model(
-        const std::string& modelFileName, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
-
-    /**
-     * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
@@ -210,7 +197,7 @@ public:
     /**
      * @brief Gets configuration dedicated to device behaviour.
      *
-     * The method is targeted to extract information which can be set via SetConfig method.
+     * The method is targeted to extract information which can be set via set_config method.
      *
      * @param deviceName  - A name of a device to get a configuration value.
      * @param name  - config key.
@@ -281,8 +268,8 @@ public:
      * - `name` identifies name of device enabled by plugin
      * - `location` specifies absolute path to dynamic library with plugin. A path can also be relative to inference
      * engine shared library. It allows to have common config for different systems with different configurations.
-     * - Properties are set to plugin via the `SetConfig` method.
-     * - Extensions are set to plugin via the `AddExtension` method.
+     * - Properties are set to plugin via the `set_config` method.
+     * - Extensions are set to plugin via the `add_extension` method.
      *
      * @param xmlConfigFile A path to .xml file with plugins to register.
      */
@@ -295,7 +282,8 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    InferenceEngine::RemoteContext::Ptr create_context(const std::string& deviceName, const InferenceEngine::ParamMap& params);
+    InferenceEngine::RemoteContext::Ptr create_context(const std::string& deviceName,
+                                                       const InferenceEngine::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
