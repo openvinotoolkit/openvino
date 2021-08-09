@@ -16,6 +16,12 @@ endmacro()
 # Google Tests framework
 #
 set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
+if (UNIX)
+    add_compiler_flags(-Wno-undef)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compiler_flags(-Wno-deprecated-copy)
+    endif()
+endif()
 
 set(BUILD_SHARED_LIBS OFF)
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
@@ -27,29 +33,21 @@ set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${g
 get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
 
-set(gtest_targets gtest gtest_main gmock gmock_main)
-
-foreach(target IN LISTS gtest_targets)
-
 # If we have specified /Z7 option, remove -Zi option which comes from gtest
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        get_target_property(_target_cxx_flags ${target} COMPILE_OPTIONS)
-        if(_target_cxx_flags)
-            if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
-                string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
-                message(STATUS "Removing -Zi flag from target " ${target})
-                set_target_properties(${target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
+if (WIN32)
+    set(gtest_targets "gtest;gtest_main;gmock;gmock_main")
+    foreach(target_name ${gtest_targets})
+        if(TARGET "${target_name}")
+            get_target_property(_target_cxx_flags ${target_name} COMPILE_OPTIONS)
+            if(_target_cxx_flags)
+                if(CMAKE_CXX_FLAGS_DEBUG MATCHES ".+/Z7.+" OR CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES ".+/Z7.+")
+                    string(REPLACE "-Zi" " " _target_cxx_flags ${_target_cxx_flags})
+                    message(STATUS "Removing -Zi flag from target " ${target_name})
+                    set_target_properties(${target_name} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
+                endif()
             endif()
         endif()
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
-        CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        target_compile_options(${target} PRIVATE -Wno-undef)
-        if(CMAKE_COMPILER_IS_GNUCXX)
-            target_compile_options(${target} PRIVATE -Wno-deprecated-copy)
-        endif()
-    endif()
-    ov_disable_all_warnings(${target})
-endforeach()
-
+    endforeach()
+endif()
 set_target_properties(gtest gtest_main gmock gmock_main
                       PROPERTIES FOLDER thirdparty)
