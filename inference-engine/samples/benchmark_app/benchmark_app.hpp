@@ -197,7 +197,7 @@ DEFINE_string(i, "", input_message);
 DEFINE_string(m, "", model_message);
 
 /// @brief Define execution mode
-DEFINE_string(hint, CONFIG_VALUE(THROUGHPUT), mode_message);
+DEFINE_string(hint, "", mode_message);
 
 /// @brief Define execution mode
 DEFINE_string(api, "async", api_message);
