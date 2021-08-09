@@ -16,6 +16,7 @@ TEST(type_prop, cum_sum_op_default_attributes_no_axis_input)
 
     EXPECT_EQ(cum_sum->is_exclusive(), false);
     EXPECT_EQ(cum_sum->is_reverse(), false);
+    EXPECT_EQ(cum_sum->get_input_size(), 2);
     EXPECT_EQ(cum_sum->get_element_type(), element::f32);
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
@@ -29,6 +30,7 @@ TEST(type_prop, cum_sum_op_default_attributes_with_axis_param)
 
     EXPECT_EQ(cum_sum->is_exclusive(), false);
     EXPECT_EQ(cum_sum->is_reverse(), false);
+    EXPECT_EQ(cum_sum->get_input_size(), 2);
     EXPECT_EQ(cum_sum->get_element_type(), element::f32);
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
@@ -42,6 +44,7 @@ TEST(type_prop, cum_sum_op_default_attributes_with_axis_const)
 
     EXPECT_EQ(cum_sum->is_exclusive(), false);
     EXPECT_EQ(cum_sum->is_reverse(), false);
+    EXPECT_EQ(cum_sum->get_input_size(), 2);
     EXPECT_EQ(cum_sum->get_element_type(), element::f32);
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
@@ -57,6 +60,7 @@ TEST(type_prop, cum_sum_op_custom_attributes)
 
     EXPECT_EQ(cum_sum->is_exclusive(), true);
     EXPECT_EQ(cum_sum->is_reverse(), true);
+    EXPECT_EQ(cum_sum->get_input_size(), 2);
     EXPECT_EQ(cum_sum->get_element_type(), element::f32);
     EXPECT_EQ(cum_sum->get_output_partial_shape(0), data_shape);
 }
