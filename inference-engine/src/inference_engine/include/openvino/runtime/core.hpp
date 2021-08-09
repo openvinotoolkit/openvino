@@ -16,11 +16,18 @@
 #include <vector>
 
 #include "ie_version.hpp"
-#include "ie_extension.h"
 #include "ie_plugin_config.hpp"
-#include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
-#include "ngraph/function.hpp"
+
+namespace ngraph {
+class Function;
+}  // namespace ngraph
+
+namespace InferenceEngine {
+class IExtension;
+class Blob;
+class RemoteContext;
+}  // namespace InferenceEngine
 
 namespace ov {
 namespace runtime {
@@ -94,7 +101,7 @@ public:
      * constant data becomes to point to invalid memory.
      * @return Function
      */
-    std::shared_ptr<ngraph::Function> read_model(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const;
+    std::shared_ptr<ngraph::Function> read_model(const std::string& model, const std::shared_ptr<const InferenceEngine::Blob>& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -138,14 +145,14 @@ public:
      * @return An executable network object
      */
     InferenceEngine::ExecutableNetwork compile_model(
-        const std::shared_ptr<const ngraph::Function>& network, const InferenceEngine::RemoteContext::Ptr& context,
+        const std::shared_ptr<const ngraph::Function>& network, const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
      * @param extension Pointer to already loaded extension
      */
-    void add_extension(const InferenceEngine::IExtensionPtr& extension);
+    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -169,7 +176,7 @@ public:
      * @return An executable network reference
      */
     InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
-                                    const InferenceEngine::RemoteContext::Ptr& context,
+                                    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                     const std::map<std::string, std::string>& config = {});
 
     /**
@@ -282,15 +289,15 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    InferenceEngine::RemoteContext::Ptr create_context(const std::string& deviceName,
-                                                       const InferenceEngine::ParamMap& params);
+    std::shared_ptr<InferenceEngine::RemoteContext> create_context(const std::string& deviceName,
+                                                                   const InferenceEngine::ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
      * @param deviceName  - A name of a device to get create shared context from.
      * @return A shared pointer to a default remote context.
      */
-    InferenceEngine::RemoteContext::Ptr get_default_context(const std::string& deviceName);
+    std::shared_ptr<InferenceEngine::RemoteContext> get_default_context(const std::string& deviceName);
 };
 }  // namespace runtime
 }  // namespace ov
