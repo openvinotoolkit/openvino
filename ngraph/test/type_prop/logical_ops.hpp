@@ -28,7 +28,6 @@ public:
     static std::string GetName(int)
     {
         using OP_Type = typename T::op_type;
-        constexpr ngraph::element::Type precision(T::element_type);
         const ngraph::Node::type_info_t typeinfo = OP_Type::get_type_info_static();
         return typeinfo.name;
     }
