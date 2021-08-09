@@ -29,11 +29,11 @@ def resolve_convolution_with_group(node: Node, group: int, ir_version: str):
             # weights are already is in [G*O I X Y] format
             return
         new_shape = shape_array([node.output, -1, *weights_shape[2:]])
-
     elif ir_version == 'V10':
+        # TODO rewrite this transformation to generate a shape-computing sub-graph. Ticket 62076
         I = input_shape[1]
         new_shape = shape_array([group, node.output // group, I // group, *weights_shape[2:]])
-        assert not is_fully_defined(weights_shape) or not is_fully_defined(new_shape) or \
+        assert is_fully_defined(*weights_shape[2:]) and is_fully_defined(I) and \
                np.prod(weights_shape) == np.prod(new_shape), 'Initial weights shape {}, grouped weights shape {}' \
                                                              ''.format(weights_shape, new_shape)
         del node['group']
