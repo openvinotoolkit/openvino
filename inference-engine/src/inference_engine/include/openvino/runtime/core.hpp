@@ -5,7 +5,7 @@
 /**
  * @brief This is a header file for the OpenVINO Runtime Core class C++ API
  *
- * @file ie_core.hpp
+ * @file openvion/runtime/core.hpp
  */
 #pragma once
 
@@ -26,7 +26,7 @@ namespace ov {
 namespace runtime {
 
 /**
- * @brief This class represents Inference Engine Core entity.
+ * @brief This class represents OpenVINO runtime Core entity.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
@@ -35,10 +35,10 @@ class INFERENCE_ENGINE_API_CLASS(Core) {
     std::shared_ptr<Impl> _impl;
 
 public:
-    /** @brief Constructs Inference Engine Core instance using XML configuration file with
+    /** @brief Constructs OpenVINO Core instance using XML configuration file with
      * plugins description.
      *
-     * See RegisterPlugins for more details.
+     * See register_plugins for more details.
      *
      * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
      * then default Inference Engine plugins are loaded from the default plugin.xml file.
@@ -86,13 +86,13 @@ public:
      * @param weights shared pointer to constant blob with weights
      * Reading ONNX models doesn't support loading weights from data blobs.
      * If you are using an ONNX model with external data files, please use the
-     * `InferenceEngine::Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const`
+     * `ov::runtime::Core::read_model(const std::string& model, const Blob::CPtr& weights) const`
      * function overload which takes a filesystem path to the model.
      * For ONNX case the second parameter should contain empty blob.
-     * @note Created InferenceEngine::CNNNetwork object shares the weights with `weights` object.
+     * @note Created Function object shares the weights with `weights` object.
      * So, do not create `weights` on temporary data which can be later freed, since the network
-     * constant datas become to point to invalid memory.
-     * @return CNNNetwork
+     * constant data become to point to invalid memory.
+     * @return Function
      */
     std::shared_ptr<ngraph::Function> read_model(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const;
 
@@ -102,7 +102,7 @@ public:
      * Users can create as many networks as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
-     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param network Function object acquired from Core::read_model
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
@@ -115,7 +115,7 @@ public:
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
      *
-     * This can be more efficient than using ReadNetwork + LoadNetwork(CNNNetwork) flow
+     * This can be more efficient than using read_model + compile_model(Function) flow
      *        especially for cases when caching is enabled and cached model is available
      *
      * @param modelPath path to model
@@ -131,7 +131,7 @@ public:
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
-     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param network Function object acquired from Core::read_model
      * @param context Pointer to RemoteContext object
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
@@ -256,7 +256,7 @@ public:
      *
      * @param deviceName Device name identifying plugin to remove from Inference Engine
      */
-    void unregister_plugin(const std::string& deviceName);
+    void unload_plugin(const std::string& deviceName);
 
     /** @brief Registers plugin to Inference Engine Core instance using XML configuration file with
      * plugins description.

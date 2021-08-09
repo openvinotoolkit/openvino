@@ -51,7 +51,6 @@ std::string parseXmlConfig(const std::string& xmlFile) {
     return xmlConfigFile_;
 }
 
-
 template <typename T = InferenceEngine::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
     auto config_ = config;
@@ -121,79 +120,17 @@ void allowNotImplemented(F && f) {
     } catch (const InferenceEngine::NotImplemented&) { }
 }
 
-}  // namespace
-
-
-namespace InferenceEngine {
-
-DeviceIDParser::DeviceIDParser(const std::string& deviceNameWithID) {
-    deviceName = deviceNameWithID;
-
-    auto pos = deviceName.find('.');
-    if (pos != std::string::npos) {
-        deviceName = deviceNameWithID.substr(0, pos);
-        deviceID = deviceNameWithID.substr(pos + 1, deviceNameWithID.size());
-    }
-}
-
-std::string DeviceIDParser::getDeviceID() const {
-    return deviceID;
-}
-
-std::string DeviceIDParser::getDeviceName() const {
-    return deviceName;
-}
-
-std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDevice) {
-    std::vector<std::string> deviceNames;
-
-    std::string cdevice;
-    char delimiter = ',';
-    size_t pos = 0;
-
-    while ((pos = fallbackDevice.find(delimiter)) != std::string::npos) {
-        deviceNames.push_back(fallbackDevice.substr(0, pos));
-        fallbackDevice.erase(0, pos + 1);
-    }
-
-    if (!fallbackDevice.empty()) deviceNames.push_back(fallbackDevice);
-
-    return deviceNames;
-}
-
-std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
-    std::vector<std::string> deviceNames;
-    auto trim_request_info = [](std::string device_with_requests) {
-        auto opening_bracket = device_with_requests.find_first_of('(');
-        return device_with_requests.substr(0, opening_bracket);
-    };
-    std::string device;
-    char delimiter = ',';
-    size_t pos = 0;
-    // in addition to the list of devices, every device can have a #requests in the brackets e.g. "CPU(100)"
-    // we skip the #requests info here
-    while ((pos = devicesList.find(delimiter)) != std::string::npos) {
-        auto d = devicesList.substr(0, pos);
-        deviceNames.push_back(trim_request_info(d));
-        devicesList.erase(0, pos + 1);
-    }
-
-    if (!devicesList.empty()) deviceNames.push_back(trim_request_info(devicesList));
-
-    return deviceNames;
-}
-
-class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
+class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
     // Fields are ordered by deletion order
-    ITaskExecutor::Ptr _taskExecutor = nullptr;
+    InferenceEngine::ITaskExecutor::Ptr _taskExecutor = nullptr;
 
-    mutable std::map<std::string, InferencePlugin> plugins;
+    mutable std::map<std::string, InferenceEngine::InferencePlugin> plugins;
 
     class CoreConfig final {
     public:
         struct CacheConfig {
             std::string                    _cacheDir;
-            std::shared_ptr<ICacheManager> _cacheManager;
+            std::shared_ptr<InferenceEngine::ICacheManager> _cacheManager;
         };
 
         void setAndUpdate(std::map<std::string, std::string>& config) {
@@ -203,7 +140,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
                 _cacheConfig._cacheDir = it->second;
                 if (!it->second.empty()) {
                     FileUtils::createDirectoryRecursive(it->second);
-                    _cacheConfig._cacheManager = std::make_shared<FileStorageCacheManager>(std::move(it->second));
+                    _cacheConfig._cacheManager = std::make_shared<InferenceEngine::FileStorageCacheManager>(std::move(it->second));
                 } else {
                     _cacheConfig._cacheManager = nullptr;
                 }
@@ -226,7 +163,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     // Core settings (cache config, etc)
     CoreConfig coreConfig;
 
-    CacheGuard cacheGuard;
+    InferenceEngine::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         FileUtils::FilePath libraryLocation;
@@ -235,7 +172,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
     };
 
     std::unordered_set<std::string> opsetNames;
-    std::vector<IExtensionPtr> extensions;
+    std::vector<InferenceEngine::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -246,7 +183,7 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return DeviceSupportsImportExport(plugin);
     }
 
-    bool DeviceSupportsImportExport(const InferencePlugin& plugin) const {
+    bool DeviceSupportsImportExport(const InferenceEngine::InferencePlugin& plugin) const {
         std::vector<std::string> supportedMetricKeys = plugin.GetMetric(METRIC_KEY(SUPPORTED_METRICS), {});
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
                             METRIC_KEY(IMPORT_EXPORT_SUPPORT));
@@ -255,11 +192,11 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return supported;
     }
 
-    bool DeviceSupportsCacheDir(const InferencePlugin& plugin) const {
+    bool DeviceSupportsCacheDir(const InferenceEngine::InferencePlugin& plugin) const {
         return DeviceSupportsConfigKey(plugin, CONFIG_KEY(CACHE_DIR));
     }
 
-    bool DeviceSupportsConfigKey(const InferencePlugin& plugin, const std::string& key) const {
+    bool DeviceSupportsConfigKey(const InferenceEngine::InferencePlugin& plugin, const std::string& key) const {
         bool supported = false;
         std::vector<std::string> supportedMetricKeys;
         try {
@@ -276,15 +213,15 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return supported;
     }
 
-    SoExecutableNetworkInternal LoadNetworkImpl(const CNNNetwork& network,
-                                                InferencePlugin& plugin,
+    InferenceEngine::SoExecutableNetworkInternal LoadNetworkImpl(const InferenceEngine::CNNNetwork& network,
+                                                InferenceEngine::InferencePlugin& plugin,
                                                 const std::map<std::string, std::string>& parsedConfig,
-                                                const RemoteContext::Ptr& context,
+                                                const InferenceEngine::RemoteContext::Ptr& context,
                                                 const std::string& blobID,
                                                 const std::string& modelPath = std::string(),
                                                 bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetworkImpl");
-        SoExecutableNetworkInternal execNetwork;
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::Impl::LoadNetworkImpl");
+        InferenceEngine::SoExecutableNetworkInternal execNetwork;
         execNetwork = context ? plugin.LoadNetwork(network, context, parsedConfig) :
                                 plugin.LoadNetwork(network, parsedConfig);
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
@@ -293,8 +230,8 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
                 // need to export network for further import from "cache"
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Export");
                 cacheManager->writeCacheEntry(blobID, [&](std::ostream& networkStream) {
-                    networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber,
-                                                        NetworkCompilationContext::calculateFileInfo(modelPath));
+                    networkStream << InferenceEngine::CompiledBlobHeader(InferenceEngine::GetInferenceEngineVersion()->buildNumber,
+                                                        InferenceEngine::NetworkCompilationContext::calculateFileInfo(modelPath));
                     execNetwork->Export(networkStream);
                 });
             } catch (...) {
@@ -305,14 +242,14 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return execNetwork;
     }
 
-    SoExecutableNetworkInternal LoadNetworkFromCache(const std::shared_ptr<ICacheManager>& cacheManager,
+    InferenceEngine::SoExecutableNetworkInternal LoadNetworkFromCache(const std::shared_ptr<InferenceEngine::ICacheManager>& cacheManager,
                                                      const std::string& blobId,
-                                                     InferencePlugin& plugin,
+                                                     InferenceEngine::InferencePlugin& plugin,
                                                      const std::map<std::string, std::string>& config,
-                                                     const RemoteContext::Ptr& context,
+                                                     const InferenceEngine::RemoteContext::Ptr& context,
                                                      bool& networkIsImported,
                                                      const std::string& modelPath = std::string()) {
-        SoExecutableNetworkInternal execNetwork;
+        InferenceEngine::SoExecutableNetworkInternal execNetwork;
         struct HeaderException {};
 
         IE_ASSERT(cacheManager != nullptr);
@@ -320,15 +257,15 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
             cacheManager->readCacheEntry(blobId, [&](std::istream &networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetworkFromCache::ReadStreamAndImport");
                 try {
-                    CompiledBlobHeader header;
+                    InferenceEngine::CompiledBlobHeader header;
                     networkStream >> header;
-                    if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
+                    if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
                         // Build number mismatch, don't use this cache
-                        throw NetworkNotRead("Version does not match");
+                        throw InferenceEngine::NetworkNotRead("Version does not match");
                     }
-                    if (header.getFileInfo() != NetworkCompilationContext::calculateFileInfo(modelPath)) {
+                    if (header.getFileInfo() != InferenceEngine::NetworkCompilationContext::calculateFileInfo(modelPath)) {
                         // Original file is changed, don't use cache
-                        throw NetworkNotRead("Original model file is changed");
+                        throw InferenceEngine::NetworkNotRead("Original model file is changed");
                     }
                 } catch (...) {
                     throw HeaderException();
@@ -352,10 +289,10 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return execNetwork;
     }
 
-    std::map<std::string, std::string> CreateCompileConfig(const InferencePlugin& plugin,
+    std::map<std::string, std::string> CreateCompileConfig(const InferenceEngine::InferencePlugin& plugin,
                                                            const std::string& deviceFamily,
                                                            const std::map<std::string, std::string>& origConfig) const {
-        std::map<std::string, Parameter> getMetricConfig;
+        std::map<std::string, InferenceEngine::Parameter> getMetricConfig;
         auto compileConfig = origConfig;
 
         // 0. Remove TARGET_FALLBACK key, move it to getMetricConfig
@@ -387,22 +324,22 @@ class Core::Impl : public ICore, public std::enable_shared_from_this<ICore> {
         return compileConfig;
     }
 
-    std::string CalculateNetworkHash(const CNNNetwork& network, const std::string& deviceFamily,
-                                     const InferencePlugin& plugin,
+    std::string CalculateNetworkHash(const InferenceEngine::CNNNetwork& network, const std::string& deviceFamily,
+                                     const InferenceEngine::InferencePlugin& plugin,
                                      const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
-        return NetworkCompilationContext::computeHash(network, compileConfig);
+        return InferenceEngine::NetworkCompilationContext::computeHash(network, compileConfig);
     }
 
     std::string CalculateFileHash(const std::string& modelName, const std::string& deviceFamily,
-                                  const InferencePlugin& plugin,
+                                  const InferenceEngine::InferencePlugin& plugin,
                                   const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
-        return NetworkCompilationContext::computeHash(modelName, compileConfig);
+        return InferenceEngine::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
 
 public:
-    Impl() {
+    CoreImpl() {
         opsetNames.insert("opset1");
         opsetNames.insert("opset2");
         opsetNames.insert("opset3");
@@ -412,7 +349,7 @@ public:
         opsetNames.insert("opset7");
     }
 
-    ~Impl() override = default;
+    ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE path
@@ -442,7 +379,7 @@ public:
 
             // append IR library path for default IE plugins
             {
-                FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
+                FileUtils::FilePath absFilePath = FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), pluginPath);
                 if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
             }
 
@@ -485,22 +422,22 @@ public:
      * @brief Returns global task executor
      * @return Reference to task executor
      */
-    ITaskExecutor::Ptr GetTaskExecutor() const override {
+    InferenceEngine::ITaskExecutor::Ptr GetTaskExecutor() const override {
         return _taskExecutor;
     }
 
-    CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
-        return details::ReadNetwork(modelPath, binPath, extensions);
+    InferenceEngine::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
+        return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
     }
 
-    CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
-        return details::ReadNetwork(model, weights, extensions);
+    InferenceEngine::CNNNetwork ReadNetwork(const std::string& model, const InferenceEngine::Blob::CPtr& weights) const override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
+        return InferenceEngine::details::ReadNetwork(model, weights, extensions);
     }
 
     // TODO: In future this method can be added to ICore interface
-    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network, const RemoteContext::Ptr& context,
+    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network, const InferenceEngine::RemoteContext::Ptr& context,
                                             const std::map<std::string, std::string>& config) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         if (context == nullptr) {
@@ -508,7 +445,7 @@ public:
         }
         auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        SoExecutableNetworkInternal res;
+        InferenceEngine::SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
@@ -524,7 +461,7 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
+    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                             const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::CNN");
@@ -535,7 +472,7 @@ public:
             parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
         }
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        SoExecutableNetworkInternal res;
+        InferenceEngine::SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (!forceDisableCache && cacheManager && DeviceSupportsImportExport(plugin)) {
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
@@ -551,13 +488,13 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
+    InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
                                             const std::string& deviceName,
                                             const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::LoadNetwork::Path");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
-        SoExecutableNetworkInternal res;
+        InferenceEngine::SoExecutableNetworkInternal res;
         auto cacheManager = coreConfig.getCacheConfig()._cacheManager;
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
@@ -578,15 +515,15 @@ public:
         return res;
     }
 
-    SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    InferenceEngine::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                               const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
-    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::QueryNetwork");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::QueryNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto res = GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
         if (!network.getFunction() || res.supportedLayersMap.empty())
@@ -611,7 +548,7 @@ public:
         return res;
     }
 
-    Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
+    InferenceEngine::Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
         // HETERO case
         {
             if (deviceName.find("HETERO:") == 0) {
@@ -651,9 +588,9 @@ public:
         for (auto&& deviceName : GetListOfDevicesInRegistry()) {
             std::vector<std::string> devicesIDs;
             try {
-                const Parameter p = GetMetric(deviceName, propertyName);
+                const InferenceEngine::Parameter p = GetMetric(deviceName, propertyName);
                 devicesIDs = p.as<std::vector<std::string>>();
-            } catch (Exception&) {
+            } catch (InferenceEngine::Exception&) {
                 // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
@@ -680,7 +617,7 @@ public:
      * @param deviceName A name of device
      * @return Reference to a CPP plugin wrapper
      */
-    InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+    InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
@@ -696,7 +633,7 @@ public:
             PluginDescriptor desc = it->second;
 
             try {
-                InferencePlugin plugin{desc.libraryLocation};
+                InferenceEngine::InferencePlugin plugin{desc.libraryLocation};
 
                 {
                     plugin.SetName(deviceName);
@@ -728,13 +665,13 @@ public:
 
                     allowNotImplemented([&]() {
                         for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
+                            plugin.AddExtension(std::make_shared<InferenceEngine::Extension>(extensionLocation));
                         }
                     });
                 }
 
                 plugins[deviceName] = plugin;
-            } catch (const Exception& ex) {
+            } catch (const InferenceEngine::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
                                    << "\n"
                                    << "Please, check your environment\n"
@@ -780,7 +717,7 @@ public:
         {
             pluginPath = FileUtils::makePluginLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
 
-            FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
+            FileUtils::FilePath absFilePath = FileUtils::makePath(InferenceEngine::getInferenceEngineLibraryPath(), pluginPath);
             if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
         }
 
@@ -855,7 +792,7 @@ public:
      * @brief Registers the extension in a Core object
      *        Such extensions can be used for both CNNNetwork readers and device plugins
      */
-    void AddExtension(const IExtensionPtr& extension) {
+    void AddExtension(const InferenceEngine::IExtensionPtr& extension) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
@@ -878,12 +815,12 @@ public:
      * @brief Provides a list of extensions
      * @return A list of registered extensions
      */
-    const std::vector<IExtensionPtr>& GetExtensions() const {
+    const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const {
         return extensions;
     }
 
-    std::map<std::string, Version> GetVersions(const std::string& deviceName) const {
-        std::map<std::string, Version> versions;
+    std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const {
+        std::map<std::string, InferenceEngine::Version> versions;
         std::vector<std::string> deviceNames;
 
         {
@@ -891,19 +828,19 @@ public:
             if (deviceName.find("HETERO") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
                 }
                 deviceNames.push_back("HETERO");
             } else if (deviceName.find("MULTI") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
                 }
                 deviceNames.push_back("MULTI");
             } else if (deviceName.find("AUTO") == 0) {
                 auto pos = deviceName.find_first_of(":");
                 if (pos != std::string::npos) {
-                    deviceNames = DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                    deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
                 }
                 deviceNames.emplace_back("AUTO");
             } else {
@@ -912,17 +849,81 @@ public:
         }
 
         for (auto&& deviceName_ : deviceNames) {
-            DeviceIDParser parser(deviceName_);
+            InferenceEngine::DeviceIDParser parser(deviceName_);
             std::string deviceNameLocal = parser.getDeviceName();
 
             InferenceEngine::InferencePlugin cppPlugin = GetCPPPluginByName(deviceNameLocal);
-            const Version version = cppPlugin.GetVersion();
+            const InferenceEngine::Version version = cppPlugin.GetVersion();
             versions[deviceNameLocal] = version;
         }
 
         return versions;
     }
 };
+
+}  // namespace
+
+
+namespace InferenceEngine {
+
+DeviceIDParser::DeviceIDParser(const std::string& deviceNameWithID) {
+    deviceName = deviceNameWithID;
+
+    auto pos = deviceName.find('.');
+    if (pos != std::string::npos) {
+        deviceName = deviceNameWithID.substr(0, pos);
+        deviceID = deviceNameWithID.substr(pos + 1, deviceNameWithID.size());
+    }
+}
+
+std::string DeviceIDParser::getDeviceID() const {
+    return deviceID;
+}
+
+std::string DeviceIDParser::getDeviceName() const {
+    return deviceName;
+}
+
+std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDevice) {
+    std::vector<std::string> deviceNames;
+
+    std::string cdevice;
+    char delimiter = ',';
+    size_t pos = 0;
+
+    while ((pos = fallbackDevice.find(delimiter)) != std::string::npos) {
+        deviceNames.push_back(fallbackDevice.substr(0, pos));
+        fallbackDevice.erase(0, pos + 1);
+    }
+
+    if (!fallbackDevice.empty()) deviceNames.push_back(fallbackDevice);
+
+    return deviceNames;
+}
+
+std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
+    std::vector<std::string> deviceNames;
+    auto trim_request_info = [](std::string device_with_requests) {
+        auto opening_bracket = device_with_requests.find_first_of('(');
+        return device_with_requests.substr(0, opening_bracket);
+    };
+    std::string device;
+    char delimiter = ',';
+    size_t pos = 0;
+    // in addition to the list of devices, every device can have a #requests in the brackets e.g. "CPU(100)"
+    // we skip the #requests info here
+    while ((pos = devicesList.find(delimiter)) != std::string::npos) {
+        auto d = devicesList.substr(0, pos);
+        deviceNames.push_back(trim_request_info(d));
+        devicesList.erase(0, pos + 1);
+    }
+
+    if (!devicesList.empty()) deviceNames.push_back(trim_request_info(devicesList));
+
+    return deviceNames;
+}
+
+class Core::Impl : public CoreImpl {};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1022,7 +1023,7 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
     return { exec, exec };
@@ -1030,13 +1031,13 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName, const st
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
     return { exec, exec };
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
 
     using ExportMagic = std::array<char, 4>;
     constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
@@ -1060,7 +1061,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -1175,7 +1176,7 @@ void Core::UnregisterPlugin(const std::string& deviceName_) {
 namespace ov {
 namespace runtime {
 
-class Core::Impl: public InferenceEngine::Core::Impl {};
+class Core::Impl: public CoreImpl {};
 
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
@@ -1222,7 +1223,7 @@ void Core::add_extension(const InferenceEngine::IExtensionPtr& extension) {
 
 InferenceEngine::ExecutableNetwork Core::import_model(const std::string& modelFileName,
                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).ImportNetwork(modelFileName, parsed._config);
     return { exec, exec };
@@ -1230,14 +1231,14 @@ InferenceEngine::ExecutableNetwork Core::import_model(const std::string& modelFi
 
 InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel,
                                                       const std::string& deviceName, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
     return { exec, exec };
 }
 
 InferenceEngine::ExecutableNetwork Core::import_model(std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
                                                       const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::import_model");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
     using ExportMagic = std::array<char, 4>;
     constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
@@ -1342,7 +1343,7 @@ void Core::register_plugin(const std::string& pluginName, const std::string& dev
     _impl->RegisterPluginByName(pluginName, deviceName);
 }
 
-void Core::unregister_plugin(const std::string& deviceName) {
+void Core::unload_plugin(const std::string& deviceName) {
     InferenceEngine::DeviceIDParser parser(deviceName);
     std::string devName = parser.getDeviceName();
 

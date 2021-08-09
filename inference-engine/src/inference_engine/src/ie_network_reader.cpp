@@ -67,7 +67,7 @@ public:
     using Ptr = std::shared_ptr<Reader>;
     Reader(const std::string& name, const std::string location): name(name), location(location) {}
     bool supportModel(std::istream& model) const override {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Reader::supportModel");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Reader::supportModel");
         auto reader = getReaderPtr();
         return reader->supportModel(model);
     }
@@ -94,7 +94,7 @@ namespace {
 std::multimap<std::string, Reader::Ptr> readers;
 
 void registerReaders() {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "registerReaders");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
@@ -212,7 +212,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                 Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, { fileSize }, C });
 
                 {
-                    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_RT, "ReadNetworkWeights");
+                    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ReadNetworkWeights");
                     weights->allocate();
                     binStream.read(weights->buffer(), fileSize);
                     binStream.close();

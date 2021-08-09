@@ -21,12 +21,6 @@
 #include "ie_remote_context.hpp"
 #include "cpp/ie_executable_network.hpp"
 
-
-namespace ov {
-namespace runtime {
-class Core;
-}  // namespace runtime
-}  // namespace ov
 namespace InferenceEngine {
 
 /**
@@ -37,8 +31,6 @@ namespace InferenceEngine {
 class INFERENCE_ENGINE_API_CLASS(Core) {
     class Impl;
     std::shared_ptr<Impl> _impl;
-
-    friend class ov::runtime::Core;
 
 public:
     /** @brief Constructs Inference Engine Core instance using XML configuration file with
@@ -97,7 +89,7 @@ public:
      * For ONNX case the second parameter should contain empty blob.
      * @note Created InferenceEngine::CNNNetwork object shares the weights with `weights` object.
      * So, do not create `weights` on temporary data which can be later freed, since the network
-     * constant datas become to point to invalid memory.
+     * constant data become to point to invalid memory.
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const;

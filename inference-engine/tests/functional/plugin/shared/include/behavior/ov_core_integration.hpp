@@ -337,29 +337,29 @@ TEST_P(OVClassBasicTestP, unregisterExistingPluginNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
     // device instance is not created yet
-    ASSERT_THROW(ie.unregister_plugin(deviceName), Exception);
+    ASSERT_THROW(ie.unload_plugin(deviceName), Exception);
 
     // make the first call to IE which created device instance
     ie.get_versions(deviceName);
     // now, we can unregister device
-    ASSERT_NO_THROW(ie.unregister_plugin(deviceName));
+    ASSERT_NO_THROW(ie.unload_plugin(deviceName));
 }
 
 TEST_P(OVClassBasicTestP, accessToUnregisteredPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.unregister_plugin(deviceName), Exception);
+    ASSERT_THROW(ie.unload_plugin(deviceName), Exception);
     ASSERT_NO_THROW(ie.get_versions(deviceName));
-    ASSERT_NO_THROW(ie.unregister_plugin(deviceName));
+    ASSERT_NO_THROW(ie.unload_plugin(deviceName));
     ASSERT_NO_THROW(ie.set_config({}, deviceName));
     ASSERT_NO_THROW(ie.get_versions(deviceName));
-    ASSERT_NO_THROW(ie.unregister_plugin(deviceName));
+    ASSERT_NO_THROW(ie.unload_plugin(deviceName));
 }
 
 TEST(OVClassBasicTest, smoke_unregisterNonExistingPluginThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::runtime::Core ie = createCoreWithTemplate();
-    ASSERT_THROW(ie.unregister_plugin("unkown_device"), Exception);
+    ASSERT_THROW(ie.unload_plugin("unkown_device"), Exception);
 }
 
 //

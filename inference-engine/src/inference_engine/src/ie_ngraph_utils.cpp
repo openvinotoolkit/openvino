@@ -10,7 +10,7 @@ namespace InferenceEngine {
 namespace details {
 
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "cloneNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "cloneNetwork");
 
     if (network.getFunction()) {
         IE_SUPPRESS_DEPRECATED_START
