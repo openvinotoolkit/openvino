@@ -55,7 +55,7 @@ class Unsqueeze(Op):
         for dim in unsqueeze_dims:
             output_shape = shape_insert(output_shape, dim, 1)
 
-        if is_fully_defined(input_value) and is_fully_defined(output_shape):
+        if input_value is not None and is_fully_defined(output_shape):
             node.out_port(0).data.set_value(input_value.reshape(output_shape))
         else:
             node.out_port(0).data.set_shape(output_shape)
