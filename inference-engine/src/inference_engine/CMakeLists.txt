@@ -152,6 +152,9 @@ add_library(${TARGET_NAME} SHARED
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino")
+
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
