@@ -45,6 +45,10 @@ set(ngraph_ngraph_FOUND ON)
 set(NGRAPH_LIBRARIES ngraph::ngraph)
 
 set(ngraph_onnx_ngraph_frontend_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
+if (ngraph_onnx_ngraph_frontend_FOUND AND NOT TARGET onnx_ngraph_frontend AND NOT TARGET ngraph::onnx_importer)
+    set_target_properties(ngraph::onnx_ngraph_frontend PROPERTIES IMPORTED_GLOBAL TRUE)
+    add_library(ngraph::onnx_importer ALIAS ngraph::onnx_ngraph_frontend)
+endif()
 set(ngraph_paddlepaddle_frontend_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
 
 check_required_components(ngraph)
