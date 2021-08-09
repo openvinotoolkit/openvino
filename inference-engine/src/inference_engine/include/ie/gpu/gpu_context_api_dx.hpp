@@ -50,8 +50,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
  * which is shared with Direct3D 11 buffer.
- * The plugin object derived from this class can be obtained with CreateBlob()
- * call.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL buffer handle from this class.
  */
 class D3DBufferBlob : public ClBufferBlob {
@@ -62,8 +61,7 @@ public:
     using Ptr = std::shared_ptr<D3DBufferBlob>;
 
     /**
-     * @brief Creates a D3DBufferBlob object with the specified dimensions and
-     * layout.
+     * @brief Creates a D3DBufferBlob object with the specified dimensions and layout.
      * @param tensorDesc Tensor description
      */
     explicit D3DBufferBlob(const TensorDesc& tensorDesc) : ClBufferBlob(tensorDesc) {}
@@ -83,8 +81,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
  * which is shared with Direct3D 11 2D texture.
- * The plugin object derived from this class can be obtained with CreateBlob()
- * call.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
 class D3DSurface2DBlob : public ClImage2DBlob {
@@ -95,8 +92,7 @@ public:
     using Ptr = std::shared_ptr<D3DSurface2DBlob>;
 
     /**
-     * @brief Creates a D3DSurface2DBlob object with the specified dimensions and
-     * layout.
+     * @brief Creates a D3DSurface2DBlob object with the specified dimensions and layout.
      * @param tensorDesc Tensor description
      */
     explicit D3DSurface2DBlob(const TensorDesc& tensorDesc) : ClImage2DBlob(tensorDesc) {}
@@ -113,8 +109,7 @@ public:
     }
 
     /**
-     * @brief Returns plane ID of underlying video decoder surface, or 0 if no
-     * video surface was shared.
+     * @brief Returns plane ID of underlying video decoder surface, or 0 if no video surface was shared.
      * @return Plane ID
      */
     uint32_t plane() {
@@ -126,9 +121,8 @@ public:
 };
 
 /**
- * @brief This function is used to obtain a NV12 compound blob object from NV12
- * DXGI video decoder output. The resulting compound contains two remote blobs
- * for Y and UV planes of the surface.
+ * @brief This function is used to obtain a NV12 compound blob object from NV12 DXGI video decoder output.
+ * The resulting compound contains two remote blobs for Y and UV planes of the surface.
  * @param height Height of Y plane
  * @param width Widht of Y plane
  * @param ctx A pointer to remote context
@@ -156,8 +150,7 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
 }
 
 /**
- * @brief This function is used to obtain remote context object from
- * ID3D11Device
+ * @brief This function is used to obtain remote context object from ID3D11Device
  * @param core Inference Engine Core object instance
  * @param deviceName A name of to create a remote context for
  * @param device A pointer to ID3D11Device to be used to create a remote context
@@ -177,8 +170,7 @@ static inline D3DContext::Ptr make_shared_context(Core& core, std::string device
  * @brief This function is used to obtain remote blob object from ID3D11Buffer
  * @param desc A tensor description which describes blob configuration
  * @param ctx A shared pointer to a remote context
- * @param buffer A pointer to ID3D11Buffer instance to create remote blob based
- * on
+ * @param buffer A pointer to ID3D11Buffer instance to create remote blob based on
  * @return A remote blob instance
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, ID3D11Buffer* buffer) {
@@ -193,17 +185,13 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 }
 
 /**
- * @brief This function is used to obtain remote blob object from
- * ID3D11Texture2D
+ * @brief This function is used to obtain remote blob object from ID3D11Texture2D
  * @param desc Tensor description
- * @param ctx the RemoteContext object whuch owns context for the blob to be
- * created
- * @param surface Pointer to ID3D11Texture2D interface of the objects that owns
- * NV12 texture
+ * @param ctx the RemoteContext object whuch owns context for the blob to be created
+ * @param surface Pointer to ID3D11Texture2D interface of the objects that owns NV12 texture
  * @param plane ID of the plane to be shared (0 or 1)
  * @return Smart pointer to created RemoteBlob object cast to base class
- * @note The underlying ID3D11Texture2D can also be a plane of output surface of
- * DXGI video decoder
+ * @note The underlying ID3D11Texture2D can also be a plane of output surface of DXGI video decoder
  */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
                                          RemoteContext::Ptr ctx,

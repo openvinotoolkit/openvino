@@ -25,8 +25,7 @@
 namespace InferenceEngine {
 
 /**
- * @brief This class contains all the information about the Neural Network and
- * the related binary information
+ * @brief This class contains all the information about the Neural Network and the related binary information
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetwork) {
 public:
@@ -49,42 +48,37 @@ public:
     /**
      * @brief A constructor from ngraph::Function object
      * This constructor wraps existing ngraph::Function
-     * If you want to avoid modification of original Function, please create a
-     * copy
+     * If you want to avoid modification of original Function, please create a copy
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network, const std::vector<IExtensionPtr>& exts = {});
 
     /**
-     * @brief Gets the network output Data node information. The received info is
-     * stored in the given Data node.
+     * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.
      *
-     * This method need to be called to find out OpenVINO output names for using
-     * them later when calling InferenceEngine::InferRequest::GetBlob or
-     * InferenceEngine::InferRequest::SetBlob
+     * This method need to be called to find out OpenVINO output names for using them later
+     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use
-     * InferenceEngine::CNNNetwork::getOVNameForTensor method to map framework
-     * names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::CNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @return the InferenceEngine::OutputsDataMap object
      */
     OutputsDataMap getOutputsInfo() const;
 
     /**
-     * @brief Gets the network input Data node information. The received info is
-     * stored in the given InputsDataMap object.
+     * @brief Gets the network input Data node information. The received info is stored in the given InputsDataMap
+     * object.
      *
      * For single and multiple inputs networks.
-     * This method need to be called to find out OpenVINO input names for using
-     * them later when calling InferenceEngine::InferRequest::SetBlob
+     * This method need to be called to find out OpenVINO input names for using them later
+     * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use
-     * InferenceEngine::ICNNNetwork::getOVNameForTensor method to map framework
-     * names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @return The InferenceEngine::InputsDataMap object.
      */
@@ -105,24 +99,20 @@ public:
     /**
      * @brief Changes the inference batch size.
      *
-     * @note There are several limitations and it's not recommended to use it. Set
-     * batch to the input shape and call InferenceEngine::CNNNetwork::reshape.
+     * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call
+     * InferenceEngine::CNNNetwork::reshape.
      *
      * @param size Size of batch to set
      *
-     * @note Current implementation of the function sets batch size to the first
-     * dimension of all layers in the networks. Before calling it make sure that
-     * all your layers have batch in the first dimension, otherwise the method
-     * works incorrectly. This limitation is resolved via shape inference feature
-     * by using InferenceEngine::ICNNNetwork::reshape method. To read more refer
-     * to the Shape Inference section in documentation
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
+     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
+     * method works incorrectly. This limitation is resolved via shape inference feature by using
+     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
      *
-     * @note Current implementation of the function sets batch size to the first
-     * dimension of all layers in the networks. Before calling it make sure that
-     * all your layers have batch in the first dimension, otherwise the method
-     * works incorrectly. This limitation is resolved via shape inference feature
-     * by using InferenceEngine::ICNNNetwork::reshape method. To read more refer
-     * to the Shape Inference section in documentation
+     * @note Current implementation of the function sets batch size to the first dimension of all layers in the
+     * networks. Before calling it make sure that all your layers have batch in the first dimension, otherwise the
+     * method works incorrectly. This limitation is resolved via shape inference feature by using
+     * InferenceEngine::ICNNNetwork::reshape method. To read more refer to the Shape Inference section in documentation
      */
     void setBatchSize(const size_t size);
 
@@ -182,16 +172,14 @@ public:
 
     IE_SUPPRESS_DEPRECATED_START
     /**
-     * @brief Helper method to get collect all input shapes with names of
-     * corresponding Data objects
+     * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      * @return Map of pairs: input name and its dimension.
      */
     ICNNNetwork::InputShapes getInputShapes() const;
 
     /**
      * @brief Run shape inference with new input shapes for the network
-     * @param inputShapes A map of pairs: name of corresponding data and its
-     * dimension.
+     * @param inputShapes A map of pairs: name of corresponding data and its dimension.
      */
     void reshape(const ICNNNetwork::InputShapes& inputShapes);
     IE_SUPPRESS_DEPRECATED_END
@@ -200,8 +188,8 @@ public:
      * @brief Serialize network to IR and weights files.
      *
      * @param xmlPath Path to output IR file.
-     * @param binPath Path to output weights file. The parameter is skipped in
-     * case of executable graph info serialization.
+     * @param binPath Path to output weights file. The parameter is skipped in case
+     * of executable graph info serialization.
      */
     void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
 

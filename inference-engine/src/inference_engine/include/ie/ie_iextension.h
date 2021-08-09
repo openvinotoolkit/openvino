@@ -47,8 +47,8 @@ struct DataConfig {
      */
     int inPlace = -1;
     /**
-     * @brief Flag for determination of the constant memory. If layer contains all
-     * constant memory we can calculate it on the load stage.
+     * @brief Flag for determination of the constant memory. If layer contains all constant memory we can calculate it
+     * on the load stage.
      */
     bool constant = false;
 };
@@ -91,8 +91,7 @@ public:
 
 /**
  * @interface ILayerExecImpl
- * @brief This class provides interface for the implementation with the custom
- * execution code
+ * @brief This class provides interface for the implementation with the custom execution code
  */
 class INFERENCE_ENGINE_API_CLASS(ILayerExecImpl) : public ILayerImpl {
 public:
@@ -185,8 +184,8 @@ public:
     /**
      * @brief Implements deprecated API
      */
-    INFERENCE_ENGINE_DEPRECATED("Do not override or use this method. Use "
-                                "IE_DEFINE_EXTENSION_CREATE_FUNCTION to export extension")
+    INFERENCE_ENGINE_DEPRECATED(
+        "Do not override or use this method. Use IE_DEFINE_EXTENSION_CREATE_FUNCTION to export extension")
     virtual void Release() noexcept {
         delete this;
     }
@@ -212,8 +211,7 @@ INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
  * @brief Creates the default instance of the extension
  * @param ext Extension interface
  * @param resp Responce
- * @return InferenceEngine::OK if extension is constructed and
- * InferenceEngine::GENERAL_ERROR otherwise
+ * @return InferenceEngine::OK if extension is constructed and InferenceEngine::GENERAL_ERROR otherwise
  */
 #if defined(_WIN32)
 INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro")
@@ -221,9 +219,8 @@ INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
 INFERENCE_EXTENSION_API(StatusCode)
-CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED("Use "
-                                                                                           "IE_DEFINE_EXTENSION_"
-                                                                                           "CREATE_FUNCTION macro");
+CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
+    "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
 
 /**

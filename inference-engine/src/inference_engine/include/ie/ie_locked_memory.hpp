@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file for generic LockedMemory<> and different variations of
- * locks
+ * @brief A header file for generic LockedMemory<> and different variations of locks
  *
  * @file ie_locked_memory.hpp
  */
@@ -76,8 +75,7 @@ protected:
      * @brief Compares referenced values
      *
      * @param pointer Pointer to the object to compare with
-     * @return True if all handlers are nullptr or referenced values are equal,
-     * false otherwise
+     * @return True if all handlers are nullptr or referenced values are equal, false otherwise
      */
     bool isEqualTo(const T* pointer) const {
         if (pointer == nullptr && (_allocator == nullptr || _handle == nullptr)) {
@@ -89,8 +87,7 @@ protected:
     /**
      * @brief Gets the locked object.
      *
-     * Locks the handler and casts memory to the object of the given template
-     * type.
+     * Locks the handler and casts memory to the object of the given template type.
      *
      * @return The pointer to the locked object, nullptr otherwise
      */

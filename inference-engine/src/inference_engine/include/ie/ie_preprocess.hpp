@@ -3,8 +3,8 @@
 //
 
 /**
- * @brief This header file provides structures to store info about
- * pre-processing of network inputs (scale, mean image, ...)
+ * @brief This header file provides structures to store info about pre-processing of
+ * network inputs (scale, mean image, ...)
  *
  * @file ie_preprocess.hpp
  */
@@ -18,8 +18,7 @@
 namespace InferenceEngine {
 
 /**
- * @brief This structure stores info about pre-processing of network inputs
- * (scale, mean image, ...)
+ * @brief This structure stores info about pre-processing of network inputs (scale, mean image, ...)
  */
 struct PreProcessChannel {
     /** @brief Scale parameter for a channel */
@@ -61,8 +60,7 @@ class PreProcessInfo {
     // Resize Algorithm to be applied for input before inference if needed.
     ResizeAlgorithm _resizeAlg = NO_RESIZE;
 
-    // Color format to be used in on-demand color conversions applied to input
-    // before inference
+    // Color format to be used in on-demand color conversions applied to input before inference
     ColorFormat _colorFormat = ColorFormat::RAW;
 
 public:
@@ -85,8 +83,7 @@ public:
     }
 
     /**
-     * @brief operator [] to safely get the channel preprocessing information by
-     * index.
+     * @brief operator [] to safely get the channel preprocessing information by index.
      *
      * Throws exception if channels are empty or index is out of border
      *
@@ -156,8 +153,7 @@ public:
         if (meanImage.get() == nullptr) {
             IE_THROW() << "Failed to set invalid mean image for channel: nullptr";
         } else if (meanImage.get()->getTensorDesc().getDims().size() != 2) {
-            IE_THROW() << "Failed to set invalid mean image for channel: number of "
-                          "dimensions != 2";
+            IE_THROW() << "Failed to set invalid mean image for channel: number of dimensions != 2";
         } else if (channel >= _channelsInfo.size()) {
             IE_THROW() << "Channel " << channel << " exceed number of PreProcess channels: " << _channelsInfo.size();
         }
@@ -205,8 +201,8 @@ public:
      * @brief Changes the color format of the input data provided by the user
      *
      * This function should be called before loading the network to the plugin
-     * Setting color format different from ColorFormat::RAW enables automatic
-     * color conversion (as a part of built-in preprocessing routine)
+     * Setting color format different from ColorFormat::RAW enables automatic color conversion
+     * (as a part of built-in preprocessing routine)
      *
      * @param fmt A new color format associated with the input
      */

@@ -20,8 +20,8 @@ namespace InferenceEngine {
 class RemoteContext;
 
 /**
- * @brief This class represents an Inference Engine abstraction to the memory
- * allocated on the remote (non-CPU) accelerator device
+ * @brief This class represents an Inference Engine abstraction to the memory allocated
+ * on the remote (non-CPU) accelerator device
  */
 class RemoteBlob : public MemoryBlob {
 public:
@@ -41,8 +41,7 @@ public:
     virtual ~RemoteBlob() = default;
 
     /**
-     * @brief Constructor. Creates an empty RemoteBlob object with the specified
-     * precision.
+     * @brief Constructor. Creates an empty RemoteBlob object with the specified precision.
      * @param tensorDesc Defines the layout and dims of the blob
      */
     explicit RemoteBlob(const TensorDesc& tensorDesc) : MemoryBlob(tensorDesc) {}
@@ -51,8 +50,9 @@ public:
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context/surface/buffer handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that
-     * is currently set on the device (working scenario). Abstract method.
+     * etc. Contents of the map returned depend on remote execution context that is
+     * currently set on the device (working scenario).
+     * Abstract method.
      * @return A map of name/parameter elements.
      */
     virtual ParamMap getParams() const = 0;
@@ -67,9 +67,8 @@ public:
     /**
      * @brief Returns device context which underlying object belongs to.
      * Abstract method.
-     * @return Pointer to plugin-specific context class object, which is derived
-     * from RemoteContext. Dynamic casting should be used if it is necessary to
-     * retrieve a pointer to original class.
+     * @return Pointer to plugin-specific context class object, which is derived from RemoteContext.
+     * Dynamic casting should be used if it is necessary to retrieve a pointer to original class.
      */
     virtual std::shared_ptr<RemoteContext> getContext() const noexcept = 0;
 };
@@ -100,10 +99,8 @@ public:
     /**
      * @brief Checks if the RemoteContext object can be cast to the type T*
      *
-     * @tparam T Type to be checked. Must represent a class derived from the
-     * RemoteContext
-     * @return true if this object can be dynamically cast to the type T*.
-     * Otherwise, false
+     * @tparam T Type to be checked. Must represent a class derived from the RemoteContext
+     * @return true if this object can be dynamically cast to the type T*. Otherwise, false
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
@@ -115,10 +112,8 @@ public:
     /**
      * @brief Checks if the RemoteContext object can be cast to the type const T*
      *
-     * @tparam T Type to be checked. Must represent a class derived from the
-     * RemoteContext
-     * @return true if this object can be dynamically cast to the type const T*.
-     * Otherwise, false
+     * @tparam T Type to be checked. Must represent a class derived from the RemoteContext
+     * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T,
               typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
@@ -130,8 +125,7 @@ public:
     /**
      * @brief Casts this RemoteContext object to the type T*.
      *
-     * @tparam T Type to cast to. Must represent a class derived from the
-     * RemoteContext
+     * @tparam T Type to cast to. Must represent a class derived from the RemoteContext
      * @return Raw pointer to the object of the type T or nullptr on error
      */
     template <typename T,
@@ -144,8 +138,7 @@ public:
     /**
      * @brief Casts this RemoteContext object to the type const T*.
      *
-     * @tparam T Type to cast to. Must represent a class derived from the
-     * RemoteContext
+     * @tparam T Type to cast to. Must represent a class derived from the RemoteContext
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
     template <typename T,
@@ -163,10 +156,9 @@ public:
     virtual std::string getDeviceName() const noexcept = 0;
 
     /**
-     * @brief Allocates memory blob in device memory or wraps user-supplied memory
-     * handle using the specified tensor description and low-level device-specific
-     * parameters. Returns a pointer to the object which implements RemoteBlob
-     * interface.
+     * @brief Allocates memory blob in device memory or wraps user-supplied memory handle
+     * using the specified tensor description and low-level device-specific parameters.
+     * Returns a pointer to the object which implements RemoteBlob interface.
      * @param tensorDesc Defines the layout and dims of the blob
      * @param params Map of the low-level blob object parameters.
      * Abstract method.
@@ -178,16 +170,17 @@ public:
      * @brief Returns a map of device-specific parameters required for low-level
      * operations with underlying object.
      * Parameters include device/context handles, access flags,
-     * etc. Contents of the map returned depend on remote execution context that
-     * is currently set on the device (working scenario). Abstract method.
+     * etc. Contents of the map returned depend on remote execution context that is
+     * currently set on the device (working scenario).
+     * Abstract method.
      * @return A map of name/parameter elements.
      */
     virtual ParamMap getParams() const = 0;
 };
 
 /**
- * @brief A wrapper of CreateBlob method of RemoteContext to keep consistency
- * with plugin-specific wrappers.
+ * @brief A wrapper of CreateBlob method of RemoteContext to keep consistency with
+ * plugin-specific wrappers.
  * @param desc Defines the layout and dims of the blob
  * @param ctx Pointer to the plugin object derived from RemoteContext.
  * @return A pointer to plugin object that implements RemoteBlob interface.

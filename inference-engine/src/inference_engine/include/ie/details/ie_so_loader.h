@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file for definition of abstraction over platform specific
- * shared objects
+ * @brief A header file for definition of abstraction over platform specific shared objects
  *
  * @file ie_so_loader.h
  */

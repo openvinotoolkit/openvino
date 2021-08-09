@@ -5,8 +5,7 @@
 /**
  * @brief A header that defines common config subset for VPU plugins.
  * Include myriad_config.hpp or hddl_config.hpp directly.
- * These properties should be used in SetConfig() and LoadNetwork() methods of
- * plugins
+ * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
  * @file vpu_config.hpp
  */
@@ -35,16 +34,16 @@ namespace InferenceEngine {
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_HW_ACCELERATION);
 
 /**
- * @brief The flag for adding to the profiling information the time of obtaining
- * a tensor. The only possible values are: CONFIG_VALUE(YES) CONFIG_VALUE(NO)
- * (default value)
+ * @brief The flag for adding to the profiling information the time of obtaining a tensor.
+ * The only possible values are:
+ *     CONFIG_VALUE(YES)
+ *     CONFIG_VALUE(NO) (default value)
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
 
 /**
  * @brief This option allows to pass custom layers binding xml.
- * If layer is present in such an xml, it would be used during inference even if
- * the layer is natively supported
+ * If layer is present in such an xml, it would be used during inference even if the layer is natively supported
  */
 DECLARE_VPU_CONFIG(MYRIAD_CUSTOM_LAYERS);
 

@@ -26,8 +26,8 @@ class BlobIterator {
 
 public:
     /**
-     * @brief A move constructor to create a BlobIterator instance from a
-     * LockedMemory instance. Explicitly rejects implicit conversions.
+     * @brief A move constructor to create a BlobIterator instance from a LockedMemory instance.
+     * Explicitly rejects implicit conversions.
      * @param lk Rvalue of the memory instance to move from
      * @param offset Size of offset in memory
      */
@@ -44,8 +44,7 @@ public:
 
     /**
      * @brief An overloaded postfix incrementation operator
-     * Implementation does not follow std interface since only move semantics is
-     * used
+     * Implementation does not follow std interface since only move semantics is used
      */
     void operator++(int) {
         _offset++;
@@ -54,8 +53,7 @@ public:
     /**
      * @brief Checks if the given iterator is not equal to the current one
      * @param that Iterator to compare with
-     * @return true if the given iterator is not equal to the current one, false -
-     * otherwise
+     * @return true if the given iterator is not equal to the current one, false - otherwise
      */
     bool operator!=(const BlobIterator& that) const {
         return !operator==(that);
@@ -79,8 +77,7 @@ public:
     /**
      * @brief Compares the given iterator with the current one
      * @param that Iterator to compare with
-     * @return true if the given iterator is equal to the current one, false -
-     * otherwise
+     * @return true if the given iterator is equal to the current one, false - otherwise
      */
     bool operator==(const BlobIterator& that) const {
         return &operator*() == &that.operator*();

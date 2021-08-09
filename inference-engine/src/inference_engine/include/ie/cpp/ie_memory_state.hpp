@@ -31,8 +31,8 @@ class INFERENCE_ENGINE_API_CLASS(VariableState) {
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr
      * @param impl Initialized shared pointer
-     * @param so Optional: Plugin to use. This is required to ensure that
-     * VariableState can work properly even if plugin object is destroyed.
+     * @param so Optional: Plugin to use. This is required to ensure that VariableState can work properly even if plugin
+     * object is destroyed.
      */
     VariableState(const details::SharedObjectLoader& so, const std::shared_ptr<IVariableStateInternal>& impl);
     friend class InferRequest;
@@ -51,9 +51,8 @@ public:
     void Reset();
 
     /**
-     * @brief Gets name of current variable state, if length of array is not
-     * enough name is truncated by len, null terminator is inserted as well. As
-     * variable state name `variable_id` from according `ReadValue` used.
+     * @brief Gets name of current variable state, if length of array is not enough name is truncated by len, null
+     * terminator is inserted as well. As variable state name `variable_id` from according `ReadValue` used.
      * @return A string representing a state name
      */
     std::string GetName() const;

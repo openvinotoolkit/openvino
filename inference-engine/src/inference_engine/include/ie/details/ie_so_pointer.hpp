@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief This is a wrapper class for handling plugin instantiation and
- * releasing resources
+ * @brief This is a wrapper class for handling plugin instantiation and releasing resources
  * @file ie_so_pointer.hpp
  */
 #pragma once
@@ -21,8 +20,8 @@
 namespace InferenceEngine {
 namespace details {
 /**
- * @brief This class is a trait class that provides a creator with a function
- * name corresponding to the templated class parameter
+ * @brief This class is a trait class that provides a creator with a function name corresponding to the templated class
+ * parameter
  */
 template <class T>
 class SOCreatorTrait {};
@@ -85,8 +84,7 @@ public:
     }
 
     /**
-     * @brief The copy-like constructor, can create So Pointer that dereferenced
-     * into child type if T is derived of U
+     * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
      * @param that copied SOPointer object
      */
     template <typename U>
@@ -130,8 +128,7 @@ public:
 
 protected:
     /**
-     * @brief Implements load of object from library if Release method is
-     * presented
+     * @brief Implements load of object from library if Release method is presented
      */
     void Load(std::true_type) {
         try {

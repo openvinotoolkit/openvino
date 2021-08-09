@@ -25,8 +25,7 @@ class PreAllocator final : public IAllocator {
 public:
     PreAllocator(void* ptr, size_t bytes_size) : _actualData(ptr), _sizeInBytes(bytes_size) {}
     /**
-     * @brief Locks a handle to heap memory accessible by any memory manipulation
-     * routines
+     * @brief Locks a handle to heap memory accessible by any memory manipulation routines
      * @return The generic pointer to a memory buffer
      */
     void* lock(void* handle, LockOp = LOCK_FOR_WRITE) noexcept override {

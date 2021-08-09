@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file that defines a wrapper class for handling extension
- * instantiation and releasing resources
+ * @brief A header file that defines a wrapper class for handling extension instantiation and releasing resources
  *
  * @file ie_extension.h
  */
@@ -23,8 +22,8 @@ namespace InferenceEngine {
 namespace details {
 
 /**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines
- * the name of the fabric method for creating IExtension object in DLL
+ * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
+ * creating IExtension object in DLL
  */
 template <>
 class SOCreatorTrait<IExtension> {
@@ -38,8 +37,7 @@ public:
 }  // namespace details
 
 /**
- * @brief This class is a C++ helper to work with objects created using
- * extensions.
+ * @brief This class is a C++ helper to work with objects created using extensions.
  */
 class INFERENCE_ENGINE_API_CLASS(Extension) final : public IExtension {
 public:

@@ -19,8 +19,8 @@ namespace InferenceEngine {
 /**
  * @brief This class represents a blob that contains other blobs
  *
- * Compound blob is a wrapper blob over references to underlying blobs. These
- * blobs should share some properties and can be grouped into a single entity.
+ * Compound blob is a wrapper blob over references to underlying blobs. These blobs should share
+ * some properties and can be grouped into a single entity.
  */
 class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
 public:
@@ -61,14 +61,12 @@ public:
     size_t element_size() const noexcept override;
 
     /**
-     * @brief No operation is performed. Compound blob does not
-     * allocate/deallocate any data
+     * @brief No operation is performed. Compound blob does not allocate/deallocate any data
      */
     void allocate() noexcept override;
 
     /**
-     * @brief No operation is performed. Compound blob does not
-     * allocate/deallocate any data
+     * @brief No operation is performed. Compound blob does not allocate/deallocate any data
      * @return Returns `false`
      */
     bool deallocate() noexcept override;
@@ -95,8 +93,7 @@ public:
      * @brief Returns an underlying blob at index i
      *
      * @param i the index of the underlying Blob object
-     * @return A smart pointer to the underlying Blob object or nullptr in case of
-     * an error
+     * @return A smart pointer to the underlying Blob object or nullptr in case of an error
      */
     virtual Blob::Ptr getBlob(size_t i) const noexcept;
 
@@ -119,8 +116,7 @@ protected:
 };
 
 /**
- * @brief Represents a blob that contains two planes (Y and UV) in NV12 color
- * format
+ * @brief Represents a blob that contains two planes (Y and UV) in NV12 color format
  */
 class INFERENCE_ENGINE_API_CLASS(NV12Blob) : public CompoundBlob {
 public:
@@ -178,8 +174,7 @@ public:
 };
 
 /**
- * @brief Represents a blob that contains three planes (Y,U and V) in I420 color
- * format
+ * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
  */
 class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
 public:
@@ -212,8 +207,8 @@ public:
     /**
      * @brief Returns a reference to shared pointer to Y plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return reference to shared pointer object of Y plane
      */
@@ -222,8 +217,8 @@ public:
     /**
      * @brief Returns a constant reference to shared pointer to Y plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return constant reference to shared pointer object of Y plane*
      */
@@ -232,8 +227,8 @@ public:
     /**
      * @brief Returns a reference to shared pointer to U plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return reference to shared pointer object of U plane
      */
@@ -242,8 +237,8 @@ public:
     /**
      * @brief Returns a constant reference to shared pointer to U plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return constant reference to shared pointer object of U plane
      */
@@ -252,8 +247,8 @@ public:
     /**
      * @brief Returns a reference to shared pointer to V plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return reference to shared pointer object of V plane
      */
@@ -262,8 +257,8 @@ public:
     /**
      * @brief Returns a constant reference to shared pointer to V plane
      *
-     * Please note that reference to Blob::Ptr is returned. I.e. the reference
-     * will be valid until the I420Blob object is destroyed.
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
      *
      * @return constant reference to shared pointer object of V plane
      */
@@ -293,8 +288,7 @@ public:
      * @brief Constructs a batched blob from a vector of blobs
      * @details All passed blobs should meet following requirements:
      * - all blobs have equal tensor descriptors,
-     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW,
-     * HWC
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW, HWC
      * - batch dimensions should be equal to 1 or not defined (C, CHW, HWC).
      * Resulting blob's tensor descriptor is constructed using tensor descriptors
      * of passed blobs by setting batch dimension to blobs.size()
@@ -307,8 +301,7 @@ public:
      * @brief Constructs a batched blob from a vector of blobs
      * @details All passed blobs should meet following requirements:
      * - all blobs have equal tensor descriptors,
-     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW,
-     * HWC
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW, HWC
      * - batch dimensions should be equal to 1 or not defined (C, CHW, HWC).
      * Resulting blob's tensor descriptor is constructed using tensor descriptors
      * of passed blobs by setting batch dimension to blobs.size()

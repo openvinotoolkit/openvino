@@ -3,13 +3,11 @@
 //
 
 /**
- * @brief Contains declarations and definitions for sequential and
- * multi-threading implementations.
+ * @brief Contains declarations and definitions for sequential and multi-threading implementations.
  *
- * Multi-threading support is implemented in two variants: using the Threading
- * Building Blocks library and OpenMP* product. To build a particular
- * implementation, use the corresponding identifier: IE_THREAD_TBB,
- * IE_THREAD_TBB_AUTO, IE_THREAD_OMP or IE_THREAD_SEQ.
+ * Multi-threading support is implemented in two variants: using the Threading Building Blocks library and OpenMP*
+ * product. To build a particular implementation, use the corresponding identifier: IE_THREAD_TBB, IE_THREAD_TBB_AUTO,
+ * IE_THREAD_OMP or IE_THREAD_SEQ.
  *
  * @file ie_parallel.hpp
  */
@@ -66,8 +64,7 @@ inline int parallel_get_env_threads() {
 #        define PARTITIONING , tbb::static_partitioner()
 
 // The TBB version less than 2018u1 has no static_partitioner argument for
-// tbb::parallel_deterministic_reduce. So will fallback to non deterministic
-// version.
+// tbb::parallel_deterministic_reduce. So will fallback to non deterministic version.
 #        if (TBB_INTERFACE_VERSION >= 10001)
 #            define _TBB_REDUCE_FUNC tbb::parallel_deterministic_reduce
 #        else

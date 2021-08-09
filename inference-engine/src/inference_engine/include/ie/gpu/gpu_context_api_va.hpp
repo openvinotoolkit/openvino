@@ -52,8 +52,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
  * which is shared with VA output surface.
- * The plugin object derived from this class can be obtained with CreateBlob()
- * call.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
 class VASurfaceBlob : public ClImage2DBlob {
@@ -64,8 +63,7 @@ public:
     using Ptr = std::shared_ptr<VASurfaceBlob>;
 
     /**
-     * @brief Creates a VASurfaceBlob object with the specified dimensions and
-     * layout.
+     * @brief Creates a VASurfaceBlob object with the specified dimensions and layout.
      * @param tensorDesc Tensor description
      */
     explicit VASurfaceBlob(const TensorDesc& tensorDesc) : ClImage2DBlob(tensorDesc) {}
@@ -94,9 +92,8 @@ public:
 };
 
 /**
- * @brief This function is used to obtain a NV12 compound blob object from NV12
- * VA decoder output. The resulting compound contains two remote blobs for Y and
- * UV planes of the surface.
+ * @brief This function is used to obtain a NV12 compound blob object from NV12 VA decoder output.
+ * The resulting compound contains two remote blobs for Y and UV planes of the surface.
  * @param height A height of Y plane
  * @param width A width of Y plane
  * @param ctx A remote context instance
@@ -122,8 +119,7 @@ static inline Blob::Ptr make_shared_blob_nv12(size_t height,
 }
 
 /**
- * @brief This function is used to obtain remote context object from VA display
- * handle
+ * @brief This function is used to obtain remote context object from VA display handle
  * @param core Inference Engine Core object
  * @param deviceName A device name to create a remote context for
  * @param device A `VADisplay` to create remote context from
@@ -136,8 +132,7 @@ static inline VAContext::Ptr make_shared_context(Core& core, std::string deviceN
 }
 
 /**
- * @brief This function is used to obtain remote blob object from VA surface
- * handle
+ * @brief This function is used to obtain remote blob object from VA surface handle
  * @param desc Tensor descriptor
  * @param ctx A remote context instance
  * @param surface A `VASurfaceID` to create remote blob from

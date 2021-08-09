@@ -3,8 +3,7 @@
 //
 
 /**
- * @brief A header file that provides a set minimal required Inference Engine
- * API.
+ * @brief A header file that provides a set minimal required Inference Engine API.
  * @file inference_engine.hpp
  */
 #pragma once

@@ -34,12 +34,12 @@ public:
     /**
      * @brief Gets a precision of the input data provided by user
      *
-     * By default it matches the layers precision, but there are exceptions of
-     * this rule For Q78 precision networks the input is expected in I16 by
-     * default For FP16 precision networks the input is expected in FP32 by
-     * default The default input precision might be changed preferred one using
-     * InputInfo::setPrecision() function. For example, for a Q78 precision
-     * network you can pass FP32 input data
+     * By default it matches the layers precision, but there are exceptions of this rule
+     * For Q78 precision networks the input is expected in I16 by default
+     * For FP16 precision networks the input is expected in FP32 by default
+     * The default input precision might be changed preferred one using InputInfo::setPrecision()
+     * function.
+     * For example, for a Q78 precision network you can pass FP32 input data
      * @return The precision used for input blob creation
      */
     Precision getPrecision() const {
@@ -65,11 +65,13 @@ public:
     /**
      * @brief Gets a layout of the input data provided by user
      *
-     * @details By default it matches the layers precision and depends on number
-     * of its dimensions: C - for 1-dimensional, NC - for 2-dimensional, CHW - for
-     * 3-dimensional, NCHW - for 4-dimensional NCDHW - for 5-dimensional The
-     * default input layout might be changed preferred one using setLayout()
-     * function.
+     * @details By default it matches the layers precision and depends on number of its dimensions:
+     * C - for 1-dimensional,
+     * NC - for 2-dimensional,
+     * CHW - for 3-dimensional,
+     * NCHW - for 4-dimensional
+     * NCDHW - for 5-dimensional
+     * The default input layout might be changed preferred one using setLayout() function.
      * @return The precision used for input blob creation
      */
     Layout getLayout() {
@@ -114,13 +116,11 @@ public:
     }
 
     /**
-     * @brief Initializes the pointer to the input data that stores the main input
-     * parameters like dims, etc
+     * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc
      *
-     * This method initializes the precision with the information from the
-     * inputPtr if it was not set explicitly through InputInfo::setPrecision. If
-     * InputInfo::setPrecision is called, this method does not overwrite the
-     * precision.
+     * This method initializes the precision with the information from the inputPtr if it was not set
+     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does not overwrite
+     * the precision.
      * @param inputPtr Pointer to the input data to set
      */
     void setInputData(DataPtr inputPtr) {
@@ -140,8 +140,7 @@ public:
 
     /**
      * @brief Gets pre-process info for the input
-     * @return A reference to the PreProcessInfo instance that contains
-     * pre-process info for this input
+     * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
      */
     PreProcessInfo& getPreProcess() {
         return _preProcessInfo;
@@ -149,8 +148,7 @@ public:
 
     /**
      * @brief Gets pre-process info for the input
-     * @return A reference to the PreProcessInfo instance that contains
-     * pre-process info for this input
+     * @return A reference to the PreProcessInfo instance that contains pre-process info for this input
      */
     const PreProcessInfo& getPreProcess() const {
         return _preProcessInfo;
@@ -169,14 +167,12 @@ protected:
 };
 
 /**
- * @brief A collection that contains string as key, and InputInfo smart pointer
- * as value
+ * @brief A collection that contains string as key, and InputInfo smart pointer as value
  */
 using InputsDataMap = std::map<std::string, InputInfo::Ptr>;
 
 /**
- * @brief A collection that contains string as key, and const InputInfo smart
- * pointer as value
+ * @brief A collection that contains string as key, and const InputInfo smart pointer as value
  */
 using ConstInputsDataMap = std::map<std::string, InputInfo::CPtr>;
 

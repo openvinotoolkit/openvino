@@ -29,8 +29,8 @@ namespace InferenceEngine {
 /**
  * @brief Represents tensor size.
  *
- * The order is opposite to the order in Caffe*: (w,h,n,b) where the most
- * frequently changing element in memory is first.
+ * The order is opposite to the order in Caffe*: (w,h,n,b) where the most frequently changing element in memory is
+ * first.
  */
 using SizeVector = std::vector<size_t>;
 
@@ -56,8 +56,7 @@ using DataWeakPtr = std::weak_ptr<Data>;
 
 /**
  * @union UserValue
- * @brief The method holds the user values to enable binding of data per graph
- * node.
+ * @brief The method holds the user values to enable binding of data per graph node.
  */
 union UserValue {
     int v_int;      //!< An integer value
@@ -151,8 +150,7 @@ enum ColorFormat : uint32_t {
 };
 
 /**
- * @brief Prints a string representation of InferenceEngine::ColorFormat to a
- * stream
+ * @brief Prints a string representation of InferenceEngine::ColorFormat to a stream
  * @param out An output stream to send to
  * @param fmt A color format value to print to a stream
  * @return A reference to the `out` stream
@@ -184,9 +182,8 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
  * @struct InferenceEngineProfileInfo
  * @brief Represents basic inference profiling information per layer.
  *
- * If the layer is executed using tiling, the sum time per each tile is
- * indicated as the total execution time. Due to parallel execution, the total
- * execution time for all layers might be greater than the total inference time.
+ * If the layer is executed using tiling, the sum time per each tile is indicated as the total execution time.
+ * Due to parallel execution, the total execution time for all layers might be greater than the total inference time.
  */
 struct InferenceEngineProfileInfo {
     /**
@@ -230,8 +227,7 @@ struct InferenceEngineProfileInfo {
 
 /**
  * @enum StatusCode
- * @brief This enum contains codes for all possible return values of the
- * interface functions
+ * @brief This enum contains codes for all possible return values of the interface functions
  */
 enum StatusCode : int {
     OK = 0,
@@ -287,14 +283,12 @@ struct QueryNetworkResult {
 };
 
 /**
- * @brief A collection that contains string as key, and const Data smart pointer
- * as value
+ * @brief A collection that contains string as key, and const Data smart pointer as value
  */
 using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 
 /**
- * @brief A collection that contains string as key, and Data smart pointer as
- * value
+ * @brief A collection that contains string as key, and Data smart pointer as value
  */
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
@@ -440,8 +434,7 @@ struct ThrowNow final {
 
 /**
  * @def IE_ASSERT
- * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine
- * exception otherwise
+ * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
  */
 #ifdef NDEBUG
 #    define IE_ASSERT(EXPRESSION) \
@@ -478,8 +471,7 @@ struct NullStream {
 
 /**
  * @def IE_EXCEPTION_SWITCH
- * @brief Generate Switch statement over error codes adn maps them to
- * coresponding exceptions type
+ * @brief Generate Switch statement over error codes adn maps them to coresponding exceptions type
  */
 #define IE_EXCEPTION_SWITCH(STATUS, TYPE_ALIAS, ...)                                      \
     switch (STATUS) {                                                                     \

@@ -27,24 +27,21 @@ public:
      */
     BlockingDesc();
     /**
-     * @brief The constructor which allows to create blocking descriptors for
-     * standard layouts
+     * @brief The constructor which allows to create blocking descriptors for standard layouts
      *
      * @param dims real dimensions
      * @param layout memory layout
      */
     BlockingDesc(const SizeVector& dims, Layout layout);
     /**
-     * @brief The constructor allows to create blocking descriptors for blocked
-     * memory
+     * @brief The constructor allows to create blocking descriptors for blocked memory
      *
      * @param blocked_dims blocked dimensions
      * @param order the order of dimensions
      */
     BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order);
     /**
-     * @brief The constructor allows to create blocking descriptors for blocked
-     * memory
+     * @brief The constructor allows to create blocking descriptors for blocked memory
      *
      * @param blocked_dims blocked dimensions
      * @param order the order of dimensions
@@ -52,8 +49,7 @@ public:
      */
     BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset);
     /**
-     * @brief The constructor allows to create blocking descriptors for blocked
-     * memory
+     * @brief The constructor allows to create blocking descriptors for blocked memory
      *
      * @param blocked_dims blocked dimensions
      * @param order the order of dimensions
@@ -62,8 +58,7 @@ public:
      */
     BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset, const SizeVector& dimOffsets);
     /**
-     * @brief The constructor allows to create blocking descriptors for blocked
-     * memory
+     * @brief The constructor allows to create blocking descriptors for blocked memory
      *
      * @param blocked_dims blocked dimensions
      * @param order the order of dimensions
@@ -139,8 +134,7 @@ public:
 
 protected:
     /**
-     * @brief Fills tensor descriptor based on blocking dimensions and specific
-     * order
+     * @brief Fills tensor descriptor based on blocking dimensions and specific order
      * @param blocked_dims A vector representing blocking dimensions
      * @param order A vector with specific dims order
      */
@@ -167,8 +161,7 @@ private:
 class INFERENCE_ENGINE_API_CLASS(TensorDesc) {
 public:
     /**
-     * @brief The constructor creates the tensor descriptor using blocking
-     * descriptor
+     * @brief The constructor creates the tensor descriptor using blocking descriptor
      *
      * @param precision memory precision
      * @param dims memory dimensions
@@ -184,8 +177,7 @@ public:
      */
     TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout);
     /**
-     * @brief The constructor creates the empty tensor descriptor with precision
-     * and layout
+     * @brief The constructor creates the empty tensor descriptor with precision and layout
      *
      * @param precision memory precision
      * @param layout memory layout
@@ -375,13 +367,11 @@ struct ROI {
  *
  * @param origDesc original TensorDesc object.
  * @param roi An image ROI object inside of the original object.
- * @param useOrigMemDesc Flag to use original memory description
- * (strides/offset). Should be set if the new TensorDesc describes shared
- * memory.
+ * @param useOrigMemDesc Flag to use original memory description (strides/offset).
+ *     Should be set if the new TensorDesc describes shared memory.
  *
  * @return A newly created TensorDesc object representing ROI.
  */
-INFERENCE_ENGINE_API_CPP(TensorDesc)
-make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
+INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
 
 }  // namespace InferenceEngine

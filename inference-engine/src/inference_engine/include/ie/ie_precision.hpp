@@ -18,21 +18,17 @@
 namespace InferenceEngine {
 
 /**
- * @brief This class holds precision value and provides precision related
- * operations
+ * @brief This class holds precision value and provides precision related operations
  */
 class Precision {
 public:
     /** Enum to specify of different  */
     enum ePrecision : uint8_t {
         UNSPECIFIED = 255, /**< Unspecified value. Used by default */
-        MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for
-                              tensors */
+        MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for tensors */
         FP32 = 10,         /**< 32bit floating point value */
-        FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for
-                              mantisa */
-        BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for
-                              mantisa*/
+        FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+        BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
         FP64 = 13,         /**< 64bit floating point value */
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
@@ -105,8 +101,7 @@ public:
     }
 
     /**
-     * @brief checks whether given storage class T can be used to store objects of
-     * current precision
+     * @brief checks whether given storage class T can be used to store objects of current precision
      * @param typeName A string name of precision
      * @return `true` if `typeName` has underlaying storage type
      */

@@ -5,8 +5,7 @@
 /**
  * @deprecated Use vpu/myriad_config.hpp instead.
  * @brief A header that defines advanced related properties for VPU plugins.
- * These properties should be used in SetConfig() and LoadNetwork() methods of
- * plugins
+ * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
  * @file myriad_plugin_config.hpp
  */
@@ -36,9 +35,8 @@ namespace VPUConfigParams {
 
 /**
  * @deprecated Use InferenceEngine::MYRIAD_ENABLE_FORCE_RESET instead.
- * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or
- * CONFIG_VALUE(NO) (default) This is a plugin scope option and must be used
- * with the plugin's SetConfig method
+ * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
+ * This is a plugin scope option and must be used with the plugin's SetConfig method
  */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_FORCE_RESET instead")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(FORCE_RESET);
@@ -46,8 +44,7 @@ DECLARE_VPU_MYRIAD_CONFIG_KEY(FORCE_RESET);
 /**
  * @deprecated
  * @brief This option allows to specify device.
- * If specified device is not available then creating infer request will throw
- * an exception.
+ * If specified device is not available then creating infer request will throw an exception.
  */
 INFERENCE_ENGINE_DEPRECATED("")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(PLATFORM);
@@ -69,10 +66,8 @@ INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_TYPE instead")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE);
 
 /**
- * @deprecated Use DDR type values from InferenceEngine namespace with
- * MYRIAD_DDR_ prefix
- * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE)
- * option.
+ * @deprecated Use DDR type values from InferenceEngine namespace with MYRIAD_DDR_ prefix
+ * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE) option.
  */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_AUTO instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO);
