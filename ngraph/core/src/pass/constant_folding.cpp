@@ -6,6 +6,7 @@
 #include <ngraph/op/constant.hpp>
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/rt_info.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -101,7 +102,23 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
 
         for (auto& input_value : curr_node->input_values())
         {
-            if (input_value.get_tensor().has_and_set_bound())
+            // Check that ConstantFolding is not disabled on this path
+            std::vector<Node*> order;
+            auto status = could_propagate(input_value, order);
+            if (status)
+            {
+                for (const auto& node : order)
+                {
+                    const auto& rt_info = node->get_rt_info();
+                    if (rt_info.count("DISABLED_CONSTANT_FOLDING"))
+                    {
+                        status = false;
+                        break;
+                    }
+                }
+            }
+
+            if (status && input_value.get_tensor().has_and_set_bound())
             {
                 auto input_node = input_value.get_node_shared_ptr();
                 auto replacement =
