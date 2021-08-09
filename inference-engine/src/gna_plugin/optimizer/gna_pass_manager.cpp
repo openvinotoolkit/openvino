@@ -131,8 +131,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     return copyWithQuant;
 }
 
-static bool hasNextFuncLayer(const CNNLayerPtr layer)
-{
+static bool hasNextFuncLayer(const CNNLayerPtr layer) {
     return CNNNetHasNextLayerSkipCertain(layer, 0, 0, [](CNNLayerPtr layer) {
                 return LayerInfo(layer).isNonFunctional();
             });
