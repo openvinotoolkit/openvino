@@ -18,6 +18,24 @@ using namespace ngraph;
 using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
+TEST(attributes, cum_sum_op_default_attributes_no_axis_input)
+{
+    NodeBuilder::get_ops().register_factory<opset3::CumSum>();
+
+    Shape shape{1, 4};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto cs = make_shared<op::CumSum>(A);
+
+    NodeBuilder builder(cs);
+    auto g_cs = as_type_ptr<opset3::CumSum>(builder.create());
+
+    const auto expected_attr_count = 2;
+    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
+
+    EXPECT_EQ(g_cs->is_exclusive(), cs->is_exclusive());
+    EXPECT_EQ(g_cs->is_reverse(), cs->is_reverse());
+}
+
 TEST(attributes, cum_sum_op_default_attributes)
 {
     NodeBuilder::get_ops().register_factory<opset3::CumSum>();
