@@ -1258,7 +1258,8 @@ InferenceEngine::QueryNetworkResult Core::query_model(const std::shared_ptr<cons
 void Core::set_config(const std::map<std::string, std::string>& config, const std::string& deviceName) {
     IE_THROW() << "Not implemented!";
 }
-InferenceEngine::Parameter Core::set_config(const std::string& deviceName, const std::string& name) const {
+
+InferenceEngine::Parameter Core::get_config(const std::string& deviceName, const std::string& name) const {
     IE_THROW() << "Not implemented!";
 }
 

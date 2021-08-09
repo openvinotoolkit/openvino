@@ -216,7 +216,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    InferenceEngine::Parameter set_config(const std::string& deviceName, const std::string& name) const;
+    InferenceEngine::Parameter get_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
