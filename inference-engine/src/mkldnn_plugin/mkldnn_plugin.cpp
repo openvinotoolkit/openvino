@@ -403,11 +403,8 @@ static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT) {
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::nanoseconds ns;
 Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEngine::CNNNetwork &network,
         const float L2_cache_size, const float L3_cache_size, const float memThresholdAssumeLimited) {
-    auto startTime = Time::now();
     const auto nGraphFunc = network.getFunction();
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
             total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
@@ -431,10 +428,6 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 int inputs_data_size_bytes = 0;
                 if (!std::strcmp("GRUSequence", node_name)
                     || !std::strcmp("TensorIterator", node_name)) {
-//                        || !std::strcmp("LSTMSequence", node_name)) {
-                    // RNN and alikes are not considered
-                    std::cout << "TYPE: " << node_name << "  Name: " << node->get_friendly_name()
-                              << " considering non-supported! falling back..." << std::endl;
                     NetworkPerfStats res;
                     res.maxMemTolerance = NetworkPerfStats::memThresholdUnknown;
                     return res;
@@ -456,21 +449,15 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
             const auto factor = memLimitedFactor(inputs_data_size_bytes, 1 /*already in bytes*/);
             if (factor < worst_case_all) {
                 worst_case_all = factor;
-                std::cout << "TYPE: " << node_name << "  Name: " << node_name
-                          << " inputs_data_size_bytes " << inputs_data_size_bytes << ", factor: " << factor << std::endl;
             }
             continue;
         }
-        // todo: asymmetric conv (zero-point comes via Sub/Mul)
-        // auto type0 = node->input_value(0).get_element_type(); //input
         auto type1 = node->input_value(1).get_element_type(); //weights
         const bool isINT8 = isLowPrecision(type1);
         const bool isBF16orFP16 = isHalfPrecision(type1);
         const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
 
         int dataSizeInput = 0, dataSizeOutput = 0;
-        std::cout << "Type: " << node_name << "  Name: "
-                  << node->get_friendly_name();
         if (!std::strcmp("MatMul", node_name)) {
             ngraph::Input<ngraph::Node> input0 = node->input(0);
             ngraph::Input<ngraph::Node> input1 = node->input(1);
@@ -493,12 +480,6 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
-                std::cout <<  (isINT8 ? " INT8," : isBF16orFP16 ? " BF16/FP16," : " FP32")
-                          << ", Input0: " << dataSizeInput0
-                          << ", Input1: " << dataSizeInput1 << (non_const ? " non_const, " : " const")
-                          << ", Output: " << dataSizeOutput
-                          << ", total_data: " << total_data
-                          << " L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
             }
         } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -507,19 +488,14 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
             ngraph::Input<ngraph::Node> kernels = node->input(1);
             const auto shape = kernels.get_shape();
             total_convs++;
-
-            std::cout << " kernel is " << shape[2] << "x" << shape[3];
             if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                std::cout << ", considering flops/byte amortizing the mem"  << std::endl;
                 compute_convs++;
                 continue;
             }
-
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                 const auto shapeInput = input.get_shape();
                 const auto shapeOutput = output.get_shape();
                 if (shapeInput.size() > 4/*5D*/ && isINT8) {
-                    std::cout << ", considering 5D amortizing mem, "  << std::endl;
                     compute_convs++;
                     continue;
                 }
@@ -530,9 +506,6 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
-                std::cout <<  (isINT8 ? " INT8 " : isBF16orFP16 ? " BF16/FP16 " : " FP32")
-                          << ", dataSize: " << dataSizeInput + dataSizeOutput
-                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -546,7 +519,6 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 const auto shapeInput = input.get_shape();
                 const auto shapeOutput = output.get_shape();
                 if (shapeInput.size() > 4/*5D*/ && isINT8) {
-                    std::cout << ", considering 5D amortizing mem, "  << std::endl;
                     compute_deconvs++;
                     continue;
                 }
@@ -557,31 +529,14 @@ Engine::NetworkPerfStats Engine::NetworkMemBandwidthTolerance(const InferenceEng
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_deconvs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
-                std::cout << ", kernel "<< shape[2]<< "x" << shape[2]
-                          << (isINT8 ? " INT8," : isBF16orFP16 ? " BF16/FP16," : " FP32,")
-                          << ", dataSize: " << dataSizeInput + dataSizeOutput
-                          << ", L2_cache_size: " << L2_cache_size << "   FACTOR: " << factor << std::endl;
             }
         }
     }
-    std::cout << "Total convs: " << total_convs << ". Mem limited: " << mem_limited_convs << ". Compute: " << compute_convs << std::endl;
-    std::cout << "Total DEconvs: " << total_deconvs<< ". Mem limited: " << mem_limited_deconvs << ". Compute: " << compute_deconvs << std::endl;
-    // std::cout << "Total OTHER OPS: " << total_other_ops << ". Mem limited: " << mem_limited_other_ops << std::endl;
-    std::cout << "Total gemms: " << total_gemms<< ". Mem limited: " << mem_limited_gemms << std::endl;
-
     NetworkPerfStats res;
     res.maxMemTolerance = worst_case;
     res.ratio_mem_limited_convs = total_convs ? static_cast<float>(mem_limited_convs)/total_convs : 0;
     res.ratio_compute_convs = total_convs ? static_cast<float>(compute_convs)/total_convs : 0;
     res.ratio_compute_deconvs = total_deconvs ? static_cast<float>(compute_deconvs)/total_deconvs : 0;
-//    if (!total_convs && !total_deconvs && !total_gemms) {
-//        std::cout << "WORST CASE ALL: " << worst_case_all << std::endl;
-//        res.maxMemTolerance = worst_case_all;
-//    } else {
-    std::cout << "WORST CASE: " << worst_case << std::endl;
-//    }
-    auto time = std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-    std::cout << "NetworkMemBandwidthTolerance time: " << time << " ms" << std::endl;
     return res;
 }
 static bool hasAVX512();
@@ -651,56 +606,34 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 }
                 // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
                 const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/isaSpecificThreshold;
-                std::cout << "isa:" << static_cast<int>(isa) << ", isaSpecificThreshold: " << isaSpecificThreshold << std::endl;
                 const float L2_cache_size = mkldnn::utils::get_cache_size(2 /*level*/, true /*per core */);
                 const float L3_cache_size = mkldnn::utils::get_cache_size(3, false);
-                std::cout<< "L3_cache_size " << L3_cache_size << std::endl;
 
                 Engine::NetworkPerfStats NetworkToleranceForLowCache = NetworkMemBandwidthTolerance(clonedNetwork,
                         L2_cache_size, L3_cache_size, memThresholdAssumeLimitedForISA);
                 const auto num_cores = getNumberOfCPUCores();
                 const auto num_streams_default_not_ht = num_cores / 2;
                 const auto default_num_streams = IStreamsExecutor::Config::GetDefaultNumStreams();
-                // this is first heuristic in series (carefully separating int8, bf16 and float32):
-                //      memory bandwidth limited
-                //      compute limited
-                //      Hybrid specific
-                //      etc
                 int num_streams;
                 if (NetworkToleranceForLowCache.maxMemTolerance == NetworkPerfStats::memThresholdUnknown) {
                     if ((NetworkToleranceForLowCache.ratio_compute_convs == NetworkPerfStats::ALL)
                         || (NetworkToleranceForLowCache.ratio_compute_deconvs == NetworkPerfStats::ALL)) {
-                        std::cout << "  case 1.1" <<std::endl;
                         num_streams = num_cores;
                     } else {
                         num_streams = default_num_streams;
-                        std::cout << "case 0" <<std::endl;
                     }
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedForISA) {
-//                               && NetworkToleranceForLowCache.ratio_mem_limited_convs <= memLimitedRatioThresholdForISA) {
-                    std::cout << "  case 1.0 or 1.2" <<std::endl;
                     num_streams = num_cores;
                 } else if (NetworkToleranceForLowCache.maxMemTolerance > NetworkPerfStats::memThresholdAssumeLimited) {
                     num_streams = std::max(default_num_streams, num_streams_default_not_ht);
-                    std::cout << "case 2" <<std::endl;
                 } else {
-//                    if (NetworkToleranceForLowCache.maxMemTolerance > memThresholdAssumeLimitedMuch) {
-                        num_streams = std::min(default_num_streams, num_streams_default_not_ht);
-                        std::cout << "case 3" << std::endl;
-//                    } else {
-//                        num_streams = default_num_streams/2;
-//                        std::cout << "case 3.1" << std::endl;
-//                    }
+                    num_streams = std::min(default_num_streams, num_streams_default_not_ht);
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
                 if (num_requests != config.end())
                     num_streams = std::min(num_streams, PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
-
-                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
-                          << (NetworkToleranceForLowCache.maxMemTolerance <= NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
-                          << ", NUM_STREAMS " << num_streams << std::endl;
-            }
+           }
         }
     }
     ConvertToCPUSpecificOpset(nGraphFunc);
