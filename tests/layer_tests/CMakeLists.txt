@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-install(TARGETS LayerTests DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY . DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
