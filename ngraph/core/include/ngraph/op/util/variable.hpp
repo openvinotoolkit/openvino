@@ -4,8 +4,12 @@
 
 #pragma once
 
-#include <ngraph/node.hpp>
+#include <string>
 #include <utility>
+
+#include "ngraph/partial_shape.hpp"
+#include "ngraph/type.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace ngraph
 {

@@ -20,10 +20,6 @@ namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
 namespace {
 
-TEST_P(ReferenceComparisonLayerTest, EqualCompareWithHardcodedRefs) {
-    Exec();
-}
-
 template <element::Type_t IN_ET>
 std::vector<RefComparisonParams> generateComparisonParams(const element::Type& type) {
     using T = typename element_type_traits<IN_ET>::value_type;
