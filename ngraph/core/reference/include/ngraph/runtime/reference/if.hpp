@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cmath>
-#include <ngraph/opsets/opset1.hpp>
+#include "ngraph/op/util/multi_subgraph_base.hpp"
 
 namespace ngraph
 {

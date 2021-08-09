@@ -74,8 +74,8 @@ namespace ngraph
                 /// of each sub-graphs
                 ///
                 /// \param     value           input to operation
-                /// \param     then_parameter  parameter for then_body
-                /// \param     else_parameter  parameter for else_body
+                /// \param     then_parameter  parameter for then_body or nullptr
+                /// \param     else_parameter  parameter for else_body or nullpt
                 void set_input(const Output<Node>& value,
                                const std::shared_ptr<Parameter>& then_parameter,
                                const std::shared_ptr<Parameter>& else_parameter);

@@ -10,7 +10,6 @@ namespace ngraph
     {
         namespace reference
         {
-            using namespace op::v8;
             enum if_body_indexes
             {
                 then_body_index = 0,
