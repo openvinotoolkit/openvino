@@ -18,9 +18,6 @@ using ComparisonTypes = ngraph::helpers::ComparisonTypes;
 namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
 namespace {
-TEST_P(ReferenceComparisonLayerTest, LessCompareWithHardcodedRefs) {
-    Exec();
-}
 
 template <element::Type_t IN_ET>
 std::vector<RefComparisonParams> generateComparisonParams(const element::Type& type) {
