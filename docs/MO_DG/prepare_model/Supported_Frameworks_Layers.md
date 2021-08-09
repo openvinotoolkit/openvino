@@ -436,7 +436,6 @@ Standard Kaldi\* Layers:
 | convolutional1dcomponent | No |
 | convolutionalcomponent | No |
 | copy | No |
-| Crop | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
 | fixedbiascomponent | No |
@@ -460,7 +459,6 @@ Standard Kaldi\* Layers:
 | sigmoidcomponent | No |
 | softmax | No |
 | softmaxComponent | No |
-| softsign | No |
 | specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent | No |
 | tanhcomponent | No |
