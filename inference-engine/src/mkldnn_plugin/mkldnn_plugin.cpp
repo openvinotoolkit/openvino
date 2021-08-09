@@ -620,17 +620,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
-//    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-//     // the mode may have just arrived to the LoadNetwork (higher pri), or was set with the plugins' SetConfig
-//     if (mode != config.end() || !engConfig.perfHintsConfig.ovPerfHint.empty()) {
-//         const auto mode_name = (mode != config.end())
-//          ? PerfHintsConfig::CheckPerformanceHintValue(mode->second) : engConfig.perfHintsConfig.ovPerfHint;
-//        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-//        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
-//         if (streams == config.end() && !streamsSet) { // for EXPERIMENT: overriding the user streams settings
-//            if (mode_name == CONFIG_VALUE(LATENCY)) {
-//                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
-//             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
+    const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
+    if (mode != config.end() || !engConfig.perfHintsConfig.ovPerfHint.empty()) {
+        const auto mode_name = (mode != config.end())
+                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second) : engConfig.perfHintsConfig.ovPerfHint;
+        //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+        const auto streams = config.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+        if (streams == config.end() && !streamsSet) {
+            if (mode_name == CONFIG_VALUE(LATENCY)) {
+                config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 const auto isa = dnnl::get_effective_cpu_isa();
                 float isaSpecificThreshold = 1.0;
                 switch (isa) {
@@ -700,9 +700,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  "
                           << (NetworkToleranceForLowCache.maxMemTolerance <= NetworkPerfStats::memThresholdAssumeLimited ? "YES" : "NO")
                           << ", NUM_STREAMS " << num_streams << std::endl;
-//            }
-//        }
-//    }
+            }
+        }
+    }
     ConvertToCPUSpecificOpset(nGraphFunc);
 
     // update the props after the perf mode translated to configs
