@@ -275,8 +275,7 @@ function( compile_pyx _name generated_file )
       DEPENDS ${pyx_locations} ${pxd_dependencies} ${pxi_dependencies}
       IMPLICIT_DEPENDS ${pyx_lang} ${c_header_dependencies}
       COMMENT ${comment}
-      # add debug postfix to import and PyInit statements in C code
-      # it's required if we want to create a library whose name has debug postfix (CVS-29031)
+      # CVS-29031
       COMMAND ${Python_EXECUTABLE} ${PYTHON_BRIDGE_SRC_ROOT}/cmake/debug_utils/update_file_statement.py
                         -i ${_generated_file}
                         --match_string "PyInit_${_name}"
