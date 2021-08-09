@@ -133,7 +133,7 @@ def eliminate_dead_nodes(graph):
                 (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or
                                                       node_attrs.get('force_dead_node', False))):
             nodes_to_remove.add(node_name)
-    # log.debug('Removing the following dead nodes: {}'.format('\n'.join(sorted(map(str, nodes_to_remove)))))
+    log.debug('Removing the following dead nodes: {}'.format('\n'.join(sorted(map(str, nodes_to_remove)))))
     graph.remove_nodes_from(nodes_to_remove)
 
 

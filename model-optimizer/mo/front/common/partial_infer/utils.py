@@ -187,7 +187,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        output = shape_array(np.ma.ceil(input / normalized_stride))
+        output = np.ma.ceil(input / normalized_stride)
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
@@ -219,7 +219,6 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        # TODO this looks like a hack that we check dynamic_dimension_value
         if s is dynamic_dimension or s == dynamic_dimension_value:
             output_shape.append(dynamic_dimension_value)
             in_idx += 1
