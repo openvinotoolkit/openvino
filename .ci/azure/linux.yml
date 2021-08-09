@@ -22,7 +22,6 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 16
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
@@ -31,12 +30,8 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     INSTALL_DIR: $(WORK_DIR)/install_pkg
-<<<<<<< HEAD
-    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
-=======
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
-    SETUPVARS: $(INSTALL_DIR)/bin/setupvars.sh
->>>>>>> upstream/master
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
   - script: |
@@ -90,14 +85,15 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/wheel/requirements-dev.txt
       # For running Python API tests
       python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
-      # For running nGraph unit tests dependent on Python frameworks
-      python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test.txt
+      # For running PaddlePaddle frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/ngraph/test/frontend/paddlepaddle/requirements_dev.txt
+      # For running ONNX frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/ngraph/test/requirements_test_onnx.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Speed up tests
@@ -147,9 +143,6 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-<<<<<<< HEAD
-  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
-=======
   - script: |
       set -e
       mkdir $(INSTALL_DIR)/opencv/
@@ -161,8 +154,7 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)/deployment_tools/inference_engine/samples/cpp/build_samples.sh
->>>>>>> upstream/master
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
 
@@ -174,20 +166,27 @@ jobs:
     displayName: 'Clean build dir'
     continueOnError: false
 
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph Python Bindings Tests'
+    continueOnError: false
+
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/deployment_tools/model_optimizer
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/deployment_tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
-  - script: |
-      export FE_TEST_MODELS=$(INSTALL_DIR)/tests
-      . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 
-    # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddlepaddle_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-PaddlePaddle.xml
+    displayName: 'PaddlePaddle Frontend UT'
+    continueOnError: false
+
+    # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
