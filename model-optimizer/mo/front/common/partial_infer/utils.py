@@ -61,7 +61,7 @@ def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
     :param obj: the list or a single integer defining index(es) of elements to remove
     :return: shape with removed selected elements
     """
-    if isinstance(obj, int):
+    if isinstance(obj, (int, np.int64, np.int32)):
         return shape_delete(shape, [obj])
     elif isinstance(obj, np.ndarray):
         return shape_delete(shape, obj.tolist())
@@ -85,7 +85,7 @@ def shape_insert(shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarra
     :param obj: the list or a single integer or the dynamic_dimension_value or numpy array to insert
     :return: shape with inserted elements
     """
-    if isinstance(obj, int) or obj is dynamic_dimension_value:
+    if isinstance(obj, (int, np.int64, np.int32)) or obj is dynamic_dimension_value:
         return shape_insert(shape, pos, [obj])
     elif isinstance(obj, (np.ndarray, list)):
         return np.ma.concatenate((shape_array(shape[:pos]), shape_array(obj), shape_array(shape[pos:])))

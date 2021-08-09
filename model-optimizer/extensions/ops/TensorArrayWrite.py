@@ -35,9 +35,8 @@ class TensorArrayWriter(Op):
                 'Shapes are not compatible: {} and {}'.format(ta_node['element_shape'], value.shape)
         ta_node['element_shape'] = value_shape
 
-        assert flow_in.value is not None, 'The value is not specified for the TensorArrayWriteV3 op {}' \
-                                          ''.format(node.soft_get('name', node.id))
+        output_value = flow_in.value
 
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = shape_array(flow_in.value.shape)
-            node.graph.node[out_node]['value'] = flow_in.value
+            node.graph.node[out_node]['shape'] = shape_array(flow_in.shape)
+            node.graph.node[out_node]['value'] = None if output_value is None else output_value.copy()
