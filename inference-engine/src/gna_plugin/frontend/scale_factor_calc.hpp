@@ -205,7 +205,7 @@ class ScaleFactorPerLayer {
      * @param result
      * @return
      */
-    bool operator()(T cnnLayer, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result, bool fakeQuantize, int isInfiniteLoopCount) {
+    bool operator()(T cnnLayer, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result, bool fakeQuantize, int infiniteLoopCount) {
         return false;
     }
 };
@@ -439,7 +439,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
  public :
     bool operator()(InferenceEngine::CNNLayer *cnnLayer, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result, bool fakeQuantize,
-        int isInfiniteLoopCount) {
+        int infiniteLoopCount) {
         if ( !cnnLayer ) {
             IE_THROW() << "Incorrect Convolutional Layer pointer \n";
         }
@@ -478,7 +478,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
                     if ((!fakeQuantize && quantSibling->_dst_quant.IsScaleSet()) ||
                         (fakeQuantize && quantSibling->_dst_quant.IsScaleSet() && !fp32eq(quantSibling->_dst_quant.GetScale(), 1.0) &&
-                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) || isInfiniteLoopCount > 0) {
+                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) || infiniteLoopCount > 0) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
@@ -647,7 +647,7 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
  public:
     bool operator()(InferenceEngine::EltwiseLayer* eltwiseLayer, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result,
-        bool fakeQuantize, int isInfiniteLoopCount) {
+        bool fakeQuantize, int infiniteLoopCount) {
         if ( !eltwiseLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Eltwise Layer pointer \n";
         }
@@ -817,7 +817,7 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
  public:
     bool operator()(InferenceEngine::ConcatLayer* concatLayer, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result,
-        bool fakeQuantize, int isInfiniteLoopCount) {
+        bool fakeQuantize, int infiniteLoopCount) {
         if ( !concatLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Concat Layer pointer \n";
         }
@@ -876,7 +876,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         // - 1st candidate - input layer
         // - 2nd candidate - non-activation layer with non-1 scale factor
         if (sourceLayerIt == inputLayers.end()) {
-            if (isInfiniteLoopCount % 2 == 1) {
+            if (infiniteLoopCount % 2 == 1) {
                 std::reverse(inputLayers.begin(), inputLayers.end());
             }
 
@@ -894,7 +894,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     }
                 }
             } else {
-                if (isInfiniteLoopCount % 4 == 2 || isInfiniteLoopCount % 4 == 3) {
+                if (infiniteLoopCount % 4 == 2 || infiniteLoopCount % 4 == 3) {
                     auto sourceLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
                         auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
                         LayerInfo info(inputLayer);
@@ -1052,7 +1052,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
  public:
     bool operator()(InferenceEngine::WeightableLayer *wl, int weightsSize, int inputsSize, ScaleFactorUpdateResult &result,
-        bool fakeQuantize, int isInfiniteLoopCount) {
+        bool fakeQuantize, int infiniteLoopCount) {
         if ( !wl ) {
             THROW_GNA_EXCEPTION << "Incorrect Weightable Layer pointer  \n";
         } else if (!wl->_weights) {
@@ -1207,7 +1207,7 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::GemmLayer*> {
 public:
     bool operator() (InferenceEngine::GemmLayer* gemmLayer, int weightsSize, int inputSize, ScaleFactorUpdateResult &result,
-        bool fakeQuantize, int isInfiniteLoopCount) {
+        bool fakeQuantize, int infiniteLoopCount) {
         if ( !gemmLayer ) {
             THROW_GNA_EXCEPTION << "Incorrect Gemm Layer pointer \n";
         }
@@ -1266,7 +1266,7 @@ class ScaleFactorCalculator {
     int optWeightsBytesSize;
     bool isFakeQuantize;
     int inputsBytesSize;
-    int isInfiniteLoopCount = 0;
+    int infiniteLoopCount = 0;
 
  public:
     ScaleFactorCalculator(Cnt &net, int mandWeightsBytesSize, int optWeightsBytesSize, int inputsBytesSize, bool fakeQuantize)
@@ -1283,8 +1283,8 @@ class ScaleFactorCalculator {
     std::vector<InferenceEngine::CNNLayerPtr> getStartLayers() const {
         return std::vector<InferenceEngine::CNNLayerPtr>(idx, std::end(net));
     }
-    void SetInfiniteLoopCount(int isInfiniteLoopCount) {
-        this->isInfiniteLoopCount = isInfiniteLoopCount;
+    void SetInfiniteLoopCount(int infiniteLoopCount) {
+        this->infiniteLoopCount = infiniteLoopCount;
     }
     template<class T>
     bool operator()(T ptr) const {
@@ -1296,7 +1296,7 @@ class ScaleFactorCalculator {
             weightsBytesSize = optWeightsBytesSize;
         }
 
-        if (!frontend::ScaleFactorPerLayer<T>()(ptr, weightsBytesSize, inputsBytesSize, result, isFakeQuantize, isInfiniteLoopCount)) {
+        if (!frontend::ScaleFactorPerLayer<T>()(ptr, weightsBytesSize, inputsBytesSize, result, isFakeQuantize, infiniteLoopCount)) {
             return false;
         }
         if (result) {

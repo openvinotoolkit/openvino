@@ -115,3 +115,18 @@ HandleTransposeAfterMatMul::HandleTransposeAfterMatMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape, "HandleTransposeAfterMatMul");
     this->register_matcher(m, callback);
 }
+
+bool VerifyReshape::operator()(const ngraph::Output<ngraph::Node>& reshape_out) const {
+    auto in_shape = reshape_out.get_node_shared_ptr()->get_input_shape(0);
+    auto out_shape = reshape_out.get_node_shared_ptr()->get_output_shape(0);
+
+    // Check if Reshape changes the final 2d shape of Affine primitive
+    in_shape.erase(std::remove(in_shape.begin(), in_shape.end(), 1), in_shape.end());
+    out_shape.erase(std::remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
+    return in_shape != out_shape;
+}
+
+HandleTransposesAroundMatMul::HandleTransposesAroundMatMul() {
+    add_matcher<HandleTransposeBeforeMatMul>();
+    add_matcher<HandleTransposeAfterMatMul>();
+}

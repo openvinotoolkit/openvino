@@ -3,7 +3,7 @@
 //
 
 #include <vector>
-#include "subgraph_tests/memory_concat.hpp"
+#include "subgraph_tests/memory_fq_concat_prelu.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
@@ -57,7 +57,7 @@ std::vector<
 
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_memory_concat, MemoryConcat,
+INSTANTIATE_TEST_SUITE_P(smoke_memory_fq_concat_prelu, MemoryFqConcatPrelu,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputs),
                                 ::testing::ValuesIn(netPrecisions),
@@ -65,5 +65,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_memory_concat, MemoryConcat,
                                 ::testing::Values(additional_config),
                                 ::testing::ValuesIn(strided_slice_params),
                                 ::testing::ValuesIn(fake_quantize_params)),
-                        MemoryConcat::getTestCaseName);
+                        MemoryFqConcatPrelu::getTestCaseName);
 } // namespace SubgraphTestsDefinitions

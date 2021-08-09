@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/memory_concat.hpp"
+#include "shared_test_classes/subgraph/memory_fq_concat_prelu.hpp"
 #include <type_traits>
 
 namespace SubgraphTestsDefinitions {
@@ -31,7 +31,7 @@ inline typename std::enable_if<I < sizeof...(Tp), void>::type printTuple(std::os
     printTuple<I + 1, Tp...>(out, t);
 }
 
-std::string MemoryConcat::getTestCaseName(const testing::TestParamInfo<MemoryConcatTuple> &obj) {
+std::string MemoryFqConcatPrelu::getTestCaseName(const testing::TestParamInfo<MemoryFqConcatPreluTuple> &obj) {
     std::vector<std::vector<size_t>> input;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
@@ -65,14 +65,14 @@ std::string MemoryConcat::getTestCaseName(const testing::TestParamInfo<MemoryCon
     return results.str();
 }
 
-void MemoryConcat::Run() {
+void MemoryFqConcatPrelu::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     LoadNetwork();
     GenerateInputs();
     Infer();
 }
 
-void MemoryConcat::SetUp() {
+void MemoryFqConcatPrelu::SetUp() {
     std::vector<std::vector<size_t>> inputs;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additional_config;
@@ -118,7 +118,7 @@ void MemoryConcat::SetUp() {
     auto result = std::make_shared<ngraph::opset1::Result>(prelu);
     assign->add_control_dependency(read);
     result->add_control_dependency(assign);
-    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "memory_concat");
+    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, input, "memory_fq_concat_prelu");
 }
 
 } // namespace SubgraphTestsDefinitions

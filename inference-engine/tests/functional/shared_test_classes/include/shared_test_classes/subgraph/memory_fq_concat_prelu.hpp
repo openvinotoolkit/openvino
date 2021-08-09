@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef SHARED_TEST_CLASSES_MEMORY_CONCAT_H
-#define SHARED_TEST_CLASSES_MEMORY_CONCAT_H
+#ifndef SHARED_TEST_CLASSES_MEMORY_FQ_CONCAT_PRELU_H
+#define SHARED_TEST_CLASSES_MEMORY_FQ_CONCAT_PRELU_H
 
 #include <tuple>
 #include <vector>
@@ -33,18 +33,18 @@ typedef std::tuple<
             std::vector<float>,
             std::vector<float>,
             std::vector<float>>             // FakeQuantize
-> MemoryConcatTuple;
+> MemoryFqConcatPreluTuple;
 
-class MemoryConcat : public testing::WithParamInterface<MemoryConcatTuple>,
+class MemoryFqConcatPrelu : public testing::WithParamInterface<MemoryFqConcatPreluTuple>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MemoryConcatTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MemoryFqConcatPreluTuple> &obj);
     void Run() override;
 
 protected:
     void SetUp() override;
-}; // class MemoryConcat
+}; // class MemoryFqConcatPrelu
 
 }  // namespace SubgraphTestsDefinitions
 
-#endif // SHARED_TEST_CLASSES_MEMORY_CONCAT_H
+#endif // SHARED_TEST_CLASSES_MEMORY_FQ_CONCAT_PRELU_H
