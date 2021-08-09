@@ -474,12 +474,17 @@ int main(int argc, char* argv[]) {
                                           {{"load network time (ms)", duration_ms}});
             if (!ov_perf_hint.empty()) {
                 std::cout << "PERFORMANCE_HINT: " << ov_perf_hint << std::endl;
-                // output of the actual settings that the mode produces (debugging)
-                for (const auto& device : devices) {
-                    std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                // output of the actual settings that the hint produced
+                for (const auto &device : devices) {
+                    std::vector<std::string> supported_config_keys = ie.GetMetric(device,
+                                                                                  METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     std::cout << "Device: " << device << std::endl;
-                    for (const auto& cfg : supported_config_keys) {
-                        std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>() << " }" << std::endl;
+                    for (const auto &cfg : supported_config_keys) {
+                        try {
+                            std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                        } catch (...) {
+                        };
+                        std::cout << " }" << std::endl;
                     }
                 }
             }
