@@ -50,9 +50,7 @@ docker build . -t <image_name> `
 
 ### Install Microsoft Visual Studio* Build Tools
 
-You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image. Available options are to use offline installer for Build Tools 
-(follow the [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019)) or
-to use the online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019)).
+You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image using the [offline](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019) or [online](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019) installers for Build Tools.
 Microsoft Visual Studio Build Tools* are licensed as a supplement your existing Microsoft Visual Studio* license.
 Any images built with these tools should be for your personal use or for use in your organization in accordance with your existing Visual Studio* and Windows* licenses.
 
@@ -72,7 +70,7 @@ RUN %TMP%\\vs_buildtools.exe --quiet --norestart --wait --nocache `
      --remove Microsoft.VisualStudio.Component.Windows81SDK || IF "%ERRORLEVEL%"=="3010" EXIT 0 && powershell set-executionpolicy remotesigned
 ```
 
-In case of proxy issues, please use an offline installer for Build Tools (follow [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
+In case of proxy issues, please use the [offline installer for Build Tools](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019).
 
 ## Run the Docker* Image for CPU
 
@@ -109,25 +107,18 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
 2. Check your [Windows host and container isolation process compatibility](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
 3. Find the appropriate Windows container base image on [DockerHub*](https://hub.docker.com/_/microsoft-windows) and set up your host/container version in the `FROM` Dockerfile instruction.  
    For example, in [openvino_c_dev_2021.dockerfile](https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/winserver2019/openvino_c_dev_2021.dockerfile), change:  
-
    ```bat
    FROM mcr.microsoft.com/windows/servercore:ltsc2019 AS ov_base
    ```
-
-   to
-
+   to:
    ```bat
    FROM mcr.microsoft.com/windows:20H2
    ```
-
 4. Build the Docker image
-
    ```bat
    docker build --build-arg package_url=<OpenVINO pkg> -f <Dockerfile> -t <image_name> .
    ```
-
 5. Copy `OpenCL.dll` from your `C:\Windows\System32` host folder to any `temp` directory:
-
    ```bat
    mkdir C:\tmp
    copy C:\Windows\System32\OpenCL.dll C:\tmp
@@ -136,28 +127,21 @@ GPU Acceleration in Windows containers feature requires to meet Windows host, Op
 ## Run the Docker* Image for GPU
 
 1. To try inference on a GPU, run the image with the following command:
-
    ```bat
    docker run -it --rm -u ContainerAdministrator --isolation process --device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599 -v C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409:C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409 -v C:\tmp:C:\tmp <image_name>
    ```
-
    where
    - `--device class/5B45201D-F2F2-4F3B-85BB-30FF1F953599` is a reserved interface class GUID for a GPU device.
    - `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409` is the path to OpenCL driver home directory. To find it on your PC, run the `C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_*` regular expression.
    - `C:\tmp` is the folder with the copy of `OpenCL.dll` from your `C:\Windows\System32` host folder.
-
 2. Copy `OpenCL.dll` to the `C:\Windows\System32` folder inside the container and set appropriate registry entry. Now you can run inference on a GPU device:
-
    ```bat
    copy C:\tmp\OpenCL.dll C:\Windows\System32\ && reg add "HKLM\SOFTWARE\Khronos\OpenCL\Vendors" /v "C:\Windows\System32\DriverStore\FileRepository\iigd_dch.inf_amd64_518f2921ba495409\ocl\bin\x64\intelocl64.dll" /t REG_DWORD /d 0
    ```
-
 3. For example, run the `demo_security_barrier_camera` demo with the command below:
-
    ```bat
    cd bin && setupvars.bat && cd ../ && cd deployment_tools\demo && demo_security_barrier_camera.bat -d GPU -sample-options -no_show
    ```
-
    > **NOTE**: Addittional third-party dependencies will be installed.
 
 ## Troubleshooting
