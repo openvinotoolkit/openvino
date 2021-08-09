@@ -120,7 +120,7 @@ void CreateMatMul::updateGraph(Graph& graph) {
     graph.output = matmul_node;
 }
 
-template<bool ONE_DIMENSIONAL_BIAS_SHAPE>
+template<bool ONE_DIMENSIONAL, bool ONE_CHANNEL>
 class CreateAdd : public CreateGraphDecorator {
 public:
     CreateAdd(CreateGraphDecoratorPtr prev_builder = nullptr) : CreateGraphDecorator(std::move(prev_builder)) {}
@@ -128,15 +128,14 @@ protected:
     void updateGraph(Graph&) override;
 };
 
-template<bool ONE_DIMENSIONAL_BIAS_SHAPE>
-void CreateAdd<ONE_DIMENSIONAL_BIAS_SHAPE>::updateGraph(Graph& graph) {
+template<bool ONE_DIMENSIONAL, bool ONE_CHANNEL>
+void CreateAdd<ONE_DIMENSIONAL, ONE_CHANNEL>::updateGraph(Graph& graph) {
     std::vector<size_t> axes(1, 1);
-    if (std::is_same<
-            std::integral_constant<bool, ONE_DIMENSIONAL_BIAS_SHAPE>,
-            std::integral_constant<bool, false>
-        >::value) {
+    if (std::is_same<std::integral_constant<bool, ONE_CHANNEL>, std::integral_constant<bool, false>>::value) {
         auto shape = graph.output->get_output_shape(0);
-        axes.resize(shape.size(), 1);
+        if (std::is_same<std::integral_constant<bool, ONE_DIMENSIONAL>, std::integral_constant<bool, false>>::value) {
+            axes.resize(shape.size(), 1);
+        }
         axes.back() = shape.back();
     }
 
@@ -168,7 +167,7 @@ Graph createTransformedGraph(const ngraph::Shape& input_data_shape = ngraph::Sha
 
 // ------------------------------------------------------------------------------------------------------------
 
-template<bool ADD_CONST_FAKEQUANTIZE_NODE, bool INSERT_ADD_NODE, bool ONE_DIMENSIONAL_BIAS_SHAPE, bool ADD_OUT_FAKEQUANTIZE_NODE>
+template<bool ADD_CONST_FAKEQUANTIZE_NODE, bool INSERT_ADD_NODE, bool ONE_CHANNEL, bool ADD_OUT_FAKEQUANTIZE_NODE>
 Graph createReferenceGraph() {
     Graph graph;
 
@@ -206,10 +205,11 @@ Graph createReferenceGraph() {
     parent_node = conv_node;
     if (std::is_same<std::integral_constant<bool, INSERT_ADD_NODE>, std::integral_constant<bool, true>>::value) {
         std::vector<size_t> axes(1, 1);
-        if (std::is_same<std::integral_constant<bool, ONE_DIMENSIONAL_BIAS_SHAPE>, std::integral_constant<bool, false>>::value) {
+        if (std::is_same<std::integral_constant<bool, ONE_CHANNEL>, std::integral_constant<bool, false>>::value) {
             axes.resize(4, 1);
             axes[1] = 8;
         }
+
         auto bias = ngraph::builder::makeConstant<float>(ngraph::element::i64, axes, {}, true);
         auto add_node = std::make_shared<ngraph::opset7::Add>(parent_node, bias);
         parent_node = add_node;
@@ -277,7 +277,8 @@ TEST_P(ConvertMatmulToPointWiseConvolutionFixture, CompareFunctions) {
 namespace {
     constexpr bool AddConstFakeQuantizeNode = true;
     constexpr bool InsertAddNode = true;
-    constexpr bool OneDimensionalBiasShape = true;
+    constexpr bool OneDimensional = true;
+    constexpr bool OneChannel = true;
     constexpr bool AddOutFakeQuantizeNode = true;
 }
 
@@ -285,40 +286,52 @@ INSTANTIATE_TEST_SUITE_P(ConvertMatmulToPointWiseConvolutionTestSuite, ConvertMa
     ::testing::Values(
         std::make_tuple(
             createTransformedGraph<CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, !InsertAddNode, !OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, !InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulToPointWiseConvolution>()),
         std::make_tuple(createTransformedGraph<CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, !InsertAddNode, !OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, !InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateAdd<!OneDimensionalBiasShape>, CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensional, OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensionalBiasShape>, CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensional, !OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateAdd<!OneDimensionalBiasShape>, CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateAdd<!OneDimensional, !OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensionalBiasShape>, CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, OneDimensionalBiasShape, !AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensional, OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, OneChannel, !AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<!OneDimensionalBiasShape>, CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateAdd<OneDimensional, !OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
+            createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
+        std::make_tuple(createTransformedGraph<CreateAdd<!OneDimensional, !OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, !AddOutFakeQuantizeNode>(),
+            createPassManager<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution>()),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensional, OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensionalBiasShape>, CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensional, !OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<!OneDimensionalBiasShape>, CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<!OneDimensional, !OneChannel>, CreateMatMul>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
-        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensionalBiasShape>, CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensional, OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, OneChannel, AddOutFakeQuantizeNode>(),
+            createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<OneDimensional, !OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
+            createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
+        std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateAdd<!OneDimensional, !OneChannel>, CreateMatMul, CreateFakeQuantize>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
         std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateMatMul>(),
-            createReferenceGraph<!AddConstFakeQuantizeNode, !InsertAddNode, !OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+            createReferenceGraph<!AddConstFakeQuantizeNode, !InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>()),
         std::make_tuple(createTransformedGraph<CreateFakeQuantize, CreateMatMul, CreateFakeQuantize>(),
-            createReferenceGraph<AddConstFakeQuantizeNode, !InsertAddNode, !OneDimensionalBiasShape, AddOutFakeQuantizeNode>(),
+            createReferenceGraph<AddConstFakeQuantizeNode, !InsertAddNode, !OneChannel, AddOutFakeQuantizeNode>(),
             createPassManager<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution>())));
 
 // -------------------------------------------------------------------------------------------------------
@@ -398,19 +411,19 @@ std::vector<FixtureData> transform_types = {
                         CreateMatMul,
                         CreateFakeQuantize>(),
     FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution,
-                        CreateAdd<false>,
+                        CreateAdd<false, false>,
                         CreateMatMul>(),
     FixtureData::create<GNAPluginNS::ConvertMatmulWithBiasToPointWiseConvolution,
-                        CreateAdd<false>,
+                        CreateAdd<false, false>,
                         CreateMatMul,
                         CreateFakeQuantize>(),
     FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
                         CreateFakeQuantize,
-                        CreateAdd<false>,
+                        CreateAdd<false, false>,
                         CreateMatMul>(),
     FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,
                         CreateFakeQuantize,
-                        CreateAdd<false>,
+                        CreateAdd<false, false>,
                         CreateMatMul,
                         CreateFakeQuantize>(),
     FixtureData::create<GNAPluginNS::ConvertMatmulWithFqToPointWiseConvolution,

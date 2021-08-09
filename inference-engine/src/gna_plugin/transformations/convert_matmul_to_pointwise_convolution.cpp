@@ -9,8 +9,6 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include "ngraph/pass/constant_folding.hpp"
-#include "ngraph/pass/manager.hpp"
 
 #include "layers/gna_permute.hpp"
 #include "backend/gna_limitations.hpp"
@@ -24,7 +22,7 @@ NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmul
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);
     if (bias_output_shape.size() == 1) {
-        return bias_output_shape[0] == 1;
+        return true;
     }
 
     size_t count = 0;
@@ -100,12 +98,12 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
     if (bias) {
         auto bias_output_shape = bias->get_output_shape(0);
         if (bias_output_shape.size() > 4) {
-            gnalog() << "bias output shape is more than 4\n";
+            gnalog() << "bias output shape (" << bias->get_friendly_name() << ") is more than 4\n";
             return false;
         }
 
         std::shared_ptr<ngraph::Node> new_bias = bias;
-        if (bias_output_shape.size() > 1) {
+        if (bias_output_shape.size() > 1 || bias_output_shape.at(0) > 1) {
             std::vector<size_t> axes(4, 1);
             auto iter = std::find_if(bias_output_shape.begin(), bias_output_shape.end(), [](size_t value) { return value > 1; });
             if (iter != bias_output_shape.end()) {
