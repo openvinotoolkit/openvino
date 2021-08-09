@@ -5,7 +5,7 @@
 /**
  * @brief This is a header file for the OpenVINO Runtime Core class C++ API
  *
- * @file openvion/runtime/core.hpp
+ * @file openvino/runtime/core.hpp
  */
 #pragma once
 
