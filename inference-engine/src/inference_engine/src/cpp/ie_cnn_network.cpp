@@ -24,7 +24,7 @@ CNNNetwork::CNNNetwork(std::shared_ptr<ICNNNetwork> network)
 
 CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
                        const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetwork::CNNNetwork");
 
     if (graph == nullptr) {
         IE_THROW() << "CNNNetwork was not initialized: 'graph' object is empty";
