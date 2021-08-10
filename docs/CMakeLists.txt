@@ -223,7 +223,11 @@ function(build_docs)
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.md"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
-        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg")
+        "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/tools/*.md"
+        "${OpenVINO_SOURCE_DIR}/tools/*.png"
+        "${OpenVINO_SOURCE_DIR}/tools/*.gif"
+        "${OpenVINO_SOURCE_DIR}/tools/*.jpg")
 
     foreach(source_file ${ovino_doc_files})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E copy
