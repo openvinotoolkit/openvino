@@ -8,6 +8,8 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/model/data_contents/ie_blob_content.hpp>
 
+#include <vpu/configuration/options/tensor_strides.hpp>
+
 #include <memory>
 #include <algorithm>
 #include <set>
@@ -25,8 +27,9 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
     VPU_LOGGER_SECTION(env.log);
 
     const auto parseIOStrides = [&env](const std::string& name, const Data& data) {
-        const auto& match = env.config.compileConfig().ioStrides.find(name);
-        if (match == env.config.compileConfig().ioStrides.end()) {
+        const auto tensorStrides = env.config.get<TensorStridesOption>();
+        const auto& match = tensorStrides.find(name);
+        if (match == tensorStrides.end()) {
             return;
         }
 

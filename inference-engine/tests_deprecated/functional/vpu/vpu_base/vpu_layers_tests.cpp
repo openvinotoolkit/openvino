@@ -181,7 +181,6 @@ void vpuLayersTests::createInferRequest(const NetworkParams& params) {
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     config[InferenceEngine::MYRIAD_PERF_REPORT_MODE] = InferenceEngine::MYRIAD_PER_STAGE;
-    config[InferenceEngine::MYRIAD_FORCE_DEPRECATED_CNN_CONVERSION] = CONFIG_VALUE(NO); // Make VPU plugin be able to use NGraph network.
 
     ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(_cnnNetwork, config));
     ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());

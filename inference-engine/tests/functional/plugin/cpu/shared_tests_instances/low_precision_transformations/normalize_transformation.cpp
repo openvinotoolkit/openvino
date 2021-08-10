@@ -16,9 +16,9 @@ const std::vector<ngraph::element::Type> precisions = {
     //ngraph::element::f16
 };
 
-const std::vector<std::pair<ngraph::Shape, ngraph::Shape> > inputAndQuantizationShapes = {
-    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul }) },
-    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul, 4ul, 1ul, 1ul }) },
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape> > inputAndQuantizationShapes = {
+    { { 1ul, 4ul, 16ul, 16ul }, { 1ul } },
+    { { 1ul, 4ul, 16ul, 16ul }, { 1ul, 4ul, 1ul, 1ul } },
 };
 
 const std::vector<std::vector<uint64_t>> axes = {

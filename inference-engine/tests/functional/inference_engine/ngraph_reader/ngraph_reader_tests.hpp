@@ -25,9 +25,6 @@ using namespace InferenceEngine;
 
 class NGraphReaderTests : public CommonTestUtils::TestsCommon {
 protected:
-    void TearDown() override {}
-    void SetUp() override {}
-
     void compareIRs(const std::string& modelV10, const std::string& oldModel, size_t weightsSize = 0, const std::function<void(Blob::Ptr&)>& fillBlob = {}) {
         Core ie;
         Blob::Ptr weights;

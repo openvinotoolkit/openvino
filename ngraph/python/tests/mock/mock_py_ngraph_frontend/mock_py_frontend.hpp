@@ -334,7 +334,7 @@ public:
         return std::make_shared<PlaceMockPy>();
     }
 
-    Place::Ptr get_place_by_operation_name(const std::string& operationName) override
+    Place::Ptr get_place_by_operation_name(const std::string& operationName) const override
     {
         m_stat.m_get_place_by_operation_name++;
         m_stat.m_lastArgString = operationName;
@@ -479,21 +479,23 @@ public:
 
 struct MOCK_API FeStat
 {
-    FrontEndCapFlags m_load_flags;
     std::vector<std::string> m_load_paths;
     int m_convert_model = 0;
     int m_convert = 0;
     int m_convert_partially = 0;
     int m_decode = 0;
     int m_normalize = 0;
+    int m_get_name = 0;
+    int m_supported = 0;
     // Getters
-    FrontEndCapFlags load_flags() const { return m_load_flags; }
     std::vector<std::string> load_paths() const { return m_load_paths; }
     int convert_model() const { return m_convert_model; }
     int convert() const { return m_convert; }
     int convert_partially() const { return m_convert_partially; }
     int decode() const { return m_decode; }
     int normalize() const { return m_normalize; }
+    int get_name() const { return m_get_name; }
+    int supported() const { return m_supported; }
 };
 
 class MOCK_API FrontEndMockPy : public FrontEnd
@@ -501,12 +503,28 @@ class MOCK_API FrontEndMockPy : public FrontEnd
     mutable FeStat m_stat;
 
 public:
-    FrontEndMockPy(FrontEndCapFlags flags) { m_stat.m_load_flags = flags; }
+    FrontEndMockPy() {}
 
-    InputModel::Ptr load_from_file(const std::string& path) const override
+    InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
     {
-        m_stat.m_load_paths.push_back(path);
+        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+            m_stat.m_load_paths.push_back(
+                as_type_ptr<VariantWrapper<std::string>>(params[0])->get());
         return std::make_shared<InputModelMockPy>();
+    }
+
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    {
+        m_stat.m_supported++;
+        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        {
+            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            if (path.find(".test_mock_py_mdl") != std::string::npos)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
@@ -515,11 +533,7 @@ public:
         return std::make_shared<ngraph::Function>(NodeVector{}, ParameterVector{});
     }
 
-    std::shared_ptr<ngraph::Function> convert(std::shared_ptr<ngraph::Function> func) const override
-    {
-        m_stat.m_convert++;
-        return func;
-    }
+    void convert(std::shared_ptr<ngraph::Function> func) const override { m_stat.m_convert++; }
 
     std::shared_ptr<ngraph::Function> convert_partially(InputModel::Ptr model) const override
     {
@@ -536,6 +550,12 @@ public:
     void normalize(std::shared_ptr<ngraph::Function> function) const override
     {
         m_stat.m_normalize++;
+    }
+
+    std::string get_name() const override
+    {
+        m_stat.m_get_name++;
+        return "mock_py";
     }
 
     FeStat get_stat() const { return m_stat; }

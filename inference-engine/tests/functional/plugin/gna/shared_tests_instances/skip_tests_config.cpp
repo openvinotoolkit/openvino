@@ -9,9 +9,12 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        // TODO: FIX BUG 23741 (Open)
-        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
         // TODO: FIX BUG 31661
+        // TODO: support InferRequest in GNAPlugin
+        ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
+        // TODO: FIX BUG 23741
+        ".*InferRequestTests\\.canRun3SyncRequestsConsistentlyFromThreads.*",
+        // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
         R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
@@ -19,6 +22,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
+        // TODO: Issue: 34348
+        R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue 32923
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
@@ -39,8 +44,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         // TODO: Issue 51528
         R"(.*CachingSupport.*_(u8|i16)_.*)",
-        // TODO: Issue 51525
-        R"(.*CachingSupport.*KSOFunction.*)",
         // TODO: Issue 57363 (Param -> Result subgraphs)
         R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=1_.*)",
         // TODO: Issue 57368 (accuracy)

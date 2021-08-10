@@ -41,7 +41,7 @@ public:
     }
 
 protected:
-    void SetUp() {
+    void SetUp() override {
         CPUSpecificParams cpuParams;
         LayerTestsDefinitions::GRUCellParams basicParamsSet;
         std::map<std::string, std::string> additionalConfig;

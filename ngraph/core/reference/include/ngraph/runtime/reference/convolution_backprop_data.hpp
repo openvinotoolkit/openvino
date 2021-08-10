@@ -125,14 +125,15 @@ namespace ngraph
                     }
                 }
 
-                void validate_convolution_backprop_parameters(const Shape& in_shape,
-                                                              const Shape& f_shape,
-                                                              const Shape& out_shape,
-                                                              const Strides& strides,
-                                                              const Strides& dilations,
-                                                              const CoordinateDiff& pads_begin,
-                                                              const CoordinateDiff& pads_end,
-                                                              const CoordinateDiff& output_padding)
+                inline void
+                    validate_convolution_backprop_parameters(const Shape& in_shape,
+                                                             const Shape& f_shape,
+                                                             const Shape& out_shape,
+                                                             const Strides& strides,
+                                                             const Strides& dilations,
+                                                             const CoordinateDiff& pads_begin,
+                                                             const CoordinateDiff& pads_end,
+                                                             const CoordinateDiff& output_padding)
                 {
                     // this implementation supports 1D, 2D and 3D convolutions
                     NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,

@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -18,19 +18,28 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
+    pugixml::static
 )
 
 set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
+    HeteroPlugin
+    AutoPlugin
+    MultiDevicePlugin
     template_extension
     lptNgraphFunctions
     sharedTestClasses
+    test_model_zoo
 )
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE)
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+endif()
+
+if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+    list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
 addIeTargetTest(
@@ -50,8 +59,14 @@ set_ie_threading_interface_for(${TARGET_NAME})
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_IMPORT_ENABLE
-        ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
+        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
+endif()
+
+if(NGRAPH_PDPD_FRONTEND_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+            PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
+    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -70,6 +85,11 @@ file(GLOB_RECURSE legacy_tests
 
 set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
     $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp
+                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
+endif()
 
 include(CMakeParseArguments)
 
@@ -90,7 +110,7 @@ function(ie_headers_compilation_with_custom_flags)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(IE_TEST_PLUGIN_API)
-        set(IE_TEST_INCLUDE_DIRECTORY 
+        set(IE_TEST_INCLUDE_DIRECTORY
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         set(IE_TEST_INCLUDE_DIRECTORY
@@ -149,12 +169,12 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml, openvino::itt, inference_engine_preproc headers
+        # ngraph, pugixml::static, openvino::itt, inference_engine_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
-            $<TARGET_PROPERTY:${NGRAPH_LIBRARIES},INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
@@ -203,7 +223,7 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
-                                                 FLAGS -Werror-all -Werror -Wall)
+                                                 FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
@@ -243,4 +263,5 @@ else()
 endif()
 
 # ir serialization functional tests variables
-target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")
+target_compile_definitions(${TARGET_NAME} PRIVATE
+    IR_SERIALIZATION_MODELS_PATH="${TEST_MODEL_ZOO}/ir_serialization/models/")

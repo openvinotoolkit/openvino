@@ -27,6 +27,7 @@ namespace ngraph
                         const bool exclusive,
                         const bool reverse)
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform temp_transform(tensor_shape);
                 for (const Coordinate& output_coord : temp_transform)
                 {
@@ -126,6 +127,7 @@ namespace ngraph
                 {
                     cum_sum(it.second);
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

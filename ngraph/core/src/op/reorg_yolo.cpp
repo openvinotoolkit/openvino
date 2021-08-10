@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ReorgYolo::type_info;
+NGRAPH_RTTI_DEFINITION(op::ReorgYolo, "ReorgYolo", 0);
 
 op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
     : Op({input})

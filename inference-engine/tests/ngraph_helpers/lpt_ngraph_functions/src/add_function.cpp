@@ -152,11 +152,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::Shape& inputShape,
+    const ngraph::PartialShape& inputShape,
     const bool broadcast,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2) {
-    ngraph::Shape inputShape2 = inputShape;
+    ngraph::PartialShape inputShape2 = inputShape;
 
     if (broadcast) {
         inputShape2[2] = 1;

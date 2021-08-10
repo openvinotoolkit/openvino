@@ -101,6 +101,10 @@ inline std::pair<bool, std::string> compare_functions(
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
 
+void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name);
+
+void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names);
+
 namespace ngraph {
 namespace pass {
 class InjectionPass;

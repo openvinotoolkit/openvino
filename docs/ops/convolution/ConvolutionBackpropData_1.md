@@ -43,7 +43,6 @@ else:
   * **Description**: *strides* has the same definition as *strides* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pads_begin*
@@ -51,7 +50,6 @@ else:
   * **Description**: *pads_begin* has the same definition as *pads_begin* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted specified, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -60,21 +58,19 @@ else:
   * **Description**: *pads_end* has the same definition as *pads_end* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
-  
+
 * *dilations*
 
   * **Description**: *dilations* has the same definition as *dilations* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
   * **Type**: `int[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
 
-  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor. 
+  * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor.
     * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
     * *same_upper* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
@@ -94,11 +90,11 @@ else:
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is `[N, C_INPUT, Z, Y, X]` (number of batches, number of input channels, spatial axes Z, Y, X). *Required*.
+*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is `[N, C_INPUT, Z, Y, X]` (number of batches, number of input channels, spatial axes Z, Y, X). **Required.**
 
-*   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is `[C_INPUT, C_OUTPUT, Z, Y, X]` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. *Required*.
+*   **2**: Convolution kernel tensor of type *T1* and rank 3, 4 or 5. Layout is `[C_INPUT, C_OUTPUT, Z, Y, X]` (number of input channels, number of output channels, spatial axes Z, Y, X). Spatial size of the kernel is derived from the shape of this input and aren't specified by any attribute. **Required.**
 
-*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`. *Optional*.
+*   **3**: `output_shape` is 1D tensor of type *T2* that specifies spatial shape of the output. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`. **Optional.**
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X,
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X,

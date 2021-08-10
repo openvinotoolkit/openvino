@@ -27,13 +27,14 @@ static void register_mock_frontend_stat(py::module m)
         py::arg("frontend"));
 
     py::class_<FeStat> feStat(m, "FeStat", py::dynamic_attr());
-    feStat.def_property_readonly("load_flags", &FeStat::load_flags);
     feStat.def_property_readonly("load_paths", &FeStat::load_paths);
     feStat.def_property_readonly("convert_model", &FeStat::convert_model);
     feStat.def_property_readonly("convert", &FeStat::convert);
     feStat.def_property_readonly("convert_partially", &FeStat::convert_partially);
     feStat.def_property_readonly("decode", &FeStat::decode);
     feStat.def_property_readonly("normalize", &FeStat::normalize);
+    feStat.def_property_readonly("get_name", &FeStat::get_name);
+    feStat.def_property_readonly("supported", &FeStat::supported);
 }
 
 static void register_mock_model_stat(py::module m)

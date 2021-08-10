@@ -51,7 +51,7 @@ namespace equal
 
 //------------------------------- v1 -------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1);
+NGRAPH_RTTI_DEFINITION(op::v1::Equal, "Equal", 1, op::util::BinaryElementwiseComparison);
 
 op::v1::Equal::Equal(const Output<Node>& arg0,
                      const Output<Node>& arg1,
@@ -94,5 +94,6 @@ bool op::v1::Equal::has_evaluate() const
 bool op::v1::Equal::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v1_Equal_visit_attributes);
+    BinaryElementwiseComparison::visit_attributes(visitor);
     return true;
 }
