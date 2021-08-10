@@ -1618,3 +1618,63 @@ NGRAPH_TEST(onnx_editor, is_correct_tensor_name)
     EXPECT_FALSE(editor.is_correct_tensor_name("not_existed"));
     EXPECT_FALSE(editor.is_correct_tensor_name(""));
 }
+
+NGRAPH_TEST(onnx_editor, get_input_ports_number)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    EXPECT_EQ(editor.get_input_ports_number(EditorNode{"relu1_name"}), 1);
+    EXPECT_EQ(editor.get_input_ports_number(EditorNode{"split_name"}), 1);
+    EXPECT_EQ(editor.get_input_ports_number(EditorNode{EditorOutput{"add2"}}), 2);
+    try
+    {
+        editor.get_input_ports_number(EditorNode{"add_ambiguous_name"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("The node with name: add_ambiguous_name, output_name: not_given is ambiguous") !=
+                    std::string::npos);
+    }
+    try
+    {
+        editor.get_input_ports_number(EditorNode{""});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("The node with name: not_given, output_name: not_given is ambiguous") !=
+                    std::string::npos);
+    }
+}
+
+NGRAPH_TEST(onnx_editor, get_output_ports_number)
+{
+    ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.onnx")};
+
+    EXPECT_EQ(editor.get_output_ports_number(EditorNode{"relu1_name"}), 1);
+    EXPECT_EQ(editor.get_output_ports_number(EditorNode{"split_name"}), 2);
+    EXPECT_EQ(editor.get_output_ports_number(EditorNode{EditorOutput{"add2"}}), 1);
+    try
+    {
+        editor.get_output_ports_number(EditorNode{"add_ambiguous_name"});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("The node with name: add_ambiguous_name, output_name: not_given is ambiguous") !=
+                    std::string::npos);
+    }
+    try
+    {
+        editor.get_output_ports_number(EditorNode{""});
+    }
+    catch (const std::exception& e)
+    {
+        std::string msg{e.what()};
+        EXPECT_TRUE(msg.find("The node with name: not_given, output_name: not_given is ambiguous") !=
+                    std::string::npos);
+    }
+}

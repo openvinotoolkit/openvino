@@ -267,6 +267,28 @@ bool onnx_editor::EdgeMapper::is_correct_and_unambiguous_node(const EditorNode& 
     return find_node_indexes(node.m_node_name, node.m_output_name).size() == 1;
 }
 
+int onnx_editor::EdgeMapper::get_input_ports_number(const EditorNode& node) const
+{
+    NGRAPH_CHECK(
+        is_correct_and_unambiguous_node(node),
+        "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " is ambiguous");
+    const auto node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    return m_node_inputs[node_index].size();
+}
+
+int onnx_editor::EdgeMapper::get_output_ports_number(const EditorNode& node) const
+{
+    NGRAPH_CHECK(
+        is_correct_and_unambiguous_node(node),
+        "The node with name: " + (node.m_node_name.empty() ? "not_given" : node.m_node_name) +
+            ", output_name: " + (node.m_output_name.empty() ? "not_given" : node.m_output_name) +
+            " is ambiguous");
+    const auto node_index = find_node_indexes(node.m_node_name, node.m_output_name)[0];
+    return m_node_outputs[node_index].size();
+}
+
 bool onnx_editor::EdgeMapper::is_correct_tensor_name(const std::string& name) const
 {
     if (m_node_output_name_to_index.find(name) != std::end(m_node_output_name_to_index))
