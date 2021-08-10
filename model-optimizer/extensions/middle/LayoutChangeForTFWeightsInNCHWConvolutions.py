@@ -22,7 +22,7 @@ class LayoutChangeForTFWeightsInNCHWConvolutions(MiddleReplacementPattern):
     """
     enabled = True
     force_shape_inference = True
-    graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW' and graph.graph['fw'] == 'tf']
 
     def run_after(self):
         from extensions.middle.pass_separator import PostMiddleStart
@@ -35,10 +35,15 @@ class LayoutChangeForTFWeightsInNCHWConvolutions(MiddleReplacementPattern):
         for node in graph.get_op_nodes():
             if node.soft_get('type') in ['Convolution', 'Deconvolution']:
                 node_name = node.soft_get('name', node.id)
+                weights_shape = node.in_node(1).shape
+                assert len(weights_shape) in [3, 4, 5], \
+                    'weights_rank for {} node {} must be 3, 4 or 5, instead got: {}'.format(
+                        node.soft_get('type'), node_name, len(weights_shape))
+
                 assert node.has('get_weights_permute') and isinstance(node['get_weights_permute'], PermuteAttrs.Permutation), \
                     'node {} does not contain weights permutation attribute'.format(node_name)
 
-                transpose_name = node.soft_get('name', node.id) + '/Transpose'
+                transpose_name = node_name + '/Transpose'
                 transpose = create_op_with_const_inputs(graph, Transpose, {1: node['get_weights_permute'].perm},
                                                         {'name': transpose_name, 'override_output_shape': True})
                 node.in_port(1).get_connection().insert_node(transpose)
