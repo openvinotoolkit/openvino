@@ -122,14 +122,16 @@ namespace
             {
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
-                    const T yy = roi_start_h + ph * bin_size_h +
-                                 static_cast<T>(iy + .5f) * bin_size_h /
-                                     static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
+//                    std::cout << "                        iy: " << iy << "\n";
+                    const T yy = roi_start_h + static_cast<T>(ph) * bin_size_h +
+                                 static_cast<T>(static_cast<T>(iy) + static_cast<T>(0.5f)) * bin_size_h /
+                                     static_cast<T>(roi_bin_grid_h);
+                    std::cout << "                        yy: " << yy << "\n";
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
                         const T xx =
-                            roi_start_w + pw * bin_size_w +
-                            static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                            roi_start_w + static_cast<T>(pw) * bin_size_w +
+                            static_cast<T>(static_cast<T>(ix) + static_cast<T>(0.5f)) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                         T x = xx;
                         T y = yy;
@@ -151,10 +153,12 @@ namespace
                             continue;
                         }
 
+//                         y = std::max(y, static_cast<T>(0.0));
                         if (y <= 0)
                         {
                             y = 0;
                         }
+//                         x = std::max(x, static_cast<T>(0.0));
                         if (x <= 0)
                         {
                             x = 0;
@@ -168,6 +172,7 @@ namespace
                         if (y_low >= height - 1)
                         {
                             y_high = y_low = height - 1;
+//                             y = static_cast<T>(y_low);
                             y = (T)y_low;
                         }
                         else
@@ -178,6 +183,7 @@ namespace
                         if (x_low >= width - 1)
                         {
                             x_high = x_low = width - 1;
+//                             x = static_cast<T>(x_low);
                             x = (T)x_low;
                         }
                         else
@@ -223,35 +229,70 @@ namespace
                                     const bool aligned,
                                     T* top_data)
     {
+        std::cout << "    ROIAlignForward_cpu_kernel running...\n";
+        std::cout << "    Its arguments are\n";
+        std::cout << "    nthreads:       " << nthreads << "\n";
+        std::cout << "    bottom_data:    " << bottom_data << "\n";
+        std::cout << "    spatial_scale:  " << spatial_scale << "\n";
+        std::cout << "    channels:       " << channels << "\n";
+        std::cout << "    height:         " << height << "\n";
+        std::cout << "    width:          " << width << "\n";
+        std::cout << "    pooled_height:  " << pooled_height << "\n";
+        std::cout << "    pooled_width:   " << pooled_width << "\n";
+        std::cout << "    sampling_ratio: " << sampling_ratio << "\n";
+        std::cout << "    bottom_rois:    " << bottom_rois << "\n";
+        std::cout << "    aligned:        " << (aligned ? "true" : "false") << "\n\n";
+        std::cout << "    top_data:       " << top_data << "\n";
         int64_t roi_cols = 4;
 
         int64_t n_rois = nthreads / channels / pooled_width / pooled_height;
+        std::cout << "    roi_cols:       " << roi_cols << "\n";
+        std::cout << "    n_rois:         " << n_rois << "\n";
         // (n, c, ph, pw) is an element in the pooled output
+        std::cout << "Loop with respect to n in range(0, n_rois)...\n";
         for (int64_t n = 0; n < n_rois; ++n)
         {
+            std::cout << "        n:       " << n << "\n";
             int64_t index_n = n * channels * pooled_width * pooled_height;
+            std::cout << "        index_n: " << index_n << "\n";
 
             // roi could have 4 or 5 columns
             const T* offset_bottom_rois = bottom_rois + n * roi_cols;
             int64_t roi_batch_ind = 0;
+            std::cout << "        offset_bottom_rois before if stmt: " << offset_bottom_rois << "\n";
+            std::cout << "        roi_batch_ind before if stmt:      " << roi_batch_ind << "\n";
             if (roi_cols == 5)
             {
                 roi_batch_ind = static_cast<int64_t>(offset_bottom_rois[0]);
                 offset_bottom_rois++;
             }
+            std::cout << "        offset_bottom_rois after if stmt:  " << offset_bottom_rois << "\n";
+            std::cout << "        roi_batch_ind after if stmt:       " << roi_batch_ind << "\n";
 
+//             T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
             T offset = aligned ? (T)0.5 : (T)0.0;
+            std::cout << "        offset: " << offset << "\n";
             // Do not using rounding; this implementation detail is critical
             T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
             T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
             T roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
             T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
+            std::cout << "        roi_start_w: " << roi_start_w << "\n";
+            std::cout << "        roi_start_h: " << roi_start_h << "\n";
+            std::cout << "        roi_end_w:   " << roi_end_w << "\n";
+            std::cout << "        roi_end_h:   " << roi_end_h << "\n";
 
             // Force malformed ROIs to be 1x1
+//             T roi_width = std::max(roi_end_w - roi_start_w, static_cast<T>(1.0));
             T roi_width = std::max(roi_end_w - roi_start_w, (T)1.);
+//             T roi_height = std::max(roi_end_h - roi_start_h, static_cast<T>(1.0));
             T roi_height = std::max(roi_end_h - roi_start_h, (T)1.);
             T bin_size_h = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
+            std::cout << "        roi_width:   " << roi_width << "\n";
+            std::cout << "        roi_height:  " << roi_height << "\n";
+            std::cout << "        bin_size_h:  " << bin_size_h << "\n";
+            std::cout << "        bin_size_w:  " << bin_size_w << "\n";
 
             // We use roi_bin_grid to sample the grid and mimic integral
             int64_t roi_bin_grid_h =
@@ -264,12 +305,15 @@ namespace
 
             // We do average (integral) pooling inside a bin
             const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w); // e.g. = 4
+            std::cout << "        roi_bin_grid_h:  " << roi_bin_grid_h << "\n";
+            std::cout << "        roi_bin_grid_w:  " << roi_bin_grid_w << "\n";
+            std::cout << "        count:           " << count << "\n";
 
             // we want to precalculate indices and weights shared by all channels,
             // this is the key point of optimization
             std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width *
                                              pooled_height);
-            pre_calc_for_bilinear_interpolate(height,
+            pre_calc_for_bilinear_interpolate<T>(height,
                                               width,
                                               pooled_height,
                                               pooled_width,
@@ -282,6 +326,21 @@ namespace
                                               roi_bin_grid_h,
                                               roi_bin_grid_w,
                                               pre_calc);
+            std::cout << "        pre_calc:\n";
+            for (const auto& p : pre_calc)
+            {
+                std::cout << "            PreCalc{"
+                          << ".pos1=" << p.pos1 << ", "
+                          << ".pos2=" << p.pos2 << ", "
+                          << ".pos3=" << p.pos3 << ", "
+                          << ".pos4=" << p.pos4 << ", "
+                          << ".w1=" << p.w1 << ", "
+                          << ".w2=" << p.w2 << ", "
+                          << ".w3=" << p.w3 << ", "
+                          << ".w4=" << p.w4 << "}\n";
+            }
+            std::cout << "\n\n";
+
             for (int64_t c = 0; c < channels; c++)
             {
                 int64_t index_n_c = index_n + c * pooled_width * pooled_height;
@@ -332,6 +391,26 @@ namespace ngraph
                 float* output_rois_features,
                 float* output_rois)
             {
+                std::cout << "Running reference implementation calculations for "
+                             "ExperimentalDetectronROIFeatureExtractor...\n";
+                std::cout << "Its arguments are\n\n";
+                std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+                std::cout << "Input data:\n";
+                for (size_t i = 0; i < inputs.size(); ++i)
+                {
+                    std::cout << "    input number " << i << " has data: ";
+                    for (auto x : inputs[i])
+                    {
+                        std::cout << x << ", ";
+                    }
+                    std::cout << "\n\n";
+                }
+                std::cout << "Input shapes:\n";
+                for (size_t i = 0; i < input_shapes.size(); ++i)
+                {
+                    std::cout << "    input number " << i << " has shape: " << input_shapes[i] <<"\n\n";
+                }
+
                 int64_t output_dim_ = attrs.output_size;
                 auto pyramid_scales_ = attrs.pyramid_scales;
                 int64_t sampling_ratio_ = attrs.sampling_ratio;
@@ -346,10 +425,32 @@ namespace ngraph
                     static_cast<int64_t>(input_shapes[input_features_start_port][1]);
                 const int64_t feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
+                std::cout << "output_dim_:     " << output_dim_ << "\n";
+                std::cout << "pyramid_scales_: ";
+                for (auto x : pyramid_scales_)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n";
+                std::cout << "sampling_ratio_: " << sampling_ratio_ << "\n";
+                std::cout << "aligned_:        " << (aligned_ ? "true" : "false") << "\n";
+                std::cout << "pooled_height_:  " << pooled_height_ << "\n";
+                std::cout << "pooled_width_:   " << pooled_width_ << "\n";
+                std::cout << "levels_num:      " << levels_num << "\n";
+                std::cout << "num_rois:        " << num_rois << "\n";
+                std::cout << "channels_num:    " << channels_num << "\n";
+                std::cout << "feaxels_per_roi: " << feaxels_per_roi << "\n\n";
+
                 const float* input_rois = inputs[input_rois_port].data();
 
                 std::vector<int64_t> level_ids(num_rois, 0);
                 redistribute_rois(input_rois, level_ids.data(), num_rois, levels_num);
+                std::cout << "level_ids:             ";
+                for (auto x : level_ids)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<float> reordered_rois(4 * num_rois, 0);
                 std::vector<int64_t> original_rois_mapping(num_rois, 0);
@@ -359,15 +460,37 @@ namespace ngraph
                       4,
                       reordered_rois.data(),
                       original_rois_mapping.data());
+                std::cout << "reordered_rois:        ";
+                for (auto x : reordered_rois)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
+                std::cout << "original_rois_mapping: ";
+                for (auto x : original_rois_mapping)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<int64_t> rois_per_level;
                 split_points(level_ids, rois_per_level, levels_num + 1);
+                std::cout << "rois_per_level:        ";
+                for (auto x : rois_per_level)
+                {
+                    std::cout << x << ", ";
+                }
+                std::cout << "\n\n";
 
                 std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
+                std::cout << "Loop through levels...\n";
                 for (int64_t i = 0; i < levels_num; ++i)
                 {
+                    std::cout << "    i:                 " << i << "\n";
                     const int64_t level_rois_offset = rois_per_level[i];
                     const int64_t level_rois_num = rois_per_level[i + 1] - level_rois_offset;
+                    std::cout << "    level_rois_offset: " << level_rois_offset << "\n";
+                    std::cout << "    level_rois_num:    " << level_rois_num << "\n";
                     if (level_rois_num > 0)
                     {
                         const float* featuremap = inputs[input_features_start_port + i].data();
@@ -375,6 +498,8 @@ namespace ngraph
                             static_cast<int64_t>(input_shapes[input_features_start_port + i][2]);
                         const int64_t featuremap_width =
                             static_cast<int64_t>(input_shapes[input_features_start_port + i][3]);
+                        std::cout << "    featuremap_height: " << featuremap_height << "\n";
+                        std::cout << "    featuremap_width:  " << featuremap_width << "\n";
                         ROIAlignForward_cpu_kernel<float>(
                             feaxels_per_roi * level_rois_num,
                             featuremap,
@@ -418,7 +543,8 @@ namespace ngraph
                 {
                 case element::Type_t::bf16:
                 {
-                    bfloat16* output_rois_features_ptr = reinterpret_cast<bfloat16*>(prois_features);
+                    bfloat16* output_rois_features_ptr =
+                        reinterpret_cast<bfloat16*>(prois_features);
                     bfloat16* output_rois_ptr = reinterpret_cast<bfloat16*>(prois);
                     for (size_t i = 0; i < output_rois_features_size; ++i)
                     {
