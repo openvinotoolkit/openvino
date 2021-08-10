@@ -18,25 +18,33 @@ using namespace InferenceEngine;
 
 namespace {
 struct CumSumParams {
+    // Custom axis input and attributes
     template <class IT, class AT>
     CumSumParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues, const bool execlusive,
-                 const bool reverse, const element::Type& axisType, AT axisValue, const PartialShape& axisShape)
+                 const bool reverse, const element::Type& axisType, AT axisVal, const PartialShape& axisShape)
         : execlusive(execlusive),
           reverse(reverse),
-          axisValue(axisValue),
+          axisValue(axisVal),
           axisShape(axisShape),
           inShape(shape),
           axisType(axisType),
           inType(iType),
           outType(iType),
-          axisData(CreateBlob(axisType, std::vector<AT> {axisValue})),
+          axisData(CreateBlob(axisType, std::vector<AT> {axisVal})),
           inputData(CreateBlob(iType, iValues)),
           refData(CreateBlob(iType, oValues)),
           testDefaults(false) {}
 
+    // Default axis input and attributes
     template <class IT>
     CumSumParams(const PartialShape& shape, const element::Type& iType, const std::vector<IT>& iValues, const std::vector<IT>& oValues)
-        : inShape(shape), inType(iType), outType(iType), inputData(CreateBlob(iType, iValues)), refData(CreateBlob(iType, oValues)), testDefaults(true) {}
+        : inShape(shape),
+          axisType(element::i32),
+          inType(iType),
+          outType(iType),
+          inputData(CreateBlob(iType, iValues)),
+          refData(CreateBlob(iType, oValues)),
+          testDefaults(true) {}
 
     bool execlusive = false;
     bool reverse = false;
@@ -77,6 +85,7 @@ public:
         result << "reverse=" << param.reverse << "_";
         result << "inShape=" << param.inShape << "_";
         result << "iType=" << param.inType << "_";
+        result << "axisType=" << param.axisType << "_";
         result << "oType=" << param.outType;
         return result.str();
     }
@@ -107,9 +116,41 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
     std::vector<CumSumParams> opParams {
         // Default axis input and attributes
         CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}),
+        CumSumParams(PartialShape {2, 4}, type, std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7}, std::vector<T> {0, 1, 2, 3, 4, 6, 8, 10}),
         // Custom axis input and attributes
-        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}, false, false, element::i32, 0,
-                     PartialShape {}),
+        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}, false, false, element::i32, int32_t(0),
+                     PartialShape {}),  // axis i32
+        CumSumParams(PartialShape {6}, type, std::vector<T> {1, 2, 3, 4, 5, 6}, std::vector<T> {1, 3, 6, 10, 15, 21}, false, false, element::i64, int64_t(0),
+                     PartialShape {}),  // axis i64
+        CumSumParams(PartialShape {2, 4}, type, std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7}, std::vector<T> {0, 1, 3, 6, 4, 9, 15, 22}, false, false, element::i32,
+                     int32_t(1), PartialShape {}),
+        CumSumParams(
+                PartialShape {3, 2, 4}, type,
+                std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7,
+                                8, 9, 10, 11, 12, 13, 14, 15,
+                                16, 17, 18, 19, 20, 21, 22, 23},
+                std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7,
+                                8, 10, 12, 14, 16, 18, 20, 22,
+                                24, 27, 30, 33, 36, 39, 42, 45},
+                false, false, element::i32, int32_t(0), PartialShape {}),
+        CumSumParams(
+                PartialShape {3, 2, 4}, type,
+                std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7,
+                                8, 9, 10, 11, 12, 13, 14, 15,
+                                16, 17, 18, 19, 20, 21, 22, 23},
+                std::vector<T> {0,  1,  2,  3,  4,  6,  8, 10,
+                                8,  9,  10, 11, 20, 22, 24, 26,
+                                16, 17, 18, 19, 36, 38, 40, 42}, false, false, element::i32,
+                int32_t(1), PartialShape {}),
+        CumSumParams(
+                PartialShape {3, 2, 4}, type,
+                std::vector<T> {0, 1, 2, 3, 4, 5, 6, 7,
+                                8, 9, 10, 11, 12, 13, 14, 15,
+                                16, 17, 18, 19, 20, 21, 22, 23},
+                std::vector<T> {0,  1,  3,  6,  4,  9,  15, 22,
+                                8,  17, 27, 38, 12, 25, 39, 54,
+                                16, 33, 51, 70, 20, 41, 63, 86},
+                false, false, element::i32, int32_t(2), PartialShape {}),
     };
     return opParams;
 }
@@ -117,9 +158,9 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
 std::vector<CumSumParams> generateGrnCombinedParams() {
     const std::vector<std::vector<CumSumParams>> opTypeParams {
         generateCumSumParams<element::Type_t::bf16>(element::bf16), generateCumSumParams<element::Type_t::f16>(element::f16),
-        generateCumSumParams<element::Type_t::f32>(element::f32),   generateCumSumParams<element::Type_t::f64>(element::f64),
-        generateCumSumParams<element::Type_t::i32>(element::i32),   generateCumSumParams<element::Type_t::i64>(element::i64),
-        generateCumSumParams<element::Type_t::u32>(element::u32),   generateCumSumParams<element::Type_t::i8>(element::i8)};
+        generateCumSumParams<element::Type_t::f32>(element::f32),   generateCumSumParams<element::Type_t::i32>(element::i32),
+        generateCumSumParams<element::Type_t::i64>(element::i64),   generateCumSumParams<element::Type_t::u32>(element::u32),
+        generateCumSumParams<element::Type_t::i8>(element::i8)};
     std::vector<CumSumParams> combinedParams;
     std::for_each(opTypeParams.begin(), opTypeParams.end(), [&](std::vector<CumSumParams> params) {
         combinedParams.insert(combinedParams.end(), params.begin(), params.end());
