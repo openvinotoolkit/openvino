@@ -935,8 +935,6 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const std::shar
     } else {
         with_bilinear_pad = false;
     }
-
-    enforceRef = (op->get_type_info() == ngraph::op::v8::DeformableConvolution::type_info);
 }
 
 void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
@@ -973,7 +971,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
 //    || ((getChildEdgeAt(0)->getShape().getStaticDims()[1] / group) % simd_w != 0))) {
 //        enforceRef = true;
 //    }
-
+    enforceRef = true;
     size_t inputsNumber = getOriginalInputsNumber();
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -1166,7 +1164,7 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
         const int w_in = ow * KSW - padL;
 
         for (int ic = 0; ic < IC; ic++) {
-            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1] + h_in * src_strides[2] + w_in * src_strides[3];
+            const float *data_im_ptr = src + mb * src_strides[0] + (g * IC + ic) * src_strides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
             const float *data_offset_ptr = offsets + mb * off_strides[0] + (deformable_group_index * 2 * KH * KW) * off_strides[1];
             const float *modulation_offset_ptr = nullptr;
@@ -1180,32 +1178,29 @@ void MKLDNNDeformableConvolutionNode::executeReference(const float* src, const f
                     const size_t data_offset_w_index = (2 * (kh * KW + kw) + 1) * off_strides[1] + oh * off_strides[2] + ow * off_strides[3];
                     const float offset_h = data_offset_ptr[data_offset_h_index];
                     const float offset_w = data_offset_ptr[data_offset_w_index];
-                    float map_h = kh * (KDH + 1) + offset_h; // kernel index with offset
-                    float map_w = kw * (KDW + 1) + offset_w; // kernel index with offset
-
-                    const float h_im = h_in + map_h; // absolute pixel index with offset
-                    const float w_im = w_in + map_w; // absolute pixel index with offset
+                    float map_h = h_in + kh * (KDH + 1) + offset_h;
+                    float map_w = w_in + kw * (KDW + 1) + offset_w;
                     bool skip_compute;
                     if (with_bilinear_pad) {
-                        skip_compute = !(static_cast<int>(w_im) > -1 &&
-                                static_cast<int>(w_im) < IW &&
-                                static_cast<int>(h_im) > -1 &&
-                                static_cast<int>(h_im) < IH);
+                        skip_compute = !(static_cast<int>(map_w) > -1 &&
+                                static_cast<int>(map_w) < IW &&
+                                static_cast<int>(map_h) > -1 &&
+                                static_cast<int>(map_h) < IH);
                     } else {
-                        skip_compute = !(w_im >= 0 &&
-                                w_im < IW &&
-                                h_im >= 0 &&
-                                h_im < IH);
+                        skip_compute = !(map_w >= 0 &&
+                                map_w < IW &&
+                                map_h >= 0 &&
+                                map_h < IH);
                     }
                     if (!skip_compute) {
-                        const int cur_h_end = IH - h_in;
-                        const int cur_w_end = IW - w_in;
+                        const int cur_h_end = IH;
+                        const int cur_w_end = IW;
                         int h_low = with_bi_pad ? static_cast<int>(floorf(map_h)) :
                                 std::max(static_cast<int>(floorf(map_h)), 0);
                         int w_low = with_bi_pad ? static_cast<int>(floorf(map_w)) :
                                 std::max(static_cast<int>(floorf(map_w)), 0);
-                        const int cur_h_start = h_low + h_in;
-                        const int cur_w_start = w_low + w_in;
+                        const int cur_h_start = h_low;
+                        const int cur_w_start = w_low;
                         int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
                         int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
