@@ -148,7 +148,7 @@ public:
      */
     void* GetData() const {
         void* data = prim->get_data_handle();
-        if (data == nullptr)
+        if (data == nullptr && pMemDesc->getShape().getElementsCount() != 0)
             IE_THROW() << "Cannot get memory!";
         return data;
     }
