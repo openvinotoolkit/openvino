@@ -20,7 +20,7 @@ namespace Metrics {
  * @def GPU_METRIC_KEY(name)
  * @brief shortcut for defining GPU plugin metrics
  */
-#define GPU_METRIC_KEY(name) METRIC_KEY(GPU_##name)
+#define GPU_METRIC_KEY(name)              METRIC_KEY(GPU_##name)
 #define DECLARE_GPU_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(GPU_##name, __VA_ARGS__)
 
 /**
@@ -30,7 +30,8 @@ namespace Metrics {
 #define DECLARE_GPU_METRIC_VALUE(name) DECLARE_METRIC_VALUE(GPU_##name)
 
 /**
- * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size, for dGPU - dedicated gpu memory size
+ * @brief Metric which defines size of memory in bytes available for the device. For iGPU it returns host memory size,
+ * for dGPU - dedicated gpu memory size
  */
 DECLARE_GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE, uint64_t);
 
@@ -60,8 +61,8 @@ namespace GPUConfigParams {
 /**
  * @brief shortcut for defining configuration keys
  */
-#define GPU_CONFIG_KEY(name) InferenceEngine::GPUConfigParams::_CONFIG_KEY(GPU_##name)
-#define DECLARE_GPU_CONFIG_KEY(name) DECLARE_CONFIG_KEY(GPU_##name)
+#define GPU_CONFIG_KEY(name)           InferenceEngine::GPUConfigParams::_CONFIG_KEY(GPU_##name)
+#define DECLARE_GPU_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(GPU_##name)
 #define DECLARE_GPU_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(GPU_##name)
 
 /**
@@ -93,10 +94,11 @@ DECLARE_GPU_CONFIG_KEY(NV12_TWO_INPUTS);
 DECLARE_GPU_CONFIG_KEY(MAX_NUM_THREADS);
 
 /**
- * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration count.
- * This key is turned on by default. Turning this key on will achieve better inference performance for loops with not too many iteration counts (less than 16, as a rule of thumb).
- * Turning this key off will achieve better performance for both graph loading time and inference time with many iteration counts (greater than 16).
- * Note that turning this key on will increase the graph loading time in proportion to the iteration counts.
+ * @brief Turning on this key enables to unroll recurrent layers such as TensorIterator or Loop with fixed iteration
+ * count. This key is turned on by default. Turning this key on will achieve better inference performance for loops with
+ * not too many iteration counts (less than 16, as a rule of thumb). Turning this key off will achieve better
+ * performance for both graph loading time and inference time with many iteration counts (greater than 16). Note that
+ * turning this key on will increase the graph loading time in proportion to the iteration counts.
  * Thus, this key should be turned off if graph loading time is considered to be most important target to optimize.*/
 DECLARE_GPU_CONFIG_KEY(ENABLE_LOOP_UNROLLING);
 

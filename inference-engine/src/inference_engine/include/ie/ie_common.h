@@ -11,18 +11,19 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <iterator>
+#include <map>
 #include <memory>
 #include <ostream>
-#include <string>
-#include <vector>
-#include <map>
 #include <sstream>
 #include <stdexcept>
-#include <iterator>
+#include <string>
+#include <vector>
 
-#include <ie_api.h>
+#include "ie_api.h"
+
 #ifndef NDEBUG
-#include <cassert>
+#    include <cassert>
 #endif
 namespace InferenceEngine {
 /**
@@ -58,9 +59,9 @@ using DataWeakPtr = std::weak_ptr<Data>;
  * @brief The method holds the user values to enable binding of data per graph node.
  */
 union UserValue {
-    int v_int;  //!< An integer value
+    int v_int;      //!< An integer value
     float v_float;  //!< A floating point value
-    void* v_ptr;  //!< A pointer to a void
+    void* v_ptr;    //!< A pointer to a void
 };
 
 /**
@@ -71,15 +72,15 @@ enum Layout : uint8_t {
     ANY = 0,  //!< "any" layout
 
     // I/O data layouts
-    NCHW = 1,  //!< NCHW layout for input / output blobs
-    NHWC = 2,  //!< NHWC layout for input / output blobs
+    NCHW = 1,   //!< NCHW layout for input / output blobs
+    NHWC = 2,   //!< NHWC layout for input / output blobs
     NCDHW = 3,  //!< NCDHW layout for input / output blobs
     NDHWC = 4,  //!< NDHWC layout for input / output blobs
 
     // weight layouts
-    OIHW = 64,  //!< NDHWC layout for operation weights
-    GOIHW = 65,  //!< NDHWC layout for operation weights
-    OIDHW = 66,  //!< NDHWC layout for operation weights
+    OIHW = 64,    //!< NDHWC layout for operation weights
+    GOIHW = 65,   //!< NDHWC layout for operation weights
+    OIDHW = 66,   //!< NDHWC layout for operation weights
     GOIDHW = 67,  //!< NDHWC layout for operation weights
 
     // Scalar
@@ -189,9 +190,9 @@ struct InferenceEngineProfileInfo {
      * @brief Defines the general status of the layer
      */
     enum LayerStatus {
-        NOT_RUN,  //!< A layer is not executed
+        NOT_RUN,        //!< A layer is not executed
         OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
-        EXECUTED  //!< A layer is executed
+        EXECUTED        //!< A layer is executed
     };
 
     /**
@@ -292,10 +293,12 @@ using ConstOutputsDataMap = std::map<std::string, CDataPtr>;
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 namespace details {
-struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception")
-INFERENCE_ENGINE_API_CLASS(InferenceEngineException) : public std::runtime_error {
+struct INFERENCE_ENGINE_DEPRECATED("Use InferRequest::Exception") INFERENCE_ENGINE_API_CLASS(InferenceEngineException)
+    : public std::runtime_error {
     using std::runtime_error::runtime_error;
-    bool hasStatus() const {return true;}
+    bool hasStatus() const {
+        return true;
+    }
     StatusCode getStatus() const;
 };
 }  // namespace details
@@ -311,18 +314,22 @@ IE_SUPPRESS_DEPRECATED_END
 
 /// @cond
 namespace details {
-    template<typename ExceptionType> struct ExceptionTraits;
+template <typename ExceptionType>
+struct ExceptionTraits;
 }
 
-#define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                           \
-struct INFERENCE_ENGINE_API_CLASS(ExceptionType) final : public InferenceEngine::Exception {    \
-    using Exception::Exception;                                                                 \
-};                                                                                              \
-namespace details {                                                                             \
-template<> struct ExceptionTraits<ExceptionType> {                                              \
-    static const char* string() {return "[ " #statusCode " ]";}                                 \
-};                                                                                              \
-}
+#define INFERENCE_ENGINE_DECLARE_EXCEPTION(ExceptionType, statusCode)                            \
+    struct INFERENCE_ENGINE_API_CLASS(ExceptionType) final : public InferenceEngine::Exception { \
+        using Exception::Exception;                                                              \
+    };                                                                                           \
+    namespace details {                                                                          \
+    template <>                                                                                  \
+    struct ExceptionTraits<ExceptionType> {                                                      \
+        static const char* string() {                                                            \
+            return "[ " #statusCode " ]";                                                        \
+        }                                                                                        \
+    };                                                                                           \
+    }
 /// @endcond
 
 /** @brief This class represents StatusCode::GENERAL_ERROR exception */
@@ -380,7 +387,7 @@ namespace details {
 /**
  * @brief Tag struct used to throw exception
  */
-template<typename ExceptionType>
+template <typename ExceptionType>
 struct ThrowNow final {
     [[noreturn]] void operator<<=(const std::ostream& ostream) {
         std::ostringstream stream;
@@ -391,31 +398,32 @@ struct ThrowNow final {
 
 /// @cond
 #ifndef NDEBUG
-#define IE_LOCATION '\n' << __FILE__  << ':' << __LINE__<< ' '
+#    define IE_LOCATION '\n' << __FILE__ << ':' << __LINE__ << ' '
 #else
-#define IE_LOCATION ""
+#    define IE_LOCATION ""
 #endif  // NDEBUG
 
-
 // WARNING: DO NOT USE THIS MACRO! Use openvino/pp.hpp macro library
-#define IE_PP_EXPAND(X) X
-#define IE_PP_NARG(...) IE_PP_EXPAND(IE_PP_NARG_(__VA_ARGS__, IE_PP_RSEQ_N()))
-#define IE_PP_NARG_(...) IE_PP_EXPAND(IE_PP_ARG_N(__VA_ARGS__))
+#define IE_PP_EXPAND(X)             X
+#define IE_PP_NARG(...)             IE_PP_EXPAND(IE_PP_NARG_(__VA_ARGS__, IE_PP_RSEQ_N()))
+#define IE_PP_NARG_(...)            IE_PP_EXPAND(IE_PP_ARG_N(__VA_ARGS__))
 #define IE_PP_ARG_N(_0, _1, N, ...) N
-#define IE_PP_RSEQ_N() 0, 1, 0
-#define IE_PP_NO_ARGS(NAME) ,
-#define IE_PP_CAT3_(x, y, z) x ## y ## z
-#define IE_PP_CAT3(x, y, z) IE_PP_CAT3_(x, y, z)
-#define IE_PP_OVERLOAD(NAME, ...) IE_PP_EXPAND(IE_PP_CAT3(NAME, _, IE_PP_EXPAND(IE_PP_NARG(IE_PP_NO_ARGS __VA_ARGS__ (NAME))))(__VA_ARGS__))
+#define IE_PP_RSEQ_N()              0, 1, 0
+#define IE_PP_NO_ARGS(NAME)         ,
+#define IE_PP_CAT3_(x, y, z)        x##y##z
+#define IE_PP_CAT3(x, y, z)         IE_PP_CAT3_(x, y, z)
+#define IE_PP_OVERLOAD(NAME, ...) \
+    IE_PP_EXPAND(IE_PP_CAT3(NAME, _, IE_PP_EXPAND(IE_PP_NARG(IE_PP_NO_ARGS __VA_ARGS__(NAME))))(__VA_ARGS__))
 // ENDWARNING
 
-#define IE_THROW_0()                                                                                \
-    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError> {} <<= std::stringstream {}   \
-    << IE_LOCATION
+#define IE_THROW_0() \
+    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError>{} <<= std::stringstream{} << IE_LOCATION
 
-#define IE_THROW_1(ExceptionType)                                                                                           \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType> {} <<= std::stringstream {}                          \
-    << IE_LOCATION << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
+#define IE_THROW_1(ExceptionType)                                                                                  \
+    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<=                                       \
+        std::stringstream{} << IE_LOCATION                                                                         \
+                            << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() \
+                            << ' '
 /// @endcond
 
 /**
@@ -429,31 +437,35 @@ struct ThrowNow final {
  * @brief Uses assert() function if NDEBUG is not defined, InferenceEngine exception otherwise
  */
 #ifdef NDEBUG
-#define IE_ASSERT(EXPRESSION)                                               \
-    if (!(EXPRESSION))                                                      \
-    IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION  // NOLINT
+#    define IE_ASSERT(EXPRESSION) \
+        if (!(EXPRESSION))        \
+        IE_THROW(GeneralError) << " AssertionFailed: " << #EXPRESSION  // NOLINT
 #else
 /**
  * @private
  */
 struct NullStream {
     template <typename T>
-    NullStream& operator<<(const T&) noexcept {return *this;}
+    NullStream& operator<<(const T&) noexcept {
+        return *this;
+    }
 };
 
-#define IE_ASSERT(EXPRESSION) \
-    assert((EXPRESSION));     \
-    InferenceEngine::details::NullStream()
+#    define IE_ASSERT(EXPRESSION) \
+        assert((EXPRESSION));     \
+        InferenceEngine::details::NullStream()
 #endif  // NDEBUG
 
 /// @cond
-#define THROW_IE_EXCEPTION \
-    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException> {} <<= std::stringstream {}   \
-    << IE_LOCATION
+#define THROW_IE_EXCEPTION                                                                                           \
+    InferenceEngine::details::ThrowNow<InferenceEngine::details::InferenceEngineException>{} <<= std::stringstream{} \
+                                                                                                 << IE_LOCATION
 
-#define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...)                         \
-    case InferenceEngine::STATUS_CODE : {                                                       \
-        using InferenceEngine::EXCEPTION_TYPE; using TYPE_ALIAS = EXCEPTION_TYPE;  __VA_ARGS__; \
+#define IE_EXCEPTION_CASE(TYPE_ALIAS, STATUS_CODE, EXCEPTION_TYPE, ...) \
+    case InferenceEngine::STATUS_CODE: {                                \
+        using InferenceEngine::EXCEPTION_TYPE;                          \
+        using TYPE_ALIAS = EXCEPTION_TYPE;                              \
+        __VA_ARGS__;                                                    \
     } break;
 /// @endcond
 
@@ -461,28 +473,29 @@ struct NullStream {
  * @def IE_EXCEPTION_SWITCH
  * @brief Generate Switch statement over error codes adn maps them to coresponding exceptions type
  */
-#define IE_EXCEPTION_SWITCH(STATUS, TYPE_ALIAS, ...)                                            \
-    switch (STATUS) {                                                                           \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, GENERAL_ERROR      , GeneralError      , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_IMPLEMENTED    , NotImplemented    , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_LOADED , NetworkNotLoaded  , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, PARAMETER_MISMATCH , ParameterMismatch , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_FOUND          , NotFound          , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, OUT_OF_BOUNDS      , OutOfBounds       , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, UNEXPECTED         , Unexpected        , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, REQUEST_BUSY       , RequestBusy       , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, RESULT_NOT_READY   , ResultNotReady    , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_ALLOCATED      , NotAllocated      , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_NOT_STARTED  , InferNotStarted   , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_READ   , NetworkNotRead    , __VA_ARGS__)     \
-        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_CANCELLED    , InferCancelled    , __VA_ARGS__)     \
-        default: IE_ASSERT(!"Unreachable");                                                     \
+#define IE_EXCEPTION_SWITCH(STATUS, TYPE_ALIAS, ...)                                      \
+    switch (STATUS) {                                                                     \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, GENERAL_ERROR, GeneralError, __VA_ARGS__)           \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_IMPLEMENTED, NotImplemented, __VA_ARGS__)       \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_LOADED, NetworkNotLoaded, __VA_ARGS__)  \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, PARAMETER_MISMATCH, ParameterMismatch, __VA_ARGS__) \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_FOUND, NotFound, __VA_ARGS__)                   \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, OUT_OF_BOUNDS, OutOfBounds, __VA_ARGS__)            \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, UNEXPECTED, Unexpected, __VA_ARGS__)                \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, REQUEST_BUSY, RequestBusy, __VA_ARGS__)             \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, RESULT_NOT_READY, ResultNotReady, __VA_ARGS__)      \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NOT_ALLOCATED, NotAllocated, __VA_ARGS__)           \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_NOT_STARTED, InferNotStarted, __VA_ARGS__)    \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, NETWORK_NOT_READ, NetworkNotRead, __VA_ARGS__)      \
+        IE_EXCEPTION_CASE(TYPE_ALIAS, INFER_CANCELLED, InferCancelled, __VA_ARGS__)       \
+    default:                                                                              \
+        IE_ASSERT(!"Unreachable");                                                        \
     }
 
 }  // namespace details
 }  // namespace InferenceEngine
 #if defined(_WIN32)
-#define __PRETTY_FUNCTION__ __FUNCSIG__
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
 #else
-#define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
+#    define __PRETTY_FUNCTION__ __PRETTY_FUNCTION__
 #endif
