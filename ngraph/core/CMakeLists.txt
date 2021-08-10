@@ -92,7 +92,7 @@ install(TARGETS ngraph EXPORT ngraphTargets
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION "runtime/include/ngraph"
+        DESTINATION "runtime/include"
         COMPONENT ngraph_dev
         FILES_MATCHING
             PATTERN "*.hpp"

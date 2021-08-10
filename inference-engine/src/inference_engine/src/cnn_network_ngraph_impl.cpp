@@ -227,7 +227,7 @@ void CNNNetworkNGraphImpl::validate(int version) {
 
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
@@ -361,7 +361,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 void
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
 
@@ -388,7 +388,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>&
         } else {
             specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
             {
-                OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
+                OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);

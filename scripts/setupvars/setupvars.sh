@@ -4,9 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" >/dev/null 2>&1 && pwd )"
-# TODO: remove before merge
-BASE_DIR="$( dirname "$SCRIPT_DIR" )"
-INSTALLDIR="${BASE_DIR}"
+INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
 # parse command line options

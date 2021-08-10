@@ -19,8 +19,8 @@ SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then
-    if [ -e "$SAMPLES_PATH/../setupvars.sh" ]; then
-        setvars_path="$SAMPLES_PATH/../setupvars.sh"
+    if [ -e "$SAMPLES_PATH/../../setupvars.sh" ]; then
+        setvars_path="$SAMPLES_PATH/../../setupvars.sh"
     else
         printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
         exit 1
