@@ -193,7 +193,7 @@ The sample application logs each step in a standard output stream.
 
 - [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
 - [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
-- [Model Downloader](@ref omz_tools_downloader_README)
+- [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [IENetwork.batch_size]:https://docs.openvinotoolkit.org/latest/ie_python_api/classie__api_1_1IENetwork.html#a79a647cb1b49645616eaeb2ca255ef2e

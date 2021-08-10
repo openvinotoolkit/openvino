@@ -158,6 +158,9 @@ limitations under the License.
             <xi:include href="omz_docs.xml" xpointer="omz_models">
                 <xi:fallback/>
             </xi:include>
+            <tab type="user" title="Dataset Preparation Guide" url="@ref omz_data_datasets"/>
+            <tab type="user" title="Intel's Pre-Trained Models Device Support" url="@ref omz_models_intel_device_support"/>
+            <tab type="user" title="Public Pre-Trained Models Device Support" url="@ref omz_models_public_device_support"/>
             <xi:include href="omz_docs.xml" xpointer="omz_demos">
                 <xi:fallback/>
             </xi:include>
@@ -205,6 +208,8 @@ limitations under the License.
                         <tab type="user" title="MetaPublish Listeners" url="@ref gst_samples_gst_launch_metapublish_listener"/>
                     </tab>
                     <tab type="user" title="gvapython Sample" url="@ref gst_samples_gst_launch_gvapython_face_detection_and_classification_README"/>
+                    <tab type="user" title="Action Recognition Sample" url="@ref gst_samples_gst_launch_action_recognition_README"/>
+                    <tab type="user" title="Human Pose Estimation Sample" url="@ref gst_samples_gst_launch_human_pose_estimation_README"/>
                 </tab>
                 <tab type="user" title="Draw Face Attributes C++ Sample" url="@ref gst_samples_cpp_draw_face_attributes_README"/>
                 <tab type="user" title="Draw Face Attributes Python Sample" url="@ref gst_samples_python_draw_face_attributes_README"/>

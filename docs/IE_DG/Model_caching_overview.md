@@ -2,7 +2,7 @@
 
 ## Introduction
 
-As described in [Inference Engine Introduction](inference_engine_intro.md), common application flow consists of the following steps:
+As described in [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md), common application flow consists of the following steps:
 
 1. **Create Inference Engine Core object**
 
