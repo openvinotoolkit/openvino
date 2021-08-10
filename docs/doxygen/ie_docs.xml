@@ -101,6 +101,9 @@ limitations under the License.
                 <tab type="user" title="opset2 Specification" url="@ref openvino_docs_ops_opset2"/>
                 <tab type="user" title="opset1 Specification" url="@ref openvino_docs_ops_opset1"/>
             </tab>
+            <tab type="usergroup" title="Broadcast Rules For Elementwise Operations" url="@ref openvino_docs_ops_broadcast_rules">
+                <tab type="usergroup" title="Broadcast Rules For Elementwise Operations" url="@ref openvino_docs_ops_broadcast_rules"/>
+            </tab>
             <tab type="usergroup" title="Operations Specifications" url="">
                 <tab type="user" title="Abs-1" url="@ref openvino_docs_ops_arithmetic_Abs_1"/>
                 <tab type="user" title="Acos-1" url="@ref openvino_docs_ops_arithmetic_Acos_1"/>
