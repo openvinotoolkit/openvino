@@ -887,6 +887,30 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
             }
         }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { 1, 3 },
+        { 1, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        }
     }
 };
 
