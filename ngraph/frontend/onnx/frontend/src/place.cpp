@@ -133,3 +133,65 @@ bool PlaceTensorONNX::is_equal_data(Place::Ptr another) const {
     return is_equal(another) || (is_input() ? false : get_producing_port()->is_equal(another)) ||
            eq_to_consuming_port(another);
 }
+
+PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
+    : m_node{node},
+      m_editor{editor} {}
+
+std::vector<std::string> PlaceOpONNX::get_names() const {
+    return {m_node.m_node_name};
+}
+
+Place::Ptr PlaceOpONNX::get_output_port() const {
+    if (m_editor->get_output_ports_number(m_node) == 1) {
+        return get_output_port(0);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_output_port(int output_port_index) const {
+    try {
+        const auto output_edge = m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index});
+        return std::make_shared<PlaceOutputEdgeONNX>(output_edge, m_editor);
+    } catch (const ngraph::ngraph_error&) {
+        // port with given port not found
+        return nullptr;
+    }
+}
+
+Place::Ptr PlaceOpONNX::get_output_port(const std::string& output_port_name) const {
+    try {
+        const auto output_edge = m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_name});
+        return std::make_shared<PlaceOutputEdgeONNX>(output_edge, m_editor);
+    } catch (const ngraph::ngraph_error&) {
+        // port with given port not found
+        return nullptr;
+    }
+}
+
+Place::Ptr PlaceOpONNX::get_input_port() const {
+    if (m_editor->get_input_ports_number(m_node) == 1) {
+        return get_input_port(0);
+    }
+    return nullptr;
+}
+
+Place::Ptr PlaceOpONNX::get_input_port(int input_port_index) const {
+    try {
+        const auto input_edge = m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index});
+        return std::make_shared<PlaceInputEdgeONNX>(input_edge, m_editor);
+    } catch (const ngraph::ngraph_error&) {
+        // port with given port not found
+        return nullptr;
+    }
+}
+
+Place::Ptr PlaceOpONNX::get_input_port(const std::string& input_name) const {
+    try {
+        const auto input_edge = m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_name});
+        return std::make_shared<PlaceInputEdgeONNX>(input_edge, m_editor);
+    } catch (const ngraph::ngraph_error&) {
+        // port with given port not found
+        return nullptr;
+    }
+}

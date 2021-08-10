@@ -52,9 +52,17 @@ std::vector<Place::Ptr> InputModelONNX::get_outputs() const {
 }
 
 Place::Ptr InputModelONNX::get_place_by_tensor_name(const std::string& tensor_name) const {
-    NGRAPH_CHECK(m_editor->is_correct_tensor_name(tensor_name),
-                 "The tensor with name: " + tensor_name + " does not exist in the graph");
-    return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+    if (m_editor->is_correct_tensor_name(tensor_name)) {
+        return std::make_shared<PlaceTensorONNX>(tensor_name, m_editor);
+    }
+    return nullptr;
+}
+
+Place::Ptr InputModelONNX::get_place_by_operation_name(const std::string& operation_name) const {
+    if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
+        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{operation_name}, m_editor);
+    }
+    return nullptr;
 }
 
 Place::Ptr InputModelONNX::get_place_by_operation_name_and_input_port(const std::string& operation_name,
