@@ -23,12 +23,6 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
 \\* _nGraph_ is the internal graph representation in the OpenVINO™ toolkit. Use it to [build a model from source code](https://docs.openvinotoolkit.org/latest/openvino_docs_nGraph_DG_build_function.html).
 
 
-> **NOTE**: Before start using Inference Engine, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
-> * [For Windows* 10](../install_guides/installing-openvino-windows.md)
-> * [For Linux*](../install_guides/installing-openvino-linux.md)
-> * [For macOS*](../install_guides/installing-openvino-macos.md)
-> * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
-
 ## Video
 
 @sphinxdirective

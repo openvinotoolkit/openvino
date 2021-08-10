@@ -3,6 +3,12 @@
 The diagram below illustrates steps needed to integrate Inference Engine into your application:
 ![integration_process]
 
+> **NOTE**: Before start using Inference Engine, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
+> * [For Windows* 10](../install_guides/installing-openvino-windows.md)
+> * [For Linux*](../install_guides/installing-openvino-linux.md)
+> * [For macOS*](../install_guides/installing-openvino-macos.md)
+> * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+
 ## Step 1. Create a CMake Project for Your Application
 
 1. **Create a structure** for the project:
@@ -74,52 +80,70 @@ Optionally, configure input and output of the model using the steps below:
 
    @endsphinxdirective
 
-2. Request input and output information using `InferenceEngine::CNNNetwork::getInputsInfo()`, and `InferenceEngine::CNNNetwork::getOutputsInfo()`
-methods:
-   @snippet snippets/Integrate_with_customer_application_new_API.cpp part3
+2. Request input and output information using `InferenceEngine::CNNNetwork::getInputsInfo()`, and `InferenceEngine::CNNNetwork::getOutputsInfo()` methods:
+   ```cpp
+   /** Take information about all topology inputs **/
+   InferenceEngine::InputsDataMap input_info = network.getInputsInfo();
+   /** Iterate over all input info**/
+   for (auto &item : input_info) {
+       auto input_data = item.second;
+           // Add your input configuration steps here
+   }
+   
+   /** Take information about all topology outputs **/
+   InferenceEngine::OutputsDataMap output_info = network.getOutputsInfo();
+   /** Iterate over all output info**/
+   for (auto &item : output_info) {
+       auto output_data = item.second;
+           // Add your output configuration steps here
+   }
+   ```
+   Configuring options:
+   1. **Set precision** (number format): FP16, FP32, INT8, etc. Refer to the Supported Configurations section on the [Supported Devices](supported_plugins/Supported_Devices.md) page to choose the relevant configuration.<br>
+   For input (*iterate over all input info*):
+   ```cpp
+   input_data->setPrecision(InferenceEngine::Precision::U8);
+   ```
+   For output  (*iterate over all output info*):
+   ```cpp
+   output_data->setPrecision(InferenceEngine::Precision::FP32);
+   ```
+   **By default**, the input and output precision is set to `Precision::FP32`.
 
-Optionally, set the number format (precision) and memory layout for inputs and outputs. Refer to the [Supported Configurations](supported_plugins/Supported_Devices.md) chapter to choose the relevant configuration.
+   2. **Set layout** (NCHW, ).<br>
+   For input (*iterate over all input info*):
+   ```cpp
+   input_data->setLayout(InferenceEngine::Layout::NCHW);
+   ```
+   **By default**, the input layout is set to `Layout::NCHW`.<br>
+   For output (*iterate over all output info*):
+   ```cpp
+   output_data->setLayout(InferenceEngine::Layout::NC);
+   ```
+      **By default**, the output layout depends on a number of its dimensions:<br>
+      |Number of dimensions |  5    |  4   |   3 |  2 |  1 |
+      |:--------------------|-------|------|-----|----|----|
+      |Layout               | NCDHW | NCHW | CHW | NC | C  |
+   3. **Set resize algorithm for inputs** (Bilinear). You can allow input of any size. To do this, mark each input as resizable by setting a desired resize algorithm (e.g. `BILINEAR`) inside of the appropriate input info (*Iterate over all input info*):
+   ```cpp
+   input_data->getPreProcess().setResizeAlgorithm(InferenceEngine::RESIZE_BILINEAR);
+   ```
+   **By default**, no resize algorithm is set for inputs.
 
-You can also allow input of any size. To do this, mark each input as resizable by setting a desired resize algorithm (e.g. `BILINEAR`) inside of the appropriate input info.
-
-Basic color format conversions are supported as well. By default, the Inference Engine assumes
-  that the input color format is `BGR` and color format conversions are disabled. The Inference
-  Engine supports the following color format conversions:
-  * `RGB->BGR`
-  * `RGBX->BGR`
-  * `BGRX->BGR`
-  * `NV12->BGR`
-
-where `X` is a channel that will be ignored during inference. To enable the conversions, set a
-  desired color format (for example, `RGB`) for each input inside of the appropriate input info.
-
-If you want to run inference for multiple images at once, you can use the built-in batch pre-processing functionality.
-
-> **NOTE**: Batch pre-processing is not supported if input color format is set to `ColorFormat::NV12`.
-
-  You can use the following code snippet to configure input and output:
-
-@snippet snippets/Integrate_with_customer_application_new_API.cpp part4
-
-> **NOTE**: NV12 input color format pre-processing differs from other color conversions. In case of NV12,
->  Inference Engine expects two separate image planes (Y and UV). You must use a specific
->  `InferenceEngine::NV12Blob` object instead of default blob object and set this blob to
->  the Inference Engine Infer Request using `InferenceEngine::InferRequest::SetBlob()`.
->  Refer to [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
->  for more details.
-
-  If you skip this step, the default values are set:
-
-  * no resize algorithm is set for inputs
-  * input color format - `ColorFormat::RAW` meaning that input does not need color
-    conversions
-  * input and output precision - `Precision::FP32`
-  * input layout - `Layout::NCHW`
-  * output layout depends on number of its dimensions:
-
-|Number of dimensions |  5    |  4   |   3 |  2 |  1 |
-|:--------------------|-------|------|-----|----|----|
-|Layout               | NCDHW | NCHW | CHW | NC | C  |
+   4. **Set color format** (BGR, RGB, NV12). Basic color format conversions are supported as well. **By default**, the Inference Engine assumes that the input color format is BGR and color format conversions are disabled. Set `ColorFormat::RAW` input color format if the input does not need color conversions. The Inference Engine supports the following color format conversions:
+      * RGB->BGR
+      * RGBX->BGR
+      * BGRX->BGR
+      * NV12->BGR
+      where X is a channel that will be ignored during inference. To enable the conversions, set a desired color format (for example, RGB) for each input inside of the appropriate input info (*iterate over all input info*):
+   ```cpp
+   input_data->getPreProcess().setColorFormat(InferenceEngine::ColorFormat::RGB);
+   ```
+   > **NOTE**: NV12 input color format pre-processing differs from other color conversions. In case of NV12, Inference Engine expects two separate image planes (Y and UV). You must use a specific `InferenceEngine::NV12Blob` object instead of default blob object and set this blob to the Inference Engine Infer Request using `InferenceEngine::InferRequest::SetBlob()`. Refer to [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md) for more details.
+   
+   5. **Run on multiple images** with setting batch. If you want to run inference for multiple images at once, you can use the built-in batch pre-processing functionality.
+   
+      **NOTE** : Batch pre-processing is not supported if input color format is set to `ColorFormat::NV12`.
 
 @sphinxdirective
 .. raw:: html
