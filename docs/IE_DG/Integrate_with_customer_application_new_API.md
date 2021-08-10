@@ -1,5 +1,14 @@
 # Integrate Inference Engine with Your С++ Application {#openvino_docs_IE_DG_Integrate_with_customer_application_new_API}
 
+
+## C++
+
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-cpp" class="switcher-anchor">C++</div>
+@endsphinxdirective
+
 The diagram below illustrates steps needed to integrate Inference Engine into your application:
 ![integration_process]
 
@@ -276,13 +285,13 @@ Multiple requests for single `ExecutableNetwork` are executed sequentially one b
 While request is ongoing, all its methods except `InferenceEngine::InferRequest::Wait` would throw an
 exception.
 
-## Step 8. Process the Inference Results 
+### Step 8. Process the Inference Results 
 
 Go over the output blobs and process the inference results. Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the recommended way. It's better to access data via the `buffer()` and `as()` methods as follows:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part14
 
-## Step 9. Build Your Application
+### Step 9. Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
 All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
@@ -298,7 +307,7 @@ cmake --build .
 ```
 It's allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
 
-## Step 10. Run Your Application
+### Step 10. Run Your Application
 
 > **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
@@ -308,3 +317,14 @@ Redistributable and Intel® C++ Compiler 2017 Redistributable packages are insta
 application folder or accessible via `%PATH%` environment variable.
 
 [integration_process]: img/integration_process.png
+
+
+## Python
+
+@sphinxdirective
+.. raw:: html
+
+    <div id="switcher-python" class="switcher-anchor">Python</div>
+@endsphinxdirective
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
