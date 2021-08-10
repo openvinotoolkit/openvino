@@ -1,0 +1,35 @@
+.switcher-set {
+    position: fixed;
+    top: 60px;
+    border-radius: 2px;
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0.75em 0;
+}
+
+.switcher-button {
+    z-index: 1;
+    width: auto;
+    border-bottom: 2px solid transparent;
+    padding: 1em 1.25em 0.5em;
+    color: var(--tabs--label-text);
+    transition: color 250ms;
+    cursor: pointer;
+    font-size: 0.875em;
+    font-weight: 700;
+    background: var(--tabs--label-background);
+    margin-right: 10px;
+}
+
+.switcher-button:hover {
+    color: var(--tabs--label-text--active);
+    background: var(--tabs--label-background--active);
+    border-color: var(--tabs--border--active);
+    text-decoration:none;
+}
+
+.switcher-active {
+    color: var(--tabs--label-text--active);
+    background: var(--tabs--label-background--active);
+    border-color: var(--tabs--border--active);
+}
