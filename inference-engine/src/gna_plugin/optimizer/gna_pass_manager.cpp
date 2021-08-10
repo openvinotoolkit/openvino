@@ -2102,8 +2102,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << "Zero levels";
         }
 
-        // Before FQ layer is removed, the previous layer has to be updated with its quantization data
-        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+        // Before FQ layer is removed, the previous functional layer has to be updated with its quantization data
+        auto prevFuncLayer = CNNNetPrevLayerSkipCertain(*fqLayer, 0, [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
+        });
+        auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevFuncLayer);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
         quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] }, true);
         quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] }, true);
