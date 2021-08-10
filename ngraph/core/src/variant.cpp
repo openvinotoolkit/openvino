@@ -22,5 +22,10 @@ std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
     return nullptr;
 }
 
+bool Variant::is_copyable() const
+{
+    return true;
+}
+
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;

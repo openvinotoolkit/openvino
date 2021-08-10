@@ -4,14 +4,16 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 
 #include "ngraph/ngraph_visibility.hpp"
-#include "ngraph/node.hpp"
+#include "ngraph/output_vector.hpp"
 #include "ngraph/type.hpp"
 
 namespace ngraph
 {
+    class Node;
     using VariantTypeInfo = DiscreteTypeInfo;
 
     class NGRAPH_API Variant
@@ -22,6 +24,7 @@ namespace ngraph
 
         virtual std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node>& node);
         virtual std::shared_ptr<ngraph::Variant> merge(const ngraph::NodeVector& nodes);
+        virtual bool is_copyable() const;
         virtual std::string to_string() { return ""; }
     };
 
@@ -98,4 +101,5 @@ namespace ngraph
     }
 #endif
 
+    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 } // namespace ngraph
