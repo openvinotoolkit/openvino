@@ -485,6 +485,8 @@ struct MOCK_API FeStat
     int m_convert_partially = 0;
     int m_decode = 0;
     int m_normalize = 0;
+    int m_get_name = 0;
+    int m_supported = 0;
     // Getters
     std::vector<std::string> load_paths() const { return m_load_paths; }
     int convert_model() const { return m_convert_model; }
@@ -492,6 +494,8 @@ struct MOCK_API FeStat
     int convert_partially() const { return m_convert_partially; }
     int decode() const { return m_decode; }
     int normalize() const { return m_normalize; }
+    int get_name() const { return m_get_name; }
+    int supported() const { return m_supported; }
 };
 
 class MOCK_API FrontEndMockPy : public FrontEnd
@@ -507,6 +511,20 @@ public:
             m_stat.m_load_paths.push_back(
                 as_type_ptr<VariantWrapper<std::string>>(params[0])->get());
         return std::make_shared<InputModelMockPy>();
+    }
+
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    {
+        m_stat.m_supported++;
+        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        {
+            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            if (path.find(".test_mock_py_mdl") != std::string::npos)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override
@@ -532,6 +550,12 @@ public:
     void normalize(std::shared_ptr<ngraph::Function> function) const override
     {
         m_stat.m_normalize++;
+    }
+
+    std::string get_name() const override
+    {
+        m_stat.m_get_name++;
+        return "mock_py";
     }
 
     FeStat get_stat() const { return m_stat; }
