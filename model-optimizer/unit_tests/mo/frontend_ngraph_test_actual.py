@@ -46,7 +46,7 @@ mock_needed = pytest.mark.skipif(not mock_available,
 def replaceArgsHelper(log_level='DEBUG',
                       silent=False,
                       model_name='abc',
-                      input_model='abc.abc',
+                      input_model='abc.test_mo_mock_mdl',
                       transform=[],
                       legacy_ir_generation=False,
                       scale=None,
@@ -73,7 +73,8 @@ def replaceArgsHelper(log_level='DEBUG',
         mean_values=mean_values,
         scale_values=scale_values,
         output_dir=output_dir,
-        freeze_placeholder_with_value=freeze_placeholder_with_value)
+        freeze_placeholder_with_value=freeze_placeholder_with_value,
+        framework=None)
 
 
 class TestMainFrontend(unittest.TestCase):
@@ -97,9 +98,35 @@ class TestMainFrontend(unittest.TestCase):
             group(1).replace("\r", "")
         assert xml_file and bin_file
 
-        # verify that 'convert' was called
+        # verify that 'convert' was called, and 'supported' was not
         stat = get_frontend_statistic()
         assert stat.convert_model == 1
+        assert stat.supported == 0
+        # verify that meta info is added to XML file
+        with open(xml_file) as file:
+            assert 'mock_mo_ngraph_frontend' in file.read()
+
+    @mock_needed
+    @patch('argparse.ArgumentParser.parse_args',
+           return_value=replaceArgsHelper())
+    def test_convert_framework_discover(self, mock_argparse):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            main(argparse.ArgumentParser(), fem, None)
+            out = f.getvalue()
+
+        xml_file = re.search(r'\[ SUCCESS \] XML file: (.*)', out). \
+            group(1).replace("\r", "")
+        bin_file = re.search(r'\[ SUCCESS \] BIN file: (.*)', out). \
+            group(1).replace("\r", "")
+        assert xml_file and bin_file
+
+        # verify that 'convert', 'supported' and 'get_name' were called
+        stat = get_frontend_statistic()
+        assert stat.convert_model == 1
+        assert stat.supported == 1
+        assert stat.get_name > 0
+
         # verify that meta info is added to XML file
         with open(xml_file) as file:
             assert 'mock_mo_ngraph_frontend' in file.read()
@@ -227,3 +254,19 @@ class TestMainFrontend(unittest.TestCase):
         assert stat.get_partial_shape == 1
         # verify that 'set_element_type' was not called
         assert stat.set_partial_shape == 0
+
+    @mock_needed
+    @patch('argparse.ArgumentParser.parse_args',
+           return_value=replaceArgsHelper(input_model='abc.qwerty'))
+    def test_error_input_model_no_framework(self, mock_argparse):
+        # Framework is not specified and 'abc.qwerty' is not supported
+        # so MO shall not convert anything and produce specified error
+        with self.assertLogs() as logger:
+            main(argparse.ArgumentParser(), fem, None)
+
+        stat = get_frontend_statistic()
+
+        assert [s for s in logger.output if 'can not be deduced' in s]
+
+        # verify that 'supported' was called
+        assert stat.supported == 1

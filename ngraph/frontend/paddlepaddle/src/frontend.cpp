@@ -399,6 +399,8 @@ namespace ngraph
             auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
             return f;
         }
+
+        std::string FrontEndPDPD::get_name() const { return "paddle"; }
     } // namespace frontend
 } // namespace ngraph
 

@@ -33,6 +33,8 @@ static void register_mock_frontend_stat(py::module m)
     feStat.def_property_readonly("convert_partially", &FeStat::convert_partially);
     feStat.def_property_readonly("decode", &FeStat::decode);
     feStat.def_property_readonly("normalize", &FeStat::normalize);
+    feStat.def_property_readonly("get_name", &FeStat::get_name);
+    feStat.def_property_readonly("supported", &FeStat::supported);
 }
 
 static void register_mock_model_stat(py::module m)

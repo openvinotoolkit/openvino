@@ -167,6 +167,11 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
 
+std::string FrontEnd::get_name() const
+{
+    return std::string();
+}
+
 //----------- InputModel ---------------------------
 std::vector<Place::Ptr> InputModel::get_inputs() const
 {
