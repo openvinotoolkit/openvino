@@ -392,42 +392,6 @@ namespace ngraph
                                           forward_in_pad_above,
                                           output_padding);
             }
-
-            // DEPRECATED, can't be removed currently due to arm-plugin dependency
-            template <typename OUTPUT,
-                      typename FILTER,
-                      typename INPUT,
-                      typename ACCUMULATION = typename widen<INPUT>::type>
-            NGRAPH_DEPRECATED(
-                "convolution_backprop_in function with 4 template types is deprecated, use "
-                "function with 1 template and output_padding parameter.")
-            void convolution_backprop_in(const INPUT* delta_in,
-                                         const FILTER* filter,
-                                         OUTPUT* delta_out,
-                                         const Shape& in_shape,
-                                         const Shape& filter_shape,
-                                         const Shape& out_shape,
-                                         const Strides& in_dilation,
-                                         const Strides& filter_dilation,
-                                         const CoordinateDiff& forward_in_pad_bellow,
-                                         const CoordinateDiff& forward_in_pad_above,
-                                         const Strides& stride)
-            {
-                const ngraph::CoordinateDiff output_padding(in_shape.size() - 2, 0);
-
-                convolution_backprop_in(delta_in,
-                                        filter,
-                                        delta_out,
-                                        in_shape,
-                                        filter_shape,
-                                        out_shape,
-                                        in_dilation,
-                                        filter_dilation,
-                                        forward_in_pad_bellow,
-                                        forward_in_pad_above,
-                                        stride,
-                                        output_padding);
-            }
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
