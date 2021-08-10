@@ -11,8 +11,8 @@ import sys
 from inspect import getsourcefile
 from pathlib import Path
 
-# add ../lib to imports
-sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True)))
+# add utils folder to imports
+sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "utils").resolve(strict=True)))
 
 import yaml
 import pytest
@@ -139,13 +139,10 @@ def openvino_ref(request, artifacts):
 
     log.info("--openvino_ref is not specified. Preparing instrumented build at %s", build_dir)
 
-    build_target = {"sea_itt_lib": Path(build_dir / "thirdparty" / "itt_collector" / "sea_itt_lib")}
-
     return_code, output = make_build(
         openvino_root_dir,
         build_dir,
         openvino_ref_path,
-        build_target=build_target,
         cmake_additional_args=["-DSELECTIVE_BUILD=COLLECT"],
         log=log
     )
