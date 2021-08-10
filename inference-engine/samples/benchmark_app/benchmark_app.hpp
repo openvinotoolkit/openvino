@@ -23,7 +23,8 @@ static const char model_message[] =
     "a trained compiled model.";
 
 /// @brief message for execution performance mode
-static const char mode_message[] = "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput (tput)\".";
+static const char mode_message[] =
+    "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput (tput)\".";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";

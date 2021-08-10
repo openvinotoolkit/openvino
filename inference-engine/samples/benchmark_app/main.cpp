@@ -475,11 +475,11 @@ int main(int argc, char* argv[]) {
             if (!ov_perf_hint.empty()) {
                 std::cout << "PERFORMANCE_HINT: " << ov_perf_hint << std::endl;
                 // output of the actual settings that the hint produced
-                for (const auto &device : devices) {
-                    std::vector<std::string> supported_config_keys = ie.GetMetric(device,
-                                                                                  METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                for (const auto& device : devices) {
+                    std::vector<std::string> supported_config_keys =
+                        ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                     std::cout << "Device: " << device << std::endl;
-                    for (const auto &cfg : supported_config_keys) {
+                    for (const auto& cfg : supported_config_keys) {
                         try {
                             std::cout << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
                         } catch (...) {

@@ -587,7 +587,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
             } else if (mode_name == CONFIG_VALUE(THROUGHPUT)) {
                 const auto isa = dnnl::get_effective_cpu_isa();
-                float isaSpecificThreshold = 1.0;
+                float isaSpecificThreshold = 1.0f;
                 switch (isa) {
                     case dnnl::cpu_isa::sse41 :
                         isaSpecificThreshold = 0.5f;
@@ -603,6 +603,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     case dnnl::cpu_isa::avx512_core_amx:
                         isaSpecificThreshold = 4.0f;
                         break;
+                    default:
+                        isaSpecificThreshold = 1.0f;
                 }
                 // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
                 const float memThresholdAssumeLimitedForISA = NetworkPerfStats::memThresholdAssumeLimited/isaSpecificThreshold;
