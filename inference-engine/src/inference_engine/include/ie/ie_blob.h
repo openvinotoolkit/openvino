@@ -19,13 +19,13 @@
 #include <utility>
 #include <vector>
 
+#include "details/ie_blob_iterator.hpp"
+#include "details/ie_pre_allocator.hpp"
 #include "ie_allocator.hpp"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_locked_memory.hpp"
 #include "ie_precision.hpp"
-#include "details/ie_blob_iterator.hpp"
-#include "details/ie_pre_allocator.hpp"
 
 namespace InferenceEngine {
 
@@ -120,7 +120,7 @@ public:
      *
      * @param tensorDesc Defines the layout and dims of the blob
      */
-    explicit Blob(const TensorDesc& tensorDesc): tensorDesc(tensorDesc) {}
+    explicit Blob(const TensorDesc& tensorDesc) : tensorDesc(tensorDesc) {}
 
     /**
      * @brief Returns the tensor description
@@ -146,7 +146,8 @@ public:
      * @return The total number of elements
      */
     virtual size_t size() const noexcept {
-        if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
         return product(tensorDesc.getDims());
     }
 
@@ -254,7 +255,8 @@ protected:
      * @return Result of multiplication
      */
     static size_t product(const SizeVector& dims) noexcept {
-        if (dims.empty()) return 0; // TODO: WHY 0? This is 1 by definition.
+        if (dims.empty())
+            return 0; 
         return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     }
 
@@ -310,7 +312,7 @@ std::shared_ptr<const T> as(const Blob::CPtr& blob) noexcept {
  * @note Any Blob implementation that represents a concept of a tensor in memory (for example,
  * TBlob) must be a subclass of MemoryBlob instead of Blob
  */
-class INFERENCE_ENGINE_API_CLASS(MemoryBlob): public Blob {
+class INFERENCE_ENGINE_API_CLASS(MemoryBlob) : public Blob {
 public:
     /**
      * @brief A smart pointer to the MemoryBlob object
@@ -332,7 +334,7 @@ public:
      *
      * @param tensorDesc Defines the layout and dims of the blob
      */
-    explicit MemoryBlob(const TensorDesc& tensorDesc): Blob(tensorDesc) {}
+    explicit MemoryBlob(const TensorDesc& tensorDesc) : Blob(tensorDesc) {}
 
     /**
      * @brief Returns the tensor description
@@ -355,7 +357,8 @@ public:
      * @return The total number of elements
      */
     size_t size() const noexcept override {
-        if (tensorDesc.getLayout() == Layout::SCALAR) return 1;
+        if (tensorDesc.getLayout() == Layout::SCALAR)
+            return 1;
         return product(tensorDesc.getDims());
     }
 
@@ -525,7 +528,7 @@ public:
      *
      * @param tensorDesc Tensor description
      */
-    explicit TBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
+    explicit TBlob(const TensorDesc& tensorDesc) : MemoryBlob(tensorDesc) {}
 
     /**
      * @brief The constructor creates a TBlob object with the specified dimensions and layout
@@ -538,7 +541,7 @@ public:
      * @param data_size Length of the pre-allocated array. If not set, size is assumed equal
      * to the dot product of dims.
      */
-    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0): MemoryBlob(tensorDesc) {
+    TBlob(const TensorDesc& tensorDesc, T* ptr, size_t data_size = 0) : MemoryBlob(tensorDesc) {
         if (data_size == 0) {
             data_size = size();
         }
@@ -560,8 +563,10 @@ public:
      * @param alloc An allocator
      */
     TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
-        : MemoryBlob(tensorDesc), _allocator(alloc) {
-        if (_allocator == nullptr) IE_THROW() << "TBlob allocator was not initialized.";
+        : MemoryBlob(tensorDesc),
+          _allocator(alloc) {
+        if (_allocator == nullptr)
+            IE_THROW() << "TBlob allocator was not initialized.";
     }
 
     /**
@@ -569,7 +574,7 @@ public:
      *
      * @param blob Source blob
      */
-    TBlob(const TBlob<T>& blob): MemoryBlob(blob.getTensorDesc()) {
+    TBlob(const TBlob<T>& blob) : MemoryBlob(blob.getTensorDesc()) {
         copyFrom(blob);
     }
 
@@ -578,7 +583,7 @@ public:
      *
      * @param blob rvalue to make a move from
      */
-    TBlob(TBlob<T>&& blob): MemoryBlob(blob.getTensorDesc()) {
+    TBlob(TBlob<T>&& blob) : MemoryBlob(blob.getTensorDesc()) {
         moveFrom(blob);
     }
 
@@ -624,11 +629,9 @@ public:
             return;
         }
 
-        _handle.reset(
-            rawHandle,
-            [allocator](void* rawHandle) {
-                allocator->free(rawHandle);
-            });
+        _handle.reset(rawHandle, [allocator](void* rawHandle) {
+            allocator->free(rawHandle);
+        });
     }
 
     bool deallocate() noexcept override {
@@ -643,14 +646,14 @@ public:
         return std::move(lockme<const void>());
     }
 
-    LockedMemory<void> rwmap()noexcept override {
+    LockedMemory<void> rwmap() noexcept override {
         return std::move(lockme<void>());
     }
 
     LockedMemory<const void> rmap() const noexcept override {
         return std::move(lockme<const void>());
     }
-    LockedMemory<void> wmap()noexcept override {
+    LockedMemory<void> wmap() noexcept override {
         return std::move(lockme<void>());
     }
 
@@ -757,7 +760,7 @@ protected:
     template <class S>
     LockedMemory<S> lockme() const {
         return LockedMemory<S>(_allocator.get(), getHandle(), 0);
-         //   getTensorDesc().getBlockingDesc().getOffsetPadding());
+        //   getTensorDesc().getBlockingDesc().getOffsetPadding());
     }
 
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
@@ -778,11 +781,10 @@ protected:
      * @param origBlob An original blob
      * @param roi A ROI object
      */
-    TBlob(const TBlob& origBlob, const ROI& roi) :
-            MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
-            _allocator(origBlob._allocator) {
-        IE_ASSERT(origBlob._handle != nullptr)
-            << "Original Blob must be allocated before ROI creation";
+    TBlob(const TBlob& origBlob, const ROI& roi)
+        : MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
+          _allocator(origBlob._allocator) {
+        IE_ASSERT(origBlob._handle != nullptr) << "Original Blob must be allocated before ROI creation";
 
         _handle = origBlob._handle;
     }
@@ -816,7 +818,7 @@ template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc);
 }
 
@@ -830,11 +832,12 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  * @return A shared pointer to the newly created blob of the given type
  */
 template <typename Type>
-inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc, Type* ptr,
+inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorDesc& tensorDesc,
+                                                                   Type* ptr,
                                                                    size_t size = 0) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, ptr, size);
 }
 
@@ -848,10 +851,11 @@ inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(const TensorD
  */
 template <typename Type>
 inline typename InferenceEngine::TBlob<Type>::Ptr make_shared_blob(
-    const TensorDesc& tensorDesc, const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
+    const TensorDesc& tensorDesc,
+    const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
     if (!tensorDesc.getPrecision().hasStorageType<Type>())
         IE_THROW() << "Cannot make shared blob! "
-                           << "The blob type cannot be used to store objects of current precision";
+                   << "The blob type cannot be used to store objects of current precision";
     return std::make_shared<InferenceEngine::TBlob<Type>>(tensorDesc, alloc);
 }
 

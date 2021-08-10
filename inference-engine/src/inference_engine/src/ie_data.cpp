@@ -71,7 +71,9 @@ public:
 };
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
-    : name(name), userObject({0}), tensorDesc(_precision, layout) {
+    : name(name),
+      userObject({0}),
+      tensorDesc(_precision, layout) {
     _impl = std::make_shared<Impl>();
 }
 
@@ -134,14 +136,13 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
     }
 }
 
-Data::Data(const Data& data) :
-    name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc), pShape(data.pShape) {
+Data::Data(const Data& data) : name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc), pShape(data.pShape) {
     _impl = std::make_shared<Impl>();
     _impl->creatorLayer = data._impl->creatorLayer;
     _impl->inputTo = data._impl->inputTo;
 }
 
-Data & Data::operator = (const Data& data) {
+Data& Data::operator=(const Data& data) {
     if (this != &data) {
         name = data.name;
         userObject = data.userObject;
@@ -188,15 +189,15 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 
