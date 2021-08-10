@@ -18,6 +18,7 @@
 #include "cldnn/primitives/custom_gpu_primitive.hpp"
 #include "cldnn/primitives/deconvolution.hpp"
 #include "cldnn/primitives/depth_to_space.hpp"
+#include "cldnn/primitives/detection_output.hpp"
 #include "cldnn/primitives/eltwise.hpp"
 #include "cldnn/primitives/fully_connected.hpp"
 #include "cldnn/primitives/gather.hpp"
@@ -90,6 +91,7 @@ REGISTER_OCL(deconvolution);
 REGISTER_OCL(deformable_conv);
 REGISTER_OCL(deformable_interp);
 REGISTER_OCL(depth_to_space);
+REGISTER_OCL(detection_output);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
 REGISTER_OCL(fully_connected);
