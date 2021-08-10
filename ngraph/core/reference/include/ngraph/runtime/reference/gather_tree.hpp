@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph
