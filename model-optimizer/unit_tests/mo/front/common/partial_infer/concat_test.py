@@ -26,7 +26,7 @@ class TestConcatPartialInfer(unittest.TestCase):
                 ([1, 3, 227, 227], [1, 3, 227, 220], [1, 3, 227, 447], -1),
                 ([1, 3, dynamic_dimension_value, 227], [1, dynamic_dimension_value, 227, 220], [1, 3, 227, 447], -1),
                 ])
-    def test_tf_concat_infer(self, shape1, shape2, output_shape, axis):
+    def test_concat_infer(self, shape1, shape2, output_shape, axis):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
@@ -44,7 +44,29 @@ class TestConcatPartialInfer(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         self.assertTrue(np.ma.allequal(output_shape, res_shape))
 
-    def test_tf_concat_infer_not_match(self):
+    @generate(*[(shape_array([1]), shape_array([4]), shape_array([1, 4]), 0),
+                (shape_array([dynamic_dimension_value]), shape_array([4]),
+                 shape_array([dynamic_dimension_value, 4]), -1),
+                ])
+    def test_concat_value_infer(self, value1, value2, output_value, axis):
+        graph = build_graph(nodes_attributes,
+                            [('node_1', 'concat'),
+                             ('node_2', 'concat'),
+                             ('concat', 'node_3'),
+                             ('node_3', 'op_output')
+                             ],
+                            {'node_3': {'shape': output_value.shape, 'value': output_value},
+                             'node_1': {'shape': value1.shape, 'value': value1},
+                             'node_2': {'shape': value2.shape, 'value': value2},
+                             'concat': {'axis': axis}
+                             })
+
+        concat_node = Node(graph, 'concat')
+        concat_infer(concat_node)
+        res_value = graph.node['node_3']['value']
+        self.assertTrue(np.ma.allequal(output_value, res_value))
+
+    def test_concat_infer_not_match(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
@@ -61,7 +83,7 @@ class TestConcatPartialInfer(unittest.TestCase):
         with self.assertRaisesRegex(Error, "Concat input shapes do not match for node*"):
             concat_infer(concat_node)
 
-    def test_tf_concat_infer_no_shape(self):
+    def test_concat_infer_no_shape(self):
         graph = build_graph(nodes_attributes,
                             [('node_1', 'concat'),
                              ('node_2', 'concat'),
