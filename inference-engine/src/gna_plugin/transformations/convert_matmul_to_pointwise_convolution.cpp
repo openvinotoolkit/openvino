@@ -21,14 +21,16 @@ NGRAPH_RTTI_DEFINITION(ConvertMatmulWithFqToPointWiseConvolution, "ConvertMatmul
 
 static bool BiasValidation(const ngraph::Output<ngraph::Node>& output) {
     auto bias_output_shape = output.get_node()->get_output_shape(0);
+    if (bias_output_shape.size() > 4) {
+        gnalog() << "bias output shape (" << output.get_node()->get_friendly_name() << ") is more than 4\n";
+        return false;
+    }
+
     if (bias_output_shape.size() == 1) {
         return true;
     }
 
-    size_t count = 0;
-    for (auto el : bias_output_shape)
-        count += el > 1 ? 1 : 0;
-    return count < 2;
+    return std::count_if(bias_output_shape.begin(), bias_output_shape.end(), [](size_t el){ return el > 1; }) < 2;
 }
 
 static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std::shared_ptr<ngraph::Node> matmul_node) {
@@ -97,11 +99,6 @@ static bool Convert(std::shared_ptr<ngraph::Node> matmul_node,
     std::shared_ptr<ngraph::Node> root_node = matmul_node;
     if (bias) {
         auto bias_output_shape = bias->get_output_shape(0);
-        if (bias_output_shape.size() > 4) {
-            gnalog() << "bias output shape (" << bias->get_friendly_name() << ") is more than 4\n";
-            return false;
-        }
-
         std::shared_ptr<ngraph::Node> new_bias = bias;
         if (bias_output_shape.size() > 1 || bias_output_shape.at(0) > 1) {
             std::vector<size_t> axes(4, 1);
