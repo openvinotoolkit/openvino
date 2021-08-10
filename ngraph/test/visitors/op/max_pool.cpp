@@ -7,9 +7,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset8.hpp"
 
 #include "util/visitor.hpp"
 
@@ -41,4 +39,40 @@ TEST(attributes, max_pool_op)
     EXPECT_EQ(g_max_pool->get_kernel(), max_pool->get_kernel());
     EXPECT_EQ(g_max_pool->get_rounding_type(), max_pool->get_rounding_type());
     EXPECT_EQ(g_max_pool->get_auto_pad(), max_pool->get_auto_pad());
+}
+
+TEST(attributes, max_pool_v8_op)
+{
+    NodeBuilder::get_ops().register_factory<opset8::MaxPool>();
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 3, 37, 37});
+
+    const auto strides = Strides{1, 1};
+    const auto dilations = Strides{1, 1};
+    const auto pads_begin = Shape{1, 1};
+    const auto pads_end = Shape{1, 1};
+    const auto kernel = Shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL;
+    const auto auto_pad = op::PadType::EXPLICIT;
+    const element::Type& index_element_type = element::i32;
+
+    const auto max_pool = make_shared<opset8::MaxPool>(data,
+                                                       strides,
+                                                       dilations,
+                                                       pads_begin,
+                                                       pads_end,
+                                                       kernel,
+                                                       rounding_mode,
+                                                       auto_pad,
+                                                       index_element_type);
+    NodeBuilder builder(max_pool);
+    auto g_max_pool = as_type_ptr<opset8::MaxPool>(builder.create());
+
+    EXPECT_EQ(g_max_pool->get_strides(), max_pool->get_strides());
+    EXPECT_EQ(g_max_pool->get_dilations(), max_pool->get_dilations());
+    EXPECT_EQ(g_max_pool->get_pads_begin(), max_pool->get_pads_begin());
+    EXPECT_EQ(g_max_pool->get_pads_end(), max_pool->get_pads_end());
+    EXPECT_EQ(g_max_pool->get_kernel(), max_pool->get_kernel());
+    EXPECT_EQ(g_max_pool->get_rounding_type(), max_pool->get_rounding_type());
+    EXPECT_EQ(g_max_pool->get_auto_pad(), max_pool->get_auto_pad());
+    EXPECT_EQ(g_max_pool->get_index_element_type(), max_pool->get_index_element_type());
 }
