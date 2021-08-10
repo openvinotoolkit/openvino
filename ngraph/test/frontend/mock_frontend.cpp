@@ -18,6 +18,8 @@ using namespace ngraph::frontend;
 
 class FrontEndMock : public FrontEnd
 {
+public:
+    std::string get_name() const override { return "mock1"; }
 };
 
 extern "C" MOCK_API FrontEndVersion GetAPIVersion()

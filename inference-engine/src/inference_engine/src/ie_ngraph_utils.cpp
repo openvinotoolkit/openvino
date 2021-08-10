@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_ngraph_utils.hpp>
+#include "ie_ngraph_utils.hpp"
+
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_itt.hpp"
 
@@ -10,7 +11,7 @@ namespace InferenceEngine {
 namespace details {
 
 CNNNetwork cloneNetwork(const CNNNetwork& network) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "cloneNetwork");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "cloneNetwork");
 
     if (network.getFunction()) {
         IE_SUPPRESS_DEPRECATED_START

@@ -71,11 +71,13 @@ public:
 };
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
-    : name(name), userObject({0}), tensorDesc(_precision, layout) {
+    : name(name),
+      userObject({0}),
+      tensorDesc(_precision, layout) {
     _impl = std::make_shared<Impl>();
 }
 
-Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc) {
+Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userObject({0}), tensorDesc(desc) {
     _impl = std::make_shared<Impl>();
 }
 
@@ -103,14 +105,13 @@ void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
     tensorDesc.reshape(a_dims, a_layout);
 }
 
-Data::Data(const Data& data) :
-    name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
+Data::Data(const Data& data) : name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
     _impl = std::make_shared<Impl>();
     _impl->creatorLayer = data._impl->creatorLayer;
     _impl->inputTo = data._impl->inputTo;
 }
 
-Data & Data::operator = (const Data& data) {
+Data& Data::operator=(const Data& data) {
     if (this != &data) {
         name = data.name;
         userObject = data.userObject;
@@ -151,15 +152,15 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data) {
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 
