@@ -91,12 +91,12 @@ static void AllocateImpl(const BlobDataMap& userDataMap, BlobMap& userBlobMap, B
     for (auto&& userData : userDataMap) {
         auto partialShape = userData.second->getPartialShape();
         SizeVector dims;
-        if(partialShape.is_static()) {
+        if (partialShape.is_static()) {
             dims = userData.second->getTensorDesc().getDims();
         } else if (partialShape.rank().is_static()) {
             dims = SizeVector(partialShape.rank().get_length(), 0);
         } else {
-            dims = SizeVector{0};
+            dims = SizeVector {0};
         }
         AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, dims);
     }
@@ -326,7 +326,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             data = _inputs[name];
             if (foundInput->getInputData()->isDynamic() && data) {
                 auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
+                SizeVector dims = rank.is_dynamic() ? SizeVector {0} : SizeVector(rank.get_length(), 0);
                 data->setShape(dims);
             }
             /*
@@ -358,7 +358,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             auto& devBlob = _deviceInputs[name];
             if (foundInput->getInputData()->isDynamic() && devBlob) {
                 auto rank = foundInput->getInputData()->getPartialShape().rank();
-                SizeVector dims = rank.is_dynamic() ? SizeVector{0} : SizeVector(rank.get_length(), 0);
+                SizeVector dims = rank.is_dynamic() ? SizeVector {0} : SizeVector(rank.get_length(), 0);
                 devBlob->setShape(dims);
             }
             if (preProcessingRequired(foundInput, data, devBlob)) {

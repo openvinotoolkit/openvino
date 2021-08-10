@@ -41,7 +41,7 @@ public:
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
-    //void SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) override;
+    // void SetShape(const std::string& name, const InferenceEngine::SizeVector& dims) override;
 
 private:
     void allocateDeviceBuffers();

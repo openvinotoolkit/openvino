@@ -77,12 +77,19 @@ Data::Data(const std::string& name, Precision _precision, Layout layout)
     _impl = std::make_shared<Impl>();
 }
 
-Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc), pShape(desc.getDims()) {
+Data::Data(const std::string& name, const TensorDesc& desc)
+    : name(name),
+      userObject({0}),
+      tensorDesc(desc),
+      pShape(desc.getDims()) {
     _impl = std::make_shared<Impl>();
 }
 
 Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
-    : name(name), userObject({0}), tensorDesc(_precision, layout), pShape(shape) {
+    : name(name),
+      userObject({0}),
+      tensorDesc(_precision, layout),
+      pShape(shape) {
     if (pShape.is_static()) {
         tensorDesc.reshape(pShape.to_shape(), tensorDesc.getLayout());
     }
@@ -136,7 +143,11 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
     }
 }
 
-Data::Data(const Data& data) : name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc), pShape(data.pShape) {
+Data::Data(const Data& data)
+    : name(data.name),
+      userObject(data.userObject),
+      tensorDesc(data.tensorDesc),
+      pShape(data.pShape) {
     _impl = std::make_shared<Impl>();
     _impl->creatorLayer = data._impl->creatorLayer;
     _impl->inputTo = data._impl->inputTo;

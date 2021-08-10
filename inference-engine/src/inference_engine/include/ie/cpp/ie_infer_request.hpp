@@ -174,7 +174,7 @@ public:
      * @param name the input name
      * @param dims new dimensions
      */
-    //void SetShape(const std::string &name, const SizeVector& dims);
+    // void SetShape(const std::string &name, const SizeVector& dims);
 
 private:
     void SetCompletionCallbackImpl(std::function<void()>);

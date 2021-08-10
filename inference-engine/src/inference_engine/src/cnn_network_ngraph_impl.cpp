@@ -74,8 +74,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
 
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
-        const auto layout = isCompatible(rank, origLayout) ? origLayout
-            : TensorDesc::getLayoutByDims(SizeVector(rank));
+        const auto layout = isCompatible(rank, origLayout) ? origLayout : TensorDesc::getLayoutByDims(SizeVector(rank));
         ptr->reshape(shape, layout);
     } else {
         const auto layout = TensorDesc::getLayoutByDims(SizeVector(rank));
@@ -357,9 +356,8 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
     return OK;
 }
 
-StatusCode
-CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
-                              ResponseDesc* responseDesc) noexcept {
+StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                                         ResponseDesc* responseDesc) noexcept {
     std::map<std::string, ngraph::PartialShape> shapes;
     for (const auto& shape : inputShapes)
         shapes[shape.first] = ngraph::PartialShape(shape.second);

@@ -233,7 +233,7 @@ public:
         return _syncRequest->GetPerformanceCounts();
     }
 
-    //void SetShape(const std::string& name, const SizeVector& dims) override {
+    // void SetShape(const std::string& name, const SizeVector& dims) override {
     //    CheckState();
     //    _syncRequest->SetShape(name, dims);
     //}

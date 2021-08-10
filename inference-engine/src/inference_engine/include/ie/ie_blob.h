@@ -187,7 +187,6 @@ public:
      */
     virtual bool deallocate() noexcept = 0;
 
-
     /**
      * @brief Set new shape for blob, deallocate/allocate new linear size is bigger than previous one
      */
@@ -256,7 +255,7 @@ protected:
      */
     static size_t product(const SizeVector& dims) noexcept {
         if (dims.empty())
-            return 0; 
+            return 0;
         return std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
     }
 

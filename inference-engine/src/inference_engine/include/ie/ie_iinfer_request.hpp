@@ -207,12 +207,15 @@ public:
      * occurred)
      * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success
      */
-    virtual InferenceEngine::StatusCode SetShape(const std::string& name, const SizeVector& shapes, ResponseDesc* resp) noexcept {
-        (void) name;
-        (void) shapes;
-        (void) resp;
+    virtual InferenceEngine::StatusCode SetShape(const std::string& name,
+                                                 const SizeVector& shapes,
+                                                 ResponseDesc* resp) noexcept {
+        (void)name;
+        (void)shapes;
+        (void)resp;
         return NOT_IMPLEMENTED;
     }
+
 protected:
     ~IInferRequest() = default;
 };

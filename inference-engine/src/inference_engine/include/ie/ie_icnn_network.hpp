@@ -192,7 +192,8 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& partialShapes, ResponseDesc* resp) noexcept {
+    virtual StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& partialShapes,
+                               ResponseDesc* resp) noexcept {
         (void)partialShapes;
         (void)resp;
         return NOT_IMPLEMENTED;
