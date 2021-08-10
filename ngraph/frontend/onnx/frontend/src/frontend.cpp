@@ -53,3 +53,8 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) co
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
 }
+
+std::string FrontEndONNX::get_name() const
+{
+    return "onnx";
+}
