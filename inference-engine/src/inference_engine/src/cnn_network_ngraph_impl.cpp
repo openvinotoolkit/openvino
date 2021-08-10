@@ -360,7 +360,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector
 }
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
 

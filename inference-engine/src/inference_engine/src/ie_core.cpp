@@ -217,7 +217,7 @@ class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_t
                                                                  const std::string& blobID,
                                                                  const std::string& modelPath = std::string(),
                                                                  bool forceDisableCache = false) {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::Impl::LoadNetworkImpl");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::LoadNetworkImpl");
         InferenceEngine::SoExecutableNetworkInternal execNetwork;
         execNetwork =
             context ? plugin.LoadNetwork(network, context, parsedConfig) : plugin.LoadNetwork(network, parsedConfig);
@@ -433,13 +433,13 @@ public:
     }
 
     InferenceEngine::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "Core::Impl::ReadNetwork from file");
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
         return InferenceEngine::details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     InferenceEngine::CNNNetwork ReadNetwork(const std::string& model,
                                             const InferenceEngine::Blob::CPtr& weights) const override {
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "Core::Impl::ReadNetwork from memory");
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from memory");
         return InferenceEngine::details::ReadNetwork(model, weights, extensions);
     }
 
@@ -630,7 +630,7 @@ public:
      * @return Reference to a CPP plugin wrapper
      */
     InferenceEngine::InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
-        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+        OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::GetCPPPluginByName");
 
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
