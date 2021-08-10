@@ -125,10 +125,10 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.4.0-lin-strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                SHA256 "e41a5a220c59338f038405ea9cdfb84d4a5a13ce189ce9aefd95ab1831ccfef3")
         RESOLVE_DEPENDENCY(TBBBIND_2_4
                 ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_4"
