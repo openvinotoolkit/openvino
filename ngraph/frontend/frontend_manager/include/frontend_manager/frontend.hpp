@@ -83,6 +83,12 @@ namespace ngraph
             /// \param function partially converted nGraph function
             virtual void normalize(std::shared_ptr<ngraph::Function> function) const;
 
+            /// \brief Gets name of this FrontEnd. Can be used by clients
+            /// if frontend is selected automatically by FrontEndManager::load_by_model
+            ///
+            /// \return Current frontend name. Empty string if not implemented
+            virtual std::string get_name() const;
+
         protected:
             virtual bool
                 supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;

@@ -123,4 +123,16 @@ void regclass_pyngraph_FrontEnd(py::module m)
                 function : Function
                     Partially converted nGraph function.
              )");
+
+    fem.def("get_name",
+            &ngraph::frontend::FrontEnd::get_name,
+            R"(
+                Gets name of this FrontEnd. Can be used by clients
+                if frontend is selected automatically by FrontEndManager::load_by_model.
+
+                Parameters
+                ----------
+                get_name : str
+                    Current frontend name. Empty string if not implemented.
+            )");
 }

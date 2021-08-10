@@ -393,9 +393,13 @@ struct MOCK_API FeStat
 {
     std::vector<std::string> m_load_paths;
     int m_convert_model = 0;
+    int m_supported = 0;
+    int m_get_name = 0;
     // Getters
     std::vector<std::string> load_paths() const { return m_load_paths; }
     int convert_model() const { return m_convert_model; }
+    int supported() const { return m_supported; }
+    int get_name() const { return m_get_name; }
 };
 
 /// \brief Mock implementation of FrontEnd
@@ -427,5 +431,25 @@ private:
             m_stat.m_load_paths.push_back(path);
         }
         return std::make_shared<InputModelMockPy>();
+    }
+
+    bool supported_impl(const std::vector<std::shared_ptr<Variant>>& params) const override
+    {
+        m_stat.m_supported++;
+        if (params.size() > 0 && is_type<VariantWrapper<std::string>>(params[0]))
+        {
+            auto path = as_type_ptr<VariantWrapper<std::string>>(params[0])->get();
+            if (path.find(".test_mo_mock_mdl") != std::string::npos)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::string get_name() const override
+    {
+        m_stat.m_get_name++;
+        return "mock_mo_ngraph_frontend";
     }
 };

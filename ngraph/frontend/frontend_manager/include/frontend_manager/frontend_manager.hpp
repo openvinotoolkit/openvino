@@ -47,10 +47,13 @@ namespace ngraph
             /// Selects and loads appropriate frontend depending on model file extension and other
             /// file info (header)
             ///
-            /// \param framework
-            /// Framework name. Throws exception if name is not in list of available frontends
+            /// \param vars Any number of parameters of any type. What kind of parameters
+            /// are accepted is determined by each FrontEnd individually, typically it is
+            /// std::string containing path to the model file. For more information please
+            /// refer to specific FrontEnd documentation.
             ///
-            /// \return Frontend interface for further loading of model
+            /// \return Frontend interface for further loading of model. Returns 'nullptr'
+            /// if no suitable frontend is found
             template <typename... Types>
             FrontEnd::Ptr load_by_model(const Types&... vars)
             {
