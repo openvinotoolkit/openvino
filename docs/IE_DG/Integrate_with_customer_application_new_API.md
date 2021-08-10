@@ -1,7 +1,7 @@
-# Integrate Inference Engine with Your С++ Application {#openvino_docs_IE_DG_Integrate_with_customer_application_new_API}
+# Integrate Inference Engine {#openvino_docs_IE_DG_Integrate_with_customer_application_new_API}
 
 
-## C++
+## Integrate Inference Engine with Your C++ Application
 
 @sphinxdirective
 .. raw:: html
@@ -9,7 +9,7 @@
     <div id="switcher-cpp" class="switcher-anchor">C++</div>
 @endsphinxdirective
 
-The following diagram illustrates the typical Inference Engine Python API workflow:
+The following diagram illustrates the typical Inference Engine С++ API workflow:
 ![ie_api_flow_cpp]
 
 Read the sections below to learn about each item.
@@ -20,7 +20,7 @@ Read the sections below to learn about each item.
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-### Create a CMake Project for Your Application
+### Link with Inference Library
 
 1. **Create a structure** for the project:
    ``` sh
@@ -167,7 +167,7 @@ Optionally, configure input and output of the model using the steps below:
     </div>
 @endsphinxdirective
 
-#### Step 4. Load the Model to the Device
+#### Step 3. Load the Model to the Device
 
 Load the model to the device using `InferenceEngine::Core::LoadNetwork()`:
 
@@ -197,9 +197,9 @@ Load the model to the device using `InferenceEngine::Core::LoadNetwork()`:
       auto network = CNNNetwork(createNetwork());
       executable_network = core.LoadNetwork(network, "CPU");
 
-.. tab:: Model From Step 3
+.. tab:: Model From Step 2
    
-   Follow this step only if you went through optional "Step 3. Configure Input and Output of the Model", otherwise use another tab for your model type: IR (OpenVINO Intermediate Representation), ONNX or nGraph.
+   Follow this step only if you went through optional "Step 2 (Optional). Configure Input and Output of the Model", otherwise use another tab for your model type: IR (OpenVINO Intermediate Representation), ONNX or nGraph.
    
    .. code-block:: c
 
@@ -216,13 +216,13 @@ Third parameter is a configuration for plugin. It is map of pairs: (parameter na
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part6
 
-#### Step 5. Create an Inference Request
+#### Step 4. Create an Inference Request
 
 Create an infer request using the following code:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part7
 
-#### Step 6. Prepare Input 
+#### Step 5. Prepare Input 
 
 You can use one of the following options to prepare input:
 
@@ -262,7 +262,7 @@ A blob can be filled before and after `SetBlob()`.
 > corresponding values of the read network. No pre-processing will happen for this blob. If you
 > call `GetBlob()` after `SetBlob()`, you will get the blob you set in `SetBlob()`.
 
-#### Step 7. Start Inference
+#### Step 6. Start Inference
 
 Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
 
@@ -292,13 +292,13 @@ Multiple requests for single `ExecutableNetwork` are executed sequentially one b
 While request is ongoing, all its methods except `InferenceEngine::InferRequest::Wait` would throw an
 exception.
 
-#### Step 8. Process the Inference Results 
+#### Step 7. Process the Inference Results 
 
 Go over the output blobs and process the inference results. Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the recommended way. It's better to access data via the `buffer()` and `as()` methods as follows:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part14
 
-#### Step 9. Build Your Application
+### Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
 All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
@@ -314,7 +314,7 @@ cmake --build .
 ```
 It's allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
 
-#### Step 10. Run Your Application
+### Run Your Application
 
 > **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
@@ -323,7 +323,7 @@ Redistributable and Intel® C++ Compiler 2017 Redistributable packages are insta
 `<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
 application folder or accessible via `%PATH%` environment variable.
 
-## Python
+## Integrate Inference Engine with Your Python Application
 
 @sphinxdirective
 .. raw:: html
@@ -338,7 +338,7 @@ The following diagram illustrates the typical Inference Engine Python API workfl
 
 Read the sections below to learn about each item.
 
-### Link with Inference Engine Library
+### Import Inference Module
 
 To make use of the Inference Engine functionality, import IECore to your application: 
 
@@ -476,7 +476,9 @@ result = exec_net.infer({input_name: input_data})
 output = result[output_name] 
 ```
 
-#### Run Application
+#### Run Your Application
+
+Congratulations, you've made your first Python application with OpenVINO™ toolkit, now you may run it.
 
 [ie_api_flow_cpp]: img/ie_api_cpp.png
 [ie_api_use_cpp]: img/ie_api_integration_cpp.png 

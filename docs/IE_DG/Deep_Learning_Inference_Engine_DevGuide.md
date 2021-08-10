@@ -7,8 +7,7 @@
    :hidden:
    
    openvino_docs_IE_DG_Integrate_with_customer_application_new_API
-   openvino_docs_IE_DG_integrate_with_customer_application_python
-   
+      
 @endsphinxdirective
 
 ## Introduction
