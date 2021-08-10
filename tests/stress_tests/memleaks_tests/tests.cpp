@@ -118,6 +118,16 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     };
     test_runner(test_params.numthreads, test);
 }
+
+TEST_P(MemLeaksTestSuite, inference_with_streams) {
+    const auto nstreams = 2;
+    auto test_params = GetParam();
+    auto test = [&] {
+        return test_inference_with_streams(test_params.model, test_params.device, nstreams, test_params.numiters);
+    };
+    test_runner(test_params.numthreads, test);
+}
+
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel,
