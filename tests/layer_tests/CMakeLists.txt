@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-install(DIRECTORY . DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY . RENAME layer_tests_openvino DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
