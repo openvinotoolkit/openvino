@@ -16,7 +16,7 @@ namespace cldnn {
 template <>
 struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
     using parent = typed_program_node_base<reshape>;
-    typed_program_node(const std::shared_ptr<reshape> prim, program_impl& prog) : parent(prim, prog) {
+    typed_program_node(const std::shared_ptr<reshape> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
 
@@ -46,7 +46,7 @@ public:
     static std::string to_string(reshape_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, reshape_node const& node);
+    typed_primitive_inst(network& network, reshape_node const& node);
 
 private:
     void on_execute() override;

@@ -8,12 +8,11 @@
 #include <memory>
 
 #include "ngraph/descriptor/tensor.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
     class Node;
-
-    class Variant;
 
     namespace descriptor
     {
@@ -53,8 +52,6 @@ namespace ngraph
 
             /// \return the tensor of the connected output
             Tensor& get_tensor();
-
-            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
             RTMap& get_rt_info() { return m_rt_info; }
             const RTMap& get_rt_info() const { return m_rt_info; }

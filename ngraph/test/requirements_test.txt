@@ -1,8 +1,0 @@
-# PaddlePaddle - generate test models
-paddlepaddle==2.1.0
-gast==0.3.3
-numpy~=1.19.2
-six~=1.15.0
-# ONNX - generate test models
-docopt~=0.6.2
-onnx~=1.9.0

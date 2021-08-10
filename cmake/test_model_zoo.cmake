@@ -78,8 +78,7 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  ie_onnx_import_out_files)
 
 if(ENABLE_TESTS)
-    # Note: paddlepaddle==2.1.0 is not found for 32bits architecture
-    if(NGRAPH_ONNX_IMPORT_ENABLE)
+    if(NGRAPH_ONNX_IMPORT_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
 
         get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
@@ -119,6 +118,10 @@ if(ENABLE_TESTS)
 
     if(TARGET test_pip_prerequsites)
         add_dependencies(test_model_zoo test_pip_prerequsites)
+    endif()
+
+    if (NGRAPH_PDPD_FRONTEND_ENABLE)
+        add_dependencies(test_model_zoo paddlepaddle_test_models)
     endif()
 
     install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo"

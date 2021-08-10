@@ -8,6 +8,7 @@
 #include "ngraph/specialize_function.hpp"
 
 using namespace ngraph;
+NGRAPH_SUPPRESS_DEPRECATED_START;
 
 // Simple case: create a function with static parameter shapes and "specialize" them to the same
 // shapes.

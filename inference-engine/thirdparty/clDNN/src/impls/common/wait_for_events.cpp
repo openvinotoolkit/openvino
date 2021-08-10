@@ -8,7 +8,6 @@
 #include "input_layout_inst.h"
 #include "impls/implementation_map.hpp"
 #include "register.hpp"
-#include "network_impl.h"
 #include <vector>
 
 namespace cldnn {

@@ -31,6 +31,14 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
+# TOD: fix empty class name
+# ov_ncc_naming_style(FOR_TARGET onnx_importer
+#                     INCLUDE_DIRECTORY "${ONNX_IMPORT_INCLUDE_DIR}"
+#                     DEFINITIONS
+#                         $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
+#                     ADDITIONAL_INCLUDE_DIRECTORIES
+#                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_clang_format_target(onnx_importer_clang FOR_TARGETS onnx_importer)
 
 if(COMMAND ie_add_vs_version_file)

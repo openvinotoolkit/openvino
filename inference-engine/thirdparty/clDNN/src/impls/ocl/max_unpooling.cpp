@@ -6,7 +6,7 @@
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "cldnn/runtime/error_handler.hpp"
-#include "network_impl.h"
+#include "cldnn/graph/network.hpp"
 #include "kernel_selector_helper.h"
 #include "max_unpooling/max_unpooling_kernel_selector.h"
 #include "max_unpooling/max_unpooling_kernel_base.h"

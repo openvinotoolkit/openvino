@@ -40,7 +40,7 @@
 	ignore = dirty
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx/onnx
-	url = https://github.com/openvinotoolkit/onnx.git
+	url = https://github.com/onnx/onnx.git
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
@@ -50,3 +50,6 @@
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
 	url = https://github.com/intel/ittapi.git
+[submodule "ncc"]
+	path = cmake/developer_package/ncc_naming_style/ncc
+	url = https://github.com/nithinn/ncc.git

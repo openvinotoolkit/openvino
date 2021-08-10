@@ -45,7 +45,7 @@ std::string select_inst::to_string(select_node const& node) {
     return primitive_description.str();
 }
 
-select_inst::typed_primitive_inst(network_impl& network, select_node const& node) : parent(network, node) {
+select_inst::typed_primitive_inst(network& network, select_node const& node) : parent(network, node) {
     auto& deps = node.get_dependencies();
 
     CLDNN_ERROR_LESS_THAN(node.id(),

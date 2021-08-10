@@ -9,14 +9,14 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <utility>
-#include <mutex>
+#include <vector>
 
-#include "threading/ie_itask_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -39,7 +39,7 @@ public:
 
 private:
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
-    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr> > cpuStreamsExecutors;
+    std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr>> cpuStreamsExecutors;
     std::mutex streamExecutorMutex;
     std::mutex taskExecutorMutex;
 };
@@ -101,7 +101,7 @@ private:
     ExecutorManagerImpl _impl;
 
     static std::mutex _mutex;
-    static ExecutorManager *_instance;
+    static ExecutorManager* _instance;
 };
 
 }  // namespace InferenceEngine

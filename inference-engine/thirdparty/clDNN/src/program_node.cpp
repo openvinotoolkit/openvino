@@ -3,7 +3,7 @@
 //
 
 #include "program_node.h"
-#include "program_impl.h"
+#include "cldnn/graph/program.hpp"
 #include "primitive_inst.h"
 #include "to_string_utils.h"
 #include "json_object.h"
@@ -15,7 +15,7 @@
 
 using namespace cldnn;
 
-program_node::program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), org_id(prim->id) {
     if (prim)
         output_layout.data_padding = prim->output_padding;

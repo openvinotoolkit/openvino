@@ -10,7 +10,6 @@
 #include "kernel_selector_helper.h"
 #include "lstm/lstm_elt_kernel_selector.h"
 #include "lstm/lstm_elt_kernel_base.h"
-#include "network_impl.h"
 #include "cldnn/runtime/error_handler.hpp"
 
 namespace cldnn {

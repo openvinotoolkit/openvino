@@ -128,7 +128,7 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     return primitive_description.str();
 }
 
-fully_connected_inst::typed_primitive_inst(network_impl& network, fully_connected_node const& node)
+fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();

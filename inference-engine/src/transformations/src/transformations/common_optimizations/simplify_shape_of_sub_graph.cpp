@@ -7,6 +7,7 @@
 
 #include "itt.hpp"
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
@@ -121,16 +122,85 @@ ngraph::pass::GatherNopElimination::GatherNopElimination() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyGatherShapeOf, "SimplifyGatherShapeOf", 0);
+
+ngraph::pass::SimplifyGatherShapeOf::SimplifyGatherShapeOf() {
+    MATCHER_SCOPE(SimplifyGatherShapeOf);
+    const auto gather_pattern = ngraph::pattern::wrap_type<op::util::GatherBase>();
+    const auto shape_of_pattern = ngraph::pattern::wrap_type<opset2::ShapeOf, opset3::ShapeOf>({gather_pattern});
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        auto gather = as_type_ptr<opset3::Gather>(node->input_value(0).get_node_shared_ptr());
+        if (!gather) {
+            return false;
+        }
+        auto gather_in_rank = gather->get_input_partial_shape(0).rank();
+        auto indices_rank = gather->get_input_partial_shape(1).rank();
+        auto axis = gather->get_axis();
+        if (gather_in_rank.is_dynamic() || indices_rank.is_dynamic() ||
+            axis == opset3::Gather::AXIS_NOT_SET_VALUE) {
+            return false;
+        }
+
+        auto zero_axis = opset3::Constant::create<int64_t>(element::i64, Shape{}, {0});
+        NodeVector new_ops;
+        auto new_shapeof = std::make_shared<opset3::ShapeOf>(gather->input_value(0), node->get_output_element_type(0));
+        new_ops.push_back(new_shapeof);
+        std::shared_ptr<Node> replace_op;
+        if (indices_rank.get_length() == 0) {
+            std::vector<int64_t> vi(gather_in_rank.get_length());
+            std::iota(vi.begin(), vi.end(), 0);
+            vi.erase(vi.begin() + axis);
+            auto new_indices = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            replace_op = std::make_shared<opset3::Gather>(new_shapeof, new_indices, zero_axis);
+            new_ops.push_back(replace_op);
+        } else {
+            NodeVector concat_inputs;
+            if (axis > 0) {
+                std::vector<int64_t> vi(axis);
+                std::iota(vi.begin(), vi.end(), 0);
+                auto indices = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+                auto new_gather = std::make_shared<opset3::Gather>(new_shapeof, indices, zero_axis);
+                new_ops.push_back(new_gather);
+                concat_inputs.push_back(new_gather);
+            }
+            auto shapeof_indices = std::make_shared<opset3::ShapeOf>(gather->input_value(1), node->get_output_element_type(0));
+            new_ops.push_back(shapeof_indices);
+
+            concat_inputs.push_back(shapeof_indices);
+
+            if (gather_in_rank.get_length() - 1 > axis) {
+                std::vector<int64_t> vi(gather_in_rank.get_length() - (axis + 1));
+                std::iota(vi.begin(), vi.end(), axis + 1);
+                auto indices = opset3::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+                auto new_gather = std::make_shared<opset3::Gather>(new_shapeof, indices, zero_axis);
+                new_ops.push_back(new_gather);
+                concat_inputs.push_back(new_gather);
+            }
+            replace_op = std::make_shared<opset3::Concat>(concat_inputs, 0);
+            new_ops.push_back(replace_op);
+        }
+        replace_op->set_friendly_name(node->get_friendly_name());
+        copy_runtime_info(node, new_ops);
+        replace_node(node, replace_op);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shape_of_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSubGraph", 0);
 
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(GroupedGatherElimination);
+    RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::EliminateGatherUnsqueeze>();
     manager.register_pass<ngraph::pass::SharedShapeOf>();
     manager.register_pass<ngraph::pass::GroupedGatherElimination>();
     manager.register_pass<ngraph::pass::GatherNopElimination>();
+    manager.register_pass<ngraph::pass::SimplifyGatherShapeOf>();
     manager.run_passes(f);
     return false;
 }

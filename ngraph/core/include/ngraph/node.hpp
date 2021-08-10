@@ -35,6 +35,7 @@
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -45,7 +46,6 @@ namespace ngraph
     class Output;
 
     class AttributeVisitor;
-    class Variant;
     class Node;
 
     class Function;

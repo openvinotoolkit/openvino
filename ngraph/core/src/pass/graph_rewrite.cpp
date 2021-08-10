@@ -76,7 +76,7 @@ namespace ngraph
 bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     // Initialize execution queue with nodes in topological order
-    deque<std::shared_ptr<Node>> nodes_to_run;
+    deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_front(node);
@@ -87,7 +87,7 @@ bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Functio
 bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
     // Initialize execution queue with nodes in topological order
-    deque<std::shared_ptr<Node>> nodes_to_run;
+    deque<std::weak_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops())
     {
         nodes_to_run.emplace_back(node);
@@ -96,7 +96,7 @@ bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
 }
 
 bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
-                                              deque<std::shared_ptr<Node>> nodes_to_run)
+                                              deque<std::weak_ptr<Node>> nodes_to_run)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
@@ -196,8 +196,13 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
 
     while (!nodes_to_run.empty())
     {
-        auto node = nodes_to_run.front();
+        auto weak_node = nodes_to_run.front();
         nodes_to_run.pop_front();
+
+        auto node = weak_node.lock();
+        if (!node)
+            continue;
+
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
         {

@@ -25,11 +25,14 @@ using namespace ngraph;
 using namespace std;
 
 TEST(nop_elimination, eliminate_convert) {
-    Shape shape{};
-    auto type = element::f32;
-    auto A = make_shared<op::Parameter>(type, shape);
-    auto c = make_shared<op::v0::Convert>(A, element::f32);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        Shape shape{};
+        auto type = element::f32;
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto c = make_shared<op::v0::Convert>(A, element::f32);
+        f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
@@ -40,12 +43,15 @@ TEST(nop_elimination, eliminate_convert) {
 
 TEST(nop_elimination, convert_type_agnostic) {
     Shape shape{};
-    auto type = element::from<int8_t>();
-    auto A = make_shared<op::Parameter>(type, shape);
-    auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
-    auto c = make_shared<op::v0::Convert>(c1, element::f32);
-    auto z = make_shared<op::v3::NonZero>(c);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(z), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        auto type = element::from<int8_t>();
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
+        auto c = make_shared<op::v0::Convert>(c1, element::f32);
+        auto z = make_shared<op::v3::NonZero>(c);
+        f = make_shared<Function>(make_shared<op::v0::Abs>(z), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::Validate>();
@@ -56,11 +62,14 @@ TEST(nop_elimination, convert_type_agnostic) {
 }
 
 TEST(nop_elimination, eliminate_broadcast) {
-    Shape shape{1};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto b = make_shared<op::v1::Broadcast>(A,
-                                            op::Constant::create(element::u64, Shape{1}, {1}));
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        Shape shape{1};
+        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto b = make_shared<op::v1::Broadcast>(A,
+                                                op::Constant::create(element::u64, Shape{1}, {1}));
+        f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
@@ -731,4 +740,64 @@ TEST(nop_elimination, topk_convert_elimination) {
     };
 
     check_usecase();
+}
+
+TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
+    auto check_usecase = [](const PartialShape& pshape,
+                            bool i32,
+                            bool multiout,
+                            const std::vector<int64_t>& indices_val,
+                            int64_t axis_val,
+                            size_t num) {
+        static size_t id = 0;
+        auto casename = string("usecase #") + to_string(++id);
+
+        shared_ptr<Node> indices;
+        shared_ptr<Node> axis;
+        if (i32) {
+            std::vector<int32_t> indices_val_i32(indices_val.begin(), indices_val.end());
+            indices = op::Constant::create<int32_t>(
+                    element::i32, Shape{indices_val.size()}, indices_val_i32);
+            axis = op::Constant::create<int32_t>(element::i32, Shape{}, {(int32_t)axis_val});
+        } else {
+            indices =
+                    op::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
+            axis = op::Constant::create<int64_t>(element::i64, Shape{}, {axis_val});
+        }
+
+        auto A = make_shared<op::Parameter>(element::f32, pshape);
+        shared_ptr<Node> A1;
+        if (multiout) {
+            auto last_dim = pshape.rank().get_length() - 1;
+            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
+        } else {
+            A1 = make_shared<op::v0::Abs>(A);
+        }
+        auto G = make_shared<op::v1::Gather>((multiout ? A1->output(0) : A1), indices, axis);
+
+        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(G), ParameterVector{A});
+        auto optimized_f = clone_function(*baseline_f);
+
+        pass::Manager pass_manager;
+        pass_manager.register_pass<pass::Validate>();
+        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.run_passes(optimized_f);
+
+        auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
+        auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
+        EXPECT_TRUE(ps.rank().is_static() && ps_r.rank().is_static()) << casename;
+        ASSERT_EQ(ps.rank().get_length(), ps_r.rank().get_length()) << casename;
+
+        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
+        // the pass should short cut the Gather i/p with the gather users
+        // since we are fetching the whole tensor using gather op
+        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), num) << casename;
+    };
+    for (auto& i32 : {true, false})
+        for (auto& multiout : {true, false}) {
+            check_usecase(PartialShape{1, 3, 2}, i32, multiout, std::vector<int64_t>{1}, 0, 0);
+            check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{0, 1}, 1, 0);
+            check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{1}, 2, 0);
+            check_usecase(PartialShape{1, 16}, i32, multiout, std::vector<int64_t>{0, 0}, 0, 1);
+        }
 }

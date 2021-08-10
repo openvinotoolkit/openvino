@@ -2486,7 +2486,7 @@ public:
         auto opts = build_options(
             build_option::optimize_data(true)
         );
-        auto net = network(eng, topo, opts);
+        cldnn::network net(eng, topo, opts);
 
         auto input_size = tensor(batch(batch_num()), feature(input_features()), spatial(input_x(), input_y(), input_z()));
         auto input_lay = layout(input_type(),

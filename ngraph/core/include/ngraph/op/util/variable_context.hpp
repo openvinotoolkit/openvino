@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <memory>
+#include <unordered_map>
+
 #include <ngraph/output_vector.hpp>
 #include <ngraph/variant.hpp>
 #include "ngraph/op/util/variable.hpp"

@@ -9,7 +9,6 @@
 #include "pyramid_roi_align/pyramid_roi_align_kernel_base.h"
 #include "cldnn/runtime/error_handler.hpp"
 #include "pyramid_roi_align_inst.h"
-#include "network_impl.h"
 
 #include <cmath>
 
