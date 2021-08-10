@@ -188,7 +188,9 @@ public:
     virtual bool deallocate() noexcept = 0;
 
     /**
-     * @brief Set new shape for blob, deallocate/allocate new linear size is bigger than previous one
+     * @brief Set new shape for blob, deallocate/allocate if new total size is bigger than previous one.
+     *
+     * @param dims new shape
      */
     void setShape(const SizeVector& dims) {
         if (proper_product(dims) > proper_product(getTensorDesc().getDims())) {
@@ -261,7 +263,7 @@ protected:
 
     /**
      * @deprecated Cast to MemoryBlob and use its API instead.
-     * @brief Multiplies the dimension vector values.
+     * @brief Multiplies the dimension vector values. Size of a scalar is 1 instead of 0 as for product.
      *
      * @param dims Reference to a vector with dimension values of type size_t
      * @return Result of multiplication

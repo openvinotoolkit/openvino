@@ -138,7 +138,11 @@ public:
         return _inputData->getTensorDesc();
     }
 
-    ngraph::PartialShape getPartialShape() {
+    /**
+     * @brief Returns the input shape. May have undefined dimensions.
+     * @return PartialShape object describing input shape.
+     */
+     ngraph::PartialShape getPartialShape() {
         if (!_inputData) {
             IE_THROW() << "Data is empty!";
         }
