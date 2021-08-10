@@ -24,7 +24,7 @@ enum class modelType {
     TranspConvBcastAddActTransp,        /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvBcastAddMaxPoolActTransp, /* Transpose(NHWC->NCHW) => Conv => Broadcasted Add (Bias) => MaxPool => Activation Function => Transpose(NCHW->NHWC) */
     TranspConvTranspBcastAdd,           /* Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => Bias */
-    TranspConvTranspBcastAddAct,        /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function */
+    TranspConvTranspBcastAddAct         /* Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC) => Bias => Activation Function */
 };
 
 typedef std::tuple<
@@ -39,12 +39,12 @@ typedef std::tuple<
     ngraph::Strides,        // Max Pool stride
     ngraph::Shape,          // Max Pool shape
     ngraph::op::PadType     // Padding type
-> padded2ValidParams;
+> padded2ValidConvParams;
 
 typedef std::tuple<
     bool,                   // With / without Fake Quantize layers
-    padded2ValidParams      // Test parameters
-> fqPadded2ValidParams;
+    padded2ValidConvParams      // Test parameters
+> fqPadded2ValidConvParams;
 
 struct ConvData {
     size_t input_height;
@@ -185,26 +185,26 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
     const ngraph::Shape& maxpool_shape,
     const ngraph::op::PadType& pad_type,
     ConvData& conv_data) {
-    auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
-    auto result = createFunction(fq, model, inputParams, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
+    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto result = createFunction(fq, model, input_params, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
         maxpool_stride, maxpool_shape, pad_type, &conv_data);
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{inputParams});
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 class ConvertPadded2ValidConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
-    public ::testing::WithParamInterface<fqPadded2ValidParams> {
+    public ::testing::WithParamInterface<fqPadded2ValidConvParams> {
 public:
     void SetUp() override;
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
-    modelType model;
 };
 
 void ConvertPadded2ValidConvTestInvalidFixture::SetUp() {
     bool fq;
-    padded2ValidParams params;
+    padded2ValidConvParams params;
+    modelType model;
     ngraph::PartialShape input_shape;
     ngraph::Shape filters_shape, bias_shape, maxpool_shape;
     ngraph::Strides conv_stride, conv_dilation, maxpool_stride;
@@ -224,7 +224,7 @@ void ConvertPadded2ValidConvTestInvalidFixture::SetUp() {
 // ---------------------------------------------------------------------------------------------------------------------
 
 class ConvertPadded2ValidConvTestFixture: public CommonTestUtils::TestsCommon,
-    public ::testing::WithParamInterface<fqPadded2ValidParams> {
+    public ::testing::WithParamInterface<fqPadded2ValidConvParams> {
 public:
     void SetUp() override;
     std::shared_ptr<ngraph::Function> get_reference(const bool& fq,
@@ -242,12 +242,12 @@ public:
         const ConvData& conv_data);
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
-    modelType model;
 };
 
 void ConvertPadded2ValidConvTestFixture::SetUp() {
     bool fq;
-    padded2ValidParams params;
+    padded2ValidConvParams params;
+    modelType model;
     ngraph::PartialShape input_shape;
     ngraph::Shape filters_shape, bias_shape, maxpool_shape;
     ngraph::Strides conv_stride, conv_dilation, maxpool_stride;
@@ -367,7 +367,7 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
     const ngraph::Shape& maxpool_shape,
     const ngraph::op::PadType& pad_type,
     const ConvData& conv_data) {
-    auto inputParams = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
+    auto input_params = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::i64, input_shape);
 
     // Add padding where neccessary
 
@@ -379,7 +379,7 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
     // ... row ...
     // padding
     // padding
-    auto padded_input_plane = CreatePaddedNet(inputParams, conv_data);
+    auto padded_input_plane = CreatePaddedNet(input_params, conv_data);
     std::shared_ptr<ngraph::opset7::Result> result;
 
     if (padded_input_plane) {
@@ -394,32 +394,19 @@ std::shared_ptr<ngraph::Function> ConvertPadded2ValidConvTestFixture::get_refere
             maxpool_stride, maxpool_shape, ngraph::op::PadType::EXPLICIT, nullptr);
     } else {
         // Valid padding
-        result = createFunction(fq, model, inputParams, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
+        result = createFunction(fq, model, input_params, filters_shape, conv_stride, pads_begin, pads_end, conv_dilation, bias_shape,
             maxpool_stride, maxpool_shape, pad_type, nullptr);
     }
 
-    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{inputParams});
+    return std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{input_params});
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-void execute_test(const modelType& model, std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
+void execute_test(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
-
-    switch (model) {
-    default:
-    case modelType::TranspConvTransp:
-    case modelType::TranspConvBcastAddTransp:
-    case modelType::TranspConvBcastAddMaxPoolTransp:
-    case modelType::TranspConvBcastAddActTransp:
-    case modelType::TranspConvBcastAddMaxPoolActTransp:
-    case modelType::TranspConvTranspBcastAdd:
-    case modelType::TranspConvTranspBcastAddAct:
-        manager.register_pass<GNAPluginNS::ConvertPadded2ValidConv>();
-        break;
-    }
-
+    manager.register_pass<GNAPluginNS::ConvertPadded2ValidConv>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
@@ -427,7 +414,7 @@ void execute_test(const modelType& model, std::shared_ptr<ngraph::Function> func
 }
 
 TEST_P(ConvertPadded2ValidConvTestFixture, CompareFunctions) {
-    execute_test(model, function, reference_function);
+    execute_test(function, reference_function);
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidConvTestFixture,
@@ -458,7 +445,7 @@ INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvTestSuite, ConvertPadded2ValidCo
                 ngraph::Shape{1, 1, 1, 4}, ngraph::Strides{1, 1}, ngraph::Shape{1, 2}, ngraph::op::PadType::EXPLICIT))));
 
 TEST_P(ConvertPadded2ValidConvTestInvalidFixture, CompareFunctions) {
-    execute_test(model, function, reference_function);
+    execute_test(function, reference_function);
 }
 
 INSTANTIATE_TEST_SUITE_P(ConvertPadded2ValidConvInvalidTestSuite, ConvertPadded2ValidConvTestInvalidFixture,

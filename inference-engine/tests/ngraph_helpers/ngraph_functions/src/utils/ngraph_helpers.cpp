@@ -186,7 +186,9 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
         }
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START;
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    NGRAPH_SUPPRESS_DEPRECATED_END;
     ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
