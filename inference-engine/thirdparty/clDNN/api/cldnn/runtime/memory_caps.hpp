@@ -74,7 +74,10 @@ enum class shared_mem_type {
     shared_mem_vasurface,
 
     /// @brief Structure describes shared D3D11 buffer
-    shared_mem_dxbuffer
+    shared_mem_dxbuffer,
+
+    /// @brief Structure describes shared USM memory.
+    shared_mem_usm
 };
 
 using shared_handle = void*;

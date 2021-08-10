@@ -6,14 +6,10 @@
 
 #include <memory>
 #include <tuple>
-#include <vector>
-#include <string>
 #include <ie_core.hpp>
 
-#include "ngraph_functions/builders.hpp"
 #include <transformations/init_node_info.hpp>
 #include "lpt_ngraph_functions/reshape_function.hpp"
-
 
 namespace LayerTestsDefinitions {
 
@@ -48,6 +44,18 @@ void ReshapeTransformation::SetUp() {
         param.reshapeConstValues,
         netPrecision,
         param.fakeQuantize);
+}
+
+void ReshapeTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+    auto actualPrecision = getRuntimePrecisionByType(params.layerType);
+    const auto expectedPrecision = params.expectedKernelType;
+    if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
+        actualPrecision = "FP32";
+    }
+    EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {

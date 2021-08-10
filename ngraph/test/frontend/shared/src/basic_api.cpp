@@ -30,17 +30,14 @@ void FrontEndBasicTest::initParamTest()
 
 void FrontEndBasicTest::doLoadFromFile()
 {
-    std::vector<std::string> frontends;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
-    ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
-    ASSERT_NE(m_inputModel, nullptr);
+    std::tie(m_frontEnd, m_inputModel) =
+        FrontEndTestUtils::load_from_file(m_fem, m_feName, m_modelFile);
 }
 
 TEST_P(FrontEndBasicTest, testLoadFromFile)
 {
     ASSERT_NO_THROW(doLoadFromFile());
+    ASSERT_EQ(m_frontEnd->get_name(), m_feName);
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
