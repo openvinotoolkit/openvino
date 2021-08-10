@@ -474,6 +474,24 @@ std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layer
     return "";
 }
 
+#ifndef NDEBUG
+void LayerTestsCommon::showRuntimePrecisions() {
+    const auto execGraph = executableNetwork.GetExecGraphInfo();
+    const auto function = execGraph.getFunction();
+
+    for (const auto& op : function->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
+        const auto& typeIt = rtInfo.find("layerType");
+
+        const auto type = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(typeIt->second)->get();
+        const auto& it = rtInfo.find("runtimePrecision");
+
+        const auto rtPrecisionPtr = ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(it->second);
+        std::cout << type << ": " << rtPrecisionPtr->get() << std::endl;
+    }
+}
+#endif
+
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
 }
