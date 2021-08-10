@@ -38,7 +38,7 @@ namespace ngraph
                     PDPD_ASSERT((type_index == i32 || type_index == i64) &&
                                     (type_num == i32 || type_num == i64),
                                 "Unexpected data type of outputs of MulticlassNMS: " +
-                                    out_names.size());
+                                    std::to_string(out_names.size()));
 
                     auto normalized = node.get_attribute<bool>("normalized");
 

@@ -30,7 +30,7 @@ public:
     static std::string to_string(scatter_elements_update_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, scatter_elements_update_node const& desc);
+    typed_primitive_inst(network& network, scatter_elements_update_node const& desc);
 };
 
 using scatter_elements_update_inst = typed_primitive_inst<scatter_elements_update>;

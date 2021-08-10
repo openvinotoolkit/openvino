@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <sstream>
 #include <string>
 
 #include "ngraph/variant.hpp" // ngraph::Variant
