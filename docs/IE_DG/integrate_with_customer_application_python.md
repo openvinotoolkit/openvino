@@ -15,9 +15,9 @@ To make use of the Inference Engine functionality, import IECore to your applica
 from openvino.inference_engine import IECore
 ``` 
  
-## Use Inference Engine API 
+## Use Inference Engine API Implement Inference Pipeline
 
-This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine API:   
+This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine Python API:   
 
 ![ie_api_use_python]
 
@@ -113,7 +113,7 @@ Load the model to the device using `load_network()`:
       
       // TBD
 
-.. tab:: Model from step 2
+.. tab:: Model from Step 2
    
    .. code-block:: python
    
@@ -145,9 +145,8 @@ result = exec_net.infer({input_name: input_data})
 output = result[output_name] 
 ```
 
+## Run Application
+
 [ie_api_flow_python]: img/ie_api_python.png
 [ie_api_use_python]: img/ie_api_integration_python.png
-
-
-## Run Application
  

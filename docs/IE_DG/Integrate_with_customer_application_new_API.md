@@ -9,8 +9,10 @@
     <div id="switcher-cpp" class="switcher-anchor">C++</div>
 @endsphinxdirective
 
-The diagram below illustrates steps needed to integrate Inference Engine into your application:
-![integration_process]
+The following diagram illustrates the typical Inference Engine Python API workflow:
+![ie_api_flow_cpp]
+
+Read the sections below to learn about each item.
 
 > **NOTE**: Before start using Inference Engine, make sure you set all environment variables during the installation. If you did not, follow the instructions from the _Set the Environment Variables_ section in the installation guides:
 > * [For Windows* 10](../install_guides/installing-openvino-windows.md)
@@ -18,7 +20,7 @@ The diagram below illustrates steps needed to integrate Inference Engine into yo
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-## Step 1. Create a CMake Project for Your Application
+## Create a CMake Project for Your Application
 
 1. **Create a structure** for the project:
    ``` sh
@@ -43,13 +45,18 @@ The diagram below illustrates steps needed to integrate Inference Engine into yo
    target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS}    ${NGRAPH_LIBRARIES})
    ```
 
-### Step 2. Create Inference Engine Core 
+## Use Inference Engine API to Implement Inference Pipeline
+
+This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine C++ API:   
+
+![ie_api_use_cpp]
+### Step 1. Create Inference Engine Core 
 
 Use the following code to create Inference Engine Core to manage available devices and read network objects:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part0
 
-### Step 3 (Optional). Configure Input and Output of the Model
+### Step 2 (Optional). Configure Input and Output of the Model
 
 @sphinxdirective
 .. raw:: html
@@ -316,9 +323,6 @@ Redistributable and Intel® C++ Compiler 2017 Redistributable packages are insta
 `<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
 application folder or accessible via `%PATH%` environment variable.
 
-[integration_process]: img/integration_process.png
-
-
 ## Python
 
 @sphinxdirective
@@ -327,4 +331,154 @@ application folder or accessible via `%PATH%` environment variable.
     <div id="switcher-python" class="switcher-anchor">Python</div>
 @endsphinxdirective
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+This document explains how to integrate and use the Inference Engine API with your Python application.   
+
+The following diagram illustrates the typical Inference Engine Python API workflow:
+![ie_api_flow_python] 
+
+Read the sections below to learn about each item.
+
+## Link with Inference Engine Library
+
+To make use of the Inference Engine functionality, import IECore to your application: 
+
+```py
+from openvino.inference_engine import IECore
+``` 
+ 
+## Use Inference Engine API 
+
+This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine API:   
+
+![ie_api_use_python]
+
+### Step 1. Create Inference Engine Core
+
+Use the following code to create Inference Engine Core to manage available devices and read network objects: 
+```py
+ie = IECore()
+``` 
+### Step 2 (Optional). Read model. Configure Input and Output of the Model
+
+@sphinxdirective
+.. raw:: html
+
+    <div class="collapsible-section">
+@endsphinxdirective
+
+Optionally, configure input and output of the model using the steps below: 
+
+1. Read model 
+   @sphinxdirective
+      
+   .. tab:: IR
+   
+      .. code-block:: python
+   
+         net = ie.read_network(model="model.xml")
+   
+   .. tab:: ONNX
+      
+      .. code-block:: python
+         
+         net = ie.read_network(model="model.onnx")
+   
+   .. tab:: nGraph
+      
+      .. code-block:: python
+         
+         // TBD
+   
+   @endsphinxdirective
+
+2. Request input and output information using input_info, outputs 
+   ```py
+   inputs = net.input_info 
+   input_name = next(iter(net.input_info))  
+
+   outputs = net.outputs 
+   output_name = next(iter(net.outputs)) 
+   ``` 
+   Information for this input layer is stored in input_info. The next cell prints the input layout, precision and shape. 
+   ```py
+   print(f"input layout: {net.input_info[input_layer].layout}") 
+   print(f"input precision: {net.input_info[input_layer].precision}") 
+   print(f"input shape: {net.input_info[input_layer].tensor_desc.dims}") 
+   ```
+   This cell output tells us that the model expects inputs with a shape of [1,3,224,224], and that this is in NCHW layout. This means that the model expects input data with a batch size (N) of 1, 3 channels (C), and images of a height (H) and width (W) of 224. The input data is expected to be of FP32 (floating point) precision. 
+    
+   Getting the output layout, precision and shape is similar to getting the input layout, precision and shape. 
+   ```py
+   print(f"output layout: {net.outputs[output_layer].layout}") 
+   print(f"output precision: {net.outputs[output_layer].precision}") 
+   print(f"output shape: {net.outputs[output_layer].shape}") 
+   ```
+   This cell output shows that the model returns outputs with a shape of [1, 1001], where 1 is the batch size (N) and 1001 the number of classes (C). The output is returned as 32-bit floating point. 
+
+@sphinxdirective
+.. raw:: html
+
+    </div>
+@endsphinxdirective 
+
+### Step 3. Load model to the Device 
+
+Load the model to the device using `load_network()`:
+
+@sphinxdirective
+   
+.. tab:: IR
+
+   .. code-block:: python
+
+      exec_net = ie.load_network(network= "model.xml", device_name="CPU") 
+.. tab:: ONNX
+   
+   .. code-block:: python
+      
+      exec_net = ie.load_network(network= "model.onnx", device_name="CPU") 
+
+.. tab:: nGraph
+   
+   .. code-block:: python
+      
+      // TBD
+
+.. tab:: Model from step 2
+   
+   .. code-block:: python
+   
+      exec_net = ie.load_network(network=net, device_name="CPU")
+
+@endsphinxdirective
+
+### Step 4. Prepare input 
+```py
+import cv2 
+import numpy as np 
+
+image = cv2.imread("image.png") 
+
+# Resize with OpenCV your image if needed to match with net input shape 
+# res_image = cv2.resize(src=image, dsize=(W, H)) 
+
+# Converting image to NCHW format with FP32 type 
+input_data = np.expand_dims(np.transpose(image, (2, 0, 1)), 0).astype(np.float32) 
+```
+
+### Step 5. Start Inference
+```py
+result = exec_net.infer({input_name: input_data}) 
+``` 
+
+### Step 6. Process the Inference Results 
+```py
+output = result[output_name] 
+```
+
+## Run Application
+
+[ie_api_flow_cpp]: img/ie_api_cpp.png
+[ie_api_use_cpp]: img/ie_api_integration_cpp.png 
+[ie_api_flow_python]: img/ie_api_python.png
+[ie_api_use_python]: img/ie_api_integration_python.png
