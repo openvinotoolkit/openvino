@@ -40,6 +40,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0 }
     },
     // per-channel quantization
     {
@@ -53,6 +54,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0 }
     }
 };
 
@@ -75,6 +77,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0 }
     },
 };
 
@@ -103,6 +106,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0 }
     },
 };
 

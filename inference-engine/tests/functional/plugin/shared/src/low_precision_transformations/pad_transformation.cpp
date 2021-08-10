@@ -10,6 +10,8 @@
 
 #include "lpt_ngraph_functions/pad_function.hpp"
 
+using namespace LayerTestsUtils;
+
 namespace LayerTestsDefinitions {
 
 std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
@@ -22,8 +24,12 @@ std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransfo
     std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
-           << "_" << mode << param.fakeQuantize;
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        mode << "_" <<
+        param.fakeQuantize << "_" <<
+        param.padsBegin << "_" <<
+        param.padsEnd << "_" <<
+        param.padsValues[0];
     return result.str();
 }
 
@@ -41,6 +47,7 @@ void PadTransformation::SetUp() {
         param.fakeQuantize,
         param.padsBegin,
         param.padsEnd,
+        param.padsValues,
         mode);
 }
 

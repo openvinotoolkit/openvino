@@ -19,6 +19,19 @@
 
 namespace LayerTestsUtils {
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
+    os << "{ ";
+    for (size_t i = 0; i < values.size(); ++i) {
+        os << values[i];
+        if (i != (values.size() - 1ul)) {
+            os << ", ";
+        }
+    }
+    os << " }";
+    return os;
+}
+
 class LayerTransformationParamsNGraphFactory {
 public:
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();

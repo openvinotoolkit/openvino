@@ -41,6 +41,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 12.8f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0.f },
         "Pad",
         "U8"
     },
@@ -55,6 +56,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0.f },
         "Pad",
         "U8"
     },
@@ -70,6 +72,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0.f },
         "Pad",
         "U8"
     }
@@ -94,9 +97,58 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0.f },
         "Pad",
         "FP32"
     },
+    // per-channel quantization with the same values
+    {
+        {
+            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, -127.f, -127.f },
+            { 128.f, 128.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f, 255.f }
+        },
+        { 0, 2, 0, 0 },
+        { 0, 3, 0, 0 },
+        { 1.f },
+        "Pad",
+        "FP32"
+    },
+    // per-channel quantization with the same values
+    {
+        {
+            256ul, ngraph::Shape{ 1, 3, 1, 1 },
+            { -127.f, -127.f, -127.f },
+            { 128.f, 128.f, 128.f },
+            { 0.f, 0.f, 0.f },
+            { 255.f, 255.f, 255.f }
+            },
+        { 0, 2, 0, 0 },
+        { 0, 3, 0, 0 },
+        { 0.f },
+        "Pad",
+        "U8"
+    },
+    // per-channel quantization with the same values
+    {
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 0, 2, 0, 0 },
+        { 0, 3, 0, 0 },
+        { 1.f },
+        "Pad",
+        "FP32"
+    },
+    // dequantization constant reshape
+    {
+        { 256ul, {}, { 0.f }, { 255.f * 2.f }, { 0.f }, { 255.f * 2.f } },
+        { 0, 2, 0, 0 },
+        { 0, 3, 0, 0 },
+        { 0.f },
+        "Pad",
+        "U8"
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, PadTransformation,
@@ -124,6 +176,7 @@ const std::vector<LayerTestsDefinitions::PadTransformationParam> params = {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { -2.f }, { 10.5f }, { -2.f }, { 10.5f } },
         { 0, 0, 1, 1 },
         { 0, 0, 1, 1 },
+        { 0.f },
         "Pad",
         "U8"
     },
