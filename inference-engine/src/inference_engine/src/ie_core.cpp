@@ -6,6 +6,7 @@
 
 #include <sys/stat.h>
 
+#include <ie/details/ie_so_pointer.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -821,7 +822,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddExtensionUnsafe(const IExtensionPtr& extension) {
+    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) {
         std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
@@ -890,14 +891,14 @@ public:
     }
 
 private:
-    template <typename C,
-              typename = details::enableIfSupportedChar<C>>
+    template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
     void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) {
         try {
-            const auto extension_ptr = std::make_shared<Extension>(path);
+            const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
             AddExtensionUnsafe(extension_ptr);
-        } catch (const NotFound&) {}
-        catch (const GeneralError&) {}
+        } catch (const InferenceEngine::NotFound&) {
+        } catch (const InferenceEngine::GeneralError&) {
+        }
     }
 };
 
