@@ -59,6 +59,9 @@ namespace ngraph
                 uint64_t get_op_seed() const { return m_op_seed; }
                 void set_op_seed(uint64_t seed2) { m_op_seed = seed2; }
 
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             protected:
                 ngraph::element::Type m_output_type;
                 uint64_t m_global_seed;
