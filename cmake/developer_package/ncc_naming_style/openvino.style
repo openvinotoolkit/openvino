@@ -5,7 +5,7 @@ ClassName: '^([A-Z][\w]+|b?float16|numeric_limits|ngraph_error|stopwatch|unsuppo
 # TODO: remove oi_pair
 StructName: '^([A-Z][\w]+|element_type_traits|hash|oi_pair)$'
 FunctionName: '^(operator\W+|[a-z_\d]+)$'
-Namespace: '^[a-z\d_]+$'
+Namespace: '^([a-z\d_]+|InferenceEngine)$'
 NamespaceAlias: '^[a-z\d_]+$'
 UnionName: '[A-Z][\w]+$'
 TemplateTemplateParameter: '[A-Z][\w]+'
