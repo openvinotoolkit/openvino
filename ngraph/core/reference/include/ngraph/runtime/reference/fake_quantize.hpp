@@ -230,7 +230,7 @@ namespace ngraph
                                      in_high_shape.size() <= arg_shape.size() &&
                                      out_low_shape.size() <= arg_shape.size() &&
                                      out_high_shape.size() <= arg_shape.size(),
-                                 "Tensors with inout\\output ranges should have rank less or "
+                                 "Tensors with input\\output ranges should have rank less or "
                                  "equal to data tensor rank equal to ",
                                  arg_shape.size());
 
