@@ -37,8 +37,7 @@
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
 
-namespace ngraph
-{
+namespace ngraph {
     template <typename NodeType>
     class Input;
 
@@ -50,8 +49,7 @@ namespace ngraph
 
     class Function;
 
-    namespace runtime
-    {
+    namespace runtime {
         class HostTensor;
     }
     using HostTensor = runtime::HostTensor;
@@ -123,8 +121,7 @@ namespace ngraph
     /// Nodes are the backbone of the graph of Value dataflow. Every node has
     /// zero or more nodes as arguments and one value, which is either a tensor
     /// or a (possibly empty) tuple of values.
-    class NGRAPH_API Node : public std::enable_shared_from_this<Node>
-    {
+    class NGRAPH_API Node : public std::enable_shared_from_this<Node> {
         // For access to m_outputs.
         friend class descriptor::Input;
 
