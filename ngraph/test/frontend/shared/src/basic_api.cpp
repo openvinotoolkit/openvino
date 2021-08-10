@@ -37,6 +37,7 @@ void FrontEndBasicTest::doLoadFromFile()
 TEST_P(FrontEndBasicTest, testLoadFromFile)
 {
     ASSERT_NO_THROW(doLoadFromFile());
+    ASSERT_EQ(m_frontEnd->get_name(), m_feName);
     std::shared_ptr<ngraph::Function> function;
     ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(function, nullptr);
