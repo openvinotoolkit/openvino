@@ -41,7 +41,7 @@ class If(Op):
     @staticmethod
     def connect_body_input(if_node: Node, condition: bool, if_input_port_idx: int, body_parameter: Node):
         """
-        Update the input port map to connect the input port with the specified body parameter
+        Update the specified body parameter and connect it with If input
 
         :param if_node: the If node
         :param condition: the boolean defining a condition (then/else) graph to add connect the body
@@ -58,7 +58,7 @@ class If(Op):
     @staticmethod
     def connect_body_output(if_node: Node, condition: bool, if_output_port_idx: int, internal_result: Node):
         """
-        Update the output port map to connect the body Result node with the specified output port
+        Update the specified output port and connect it with If output
 
         :param if_node: the If node
         :param condition: the boolean defining a condition (then/else) graph to add connect the body
@@ -132,6 +132,7 @@ class If(Op):
         if outputs_number == 0 and len(if_node.out_ports(True)) != 0:
             # Some models have if with control flow outputs.
             # These shape inference for such ifs
+            # TODO: need to rethink and redo support for control flow edges in if operation
             for node in if_node.out_nodes(True).values():
                 node.shape = int64_array([])
             return
@@ -143,7 +144,7 @@ class If(Op):
         # variable then_contains_fake_outputs/else_contains_fake_outputs contains True value
         # if all outputs from then_body/else_body have shape [0]. It means then_body/else_body does not return data
         # and further shape_inference for this branch is not possible.
-
+        # TODO: exclude support  fake_outputs from this code when we will support shape_inference with empty tensors
         then_contains_fake_outputs = False
         else_contains_fake_outputs = False
 
@@ -156,7 +157,7 @@ class If(Op):
             outputs_mapping[port_id]['then_graph'] = then_output_node
             then_shape = then_output_node.in_port(0).data.get_shape()
 
-            then_contains_fake_outputs = then_contains_fake_outputs or (len(then_shape) == 1 and then_shape[0] == 0)
+            then_contains_fake_outputs = then_contains_fake_outputs or np.any(then_shape == 0)
 
         for else_output_node in else_outputs:
             assert else_output_node.soft_get('type') == 'Result'
@@ -166,7 +167,7 @@ class If(Op):
                 .format(else_output_node.name, port_id)
             outputs_mapping[port_id]['else_graph'] = else_output_node
             else_shape = else_output_node.in_port(0).data.get_shape()
-            else_contains_fake_outputs = else_contains_fake_outputs or (len(else_shape) == 1 and else_shape[0] == 0)
+            else_contains_fake_outputs = else_contains_fake_outputs or np.any(else_shape == 0)
 
         # use_then_shape is True when else_body or when both bodies do not return data. If use_then_shape is True If's
         # outputs will have the same shapes as then_body results
@@ -192,7 +193,7 @@ class If(Op):
         """
         Update types for If output ports.
 
-        :param if_node: The If node to update output ports and shapes
+        :param if_node: The If node to update output ports and types
         :return: None
         """
         then_outputs = [node for node in if_node.then_graph.get_op_nodes() if node.has('output_id')]
@@ -240,6 +241,9 @@ class If(Op):
     def re_numerate_internal_id_and_get_if_id(if_node):
         """
             This method is called before IR generation. This method sets internal_layer_id.
+
+        :param if_node: The If node where is necessary to set internal_layer_id in bodies.
+        :return: if_node
         """
         then_graph_nodes = if_node.then_graph.nodes()
         for idx in range(len(if_node.then_graph.get_op_nodes())):
