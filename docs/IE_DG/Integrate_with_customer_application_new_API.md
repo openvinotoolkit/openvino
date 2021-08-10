@@ -20,7 +20,7 @@ Read the sections below to learn about each item.
 > * [For macOS*](../install_guides/installing-openvino-macos.md)
 > * To build an open source version, use the [Inference Engine Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
-## Create a CMake Project for Your Application
+### Create a CMake Project for Your Application
 
 1. **Create a structure** for the project:
    ``` sh
@@ -45,18 +45,18 @@ Read the sections below to learn about each item.
    target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS}    ${NGRAPH_LIBRARIES})
    ```
 
-## Use Inference Engine API to Implement Inference Pipeline
+### Use Inference Engine API to Implement Inference Pipeline
 
 This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine C++ API:   
 
 ![ie_api_use_cpp]
-### Step 1. Create Inference Engine Core 
+#### Step 1. Create Inference Engine Core 
 
 Use the following code to create Inference Engine Core to manage available devices and read network objects:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part0
 
-### Step 2 (Optional). Configure Input and Output of the Model
+#### Step 2 (Optional). Configure Input and Output of the Model
 
 @sphinxdirective
 .. raw:: html
@@ -167,7 +167,7 @@ Optionally, configure input and output of the model using the steps below:
     </div>
 @endsphinxdirective
 
-### Step 4. Load the Model to the Device
+#### Step 4. Load the Model to the Device
 
 Load the model to the device using `InferenceEngine::Core::LoadNetwork()`:
 
@@ -216,13 +216,13 @@ Third parameter is a configuration for plugin. It is map of pairs: (parameter na
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part6
 
-### Step 5. Create an Inference Request
+#### Step 5. Create an Inference Request
 
 Create an infer request using the following code:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part7
 
-### Step 6. Prepare Input 
+#### Step 6. Prepare Input 
 
 You can use one of the following options to prepare input:
 
@@ -262,7 +262,7 @@ A blob can be filled before and after `SetBlob()`.
 > corresponding values of the read network. No pre-processing will happen for this blob. If you
 > call `GetBlob()` after `SetBlob()`, you will get the blob you set in `SetBlob()`.
 
-### Step 7. Start Inference
+#### Step 7. Start Inference
 
 Start inference in asynchronous or synchronous mode. Async API usage can improve overall frame-rate of the application, because rather than wait for inference to complete, the app can continue doing things on the host, while accelerator is busy.
 
@@ -292,13 +292,13 @@ Multiple requests for single `ExecutableNetwork` are executed sequentially one b
 While request is ongoing, all its methods except `InferenceEngine::InferRequest::Wait` would throw an
 exception.
 
-### Step 8. Process the Inference Results 
+#### Step 8. Process the Inference Results 
 
 Go over the output blobs and process the inference results. Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the recommended way. It's better to access data via the `buffer()` and `as()` methods as follows:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part14
 
-### Step 9. Build Your Application
+#### Step 9. Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
 All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
@@ -314,7 +314,7 @@ cmake --build .
 ```
 It's allowed to specify additional build options (e.g. to build CMake project on Windows with a specific build tools). Please refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)) for details.
 
-### Step 10. Run Your Application
+#### Step 10. Run Your Application
 
 > **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
@@ -338,7 +338,7 @@ The following diagram illustrates the typical Inference Engine Python API workfl
 
 Read the sections below to learn about each item.
 
-## Link with Inference Engine Library
+### Link with Inference Engine Library
 
 To make use of the Inference Engine functionality, import IECore to your application: 
 
@@ -346,19 +346,19 @@ To make use of the Inference Engine functionality, import IECore to your applica
 from openvino.inference_engine import IECore
 ``` 
  
-## Use Inference Engine API 
+### Use Inference Engine API 
 
 This section provides step-by-step instructions to implement a typical inference pipeline with the Inference Engine API:   
 
 ![ie_api_use_python]
 
-### Step 1. Create Inference Engine Core
+#### Step 1. Create Inference Engine Core
 
 Use the following code to create Inference Engine Core to manage available devices and read network objects: 
 ```py
 ie = IECore()
 ``` 
-### Step 2 (Optional). Read model. Configure Input and Output of the Model
+#### Step 2 (Optional). Read model. Configure Input and Output of the Model
 
 @sphinxdirective
 .. raw:: html
@@ -421,7 +421,7 @@ Optionally, configure input and output of the model using the steps below:
     </div>
 @endsphinxdirective 
 
-### Step 3. Load model to the Device 
+#### Step 3. Load model to the Device 
 
 Load the model to the device using `load_network()`:
 
@@ -452,7 +452,7 @@ Load the model to the device using `load_network()`:
 
 @endsphinxdirective
 
-### Step 4. Prepare input 
+#### Step 4. Prepare input 
 ```py
 import cv2 
 import numpy as np 
@@ -466,17 +466,17 @@ image = cv2.imread("image.png")
 input_data = np.expand_dims(np.transpose(image, (2, 0, 1)), 0).astype(np.float32) 
 ```
 
-### Step 5. Start Inference
+#### Step 5. Start Inference
 ```py
 result = exec_net.infer({input_name: input_data}) 
 ``` 
 
-### Step 6. Process the Inference Results 
+#### Step 6. Process the Inference Results 
 ```py
 output = result[output_name] 
 ```
 
-## Run Application
+#### Run Application
 
 [ie_api_flow_cpp]: img/ie_api_cpp.png
 [ie_api_use_cpp]: img/ie_api_integration_cpp.png 
