@@ -30,7 +30,6 @@ def pdpd_rnn_lstm(input_size, hidden_size, layers, direction):
             program=main_program)
         saveModel("rnn_lstm_layer_" + str(layers) + '_' + str(direction), exe, feedkeys=['x'],
                   fetchlist=[y, h, c], inputs=[np.ones([4, 3, input_size]).astype(np.float32)], outputs=[outs[0], outs[1], outs[2]], target_dir=sys.argv[1])
-        print(outs[0])
     return outs[0]
 
 

@@ -29,9 +29,8 @@ def print_alike(arr):
             line += end
             #print(line)
             return line
-            
+    # print(print_array(arr, "}"))
 
-    print(print_array(arr, "}"))
 
 def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)
@@ -44,7 +43,7 @@ def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:lis
         # print_alike(input)
         np.save(os.path.join(model_dir, "input{}".format(i)), input)
         np.save(os.path.join(model_dir, "input{}.{}.{}".format(i, feedkeys[i], input.dtype)), input)
-    print("\n")
+    # print("\n")
 
     for i, output in enumerate(outputs):
         # print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
@@ -77,4 +76,3 @@ if __name__ == "__main__":
         [1, 2, 3],
         [4, 5, 6]
     ]]]).astype(np.float32)
-    print_alike(x)  

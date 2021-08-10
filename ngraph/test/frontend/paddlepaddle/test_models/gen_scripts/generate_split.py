@@ -1,9 +1,10 @@
 #
-# pool2d paddle model generator
+# split paddle model generator
 #
 import numpy as np
 from save_model import saveModel
 import sys
+
 
 def split(name : str, x, attrs : dict):
     import paddle as pdpd
@@ -28,6 +29,7 @@ def split(name : str, x, attrs : dict):
 
     return outs[0]
 
+
 def split_dim_tensor(name : str, x, attrs : dict, dim):
     import paddle as pdpd
     pdpd.enable_static()
@@ -51,6 +53,7 @@ def split_dim_tensor(name : str, x, attrs : dict, dim):
         saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
+
 
 def split_test_list_tensor(name : str, x, attrs : dict):
     import paddle as pdpd
@@ -77,6 +80,7 @@ def split_test_list_tensor(name : str, x, attrs : dict):
 
     return outs[0]
 
+
 def main():
     # split
     data_types = ['float32'] #TODOD: ['bool', 'float16', 'float32', 'float64', 'int32', 'int64']
@@ -91,7 +95,6 @@ def main():
                     'num_or_sections': s,
                     'axis': i
                 }
-                print(idx, t, s, i)
                 data_NCHW = np.random.rand(3,9,5).astype(t)
                 split("split_test{}".format(idx), data_NCHW, pdpd_attrs)
                 idx+=1
@@ -106,6 +109,7 @@ def main():
     split_test_list_tensor("split_test_list_tensor", data_NCHW, {
         'num_or_sections': [4, 5],
         'axis': 1})
+
 
 if __name__ == "__main__":
     main()

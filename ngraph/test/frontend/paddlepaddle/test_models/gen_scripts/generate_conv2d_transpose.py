@@ -13,13 +13,9 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         feed={'x': input_x},
         fetch_list=fetch_list,
         program=main_prog)
-
-    print(outs[0].shape)
-
     with pdpd.static.program_guard(main_prog, start_prog):
         saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x],
                   outputs=[outs[0]], target_dir=sys.argv[1])
-
 
 
 def pdpd_conv2d_transpose(input_x, name, input_shape, kernel, dilation, padding, stride, groups=1, use_cudnn=True):

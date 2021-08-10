@@ -37,4 +37,3 @@ if __name__ == "__main__":
 
     input2 = np.ones([1, 5, 7]).astype('float32')
     pdpd_result = pdpd_bmm(input1, input2)
-    print(pdpd_result)
