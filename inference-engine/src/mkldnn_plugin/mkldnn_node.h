@@ -26,8 +26,10 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
 #include <ie_precision.hpp>
-#include <nodes/common/tensor_desc_creator.h>
+#include <nodes/common/blocked_desc_creator.h>
 #include "cpu_types.h"
+#include "cpu_shape.h"
+#include "cpu_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -54,6 +56,8 @@ static std::string NameFromType(Type type) {
             return "Lrn";
         case Pooling:
             return "Pooling";
+        case AdaptivePooling:
+            return "AdaptivePooling";
         case FullyConnected:
             return "FullyConnected";
         case MatMul:
@@ -192,89 +196,101 @@ static std::string NameFromType(Type type) {
             return "ExtractImagePatches";
         case NonMaxSuppression:
             return "NonMaxSuppression";
+        case MatrixNms:
+            return "MatrixNms";
+        case MulticlassNms:
+            return "MulticlassNms";
         default:
             return "Unknown";
     }
 }
 
-class PrimitiveDescInfo {
+class PortConfigurator {
 public:
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig& conf, impl_desc_type type): config(conf) {
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc, const Shape& shape,
+                     bool constant = false, int inPlace = -1) :
+            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), shape(shape), constant(constant), inPlace(inPlace) {}
+
+    PortConfigurator(MKLDNNPlugin::LayoutType blockedDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
+                     bool constant = false, int inPlace = -1) :
+            blockedDescCreator(getBlockedDescCreator(blockedDescType)), prc(prc), constant(constant), inPlace(inPlace) {}
+
+    MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr blockedDescCreator;
+    const InferenceEngine::Precision prc;
+    const Shape shape;
+    bool constant = false;
+    int inPlace = -1;
+
+private:
+    static MKLDNNPlugin::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(MKLDNNPlugin::LayoutType blockedDescType) {
+        auto& creators = MKLDNNPlugin::BlockedDescCreator::getCommonCreators();
+        if (creators.find(blockedDescType) == creators.end()) {
+            IE_THROW() << "Cannot find tensor descriptor creator";
+        }
+        return creators.at(blockedDescType);
+    }
+};
+
+struct PortConfig {
+    PortConfig() = default;
+
+    PortConfig(const PortConfig& rhs) {
+        this->constant = rhs.constant;
+        this->inPlace = rhs.inPlace;
+        if (rhs.desc) {
+            this->desc = rhs.desc->clone();
+        }
+    }
+
+    PortConfig& operator=(const PortConfig& rhs) {
+        this->constant = rhs.constant;
+        this->inPlace = rhs.inPlace;
+        if (rhs.desc) {
+            this->desc = rhs.desc->clone();
+        }
+        return *this;
+    }
+
+    PortConfig(PortConfig&& rhs) = default;
+    PortConfig& operator=(PortConfig&& rhs) = default;
+
+    // TODO [DS]: better to make private and const
+    bool constant = false;
+    int inPlace = -1;
+    std::unique_ptr<MemoryDesc> desc;
+};
+
+struct NodeConfig {
+    bool dynBatchSupport = false;
+    std::vector<PortConfig> inConfs;
+    std::vector<PortConfig> outConfs;
+};
+
+class NodeDesc {
+public:
+    NodeDesc(const NodeConfig& conf, impl_desc_type type): config(conf) {
         implementationType = type;
     }
 
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig& conf, impl_desc_type type, const std::vector<mkldnn::memory::format_tag>& outFmts): config(conf) {
-        implementationType = type;
-        outputLayouts = outFmts;
-    }
-
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig& conf, impl_desc_type type, mkldnn::memory::format_tag outFmt): config(conf) {
-        implementationType = type;
-
-        setOutputLayouts(outFmt);
-    }
-
-    PrimitiveDescInfo(const PrimitiveDescInfo &descInfo) = default;
-    PrimitiveDescInfo(PrimitiveDescInfo &&descInfo) = default;
-
-    PrimitiveDescInfo &operator=(const PrimitiveDescInfo &descInfo) = default;
-
-    const InferenceEngine::LayerConfig getConfig() const {
+    const NodeConfig& getConfig() const {
         return config;
     }
-    InferenceEngine::LayerConfig& getConfig() {
-        return config;
+
+    void setConfig(const NodeConfig& config) {
+        this->config = config;
     }
 
     impl_desc_type getImplementationType() const {
         return implementationType;
     }
 
-    const std::vector<mkldnn::memory::format_tag>& getOutputLayouts() const {
-        return outputLayouts;
-    }
-
     void setImplementationType(impl_desc_type type) {
         implementationType = type;
     }
 
-    void setOutputLayouts(mkldnn::memory::format_tag outFmt) {
-        outputLayouts.clear();
-
-        for (int i = 0; i < config.outConfs.size(); i++) {
-            outputLayouts.push_back(outFmt);
-        }
-    }
-
 private:
-    InferenceEngine::LayerConfig config;
+    NodeConfig config;
     impl_desc_type implementationType;
-    std::vector<mkldnn::memory::format_tag> outputLayouts;
-};
-
-class DataConfigurator {
-public:
-    DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc, const InferenceEngine::SizeVector& shape,
-                     bool constant = false, int inplace = -1) :
-            tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), shape(shape), constant(constant), inplace(inplace) {}
-
-    DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED,
-                     bool constant = false, int inplace = -1) :
-            tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), shape({}), constant(constant), inplace(inplace) {}
-
-    const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
-    const InferenceEngine::Precision prc = InferenceEngine::Precision::UNSPECIFIED;
-    const InferenceEngine::SizeVector shape;
-    const bool constant = false;
-    const int inplace = -1;
-private:
-    static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
-        auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
-        if (creators.find(tensorDescType) == creators.end()) {
-            IE_THROW() << "Cannot find tensor descriptor creator";
-        }
-        return creators.at(tensorDescType);
-    }
 };
 
 class MKLDNNNode {
@@ -420,18 +436,18 @@ public:
         return type;
     }
 
-    const std::vector<PrimitiveDescInfo>& getSupportedPrimitiveDescriptors() const {
+    const std::vector<NodeDesc>& getSupportedPrimitiveDescriptors() const {
         return supportedPrimitiveDescriptors;
     }
 
-    inline const PrimitiveDescInfo* getSelectedPrimitiveDescriptor() const {
+    inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
             selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
             return nullptr;
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
-    inline PrimitiveDescInfo* getSelectedPrimitiveDescriptor() {
+    inline NodeDesc* getSelectedPrimitiveDescriptor() {
         if (selectedPrimitiveDescriptorIndex < 0 ||
             selectedPrimitiveDescriptorIndex >= supportedPrimitiveDescriptors.size())
             return nullptr;
@@ -467,9 +483,10 @@ public:
     virtual void initOptimalPrimitiveDescriptor();
 
     virtual void getSupportedDescriptors() = 0;
-    virtual void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                                  const std::vector<InferenceEngine::TensorDesc>& outputDesc) {}
-    virtual void initDescriptor(const InferenceEngine::LayerConfig& config);
+    // TODO [DS]: Should be moved into Node derivative class
+    virtual void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
+                                  const std::vector<const MemoryDesc*>& outputDesc) {}
+    virtual void initDescriptor(const NodeConfig& config);
     virtual bool created() const = 0;
     virtual bool created(const MKLDNNExtensionManager::Ptr& extMgr) {
         return created();
@@ -483,23 +500,19 @@ public:
 
     template <class PD, class D, typename FPD = bool>
     PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
-        auto descsEqual = [](const std::vector<InferenceEngine::TensorDesc>& srcDescs,
-                               const std::vector<InferenceEngine::DataConfig>& selectedDescs) {
+        auto descsCompatible = [](const std::vector<MemoryDescPtr>& srcDescs,
+                               const std::vector<PortConfig>& selectedDescs) {
             if (srcDescs.empty() && selectedDescs.empty())
                 return true;
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (!(srcDescs[i].getBlockingDesc() == selectedDescs[i].desc.getBlockingDesc() &&
-                      srcDescs[i].getPrecision() == selectedDescs[i].desc.getPrecision() &&
-                      srcDescs[i].getDims() == selectedDescs[i].desc.getDims()) &&
-                      srcDescs[i].getLayout() != InferenceEngine::Layout::ANY)
-                    return false;
+                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
             }
             return true;
         };
 
-        const PrimitiveDescInfo *selected_pd = getSelectedPrimitiveDescriptor();
+        const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
         if (selected_pd == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
@@ -507,19 +520,19 @@ public:
             auto itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
 
             while (static_cast<bool>(itpd))  {
-                std::vector<InferenceEngine::TensorDesc> srcDescs;
+                std::vector<MemoryDescPtr> srcDescs;
                 for (size_t i = 0; i < descInputNumbers(desc); i++)
                     srcDescs.push_back(getSrcMemDesc(itpd, i));
 
-                std::vector<InferenceEngine::TensorDesc> dstDescs;
+                std::vector<MemoryDescPtr> dstDescs;
                 for (size_t i = 0; i < descOutputNumbers(desc); i++)
                     dstDescs.push_back(getDstMemDesc(itpd, i));
 
                 impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
                 if (impl_type == selected_pd->getImplementationType() &&
-                    descsEqual(srcDescs, selected_pd->getConfig().inConfs) &&
-                    descsEqual(dstDescs, selected_pd->getConfig().outConfs)) {
+                    descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
+                    descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
                     prepareMemory(selected_pd, itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
                     return {itpd.get()};
@@ -646,10 +659,10 @@ protected:
     virtual int getMaxBatch();
 
 
-    virtual InferenceEngine::TensorDesc getConfiguredInputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
-    virtual InferenceEngine::TensorDesc getConfiguredOutputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const;
-    virtual MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
-    virtual MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual std::unique_ptr<MemoryDesc> getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
+    virtual std::unique_ptr<MemoryDesc> getDefinedOutputDesc(const NodeConfig &config, size_t idx) const;
+    virtual std::unique_ptr<MKLDNNMemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
+    virtual std::unique_ptr<MKLDNNMemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
@@ -663,8 +676,8 @@ protected:
             GetPrimitiveMemoryFormatFunc;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
-    std::vector<MKLDNNDims> inDims;
-    std::vector<MKLDNNDims> outDims;
+    std::vector<Shape> inputShapes;
+    std::vector<Shape> outputShapes;
 
     std::vector <MKLDNNNodePtr> fusedWith;
     std::vector <MKLDNNNodePtr> mergedWith;
@@ -689,12 +702,11 @@ protected:
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
-    std::vector<PrimitiveDescInfo> supportedPrimitiveDescriptors;
+    std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
-    InferenceEngine::Blob::Ptr ext_scales;
     MKLDNNWeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Undefined;
@@ -706,14 +718,13 @@ protected:
     friend class MKLDNNGraphOptimizer;
     friend class NodeDumper;
 
-    bool isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const;
-    bool isInitConfig(const InferenceEngine::LayerConfig& config) const;
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
+    bool isConfigDefined(const NodeConfig &config) const;
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
-    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
+    virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
     int batchToProcess();
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
@@ -730,42 +741,39 @@ protected:
      */
     virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
 
-    void addSupportedPrimDesc(const std::vector<DataConfigurator>& inDataConfigurators,
-                              const std::vector<DataConfigurator>& outDataConfigurators,
+    void addSupportedPrimDesc(const std::vector<PortConfigurator>& inPortConfigs,
+                              const std::vector<PortConfigurator>& outPortConfigs,
                               impl_desc_type implType,
                               bool dynBatchSupport = false) {
-        auto fill_port = [] (const DataConfigurator& dataConfigurator, const InferenceEngine::SizeVector& dims,
-                             InferenceEngine::Precision prc, std::vector<InferenceEngine::DataConfig>& port) -> bool {
-            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by tensorDescCreator.
-            // This should be suitable for major of scenarios since almost all nodes add `ncsp` tensorDescCreator which supports any shape rank.
-            if (dims.size() < dataConfigurator.tensorDescCreator->getMinimalRank())
+        auto fill_port = [] (const PortConfigurator& portConfigurator, const Shape& shape,
+                             InferenceEngine::Precision prc, std::vector<PortConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by blockedDescCreator.
+            // This should be suitable for major of scenarios since almost all nodes add `ncsp` blockedDescCreator which supports any shape rank.
+            if (shape.getRank() < portConfigurator.blockedDescCreator->getMinimalRank())
                 return false;
 
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = dataConfigurator.inplace;
-            dataConfig.constant = dataConfigurator.constant;
+            PortConfig portConfig;
+            portConfig.inPlace = portConfigurator.inPlace;
+            portConfig.constant = portConfigurator.constant;
+            portConfig.desc = portConfigurator.blockedDescCreator->createUniqueDesc(prc, shape.getStaticDims());
 
-            dataConfig.desc = dataConfigurator.tensorDescCreator->createDesc(prc, dims);
-
-            port.push_back(dataConfig);
+            port.push_back(std::move(portConfig));
 
             return true;
         };
 
-        InferenceEngine::LayerConfig config;
-        for (size_t i = 0; i < inDataConfigurators.size(); i++) {
-            auto dims = inDataConfigurators[i].shape.empty() ? getParentEdgesAtPort(i)[0]->getDims().ToSizeVector() : inDataConfigurators[i].shape;
-            auto prc = inDataConfigurators[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i)
-                                                                                             : inDataConfigurators[i].prc;
-            if (!fill_port(inDataConfigurators[i], dims, prc, config.inConfs))
+        NodeConfig config;
+        for (size_t i = 0; i < inPortConfigs.size(); i++) {
+            auto shape = inPortConfigs[i].shape.getRank() == 0 ? getParentEdgesAtPort(i)[0]->getShape() : inPortConfigs[i].shape;
+            auto prc = inPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalInputPrecisionAtPort(i) : inPortConfigs[i].prc;
+            if (!fill_port(inPortConfigs[i], shape, prc, config.inConfs))
                 return;
         }
 
-        for (size_t i = 0; i < outDataConfigurators.size(); i++) {
-            auto dims = outDataConfigurators[i].shape.empty() ? getChildEdgesAtPort(i)[0]->getDims().ToSizeVector() : outDataConfigurators[i].shape;
-            auto prc = outDataConfigurators[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i)
-                                                                                              : outDataConfigurators[i].prc;
-            if (!fill_port(outDataConfigurators[i], dims, prc, config.outConfs))
+        for (size_t i = 0; i < outPortConfigs.size(); i++) {
+            auto dims = outPortConfigs[i].shape.getRank() == 0 ? getChildEdgesAtPort(i)[0]->getShape() : outPortConfigs[i].shape;
+            auto prc = outPortConfigs[i].prc == InferenceEngine::Precision::UNSPECIFIED ? getOriginalOutputPrecisionAtPort(i) : outPortConfigs[i].prc;
+            if (!fill_port(outPortConfigs[i], dims, prc, config.outConfs))
                 return;
         }
 
@@ -811,7 +819,7 @@ private:
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::primitive_desc_iterator& itpd);
+    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };

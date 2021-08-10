@@ -5,501 +5,323 @@
 #pragma once
 
 #include "cldnn/runtime/engine.hpp"
-#include "cldnn/primitives/implementation_desc.hpp"
+#include "cldnn/runtime/stream.hpp"
+#include "build_options.hpp"
 
-#include "topology.hpp"
-
-#include <memory>
-#include <vector>
+#include <list>
 #include <string>
+#include <vector>
+#include <memory>
 #include <map>
 #include <utility>
+#include <set>
+
+namespace kernel_selector {
+class TuningCache;
+}  // namespace kernel_selector
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
+struct topology;
+struct program_node;
+class layout_optimizer;
+class pass_manager;
+class base_pass;
+class program_wrapper;
+class kernels_cache;
 
-/// @defgroup cpp_program Program compilation
-/// @{
 
-/// @brief Represents user-provided program build option type.
-enum class build_option_type {
-    /// @brief Allow primitives fusing during program build (default: false).
-    fusing,
-
-    /// @brief Enable implicit reordering for user inputs (default: false).
-    optimize_data,
-
-    /// @brief Enable implicit static input reordering for user inputs (default: false).
-    allow_static_input_reorder,
-
-    /// @brief Enable debug mode (default: false).
-    /// @details This option enforce all program primitives to be accessible as outputs.
-    debug,
-
-    /// @brief User selected list of program outputs.
-    outputs,
-
-    /// @brief User defined learning parameters.
-    learning_config,
-
-    /// @brief Tuning config (default: Tuning is disabled).
-    /// @details The tuner will automatically find the optimal kernel/config for each node in the graph,
-    /// by running multiple implementations and configurations per node and storing the optimal one in cache.
-    /// Expect long execution time in the first run.
-    /// After the first run a cache with the tuning results will be created in the path provided.
-    /// This cache will be used in the next runs.
-    tuning_config,
-
-    /// @brief Specifies a directory to which stages of network compilation should be dumped. (default: empty, i.e. no dumping)
-    graph_dumps_dir,
-    /// @brief Specifies a directory to which compiled kernels should be cached or can be loaded from. (default: empty, i.e. no caching)
-    kernels_cache_dir,
-    /// @brief Name for serialization process
-    serialize_network,
-    load_program,
-    force_implementations
-};
-
-/// @brief Tuning mode.
-enum class tuning_mode {
-    /// @brief Tuning is disabled.
-    tuning_disabled,
-
-    /// @brief Tuning using the cached data (no on-line tuning for non-existing data).
-    tuning_use_cache,
-
-    /// @brief Tuning using the cached data if exist, tune and update cache otherwise.
-    tuning_tune_and_cache,
-
-    /// @brief Tuning using the cached data and update tasks.
-    /// @details Performs updating tasks like removal of invalid caches, promoting to new format, etc.
-    /// No tuning for non-existing data.
-    tuning_use_and_update,
-
-    /// @brief Retune the cache data even if it exists.
-    tuning_retune_and_cache
-};
-
-/// @brief Tuning configuration.
-struct tuning_config_options {
-    tuning_mode mode;
-    std::string cache_file_path;
-
-    tuning_config_options() : mode(tuning_mode::tuning_disabled), cache_file_path("") {}
-};
-
-/// @brief Learning parameters.
-struct learning_params {
-    float momentum = 0.0;
-    float weights_decay = 0.0;
-
-    learning_params() : momentum(0.9f), weights_decay(0.0005f) {}
-};
-
-/// @brief Represents user-provided program build option.
-struct build_option {
-    /// @brief Allow primitives fusing during program build (default: false).
-    static std::shared_ptr<const build_option> fusing(bool enable = false);
-
-    /// @brief Enable implicit reordering for user inputs (default: false).
-    static std::shared_ptr<const build_option> optimize_data(bool enable = false);
-
-    /// @brief Enable implicit reordering for static user inputs (default: false).
-    static std::shared_ptr<const build_option> allow_static_input_reorder(bool enable = false);
-
-    /// @brief Enable debug mode (default: false).
-    /// @details This option enforce all program primitives to be accessible as outputs.
-    static std::shared_ptr<const build_option> debug(bool enable = false);
-
-    /// @brief User selected list of program outputs.
-    static std::shared_ptr<const build_option> outputs(const std::vector<primitive_id>& outs);
-
-    /// @brief Tuning configuration (default: false).
-    /// @details This option will automatically find the optimal kernel/config for each node in the graph,
-    /// by running multiple implementations and configurations per node and storing the optimal one in cache.
-    /// Expect long execution time in the first run (unless the cache only mode is enabled).
-    /// After the first run a cache with the tuning results will be created in the path provided.
-    /// This cache will be used in the next runs.
-    static std::shared_ptr<const build_option> tuning_config(
-        const tuning_config_options& config = tuning_config_options());
-
-    /// @brief Specifies a directory to which stages of network compilation should be dumped (default: empty, i.e. no dumping)
-    static std::shared_ptr<const build_option> graph_dumps_dir(const std::string& dir_path);
-
-    /// @brief Specifies a directory to which compiled kernels should be cached or can be loaded from. (default: empty, i.e. no caching)
-    static std::shared_ptr<const build_option> kernels_cache_dir(const std::string& dir_path);
-
-    /// @brief Specifies a name for serialization process.
-    static std::shared_ptr<const build_option> serialize_network(const std::string& network_name);
-    /// @brief Specifies a name of load_program process.
-    static std::shared_ptr<const build_option> load_program(const std::string& network_name);
-
-    /// @brief User defined learning parameters.
-    static std::shared_ptr<const build_option> learning_config(const learning_params& params = learning_params());
-    /// @brief Specifies user defined implementation details to use.
-    static std::shared_ptr<const build_option> force_implementations(implementation_forcing_map forcing);
-
-    virtual ~build_option() = default;
-
-private:
-    /// @brief Returns option type represented by this object.
-    virtual build_option_type get_type() const = 0;
-
-    friend class build_options;
-};
-
-/// @brief @ref build_option specialization for boolean options.
-template <build_option_type OptType>
-struct build_option_bool : build_option {
-    /// @brief Constructs option.
-    /// @param value Is option enabled.
-    explicit build_option_bool(bool value) : _value(value ? 1 : 0) {}
-
-    /// @brief Is option enabled.
-    bool enabled() const { return _value != 0; }
-
-private:
-    build_option_type get_type() const override { return OptType; }
-    uintptr_t _value;
-};
-
-/// @brief @ref build_option specialization for program outputs list.
-struct build_option_outputs : build_option {
-    /// @brief The list of output ids (names)
-    const std::vector<primitive_id> outputs;
-
-    /// @brief Constructs option.
-    /// @param outs List of ouput ids (names)
-    explicit build_option_outputs(const std::vector<primitive_id>& outs)
-        : outputs(outs) {}
-
-private:
-    /// @brief Returns build_option_type::outputs.
-    build_option_type get_type() const override { return build_option_type::outputs; }
-
-    build_option_outputs(const build_option_outputs& other) = delete;
-    build_option_outputs& operator=(const build_option_outputs& other) = delete;
-};
-
-/// @brief @ref build_option specialization for learning config.
-struct build_option_learning_config : build_option {
-    /// @brief Learning parameters.
-    const learning_params params;
-
-    /// @brief Constructs learning config build option.
-    /// @param learning_params Parameters for learning.
-    explicit build_option_learning_config(const learning_params& params)
-        : params(params) {}
-
-private:
-    /// @brief Returns build_option_type::learning_config.
-    build_option_type get_type() const override { return build_option_type::learning_config; }
-
-    build_option_learning_config(const build_option_learning_config& other) = delete;
-    build_option_learning_config& operator=(const build_option_learning_config& other) = delete;
-};
-
-/// @brief @ref build_option specialization for tuning config.
-struct build_option_tuning_config : build_option {
-    /// @brief Tuning configuration
-    const tuning_config_options config;
-
-    /// @brief Constructs tuning config build option.
-    /// @param tuning_config Configuration for the tuning.
-    explicit build_option_tuning_config(const tuning_config_options& tuning_config)
-        : config(tuning_config) {}
-
-private:
-    /// @brief Returns build_option_type::tuning_config.
-    build_option_type get_type() const override { return build_option_type::tuning_config; }
-
-    build_option_tuning_config(const build_option_tuning_config& other) = delete;
-    build_option_tuning_config& operator=(const build_option_tuning_config& other) = delete;
-};
-
-/// @brief @ref build_option specialization for selecting a directory.
-template <build_option_type OptType>
-struct build_option_directory : build_option {
-    const std::string directory_path;
-
-    /// @brief Constructs option.
-    /// @param outs List of ouput ids (names)
-    explicit build_option_directory(const std::string& dir_path) : directory_path(dir_path) {}
-
-private:
-    /// @brief Returns build_option_type::graph_dumps_dir.
-    build_option_type get_type() const override { return build_option_type::graph_dumps_dir; }
-
-    build_option_directory(const build_option_directory& other) = delete;
-    build_option_directory& operator=(const build_option_directory& other) = delete;
-};
-
-/// @brief @ref build_option specialization for selecting a directory.
-template <build_option_type OptType>
-struct build_option_kernels_cache_dir : build_option {
-    const std::string directory_path;
-
-    explicit build_option_kernels_cache_dir(const std::string& dir_path) : directory_path(dir_path) {}
-
-private:
-    /// @brief Returns build_option_type::kernels_cache_dir.
-    build_option_type get_type() const override { return build_option_type::kernels_cache_dir; }
-
-    build_option_kernels_cache_dir(const build_option_kernels_cache_dir& other) = delete;
-    build_option_kernels_cache_dir& operator=(const build_option_kernels_cache_dir& other) = delete;
-};
-
-/// @brief @ref build_option specialization for serialization process.
-template <build_option_type OptType>
-struct build_option_serialization : build_option {
-    const std::string serialization_network_name;
-
-    explicit build_option_serialization(const std::string& name) : serialization_network_name(name) {}
-
-private:
-    build_option_type get_type() const override { return build_option_type::serialize_network; }
-
-    build_option_serialization(const build_option_serialization& other) = delete;
-    build_option_serialization& operator=(const build_option_serialization& other) = delete;
-};
-
-/// @brief @ref build_option specialization for load_program process.
-template <build_option_type OptType>
-struct build_option_load_program : build_option {
-    const std::string load_program_name;
-
-    explicit build_option_load_program(const std::string& name) : load_program_name(name) {}
-
-private:
-    build_option_type get_type() const override { return build_option_type::load_program; }
-
-    build_option_load_program(const build_option_load_program& other) = delete;
-    build_option_load_program& operator=(const build_option_load_program& other) = delete;
-};
-
-struct build_option_force_implementations : build_option {
-    implementation_forcing_map forcing;
-
-    explicit build_option_force_implementations(implementation_forcing_map _forcing) : forcing(std::move(_forcing)) {}
-private:
-    build_option_type get_type() const override { return build_option_type::force_implementations; }
-
-    build_option_force_implementations(const build_option_force_implementations& other) = delete;
-    build_option_force_implementations& operator=(const build_option_force_implementations& other) = delete;
-};
-
-namespace detail {
-/// @brief Helper template to convert @ref build_option_type value to particular @ref build_option class.
-template <build_option_type OptType>
-struct build_option_traits {
-    /// @brief @ref build_option object type which represents the particular @p OptType.
-    typedef build_option object_type;
-    /// @brief Make default @ref build_option corresponding @p OptType
-    static std::shared_ptr<const build_option> make_default();
-};
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-template <>
-struct build_option_traits<build_option_type::fusing> {
-    typedef build_option_bool<build_option_type::fusing> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::fusing(); }
-};
-template <>
-struct build_option_traits<build_option_type::optimize_data> {
-    typedef build_option_bool<build_option_type::optimize_data> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::optimize_data(); }
-};
-template <>
-struct build_option_traits<build_option_type::allow_static_input_reorder> {
-    typedef build_option_bool<build_option_type::allow_static_input_reorder> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::allow_static_input_reorder(); }
-};
-template <>
-struct build_option_traits<build_option_type::debug> {
-    typedef build_option_bool<build_option_type::debug> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::debug(); }
-};
-template <>
-struct build_option_traits<build_option_type::outputs> {
-    typedef build_option_outputs object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::outputs({}); }
-};
-template <>
-struct build_option_traits<build_option_type::learning_config> {
-    typedef build_option_learning_config object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::learning_config(); }
-};
-template <>
-struct build_option_traits<build_option_type::tuning_config> {
-    typedef build_option_tuning_config object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::tuning_config(); }
-};
-template <>
-struct build_option_traits<build_option_type::graph_dumps_dir> {
-    typedef build_option_directory<build_option_type::graph_dumps_dir> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::graph_dumps_dir({}); }
-};
-template <>
-struct build_option_traits<build_option_type::kernels_cache_dir> {
-    typedef build_option_directory<build_option_type::kernels_cache_dir> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::kernels_cache_dir({}); }
-};
-template <>
-struct build_option_traits<build_option_type::serialize_network> {
-    typedef build_option_serialization<build_option_type::serialize_network> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::serialize_network({}); }
-};
-template <>
-struct build_option_traits<build_option_type::load_program> {
-    typedef build_option_load_program<build_option_type::load_program> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::load_program({}); }
-};
-template <>
-struct build_option_traits<build_option_type::force_implementations> {
-    using object_type = build_option_force_implementations;
-    static std::shared_ptr<const build_option> make_default() { return build_option::force_implementations({}); }
-};
-
-#endif
-}  // namespace detail
-
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
-inline std::shared_ptr<const build_option> build_option::fusing(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::fusing>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::optimize_data(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::optimize_data>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::allow_static_input_reorder(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::allow_static_input_reorder>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::debug(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::debug>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::outputs(const std::vector<primitive_id>& outs) {
-    return std::make_shared<build_option_outputs>(outs);
-}
-
-inline std::shared_ptr<const build_option> build_option::learning_config(const learning_params& params) {
-    return std::make_shared<build_option_learning_config>(params);
-}
-
-inline std::shared_ptr<const build_option> build_option::tuning_config(const tuning_config_options& config) {
-    return std::make_shared<build_option_tuning_config>(config);
-}
-
-inline std::shared_ptr<const build_option> build_option::graph_dumps_dir(const std::string& dir_path) {
-    return std::make_shared<build_option_directory<build_option_type::graph_dumps_dir>>(dir_path);
-}
-
-inline std::shared_ptr<const build_option> build_option::kernels_cache_dir(const std::string& dir_path) {
-    return std::make_shared<build_option_directory<build_option_type::kernels_cache_dir>>(dir_path);
-}
-inline std::shared_ptr<const build_option> build_option::serialize_network(const std::string& name) {
-    return std::make_shared<build_option_serialization<build_option_type::serialize_network>>(name);
-}
-inline std::shared_ptr<const build_option> build_option::load_program(const std::string& name) {
-    return std::make_shared<build_option_load_program<build_option_type::load_program>>(name);
-}
-inline std::shared_ptr<const build_option> build_option::force_implementations(implementation_forcing_map forcing) {
-    return std::make_shared<build_option_force_implementations>(std::move(forcing));
-}
-#endif
-
-/// @brief Represents program build options list.
-class build_options {
-public:
-    /// @brief Adds or replace option to the options list
-    void set_option(std::shared_ptr<const build_option> opt) { add_or_replace_option(opt); }
-
-    /// @brief Adds or replace options to the options list
-    template <typename... Args>
-    void set_option(std::shared_ptr<const build_option> opt, Args... args) {
-        add_or_replace_option(opt);
-        set_option(args...);
-    }
-
-    /// @brief Constructs build options list from its arguments.
-    template <typename... Args>
-    explicit build_options(Args... args) {
-        set_option(args...);
-    }
-
-    /// @brief Returns program build option for @p OptType
-    template <build_option_type OptType>
-    std::shared_ptr<const typename detail::build_option_traits<OptType>::object_type> get() const {
-        using T = typename detail::build_option_traits<OptType>::object_type;
-        for (auto& option : _options) {
-            if (option->get_type() == OptType)
-                return std::static_pointer_cast<const T>(option);
-        }
-        return std::static_pointer_cast<const T>(detail::build_option_traits<OptType>::make_default());
-    }
-
-private:
-    friend struct program;
-    std::vector<std::shared_ptr<const build_option>> _options;
-    void set_option(void) {}
-
-    void add_or_replace_option(std::shared_ptr<const build_option> opt) {
-        for (auto& p : _options) {
-            if (p->get_type() == opt->get_type()) {
-                p = opt;
-                return;
-            }
-        }
-        _options.push_back(opt);
-    }
-};
-
-struct program_impl;
-
-/// @brief Compiled program build from @ref topology by @ref engine
 struct program {
-    friend struct network;
-
+    using ptr = std::shared_ptr<program>;
+    using cptr = std::shared_ptr<const program>;
+    friend class calculate_prior_boxes;      // to be removed when possible
+    friend class graph_initializations;      // to be removed when possible
+    friend class prepare_padding;            // to be removed when possible
+    friend class propagate_constants;        // to be removed when possible
+    friend class pre_replace_deconv;         // to be removed when possible
+    friend class prepare_primitive_fusing;   // to be removed when possible
+    friend class prepare_quantization;       // to be removed when possible
+    friend class prepare_conv_eltw_fusing;   // to be removed when possible
+    friend class reorder_inputs;             // to be removed when possible
+    friend class remove_redundant_reorders;  // to be removed when possible
+    friend class program_wrapper;       // this class is intended to extend the interface of program for
+                                             // the usage within tests_core_internal project only
 public:
-    /// @brief Builds executable program based on user-defined @p topology by specified @p engine.
-    /// @param[in] engine The engine which will be used to build the program.
-    /// @param[in] topology The user-defined topology on which the network will be based.
-    /// @param[in] options Program build options. See @ref build_option and @ref build_options for details.
-    program(engine& engine, const topology& topology, const build_options& options = build_options());
+    struct nodes_ordering {
+    public:
+        typedef std::list<program_node*> list_of_nodes;
+        typedef list_of_nodes::const_iterator const_iterator;
+        typedef list_of_nodes::const_reverse_iterator const_reverse_iterator;
+        typedef list_of_nodes::iterator node_iterator;
+        typedef list_of_nodes::reverse_iterator node_reverse_iterator;
+        const_iterator begin() const { return _processing_order.begin(); }
+        const_iterator end() const { return _processing_order.end(); }
+        const_reverse_iterator rbegin() const { return _processing_order.rbegin(); }
+        const_reverse_iterator rend() const { return _processing_order.rend(); }
 
-    /// @brief Copy constructor.
-    program(const program& other) : _impl(other._impl) { }
+        void calc_processing_order_visit(program_node* node);
+        void calc_processing_order(program& p);
+        int32_t get_processing_number(program_node* node) const {
+            return get_processing_number(get_processing_iterator(*node));
+        }
+        int32_t get_processing_number(node_iterator iter) const {
+            return 1 + (int32_t)std::distance(_processing_order.begin(), const_iterator(iter));
+        }
+        void calculate_BFS_processing_order();
+        size_t size() { return _processing_order.size(); }
+        bool is_correct(program_node* node);
 
-    /// @brief Dereferences the counter of the underlying C API @ref cldnn_program handler.
-    ~program() { }
+        node_iterator get_processing_iterator(program_node& node) const { return processing_order_iterators.at(&node); }
+        void clear() {
+            processing_order_iterators.clear();
+            _processing_order.clear();
+        }
 
-    /// @brief Assigns new value by releasing previously referenced C API @ref cldnn_program handler and retaining the one referenced by @p other.
-    program& operator=(const program& other) {
-        if (_impl == other._impl)
+        void insert(program_node* key_node, program_node* node) {
+            node_iterator _where = processing_order_iterators.at(key_node);
+            processing_order_iterators[node] = _processing_order.insert(_where, node);
+        }
+
+        void insert_next(program_node* key_node, program_node* node) {
+            node_iterator _where = std::next(processing_order_iterators.at(key_node));
+            processing_order_iterators[node] = _processing_order.insert(_where, node);
+        }
+
+        void erase(program_node* key_node) {
+            node_iterator i = processing_order_iterators.at(key_node);
+            processing_order_iterators.erase(key_node);
+            _processing_order.erase(i);
+        }
+
+    private:
+        list_of_nodes _processing_order;
+        std::map<program_node*, node_iterator> processing_order_iterators;
+    };
+
+    template <class T>
+    struct single_element_container {
+        explicit single_element_container(T& t) : elem(&t) {}
+        constexpr size_t size() const { return 1; }
+        single_element_container begin() const { return single_element_container(elem); }
+        single_element_container end() const { return single_element_container(nullptr); }
+        single_element_container& operator++() {
+            elem = nullptr;
             return *this;
-        _impl = other._impl;
-        return *this;
-    }
+        }
+        bool operator!=(single_element_container const& sec) { return elem != sec.elem; }
 
-    /// @brief Checks whether @p lhs and @p rhs reference the same C API @ref cldnn_program handler
-    friend bool operator==(const program& lhs, const program& rhs) { return lhs._impl == rhs._impl; }
-    /// @brief Checks whether @p lhs and @p rhs reference different C API @ref cldnn_program handlers
-    friend bool operator!=(const program& lhs, const program& rhs) { return !(lhs == rhs); }
+        T operator*() { return *elem; }
 
-    std::shared_ptr<program_impl> get() const { return _impl; }
+    private:
+        explicit single_element_container(T* t) : elem(t) {}
+
+        T* elem;
+    };
+
+    typedef std::vector<primitive_info> primitives_info;
+    typedef std::vector<std::pair<std::string, primitives_info>> graph_optimizer_info;
+    typedef std::pair<primitive_id, std::vector<primitive_id>> optimized_info;
+
+    program(engine& engine_ref,
+            topology const& topology,
+            build_options const& options,
+            bool is_internal = false,
+            bool no_optimizations = false,
+            bool is_body_program = false);
+    /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
+    program(engine& engine_ref,
+            std::set<std::shared_ptr<program_node>> const& nodes,
+            build_options const& options,
+            bool is_internal);
+    ~program();
+    engine& get_engine() const { return _engine; }
+    const build_options& get_options() const { return options; }
+    std::list<program_node*>& get_inputs() {
+        return inputs;
+    }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
+    std::vector<program_node*>& get_outputs() {
+        return outputs;
+    }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
+    bool is_loop_body() const { return is_body_program; }
+    bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
+    const nodes_ordering& get_processing_order() const;
+    nodes_ordering& get_processing_order();
+    uint32_t get_prog_id() { return prog_id; }
+    stream& get_stream() { return *_stream; }
+    const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
+    const std::list<optimized_info>& get_optimized() const { return optimized; }
+    bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
+    program_node& get_node(primitive_id const& id);
+    program_node const& get_node(primitive_id const& id) const;
+    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
+    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
+
+    // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
+    // if it was previously created, otherwise creates and then returns program_node
+    program_node& get_or_create(std::shared_ptr<primitive> prim);
+
+    // Inserts given program_node 'node' as an intermediate node between 'next' and it's
+    //  dependency at 'prev_idx' index.
+    void add_intermediate(program_node& node,
+                          program_node& next,
+                          size_t prev_idx,
+                          bool connect_int_node_with_old_dep = true,
+                          bool move_usrs_of_prev_to_node = false);
+
+    // Gets or creates program_node for given primitive 'prim' and inserts it as an intermediate
+    // node between 'next' and it's dependency at 'prev_idx' index.
+    void add_intermediate(std::shared_ptr<primitive> prim,
+                          program_node& next,
+                          size_t prev_idx,
+                          bool connect_int_node_with_old_dep = true,
+                          bool move_usrs_of_prev_to_node = false);
+
+    // Inserts given program_node 'node' as an intermediate node between 'next' and it's
+    //  dependency prev
+    void add_intermediate(program_node& node,
+                          program_node& next,
+                          program_node& prev,
+                          bool connect_int_node_with_old_dep = true,
+                          bool move_usrs_of_prev_to_node = false);
+
+    // removes a node from the graph and deletes it afterwards,
+    // prereq: node cannot be marked as output and has to have exactly one dependency
+    // returns if 'node' has been extracted and removed successfully
+    bool extract_and_remove(program_node& node);
+
+    // Fuses two nodes into fused_node and removes peer_node from graph
+    void fuse_nodes(program_node& fused_node, program_node& peer_node, std::map<primitive_id, std::vector<primitive_id>>* fusing_history);
+
+    // returns if 'node' has been removed
+    bool remove_if_dangling(program_node& node);
+
+    void mark_if_constant(program_node& node);
+    // mark if the node is in data flow assuming that all dependencies are marked properly
+    void mark_if_data_flow(program_node& node);
+    // Reverses connection - user becomes dependency.
+
+    void remove_nodes(std::vector<program_node*>& to_remove);
+    void dump_program(const char* stage,
+                      bool with_full_info,
+                      std::function<bool(program_node const&)> const& filter = nullptr) const;
+
+    const primitives_info& get_primitives_info() const;
+    const graph_optimizer_info& get_optimizer_passes_info() const;
+    void save_pass_info(std::string pass_name);
+
+    void add_optimized_primitive_info(primitive_id optimized_primitive_id, std::vector<primitive_id> replaced_with_ids = {});
+
+    void reset_program();
+    uint32_t get_id() const { return prog_id; }
+
+    static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const build_options& options,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
+                             const std::set<std::shared_ptr<program_node>>& nodes,
+                             const build_options& options,
+                             bool is_internal);
+    static void init_primitives();
+    void compile();
+    void init_kernels();
+    kernel_id add_kernel(const std::shared_ptr<kernel_string> kernel_sring);
+    kernel::ptr get_kernel(kernel_id id);
+
+    void load_tuning_cache();
+    std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
 
 private:
-    std::shared_ptr<program_impl> _impl;
+    uint32_t prog_id = 0;
+    engine& _engine;
+    stream::ptr _stream;
+    // TODO: Consider moving it to engine
+    std::unique_ptr<kernels_cache> _kernels_cache;
+    build_options options;
+    std::list<program_node*> inputs;
+    std::vector<program_node*> outputs;
+    nodes_ordering processing_order;
+    std::unique_ptr<pass_manager> pm;
+    std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
+    bool is_body_program;
 
-    explicit program(std::shared_ptr<program_impl> impl) : _impl(impl) {
-        if (_impl == nullptr)
-            throw std::invalid_argument("implementation pointer should not be null");
+    std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
+    std::list<primitive_id> optimized_out;
+
+    std::list<optimized_info> optimized;
+    primitives_info prim_info;
+    graph_optimizer_info optimizer_passes_info;
+
+    primitives_info get_current_stage_info() const;
+    /*
+    ** High-level functions, in order of usage
+    */
+    /* build nodes internal structure based on topology */
+    void prepare_nodes(topology const& topology);
+    /* build nodes internal structure based on the subset of nodes of other program  (used in propagate_constants) */
+    void prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes);
+    void add_node_dependencies(program_node* node_ptr);
+    void copy_node_dependencies(program_node* dest, program_node* src);
+    void build_program(bool is_internal);
+    void init_graph();
+    void set_options();
+    void set_layout_optimizer_attributes(layout_optimizer& lo);
+
+    void apply_opt_pass(base_pass& pass);
+
+    template <class Pass, typename... Args>
+    typename std::enable_if<std::is_base_of<base_pass, Pass>::value &&
+                            std::is_constructible<Pass, Args...>::value>::type
+    apply_opt_pass(Args&&... args) {
+        auto pass = Pass(std::forward<Args>(args)...);
+        apply_opt_pass(pass);
     }
+
+    void run_graph_compilation();
+    void pre_optimize_graph(bool is_internal);
+    void post_optimize_graph(bool is_internal);
+    void cleanup();
+    void transfer_memory_to_device();
+
+    /*
+    ** Analysis functions
+    */
+    // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
+    bool analyze_output_size_handling_need();
+
+    /*
+    ** Optimization functions
+    */
+    void apply_needed_padding(program_node& node, program_node& prev_node, const padding& needed_padding);
+
+    /*
+    ** Memory pool functions
+    */
+    void prepare_memory_dependencies();
+    std::string get_memory_dependencies_string() const;
+
+    /*
+    ** Utilities
+    */
+    void add_split_outputs();
+    // mark if the node is constant assuming that all dependencies are marked properly
+    void reverse_connection(program_node& dep_node, program_node& user_node);
+
+    void add_connection(program_node& prev, program_node& next);
+
+    void remove_connection(program_node& prev, program_node& next);
+
+    void remove_all_connections(program_node& node);
+
+    void rename(program_node& node, primitive_id const& new_id);
+    void swap_names(program_node& node1, program_node& node2);
+    void replace_all_usages(program_node& old_node, program_node& new_node);
+
+    // old_node - node which will be replaced
+    // new_node - node which will replace the old one
+    void replace(program_node& old_node, program_node& new_node);
 };
-/// @}
-/// @}
+
 }  // namespace cldnn

@@ -61,7 +61,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
-                void validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob);
                 AutoBroadcastSpec m_autob = AutoBroadcastSpec::NUMPY;
             };
         } // namespace util

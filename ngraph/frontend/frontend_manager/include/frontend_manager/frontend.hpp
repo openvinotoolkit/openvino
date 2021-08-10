@@ -61,9 +61,7 @@ namespace ngraph
 
             /// \brief Completely convert the remaining, not converted part of a function.
             /// \param partiallyConverted partially converted nGraph function
-            /// \return fully converted nGraph function
-            virtual std::shared_ptr<ngraph::Function>
-                convert(std::shared_ptr<ngraph::Function> partially_converted) const;
+            virtual void convert(std::shared_ptr<ngraph::Function> partially_converted) const;
 
             /// \brief Convert only those parts of the model that can be converted leaving others
             /// as-is. Converted parts are not normalized by additional transformations; normalize
@@ -84,6 +82,12 @@ namespace ngraph
             /// \brief Runs normalization passes on function that was loaded with partial conversion
             /// \param function partially converted nGraph function
             virtual void normalize(std::shared_ptr<ngraph::Function> function) const;
+
+            /// \brief Gets name of this FrontEnd. Can be used by clients
+            /// if frontend is selected automatically by FrontEndManager::load_by_model
+            ///
+            /// \return Current frontend name. Empty string if not implemented
+            virtual std::string get_name() const;
 
         protected:
             virtual bool
