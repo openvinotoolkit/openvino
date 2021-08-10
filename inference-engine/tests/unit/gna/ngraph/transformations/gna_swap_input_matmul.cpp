@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/serialize.hpp>
 
 namespace testing {
 
@@ -75,7 +74,6 @@ static void Execute(std::shared_ptr<ngraph::Function> function, std::shared_ptr<
     m.register_pass<GNAPluginNS::SwapInputMatMulWithFq>();
     m.register_pass<GNAPluginNS::SwapInputMatMulWithBias>();
     m.register_pass<GNAPluginNS::SwapInputMatMul>();
-    m.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
     m.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 

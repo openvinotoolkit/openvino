@@ -9,7 +9,7 @@
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/or.hpp>
-#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <numeric>
@@ -23,7 +23,7 @@ NGRAPH_RTTI_DEFINITION(SwapInputMatMul, "SwapInputMatMul", 0);
 NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithBias, "SwapInputMatMulWithBias", 0);
 NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithFq, "SwapInputMatMulWithFq", 0);
 
-static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmul_node,
+static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
                                    std::shared_ptr<ngraph::Node> add,
                                    std::shared_ptr<ngraph::Node> bias,
                                    std::shared_ptr<ngraph::Node> fq) {
@@ -35,8 +35,8 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmu
         std::iota(transpose_order.begin(), transpose_order.end(), 0);
         std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-        auto transpose = std::make_shared<ngraph::opset7::Transpose>(
-                node, ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order));
+        auto transpose = std::make_shared<ngraph::opset8::Transpose>(
+                node, ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape {transpose_order.size()}, transpose_order));
         transpose->set_friendly_name(transpose_name);
         return transpose;
     };
@@ -44,7 +44,7 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmu
     ngraph::NodeVector new_ops;
 
     gnalog() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
-    std::shared_ptr<ngraph::Node> new_matmul = std::make_shared<ngraph::opset7::MatMul>(
+    std::shared_ptr<ngraph::Node> new_matmul = std::make_shared<ngraph::opset8::MatMul>(
         matmul_node->input(1).get_source_output(), matmul_node->input(0).get_source_output(),
         !matmul_node->get_transpose_b(), !matmul_node->get_transpose_a());
     new_matmul->set_friendly_name(matmul_node->get_friendly_name() + "/swap_inputs");
@@ -58,7 +58,7 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmu
              new_ops.push_back(bias);
          }
 
-         new_matmul = std::make_shared<ngraph::opset7::Add>(new_matmul, bias);
+         new_matmul = std::make_shared<ngraph::opset8::Add>(new_matmul, bias);
          old_root_node = add;
          new_ops.push_back(new_matmul);
     }
@@ -79,24 +79,24 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmu
 
 SwapInputMatMul::SwapInputMatMul() {
     MATCHER_SCOPE(SwapInputMatMul);
-    auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
+    auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
         return true;
     });
-    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant,
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
     auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fake_quantize});
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({matmul_input, ngraph::pattern::any_input()},
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({matmul_input, ngraph::pattern::any_input()},
                                                                       ngraph::pattern::has_static_shape());
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset7::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
         IE_ASSERT(matmul_node != nullptr);
         SwapAndTransposeInputs(matmul_node, nullptr, nullptr, nullptr);
         return true;
@@ -108,27 +108,27 @@ SwapInputMatMul::SwapInputMatMul() {
 
 SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
     MATCHER_SCOPE(SwapInputMatMulWithBias);
-    auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
+    auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
         return true;
     });
-    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant,
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
     auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fake_quantize});
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({matmul_input, ngraph::pattern::any_input()},
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({matmul_input, ngraph::pattern::any_input()},
                                                                       ngraph::pattern::has_static_shape());
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({matmul, bias});
+    auto bias = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, bias});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset7::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
         IE_ASSERT(matmul_node != nullptr);
         SwapAndTransposeInputs(matmul_node, pattern_map.at(add).get_node_shared_ptr(),
             pattern_map.at(bias).get_node_shared_ptr(), nullptr);
@@ -141,33 +141,33 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
 
 SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
     MATCHER_SCOPE(SwapInputMatMulWithFq);
-    auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
+    auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
         if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
             return false;
         }
         return true;
     });
-    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
+    auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant,
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
     auto matmul_input = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{constant, fake_quantize});
-    auto matmul = ngraph::pattern::wrap_type<ngraph::opset7::MatMul>({matmul_input, ngraph::pattern::any_input()},
+    auto matmul = ngraph::pattern::wrap_type<ngraph::opset8::MatMul>({matmul_input, ngraph::pattern::any_input()},
                                                                       ngraph::pattern::has_static_shape());
-    auto bias = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
-    auto add = ngraph::pattern::wrap_type<ngraph::opset7::Add>({matmul, bias});
+    auto bias = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, bias});
     auto matmul_out = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{add, matmul});
-    auto out_fq = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({matmul_out,
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
-        ngraph::pattern::wrap_type<ngraph::opset7::Constant>()});
+    auto out_fq = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({matmul_out,
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>(),
+        ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset7::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
+        auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(pattern_map.at(matmul).get_node_shared_ptr());
         IE_ASSERT(matmul_node != nullptr);
         auto add_it = pattern_map.find(add);
         auto add_node = (add_it == std::end(pattern_map) ? nullptr : add_it->second.get_node_shared_ptr());
