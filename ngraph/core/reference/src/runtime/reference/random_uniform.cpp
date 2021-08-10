@@ -154,8 +154,8 @@ namespace ngraph
                         float mx[1];
                         memcpy(mn, min_val, elem_type.size());
                         memcpy(mx, max_val, elem_type.size());
-                        // convert uint32 values to float32 and normalize to range [min_val,
-                        // max_val)
+                        // convert uint32 values to float32 and normalize to range
+                        // [min_val, max_val)
                         std::transform(
                             res.data(), res.data() + 4, res_float, [&mn, &mx](uint32_t elem) {
                                 return uint32_to_float(elem) * (mx[0] - mn[0]) + mn[0];
@@ -169,8 +169,8 @@ namespace ngraph
                     case ngraph::element::Type_t::f16:
                     {
                         float16 res_float16[4];
-                        // convert uint32 values to float16 and normalize to range [min_val,
-                        // max_val)
+                        // convert uint32 values to float16 and normalize to range
+                        // [min_val, max_val)
                         std::transform(res.data(), res.data() + 4, res_float16, uint32_to_float16);
                         float16 mn[1];
                         float16 mx[1];
@@ -192,8 +192,8 @@ namespace ngraph
                         bfloat16 mx[1];
                         memcpy(mn, min_val, elem_type.size());
                         memcpy(mx, max_val, elem_type.size());
-                        // convert uint32 values to bfloat16 and normalize to range [min_val,
-                        // max_val)
+                        // convert uint32 values to bfloat16 and normalize to range
+                        // [min_val, max_val)
                         std::transform(
                             res.data(), res.data() + 4, res_bfloat16, [&mn, &mx](uint32_t elem) {
                                 return uint32_to_bfloat16(elem) * (mx[0] - mn[0]) + mn[0];
@@ -227,8 +227,8 @@ namespace ngraph
                         int mx[1];
                         memcpy(mn, min_val, elem_type.size());
                         memcpy(mx, max_val, elem_type.size());
-                        // convert uint32 values to int32 values and normalize to range [min_val,
-                        // max_val)
+                        // convert uint32 values to int32 values and normalize to range
+                        // [min_val, max_val)
                         std::transform(
                             res.data(), res.data() + 4, res_int, [&mn, &mx](uint32_t elem) {
                                 return elem % (mx[0] - mn[0]) + mn[0];
