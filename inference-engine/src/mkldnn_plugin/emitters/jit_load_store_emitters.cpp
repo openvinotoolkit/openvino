@@ -66,6 +66,9 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
     }
 
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    if (std::is_same<Vmm, Xbyak::Zmm>::value && !mayiuse(cpu::x64::avx512_core)) {
+        IE_THROW() << "Load emitter in " << name << " do not support Xeon-Phi machine.";
+    }
 
     // pure load
     if (src_prc == dst_prc) {
@@ -562,6 +565,9 @@ template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
         }
 
         using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+        if (std::is_same<Vmm, Xbyak::Zmm>::value && !mayiuse(cpu::x64::avx512_core)) {
+            IE_THROW() << "Store emitter in " << name << " do not support Xeon-Phi machine.";
+        }
 
         if (src_prc != dst_prc) {
             switch (src_prc) {
