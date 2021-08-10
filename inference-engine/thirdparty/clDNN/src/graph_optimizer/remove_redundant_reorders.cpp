@@ -362,7 +362,7 @@ void remove_redundant_reorders::run(program& p) {
     };
 
     // Remove reorder for Convolution b_fs_yx_fsv16 -> bfyx
-    auto try_fuse_reorder_fsv16_to_bfyx= [&](reorder_node* node) {
+    auto try_fuse_reorder_fsv16_to_bfyx = [&](reorder_node* node) {
         if (!node->get_fused_activations_funcs().empty() ||
             !node->get_fused_primitives().empty())
             return;
@@ -377,8 +377,13 @@ void remove_redundant_reorders::run(program& p) {
         if (input.as<convolution>().get_primitive()->groups != 1)
             return;
 
+        if (input.get_users().size() != 1)
+            return;
+
         auto& input_dep = input.get_dependency(0);
-        if (input_dep.get_output_layout().data_type == data_types::u8 || input_dep.get_output_layout().data_type == data_types::i8)
+        if (input_dep.get_output_layout().format != format::b_fs_yx_fsv16 ||
+            input_dep.get_output_layout().data_type == data_types::u8 ||
+            input_dep.get_output_layout().data_type == data_types::i8)
             return;
 
         auto output_layout = node->get_output_layout();
