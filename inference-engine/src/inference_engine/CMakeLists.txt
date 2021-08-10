@@ -77,7 +77,7 @@ endif()
 
 addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
 
-set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/ie")
+set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file (GLOB_RECURSE PUBLIC_HEADERS
        ${PUBLIC_HEADERS_DIR}/*.hpp
@@ -97,7 +97,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    ${PUBLIC_HEADERS_DIR})
+    ${PUBLIC_HEADERS_DIR} ${PUBLIC_HEADERS_DIR}/ie)
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt)
 
@@ -152,6 +152,10 @@ add_library(${TARGET_NAME} SHARED
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
@@ -167,6 +171,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt ${CMA
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
+            $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include>
             $<INSTALL_INTERFACE:${IE_CPACK_IE_DIR}/include/ie>
     PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -269,7 +275,7 @@ endif()
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}/include
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core_dev)
 
 install(TARGETS ${TARGET_NAME} EXPORT InferenceEngineTargets
@@ -299,7 +305,7 @@ install(EXPORT InferenceEngineTargets
         COMPONENT core_dev)
 
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
-set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}")
+set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
