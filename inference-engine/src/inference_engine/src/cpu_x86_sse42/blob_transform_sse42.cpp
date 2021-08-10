@@ -91,8 +91,16 @@ static inline void mm_store_interleave(float* ptr, __m128 a, __m128 b, __m128 c)
 //
 //------------------------------------------------------------------------
 
-void blob_copy_4d_split_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_src_stride, size_t H_src_stride,
-                             size_t N_dst_stride, size_t H_dst_stride, size_t C_dst_stride, int N, int H, int W) {
+void blob_copy_4d_split_u8c3(const uint8_t* src_ptr,
+                             uint8_t* dst_ptr,
+                             size_t N_src_stride,
+                             size_t H_src_stride,
+                             size_t N_dst_stride,
+                             size_t H_dst_stride,
+                             size_t C_dst_stride,
+                             int N,
+                             int H,
+                             int W) {
     for (int n = 0; n < N; n++)
         for (int h = 0; h < H; h++) {
             const uint8_t* src = src_ptr + n * N_src_stride + h * H_src_stride;
@@ -119,8 +127,16 @@ void blob_copy_4d_split_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_
         }
 }
 
-void blob_copy_4d_split_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src_stride, size_t H_src_stride,
-                              size_t N_dst_stride, size_t H_dst_stride, size_t C_dst_stride, int N, int H, int W) {
+void blob_copy_4d_split_f32c3(const float* src_ptr,
+                              float* dst_ptr,
+                              size_t N_src_stride,
+                              size_t H_src_stride,
+                              size_t N_dst_stride,
+                              size_t H_dst_stride,
+                              size_t C_dst_stride,
+                              int N,
+                              int H,
+                              int W) {
     for (int n = 0; n < N; n++)
         for (int h = 0; h < H; h++) {
             const float* src = src_ptr + n * N_src_stride + h * H_src_stride;
@@ -147,8 +163,16 @@ void blob_copy_4d_split_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src
         }
 }
 
-void blob_copy_4d_merge_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_src_stride, size_t H_src_stride,
-                             size_t C_src_stride, size_t N_dst_stride, size_t H_dst_stride, int N, int H, int W) {
+void blob_copy_4d_merge_u8c3(const uint8_t* src_ptr,
+                             uint8_t* dst_ptr,
+                             size_t N_src_stride,
+                             size_t H_src_stride,
+                             size_t C_src_stride,
+                             size_t N_dst_stride,
+                             size_t H_dst_stride,
+                             int N,
+                             int H,
+                             int W) {
     for (int n = 0; n < N; n++)
         for (int h = 0; h < H; h++) {
             const uint8_t* src0 = src_ptr + n * N_src_stride + 0 * C_src_stride + h * H_src_stride;
@@ -176,8 +200,16 @@ void blob_copy_4d_merge_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_
         }
 }
 
-void blob_copy_4d_merge_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src_stride, size_t H_src_stride,
-                              size_t C_src_stride, size_t N_dst_stride, size_t H_dst_stride, int N, int H, int W) {
+void blob_copy_4d_merge_f32c3(const float* src_ptr,
+                              float* dst_ptr,
+                              size_t N_src_stride,
+                              size_t H_src_stride,
+                              size_t C_src_stride,
+                              size_t N_dst_stride,
+                              size_t H_dst_stride,
+                              int N,
+                              int H,
+                              int W) {
     for (int n = 0; n < N; n++)
         for (int h = 0; h < H; h++) {
             const float* src0 = src_ptr + n * N_src_stride + 0 * C_src_stride + h * H_src_stride;
@@ -205,9 +237,19 @@ void blob_copy_4d_merge_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src
         }
 }
 
-void blob_copy_5d_split_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_src_stride, size_t D_src_stride,
-                             size_t H_src_stride, size_t N_dst_stride, size_t D_dst_stride, size_t H_dst_stride,
-                             size_t C_dst_stride, int N, int D, int H, int W) {
+void blob_copy_5d_split_u8c3(const uint8_t* src_ptr,
+                             uint8_t* dst_ptr,
+                             size_t N_src_stride,
+                             size_t D_src_stride,
+                             size_t H_src_stride,
+                             size_t N_dst_stride,
+                             size_t D_dst_stride,
+                             size_t H_dst_stride,
+                             size_t C_dst_stride,
+                             int N,
+                             int D,
+                             int H,
+                             int W) {
     for (int n = 0; n < N; n++)
         for (int d = 0; d < D; d++) {
             for (int h = 0; h < H; h++) {
@@ -236,9 +278,19 @@ void blob_copy_5d_split_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_
         }
 }
 
-void blob_copy_5d_split_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src_stride, size_t D_src_stride,
-                              size_t H_src_stride, size_t N_dst_stride, size_t D_dst_stride, size_t H_dst_stride,
-                              size_t C_dst_stride, int N, int D, int H, int W) {
+void blob_copy_5d_split_f32c3(const float* src_ptr,
+                              float* dst_ptr,
+                              size_t N_src_stride,
+                              size_t D_src_stride,
+                              size_t H_src_stride,
+                              size_t N_dst_stride,
+                              size_t D_dst_stride,
+                              size_t H_dst_stride,
+                              size_t C_dst_stride,
+                              int N,
+                              int D,
+                              int H,
+                              int W) {
     for (int n = 0; n < N; n++)
         for (int d = 0; d < D; d++) {
             for (int h = 0; h < H; h++) {
@@ -267,9 +319,19 @@ void blob_copy_5d_split_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src
         }
 }
 
-void blob_copy_5d_merge_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_src_stride, size_t D_src_stride,
-                             size_t H_src_stride, size_t C_src_stride, size_t N_dst_stride, size_t D_dst_stride,
-                             size_t H_dst_stride, int N, int D, int H, int W) {
+void blob_copy_5d_merge_u8c3(const uint8_t* src_ptr,
+                             uint8_t* dst_ptr,
+                             size_t N_src_stride,
+                             size_t D_src_stride,
+                             size_t H_src_stride,
+                             size_t C_src_stride,
+                             size_t N_dst_stride,
+                             size_t D_dst_stride,
+                             size_t H_dst_stride,
+                             int N,
+                             int D,
+                             int H,
+                             int W) {
     for (int n = 0; n < N; n++)
         for (int d = 0; d < D; d++) {
             for (int h = 0; h < H; h++) {
@@ -302,9 +364,19 @@ void blob_copy_5d_merge_u8c3(const uint8_t* src_ptr, uint8_t* dst_ptr, size_t N_
         }
 }
 
-void blob_copy_5d_merge_f32c3(const float* src_ptr, float* dst_ptr, size_t N_src_stride, size_t D_src_stride,
-                              size_t H_src_stride, size_t C_src_stride, size_t N_dst_stride, size_t D_dst_stride,
-                              size_t H_dst_stride, int N, int D, int H, int W) {
+void blob_copy_5d_merge_f32c3(const float* src_ptr,
+                              float* dst_ptr,
+                              size_t N_src_stride,
+                              size_t D_src_stride,
+                              size_t H_src_stride,
+                              size_t C_src_stride,
+                              size_t N_dst_stride,
+                              size_t D_dst_stride,
+                              size_t H_dst_stride,
+                              int N,
+                              int D,
+                              int H,
+                              int W) {
     for (int n = 0; n < N; n++)
         for (int d = 0; d < D; d++) {
             for (int h = 0; h < H; h++) {

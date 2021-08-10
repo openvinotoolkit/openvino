@@ -30,7 +30,7 @@
  */
 #define VPU_HDDL_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_HDDL_##name
 
-#define DECLARE_VPU_HDDL_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_HDDL_##name)
+#define DECLARE_VPU_HDDL_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(VPU_HDDL_##name)
 #define DECLARE_VPU_HDDL_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_HDDL_##name)
 
 //
@@ -41,101 +41,102 @@
  * @def VPU_HDDL_METRIC(name)
  * @brief Shortcut for defining VPU HDDL metric
  */
-#define VPU_HDDL_METRIC(name) METRIC_KEY(VPU_HDDL_##name)
-#define DECLARE_VPU_HDDL_METRIC(name, ...)  DECLARE_METRIC_KEY(VPU_HDDL_##name, __VA_ARGS__)
+#define VPU_HDDL_METRIC(name)              METRIC_KEY(VPU_HDDL_##name)
+#define DECLARE_VPU_HDDL_METRIC(name, ...) DECLARE_METRIC_KEY(VPU_HDDL_##name, __VA_ARGS__)
 
 namespace InferenceEngine {
 
 namespace Metrics {
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_NUM instead
-* @brief Metric to get a int of the device number, String value is METRIC_VPU_HDDL_DEVICE_NUM
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_NUM instead
+ * @brief Metric to get a int of the device number, String value is METRIC_VPU_HDDL_DEVICE_NUM
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_NUM, int);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_NAME instead
-* @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_VPU_HDDL_DEVICE_NAME
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_NAME instead
+ * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_VPU_HDDL_DEVICE_NAME
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_NAME instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_NAME, std::vector<std::string>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_THERMAL instead
-* @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_VPU_HDDL_DEVICE_THERMAL
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_THERMAL instead
+ * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_VPU_HDDL_DEVICE_THERMAL
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_THERMAL instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_THERMAL, std::vector<float>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_ID instead
-* @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_VPU_HDDL_DEVICE_ID
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_ID instead
+ * @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_VPU_HDDL_DEVICE_ID
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_ID instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_ID, std::vector<unsigned int>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_SUBCLASS instead
-* @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_VPU_HDDL_DEVICE_SUBCLASS
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_SUBCLASS instead
+ * @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_VPU_HDDL_DEVICE_SUBCLASS
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_SUBCLASS instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_SUBCLASS, std::vector<int>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_TOTAL instead
-* @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_VPU_HDDL_MEMORY_TOTAL
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_TOTAL instead
+ * @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_VPU_HDDL_MEMORY_TOTAL
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_TOTAL instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_USED instead
-* @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_VPU_HDDL_DEVICE_MEMORY_USED
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_USED instead
+ * @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_VPU_HDDL_DEVICE_MEMORY_USED
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_MEMORY_USED instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_MEMORY_USED, std::vector<unsigned int>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_UTILIZATION instead
-* @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_VPU_HDDL_DEVICE_UTILIZATION
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_UTILIZATION instead
+ * @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_VPU_HDDL_DEVICE_UTILIZATION
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_UTILIZATION instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_UTILIZATION, std::vector<float>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_STREAM_ID instead
-* @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_VPU_HDDL_DEVICE_STREAM_ID
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_STREAM_ID instead
+ * @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_VPU_HDDL_DEVICE_STREAM_ID
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_STREAM_ID instead")
 DECLARE_VPU_HDDL_METRIC(STREAM_ID, std::vector<std::string>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_TAG instead
-* @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_VPU_HDDL_DEVICE_TAG
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_TAG instead
+ * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_VPU_HDDL_DEVICE_TAG
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_TAG instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_TAG, std::vector<std::string>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_GROUP_ID instead
-* @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_VPU_HDDL_GROUP_ID
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_GROUP_ID instead
+ * @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_VPU_HDDL_GROUP_ID
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_GROUP_ID instead")
 DECLARE_VPU_HDDL_METRIC(GROUP_ID, std::vector<int>);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_GROUP_USING_NUM instead
-* @brief  Metric to get a int number of device be using for group, String value is METRIC_VPU_HDDL_DEVICE_GROUP_USING_NUM
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_GROUP_USING_NUM instead
+ * @brief  Metric to get a int number of device be using for group, String value is
+ * METRIC_VPU_HDDL_DEVICE_GROUP_USING_NUM
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_GROUP_USING_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_GROUP_USING_NUM, int);
 
 /**
-* @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_TOTAL_NUM instead
-* @brief  Metric to get a int number of total device, String value is METRIC_VPU_HDDL_DEVICE_TOTAL_NUM
-*/
+ * @deprecated Use InferenceEngine::METRIC_HDDL_DEVICE_TOTAL_NUM instead
+ * @brief  Metric to get a int number of total device, String value is METRIC_VPU_HDDL_DEVICE_TOTAL_NUM
+ */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_HDDL_DEVICE_TOTAL_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_TOTAL_NUM, int);
 
@@ -219,8 +220,9 @@ DECLARE_VPU_HDDL_CONFIG_KEY(BIND_DEVICE);
  * @brief [Only for HDDLPlugin]
  * Type: A signed int wrapped in a string, default is "0".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set and "BIND_DEVICE" is "False".
- * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass Scheduler),
- * the device with a larger number has a higher priority, and more inference tasks will be fed to it with priority.
+ * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass
+ * Scheduler), the device with a larger number has a higher priority, and more inference tasks will be fed to it with
+ * priority.
  */
 INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::HDDL_RUNTIME_PRIORITY instead")
 DECLARE_VPU_HDDL_CONFIG_KEY(RUNTIME_PRIORITY);

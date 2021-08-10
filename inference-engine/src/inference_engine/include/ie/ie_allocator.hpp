@@ -9,8 +9,9 @@
  */
 #pragma once
 
-#include "ie_api.h"
 #include <memory>
+
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
@@ -19,7 +20,7 @@ namespace InferenceEngine {
  */
 enum LockOp {
     LOCK_FOR_READ = 0,  //!< A flag to lock data for read
-    LOCK_FOR_WRITE  //!< A flag to lock data for write
+    LOCK_FOR_WRITE      //!< A flag to lock data for write
 };
 
 /**
@@ -60,7 +61,7 @@ public:
     virtual bool free(void* handle) noexcept = 0;
 
 protected:
-     ~IAllocator() = default;
+    ~IAllocator() = default;
 };
 
 /**

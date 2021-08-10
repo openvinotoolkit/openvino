@@ -106,7 +106,7 @@ set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
 
-add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_src})
+add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 # Create object library
 
@@ -142,7 +142,7 @@ if (TBBBIND_2_4_FOUND)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
 endif()
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 

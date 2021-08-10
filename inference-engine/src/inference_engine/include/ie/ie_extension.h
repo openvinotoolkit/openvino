@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/opsets/opset.hpp>
-#include "ie_iextension.h"
 #include "details/ie_so_pointer.hpp"
+#include "ie_iextension.h"
+#include "ngraph/opsets/opset.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -46,9 +46,8 @@ public:
      *
      * @param name Full or relative path to extension library
      */
-    template <typename C,
-              typename = details::enableIfSupportedChar<C>>
-    explicit Extension(const std::basic_string<C>& name): actual(name) {}
+    template <typename C, typename = details::enableIfSupportedChar<C>>
+    explicit Extension(const std::basic_string<C>& name) : actual(name) {}
 
     /**
      * @brief Gets the extension version information
@@ -79,7 +78,8 @@ public:
      * @return vector of strings
      */
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        if (node == nullptr) IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+        if (node == nullptr)
+            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplTypes(node);
     }
 
@@ -90,7 +90,8 @@ public:
      * @return shared pointer to implementation
      */
     ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-        if (node == nullptr) IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
+        if (node == nullptr)
+            IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplementation(node, implType);
     }
 
@@ -107,7 +108,7 @@ protected:
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
@@ -120,7 +121,7 @@ inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
  * @param name extension library name
  * @return shared pointer to extension
  */
-template<typename T = IExtension>
+template <typename T = IExtension>
 INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);

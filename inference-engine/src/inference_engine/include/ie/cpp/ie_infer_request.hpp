@@ -13,10 +13,10 @@
 #include <memory>
 #include <string>
 
-#include "ie_blob.h"
 #include "cpp/ie_memory_state.hpp"
-#include "ie_iinfer_request.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_blob.h"
+#include "ie_iinfer_request.hpp"
 
 namespace InferenceEngine {
 
@@ -33,16 +33,16 @@ class ICompletionCallbackWrapper;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    details::SharedObjectLoader                          _so;
-    std::shared_ptr<IInferRequestInternal>               _impl;
+    details::SharedObjectLoader _so;
+    std::shared_ptr<IInferRequestInternal> _impl;
 
     /**
      * @brief Constructs InferRequest from the initialized std::shared_ptr
-     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
+     * @param so Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is
+     * destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const details::SharedObjectLoader&             so,
-                 const std::shared_ptr<IInferRequestInternal>&  impl);
+    InferRequest(const details::SharedObjectLoader& so, const std::shared_ptr<IInferRequestInternal>& impl);
     friend class ExecutableNetwork;
 
 public:
@@ -93,7 +93,7 @@ public:
      * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
-    void SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info);
+    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info);
 
     /**
      * @brief Gets pre-process for input data
@@ -176,9 +176,11 @@ private:
     void SetCompletionCallbackImpl(IInferRequest::CompletionCallback);
     IE_SUPPRESS_DEPRECATED_END
 
-    template<typename T>
+    template <typename T>
     struct SetCallback {
-        void operator()(std::function<void()> f) {_this.SetCompletionCallbackImpl(std::move(f));}
+        void operator()(std::function<void()> f) {
+            _this.SetCompletionCallbackImpl(std::move(f));
+        }
         InferRequest& _this;
     };
 
@@ -188,7 +190,7 @@ public:
      *
      * @param callbackToSet callback object which will be called on when inference finish.
      */
-    template<typename F>
+    template <typename F>
     void SetCompletionCallback(F callbackToSet) {
         SetCallback<F>{*this}(std::move(callbackToSet));
     }
@@ -207,7 +209,7 @@ public:
      * @return A shared pointer to IInferRequest interface
      */
     INFERENCE_ENGINE_DEPRECATED("Will be removed")
-    operator std::shared_ptr<IInferRequest> ();
+    operator std::shared_ptr<IInferRequest>();
     IE_SUPPRESS_DEPRECATED_END
 
     /**
@@ -238,7 +240,7 @@ public:
 /**
  * @private
  */
-template<>
+template <>
 struct InferRequest::SetCallback<std::function<void(InferRequest, StatusCode)>> {
     void operator()(std::function<void(InferRequest, StatusCode)> f) {
         _this.SetCompletionCallbackImpl(std::move(f));
@@ -251,7 +253,7 @@ IE_SUPPRESS_DEPRECATED_START
 /**
  * @private
  */
-template<>
+template <>
 struct InferRequest::SetCallback<IInferRequest::CompletionCallback> {
     void operator()(IInferRequest::CompletionCallback f) {
         _this.SetCompletionCallbackImpl(std::move(f));

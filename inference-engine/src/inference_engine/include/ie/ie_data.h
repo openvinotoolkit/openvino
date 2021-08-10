@@ -27,6 +27,7 @@ namespace InferenceEngine {
  */
 class INFERENCE_ENGINE_API_CLASS(Data) {
     class Impl;
+
 public:
     /**
      * @brief An empty constructor (dimensionless)
@@ -58,7 +59,7 @@ public:
      * @param data A data object to copy from
      * @return An assigned object
      */
-    Data & operator = (const Data& data);
+    Data& operator=(const Data& data);
 
     /**
      * @brief Checks if the current node is resolved

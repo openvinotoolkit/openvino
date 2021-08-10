@@ -4,7 +4,7 @@
 
 /**
  * @brief This is a header file for the IE RemoteContext and RemoteBlob classes
- * 
+ *
  * @file ie_remote_context.hpp
  */
 #pragma once
@@ -44,7 +44,7 @@ public:
      * @brief Constructor. Creates an empty RemoteBlob object with the specified precision.
      * @param tensorDesc Defines the layout and dims of the blob
      */
-    explicit RemoteBlob(const TensorDesc& tensorDesc): MemoryBlob(tensorDesc) {}
+    explicit RemoteBlob(const TensorDesc& tensorDesc) : MemoryBlob(tensorDesc) {}
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level
@@ -103,8 +103,8 @@ public:
      * @return true if this object can be dynamically cast to the type T*. Otherwise, false
      */
     template <typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() noexcept {
         return dynamic_cast<T*>(this) != nullptr;
     }
@@ -116,8 +116,8 @@ public:
      * @return true if this object can be dynamically cast to the type const T*. Otherwise, false
      */
     template <typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
     bool is() const noexcept {
         return dynamic_cast<const T*>(this) != nullptr;
     }
@@ -129,9 +129,9 @@ public:
      * @return Raw pointer to the object of the type T or nullptr on error
      */
     template <typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-    T * as() noexcept {
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+    T* as() noexcept {
         return dynamic_cast<T*>(this);
     }
 
@@ -142,9 +142,9 @@ public:
      * @return Raw pointer to the object of the type const T or nullptr on error
      */
     template <typename T,
-        typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-        typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-    const T * as() const noexcept {
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
+    const T* as() const noexcept {
         return dynamic_cast<const T*>(this);
     }
 
@@ -190,4 +190,3 @@ inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::P
 }
 
 }  // namespace InferenceEngine
-

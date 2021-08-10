@@ -4,7 +4,7 @@
 
 /**
  * @brief The header file defines utility PreAllocator class
- * 
+ *
  * @file ie_pre_allocator.hpp
  */
 #pragma once
@@ -23,7 +23,7 @@ class PreAllocator final : public IAllocator {
     size_t _sizeInBytes;
 
 public:
-    PreAllocator(void* ptr, size_t bytes_size): _actualData(ptr), _sizeInBytes(bytes_size) {}
+    PreAllocator(void* ptr, size_t bytes_size) : _actualData(ptr), _sizeInBytes(bytes_size) {}
     /**
      * @brief Locks a handle to heap memory accessible by any memory manipulation routines
      * @return The generic pointer to a memory buffer

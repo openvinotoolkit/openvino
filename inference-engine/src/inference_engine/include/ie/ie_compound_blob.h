@@ -22,7 +22,7 @@ namespace InferenceEngine {
  * Compound blob is a wrapper blob over references to underlying blobs. These blobs should share
  * some properties and can be grouped into a single entity.
  */
-class INFERENCE_ENGINE_API_CLASS(CompoundBlob): public Blob {
+class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
 public:
     /**
      * @brief A smart pointer to the CompoundBlob object
@@ -118,7 +118,7 @@ protected:
 /**
  * @brief Represents a blob that contains two planes (Y and UV) in NV12 color format
  */
-class INFERENCE_ENGINE_API_CLASS(NV12Blob): public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(NV12Blob) : public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the NV12Blob object
@@ -220,7 +220,7 @@ public:
      * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
      * the I420Blob object is destroyed.
      *
-      * @return constant reference to shared pointer object of Y plane*
+     * @return constant reference to shared pointer object of Y plane*
      */
     const Blob::Ptr& y() const noexcept;
 
@@ -273,7 +273,7 @@ public:
  * in the OPTIMIZATION_CAPABILITIES metric.
  */
 class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
- public:
+public:
     /**
      * @brief A smart pointer to the BatchedBlob object
      */

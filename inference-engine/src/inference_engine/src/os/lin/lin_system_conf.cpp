@@ -2,35 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <sched.h>
+
 #include <fstream>
+#include <iostream>
 #include <map>
+#include <numeric>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <numeric>
-#include <sched.h>
 
 #include "ie_common.h"
 #include "ie_system_conf.h"
 #include "threading/ie_parallel_custom_arena.hpp"
 
-
 namespace InferenceEngine {
 
 struct CPU {
     int _processors = 0;
-    int _sockets    = 0;
-    int _cores      = 0;
+    int _sockets = 0;
+    int _cores = 0;
 
     CPU() {
         std::ifstream cpuinfo("/proc/cpuinfo");
-        std::vector<int>    processors;
-        std::map<int, int>  sockets;
+        std::vector<int> processors;
+        std::map<int, int> sockets;
         int socketId = 0;
         while (!cpuinfo.eof()) {
             std::string line;
             std::getline(cpuinfo, line);
-            if (line.empty()) continue;
+            if (line.empty())
+                continue;
             auto delimeter = line.find(':');
             auto key = line.substr(0, delimeter);
             auto value = line.substr(delimeter + 1);
@@ -83,14 +84,13 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
-                                                               .set_core_type(core_types.back())
-                                                               .set_max_threads_per_core(1));
+        phys_cores = custom::info::default_concurrency(
+            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
     }
-    #endif
+#endif
     return phys_cores;
 }
 

@@ -15,7 +15,7 @@ void IVariableStateInternal::Reset() {
     IE_THROW(NotImplemented);
 }
 
-void IVariableStateInternal::SetState(const Blob::Ptr& newState)  {
+void IVariableStateInternal::SetState(const Blob::Ptr& newState) {
     state = newState;
 }
 

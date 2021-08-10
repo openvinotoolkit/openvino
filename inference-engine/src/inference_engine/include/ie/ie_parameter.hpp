@@ -72,7 +72,7 @@ public:
      *
      * @param str char array
      */
-    Parameter(const char* str): Parameter(std::string(str)) {}  // NOLINT
+    Parameter(const char* str) : Parameter(std::string(str)) {}  // NOLINT
 
     /**
      * @brief Destructor
@@ -89,7 +89,8 @@ public:
             return *this;
         }
         clear();
-        if (!parameter.empty()) ptr = parameter.ptr->copy();
+        if (!parameter.empty())
+            ptr = parameter.ptr->copy();
         return *this;
     }
 
@@ -279,7 +280,7 @@ private:
             return id == typeid(T);
         }
         Any* copy() const override {
-            return new RealData {get()};
+            return new RealData{get()};
         }
 
         T& get() & {
@@ -291,14 +292,12 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
-        equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
             IE_THROW() << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
-        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type
-        equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
             return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
         }
 
@@ -306,13 +305,11 @@ private:
             return rhs.is(typeid(T)) && equal<T>(*this, rhs);
         }
 
-        template <class U>
-        typename std::enable_if<!HasOutputStreamOperator<U>::value, void>::type
-        print(std::ostream& stream, const U& object) const {}
+        template <class U, typename std::enable_if<!HasOutputStreamOperator<U>::value, bool>::type = true>
+        void print(std::ostream& stream, const U& object) const {}
 
-        template <class U>
-        typename std::enable_if<HasOutputStreamOperator<U>::value, void>::type
-        print(std::ostream& stream, const U& object) const {
+        template <class U, typename std::enable_if<HasOutputStreamOperator<U>::value, bool>::type = true>
+        void print(std::ostream& stream, const U& object) const {
             stream << object;
         }
 
@@ -323,13 +320,15 @@ private:
 
     template <typename T>
     static T& dyn_cast(Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr)
+            IE_THROW() << "Parameter is empty!";
         return dynamic_cast<RealData<T>&>(*obj).get();
     }
 
     template <typename T>
     static const T& dyn_cast(const Any* obj) {
-        if (obj == nullptr) IE_THROW() << "Parameter is empty!";
+        if (obj == nullptr)
+            IE_THROW() << "Parameter is empty!";
         return dynamic_cast<const RealData<T>&>(*obj).get();
     }
 
@@ -338,7 +337,7 @@ private:
 
 /**
  * @brief An std::map object containing parameters
-  */
+ */
 using ParamMap = std::map<std::string, Parameter>;
 
 #ifdef __ANDROID__
