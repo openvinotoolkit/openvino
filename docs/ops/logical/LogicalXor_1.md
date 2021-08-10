@@ -6,8 +6,7 @@
 
 **Short description**: *LogicalXor* performs element-wise logical XOR operation with two given tensors applying multi-directional broadcast rules.
 
-**Detailed description**
-Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+**Detailed description**: Before performing logical operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
 
 After broadcasting *LogicalXor* does the following with the input tensors *a* and *b*:
 
@@ -30,16 +29,16 @@ o_{i} = a_{i} \oplus b_{i}
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
-* **2**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T_BOOL* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *logicalXor* operation. A tensor of type *T* and the same shape equal to broadcasted shape of two inputs.
+* **1**: The result of element-wise *logicalXor* operation. A tensor of type *T_BOOL* and the same shape equal to broadcasted shape of two inputs.
 
 **Types**
 
-* *T*: boolean type.
+* *T_BOOL*: `boolean`.
 
 **Examples**
 
