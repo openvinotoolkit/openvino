@@ -443,6 +443,10 @@ std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
                                              const ngraph::Output<Node> &in1,
                                              ngraph::helpers::ComparisonTypes comparisonType);
 
+std::shared_ptr<ngraph::Node> makeConversion(const ngraph::Output<Node>& in,
+                                             const element::Type& type,
+                                             const ngraph::helpers::ConversionTypes& conversionType);
+
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::LogicalTypes logicalType);

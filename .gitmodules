@@ -50,3 +50,6 @@
 [submodule "thirdparty/ittapi/ittapi"]
 	path = thirdparty/ittapi/ittapi
 	url = https://github.com/intel/ittapi.git
+[submodule "ncc"]
+	path = cmake/developer_package/ncc_naming_style/ncc
+	url = https://github.com/nithinn/ncc.git
