@@ -44,9 +44,9 @@ struct Version {
      */
     struct ApiVersion {
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
-        int major; //!< A major version
+        int major;  //!< A major version
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
-        int minor; //!< A minor version
+        int minor;  //!< A minor version
 
         /**
          * @brief A default construtor
@@ -60,7 +60,7 @@ struct Version {
          * @brief A default construtor
          * @param v A version to copy
          */
-        ApiVersion(const ApiVersion & v) {
+        ApiVersion(const ApiVersion& v) {
             major = v.major;
             minor = v.minor;
         }

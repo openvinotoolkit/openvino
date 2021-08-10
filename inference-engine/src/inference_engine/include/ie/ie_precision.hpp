@@ -15,7 +15,6 @@
 
 #include "ie_common.h"
 
-
 namespace InferenceEngine {
 
 /**
@@ -230,10 +229,23 @@ public:
     static Precision FromStr(const std::string& str) {
         static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
-            PRECISION_NAME(I4),   PRECISION_NAME(I8),   PRECISION_NAME(I16),    PRECISION_NAME(I32),  PRECISION_NAME(I64),
-            PRECISION_NAME(U4),   PRECISION_NAME(U8),   PRECISION_NAME(U16),    PRECISION_NAME(U32),  PRECISION_NAME(U64),
-            PRECISION_NAME(FP32), PRECISION_NAME(FP64),  PRECISION_NAME(FP16),  PRECISION_NAME(MIXED),
+            PRECISION_NAME(Q78),
+            PRECISION_NAME(BOOL),
+            PRECISION_NAME(BF16),
+            PRECISION_NAME(I4),
+            PRECISION_NAME(I8),
+            PRECISION_NAME(I16),
+            PRECISION_NAME(I32),
+            PRECISION_NAME(I64),
+            PRECISION_NAME(U4),
+            PRECISION_NAME(U8),
+            PRECISION_NAME(U16),
+            PRECISION_NAME(U32),
+            PRECISION_NAME(U64),
+            PRECISION_NAME(FP32),
+            PRECISION_NAME(FP64),
+            PRECISION_NAME(FP16),
+            PRECISION_NAME(MIXED),
             PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
@@ -292,12 +304,15 @@ protected:
      * @returns True if strings are the same
      */
     static bool areSameStrings(const char* l, const char* r) noexcept {
-        if (l == r) return true;
+        if (l == r)
+            return true;
 
-        if (l == nullptr || r == nullptr) return false;
+        if (l == nullptr || r == nullptr)
+            return false;
 
         for (; *l && *r; l++, r++) {
-            if (*l != *r) return false;
+            if (*l != *r)
+                return false;
         }
         return *l == *r;
     }
@@ -366,7 +381,7 @@ struct PrecisionTrait<Precision::BF16> {
     using value_type = int16_t;
     enum { is_float = true };
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
     enum { is_float = false };
@@ -484,7 +499,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<Precision>& 
 }
 
 inline constexpr uint32_t getPrecisionMask(
-    InferenceEngine::Precision::ePrecision precision1, InferenceEngine::Precision::ePrecision precision2,
+    InferenceEngine::Precision::ePrecision precision1,
+    InferenceEngine::Precision::ePrecision precision2,
     InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
     InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
     return (precision1) | (precision2 << 8) | (precision3 << 16) | (precision4 << 24);

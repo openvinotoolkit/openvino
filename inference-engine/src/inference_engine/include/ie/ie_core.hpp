@@ -15,11 +15,11 @@
 #include <string>
 #include <vector>
 
-#include "ie_version.hpp"
+#include "cpp/ie_executable_network.hpp"
 #include "ie_extension.h"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
-#include "cpp/ie_executable_network.hpp"
+#include "ie_version.hpp"
 
 namespace InferenceEngine {
 
@@ -106,9 +106,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(
-        const CNNNetwork& network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+                                  const std::string& deviceName,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -123,9 +123,9 @@ public:
      *
      * @return An executable network reference
      */
-    ExecutableNetwork LoadNetwork(
-        const std::string& modelPath, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const std::string& modelPath,
+                                  const std::string& deviceName,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
@@ -141,9 +141,9 @@ public:
      * operation
      * @return An executable network object
      */
-    ExecutableNetwork LoadNetwork(
-        const CNNNetwork& network, RemoteContext::Ptr context,
-        const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork LoadNetwork(const CNNNetwork& network,
+                                  RemoteContext::Ptr context,
+                                  const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension for the specified plugin
@@ -162,9 +162,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(
-        const std::string& modelFileName, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::string& deviceName,
+                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -174,7 +174,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
 
     /**
@@ -208,9 +209,9 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    QueryNetworkResult QueryNetwork(
-        const CNNNetwork& network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {}) const;
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network,
+                                    const std::string& deviceName,
+                                    const std::map<std::string, std::string>& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp

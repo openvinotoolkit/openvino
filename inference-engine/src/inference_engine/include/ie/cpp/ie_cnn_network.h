@@ -15,12 +15,12 @@
 #include <utility>
 #include <vector>
 
-#include "ie_icnn_network.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_extension.h"
-#include <ngraph/function.hpp>
+#include "ie_icnn_network.hpp"
+#include "ngraph/function.hpp"
 
 namespace InferenceEngine {
 
@@ -52,8 +52,7 @@ public:
      * @param network Pointer to the ngraph::Function object
      * @param exts Vector of pointers to IE extension objects
      */
-    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
-                        const std::vector<IExtensionPtr>& exts = {});
+    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network, const std::vector<IExtensionPtr>& exts = {});
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.

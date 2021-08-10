@@ -26,7 +26,7 @@ namespace MultiDeviceConfigParams {
  */
 #define MULTI_CONFIG_KEY(name) InferenceEngine::MultiDeviceConfigParams::_CONFIG_KEY(MULTI_##name)
 
-#define DECLARE_MULTI_CONFIG_KEY(name) DECLARE_CONFIG_KEY(MULTI_##name)
+#define DECLARE_MULTI_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(MULTI_##name)
 #define DECLARE_MULTI_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(MULTI_##name)
 
 /**

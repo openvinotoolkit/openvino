@@ -3,16 +3,17 @@
 //
 
 #include "threading/ie_thread_affinity.hpp"
-#include "ie_system_conf.h"
-#include <climits>
-#include <cerrno>
-#include <utility>
-#include <tuple>
 
+#include <cerrno>
+#include <climits>
+#include <tuple>
+#include <utility>
+
+#include "ie_system_conf.h"
 
 #if !(defined(__APPLE__) || defined(_WIN32))
-#include <sched.h>
-#include <unistd.h>
+#    include <sched.h>
+#    include <unistd.h>
 #endif
 
 namespace InferenceEngine {
@@ -20,7 +21,8 @@ namespace InferenceEngine {
 std::tuple<CpuSet, int> GetProcessMask() {
     for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
         CpuSet mask{CPU_ALLOC(ncpus)};
-        if (nullptr == mask) break;
+        if (nullptr == mask)
+            break;
         const size_t size = CPU_ALLOC_SIZE(ncpus);
         CPU_ZERO_S(size, mask.get());
         // the result fits the mask
@@ -28,14 +30,16 @@ std::tuple<CpuSet, int> GetProcessMask() {
             return std::make_tuple(std::move(mask), ncpus);
         }
         // other error
-        if (errno != EINVAL) break;
+        if (errno != EINVAL)
+            break;
     }
     return std::make_tuple(nullptr, 0);
 }
 
 /* Release the cores affinity mask for the current process */
 void ReleaseProcessMask(cpu_set_t* mask) {
-    if (nullptr != mask) CPU_FREE(mask);
+    if (nullptr != mask)
+        CPU_FREE(mask);
 }
 
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
@@ -74,7 +78,7 @@ bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSe
 bool PinCurrentThreadToSocket(int socket) {
     const int sockets = InferenceEngine::getAvailableNUMANodes().size();
     const int cores = InferenceEngine::getNumberOfCPUCores();
-    const int cores_per_socket = cores/sockets;
+    const int cores_per_socket = cores / sockets;
 
     int ncpus = 0;
     CpuSet mask;
@@ -83,7 +87,7 @@ bool PinCurrentThreadToSocket(int socket) {
     const size_t size = CPU_ALLOC_SIZE(ncpus);
     CPU_ZERO_S(size, targetMask.get());
 
-    for (int core = socket*cores_per_socket; core < (socket+1)*cores_per_socket; core++) {
+    for (int core = socket * cores_per_socket; core < (socket + 1) * cores_per_socket; core++) {
         CPU_SET_S(core, size, targetMask.get());
     }
     // respect the user-defined mask for the entire process

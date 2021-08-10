@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ie_blob.h>
-#include <details/ie_so_pointer.hpp>
-
 #include <memory>
 #include <string>
+
+#include "details/ie_so_pointer.hpp"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 

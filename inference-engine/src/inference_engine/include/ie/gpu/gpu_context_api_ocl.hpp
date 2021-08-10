@@ -13,13 +13,12 @@
 #include <memory>
 #include <string>
 
-#include "ie_compound_blob.h"
-#include "ie_remote_context.hpp"
-#include "ie_core.hpp"
-
-#include "gpu/gpu_params.hpp"
-#include "gpu/gpu_ocl_wrapper.hpp"
 #include "gpu/details/gpu_context_helpers.hpp"
+#include "gpu/gpu_ocl_wrapper.hpp"
+#include "gpu/gpu_params.hpp"
+#include "ie_compound_blob.h"
+#include "ie_core.hpp"
+#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 
@@ -42,8 +41,11 @@ public:
      * @return `cl_context`
      */
     cl_context get() {
-        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(), GPU_PARAM_KEY(OCL_CONTEXT),
-            GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL), GPU_PARAM_VALUE(VA_SHARED));
+        return _ObjFromParams<cl_context, gpu_handle_param>(getParams(),
+                                                            GPU_PARAM_KEY(OCL_CONTEXT),
+                                                            GPU_PARAM_KEY(CONTEXT_TYPE),
+                                                            GPU_PARAM_VALUE(OCL),
+                                                            GPU_PARAM_VALUE(VA_SHARED));
     }
 
     /**
@@ -105,8 +107,11 @@ public:
      * @return underlying OpenCL memory object handle
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
-            GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER), GPU_PARAM_VALUE(DX_BUFFER));
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(),
+                                                        GPU_PARAM_KEY(MEM_HANDLE),
+                                                        GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                        GPU_PARAM_VALUE(OCL_BUFFER),
+                                                        GPU_PARAM_VALUE(DX_BUFFER));
     }
 
     /**
@@ -150,8 +155,11 @@ public:
      * @return `cl_mem`
      */
     cl_mem get() {
-        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(), GPU_PARAM_KEY(MEM_HANDLE),
-            GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D), GPU_PARAM_VALUE(VA_SURFACE));
+        return _ObjFromParams<cl_mem, gpu_handle_param>(getParams(),
+                                                        GPU_PARAM_KEY(MEM_HANDLE),
+                                                        GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                                        GPU_PARAM_VALUE(OCL_IMAGE2D),
+                                                        GPU_PARAM_VALUE(VA_SURFACE));
     }
 
     /**
@@ -179,7 +187,9 @@ public:
  * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
  * @return A shared remote blob instance
  */
-static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2D& nv12_image_plane_y, cl::Image2D& nv12_image_plane_uv) {
+static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
+                                              cl::Image2D& nv12_image_plane_y,
+                                              cl::Image2D& nv12_image_plane_uv) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
@@ -189,15 +199,13 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
     size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
 
     // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc ydesc(Precision::U8, { 1, 1, height, width }, Layout::NHWC);
+    TensorDesc ydesc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
 
-    ParamMap blobParams = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get()) }
-    };
+    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
     Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
 
-    TensorDesc uvdesc(Precision::U8, { 1, 2, height / 2, width / 2 }, Layout::NHWC);
+    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
     blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
     Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
 
@@ -213,10 +221,8 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
  * @return A shared remote context instance
  */
 static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_context ctx) {
-    ParamMap contextParams = {
-        { GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL) },
-        { GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx) }
-    };
+    ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                              {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
     return core.CreateContext(deviceName, contextParams);
 }
 
@@ -243,10 +249,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get()) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
@@ -263,10 +267,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(buffer)}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 
@@ -283,10 +285,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
         IE_THROW() << "Invalid remote context passed";
     }
 
-    ParamMap params = {
-        { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D) },
-        { GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get()) }
-    };
+    ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
+                       {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
     return std::dynamic_pointer_cast<Blob>(casted->CreateBlob(desc, params));
 }
 

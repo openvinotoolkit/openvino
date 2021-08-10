@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
-#include "ie_version.hpp"
-#include "ie_plugin_config.hpp"
 #include "cpp/ie_executable_network.hpp"
+#include "ie_plugin_config.hpp"
+#include "ie_version.hpp"
 
 namespace ngraph {
 class Function;
@@ -101,7 +101,8 @@ public:
      * constant data becomes to point to invalid memory.
      * @return Function
      */
-    std::shared_ptr<ngraph::Function> read_model(const std::string& model, const std::shared_ptr<const InferenceEngine::Blob>& weights) const;
+    std::shared_ptr<ngraph::Function> read_model(const std::string& model,
+                                                 const std::shared_ptr<const InferenceEngine::Blob>& weights) const;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -115,9 +116,9 @@ public:
      * operation
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork compile_model(
-        const std::shared_ptr<const ngraph::Function>& network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
+    InferenceEngine::ExecutableNetwork compile_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                     const std::string& deviceName,
+                                                     const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Reads model and creates an executable network from IR or ONNX file
@@ -132,9 +133,9 @@ public:
      *
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork compile_model(
-        const std::string& modelPath, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {});
+    InferenceEngine::ExecutableNetwork compile_model(const std::string& modelPath,
+                                                     const std::string& deviceName,
+                                                     const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
@@ -144,9 +145,9 @@ public:
      * operation
      * @return An executable network object
      */
-    InferenceEngine::ExecutableNetwork compile_model(
-        const std::shared_ptr<const ngraph::Function>& network, const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-        const std::map<std::string, std::string>& config = {});
+    InferenceEngine::ExecutableNetwork compile_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                                                     const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
@@ -162,8 +163,9 @@ public:
      * operation*
      * @return An executable network reference
      */
-    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel, const std::string& deviceName,
-                                    const std::map<std::string, std::string>& config = {});
+    InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network within a specified
@@ -176,8 +178,8 @@ public:
      * @return An executable network reference
      */
     InferenceEngine::ExecutableNetwork import_model(std::istream& networkModel,
-                                    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
-                                    const std::map<std::string, std::string>& config = {});
+                                                    const std::shared_ptr<InferenceEngine::RemoteContext>& context,
+                                                    const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -187,9 +189,9 @@ public:
      * @param config Optional map of pairs: (config parameter name, config parameter value)
      * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
-    InferenceEngine::QueryNetworkResult query_model(
-        const std::shared_ptr<const ngraph::Function>& network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = {}) const;
+    InferenceEngine::QueryNetworkResult query_model(const std::shared_ptr<const ngraph::Function>& network,
+                                                    const std::string& deviceName,
+                                                    const std::map<std::string, std::string>& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp

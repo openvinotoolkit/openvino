@@ -10,11 +10,11 @@
  * @file ie_cache_guard.hpp
  */
 
-#include <string>
-#include <map>
-#include <mutex>
-#include <memory>
 #include <atomic>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <unordered_map>
 
 namespace InferenceEngine {
@@ -36,8 +36,10 @@ public:
      * @param m Shared pointer to mutex for internal locking
      * @param refCount Reference counter. Will be decremented on CacheGuardEntry destruction
      */
-    CacheGuardEntry(CacheGuard& cacheGuard, const std::string& hash,
-                    std::shared_ptr<std::mutex> m, std::atomic_int& refCount);
+    CacheGuardEntry(CacheGuard& cacheGuard,
+                    const std::string& hash,
+                    std::shared_ptr<std::mutex> m,
+                    std::atomic_int& refCount);
     CacheGuardEntry(const CacheGuardEntry&) = delete;
     CacheGuardEntry& operator=(const CacheGuardEntry&) = delete;
 
@@ -106,16 +108,14 @@ public:
 
 private:
     struct Item {
-        std::shared_ptr<std::mutex> m_mutexPtr { std::make_shared<std::mutex>() };
+        std::shared_ptr<std::mutex> m_mutexPtr{std::make_shared<std::mutex>()};
         // Reference counter for item usage
-        std::atomic_int m_itemRefCounter {0};
+        std::atomic_int m_itemRefCounter{0};
 
         Item() = default;
-        Item(const Item& other): m_mutexPtr(other.m_mutexPtr),
-                                 m_itemRefCounter(other.m_itemRefCounter.load()) {}
+        Item(const Item& other) : m_mutexPtr(other.m_mutexPtr), m_itemRefCounter(other.m_itemRefCounter.load()) {}
         Item& operator=(const Item& other) = delete;
-        Item(Item&& other): m_mutexPtr(std::move(other.m_mutexPtr)),
-                            m_itemRefCounter(other.m_itemRefCounter.load()) {}
+        Item(Item&& other) : m_mutexPtr(std::move(other.m_mutexPtr)), m_itemRefCounter(other.m_itemRefCounter.load()) {}
         Item& operator=(Item&& other) = delete;
     };
     std::mutex m_tableMutex;

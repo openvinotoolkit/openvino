@@ -28,7 +28,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @param[in]  err   The error code
      * @param      desc  The response desc to write an error message to
      */
-    DescriptionBuffer(StatusCode err, ResponseDesc* desc): err(err) {
+    DescriptionBuffer(StatusCode err, ResponseDesc* desc) : err(err) {
         init(desc);
     }
 
@@ -37,7 +37,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      *
      * @param[in]  err   The StatusCode value
      */
-    explicit DescriptionBuffer(StatusCode err): err(err) {}
+    explicit DescriptionBuffer(StatusCode err) : err(err) {}
 
     /**
      * @brief      Constructs with ResponseDesc
@@ -65,7 +65,7 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @param      pBuffer  The buffer to wrtie to.
      * @param[in]  len      The length of `pBuffer`
      */
-    DescriptionBuffer(StatusCode err, char* pBuffer, size_t len): err(err) {
+    DescriptionBuffer(StatusCode err, char* pBuffer, size_t len) : err(err) {
         init(pBuffer, len);
     }
 
@@ -79,7 +79,8 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      */
     template <class T>
     DescriptionBuffer& operator<<(const T& obj) {
-        if (!stream) return *this;
+        if (!stream)
+            return *this;
         (*stream.get()) << obj;
 
         return *this;
@@ -90,7 +91,8 @@ struct DescriptionBuffer : public std::basic_streambuf<char, std::char_traits<ch
      * @return     A StatusCode value
      */
     operator StatusCode() const {
-        if (stream) stream->flush();
+        if (stream)
+            stream->flush();
         return err;
     }
 
@@ -99,7 +101,8 @@ private:
     StatusCode err = GENERAL_ERROR;
 
     void init(ResponseDesc* desc) {
-        if (desc == nullptr) return;
+        if (desc == nullptr)
+            return;
         init(desc->msg, sizeof(desc->msg) / sizeof(desc->msg[0]));
     }
 

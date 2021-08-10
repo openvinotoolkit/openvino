@@ -66,8 +66,11 @@ public:
      * @param dimOffsets per-dimension offset from the padding to actual data,
      * @param strides strides for each dimension
      */
-    BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset,
-                 const SizeVector& dimOffsets, const SizeVector& strides);
+    BlockingDesc(const SizeVector& blocked_dims,
+                 const SizeVector& order,
+                 size_t offset,
+                 const SizeVector& dimOffsets,
+                 const SizeVector& strides);
 
     /**
      * @brief Returns the blocked dimensions vector
@@ -335,11 +338,11 @@ private:
  * @brief This structure describes ROI data for image-like tensors.
  */
 struct ROI {
-    size_t id = 0;      //!< ID of a ROI (offset over batch dimension)
-    size_t posX = 0;    //!< W upper left coordinate of ROI
-    size_t posY = 0;    //!< H upper left coordinate of ROI
-    size_t sizeX = 0;   //!< W size of ROI
-    size_t sizeY = 0;   //!< H size of ROI
+    size_t id = 0;     //!< ID of a ROI (offset over batch dimension)
+    size_t posX = 0;   //!< W upper left coordinate of ROI
+    size_t posY = 0;   //!< H upper left coordinate of ROI
+    size_t sizeX = 0;  //!< W size of ROI
+    size_t sizeY = 0;  //!< H size of ROI
 
     ROI() = default;
 
@@ -351,9 +354,12 @@ struct ROI {
      * @param sizeX W size of ROI
      * @param sizeY H size of ROI
      */
-    ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY) :
-        id(id), posX(posX), posY(posY), sizeX(sizeX), sizeY(sizeY) {
-    }
+    ROI(size_t id, size_t posX, size_t posY, size_t sizeX, size_t sizeY)
+        : id(id),
+          posX(posX),
+          posY(posY),
+          sizeX(sizeX),
+          sizeY(sizeY) {}
 };
 
 /**
@@ -366,9 +372,6 @@ struct ROI {
  *
  * @return A newly created TensorDesc object representing ROI.
  */
-INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(
-        const TensorDesc& origDesc,
-        const ROI& roi,
-        bool useOrigMemDesc);
+INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_desc(const TensorDesc& origDesc, const ROI& roi, bool useOrigMemDesc);
 
 }  // namespace InferenceEngine

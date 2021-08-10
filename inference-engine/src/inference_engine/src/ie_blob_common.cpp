@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_blob.h"
-
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 

@@ -12,26 +12,26 @@
 
 #pragma once
 
-#include "vpu/myriad_plugin_config.hpp"
-#include "vpu/hddl_plugin_config.hpp"
 #include "ie_api.h"
+#include "vpu/hddl_plugin_config.hpp"
+#include "vpu/myriad_plugin_config.hpp"
 
 //
 // Common options
 //
 
-#define VPU_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_##name)
+#define VPU_CONFIG_KEY(name)   InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_##name)
 #define VPU_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_##name
 
-#define DECLARE_VPU_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_##name)
+#define DECLARE_VPU_CONFIG_KEY(name)   DECLARE_CONFIG_KEY(VPU_##name)
 #define DECLARE_VPU_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_##name)
 
 //
 // Common metrics
 //
 
-#define VPU_METRIC(name) METRIC_KEY(VPU_##name)
-#define DECLARE_VPU_METRIC(name, ...)  DECLARE_METRIC_KEY(VPU_##name, __VA_ARGS__)
+#define VPU_METRIC(name)              METRIC_KEY(VPU_##name)
+#define DECLARE_VPU_METRIC(name, ...) DECLARE_METRIC_KEY(VPU_##name, __VA_ARGS__)
 
 namespace InferenceEngine {
 
@@ -77,8 +77,8 @@ DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
  *   VPU_CONFIG_VALUE(NCHW) executable network forced to use NCHW input/output layouts
  *   VPU_CONFIG_VALUE(NHWC) executable network forced to use NHWC input/output layouts
  */
-INFERENCE_ENGINE_DEPRECATED("Use InputInfo::setLayout on input data from CNNNetwork::getInputsInfo() or" \
-    "Data::setLayout on output data from CNNNetwork::getOutputsInfo()")
+INFERENCE_ENGINE_DEPRECATED("Use InputInfo::setLayout on input data from CNNNetwork::getInputsInfo() or"
+                            "Data::setLayout on output data from CNNNetwork::getOutputsInfo()")
 DECLARE_VPU_CONFIG_KEY(COMPUTE_LAYOUT);
 
 /**

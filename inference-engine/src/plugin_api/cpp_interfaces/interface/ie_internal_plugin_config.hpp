@@ -24,7 +24,7 @@ namespace PluginConfigInternalParams {
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration keys
  */
-#define CONFIG_KEY_INTERNAL(name)  ::InferenceEngine::PluginConfigInternalParams::_CONFIG_KEY(name)
+#define CONFIG_KEY_INTERNAL(name) ::InferenceEngine::PluginConfigInternalParams::_CONFIG_KEY(name)
 
 /**
  * @brief Defines a low precision mode key

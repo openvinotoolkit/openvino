@@ -17,8 +17,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
-
-#include <ngraph/function.hpp>
+#include "ngraph/function.hpp"
 
 namespace InferenceEngine {
 
@@ -29,7 +28,7 @@ _IE_SUPPRESS_DEPRECATED_START_GCC
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork): public std::enable_shared_from_this<ICNNNetwork> {
+class INFERENCE_ENGINE_API_CLASS(ICNNNetwork) : public std::enable_shared_from_this<ICNNNetwork> {
 public:
     IE_SUPPRESS_DEPRECATED_START
     /**
@@ -127,7 +126,8 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0,
+    virtual StatusCode addOutput(const std::string& layerName,
+                                 size_t outputIndex = 0,
                                  ResponseDesc* resp = nullptr) noexcept = 0;
 
     /**
@@ -219,8 +219,7 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode serialize(std::ostream& xmlStream, Blob::Ptr& binData, ResponseDesc* resp) const
-        noexcept = 0;
+    virtual StatusCode serialize(std::ostream& xmlStream, Blob::Ptr& binData, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
@@ -233,10 +232,11 @@ public:
      * @return Status code of the operation
      */
     INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::CNNNetwork wrapper instead")
-    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-        (void) ov_name;
-        (void) orig_name;
-        (void) resp;
+    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
+        noexcept {
+        (void)ov_name;
+        (void)orig_name;
+        (void)resp;
         return NOT_IMPLEMENTED;
     }
 

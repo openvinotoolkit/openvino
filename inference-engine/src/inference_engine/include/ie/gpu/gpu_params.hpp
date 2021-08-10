@@ -41,8 +41,7 @@ namespace GPUContextParams {
  * @def DECLARE_GPU_PARAM_KEY(name, ...)
  * @brief Shortcut for defining object parameter keys
  */
-#define DECLARE_GPU_PARAM_KEY(name, ...)         \
-    static constexpr auto PARAM_##name = #name
+#define DECLARE_GPU_PARAM_KEY(name, ...) static constexpr auto PARAM_##name = #name
 /**
  * @brief Shared device context type: can be either pure OpenCL (OCL)
  * or shared video decoder (VA_SHARED) context

@@ -18,68 +18,68 @@ namespace InferenceEngine {
 namespace Metrics {
 
 /**
-* @brief Metric to get a int of the device number, String value is METRIC_HDDL_DEVICE_NUM
-*/
+ * @brief Metric to get a int of the device number, String value is METRIC_HDDL_DEVICE_NUM
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_NUM, int);
 
 /**
-* @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
-*/
+ * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_NAME, std::vector<std::string>);
 
 /**
-* @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL
-*/
+ * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_THERMAL, std::vector<float>);
 
 /**
-* @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_HDDL_DEVICE_ID
-*/
+ * @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_HDDL_DEVICE_ID
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_ID, std::vector<unsigned int>);
 
 /**
-* @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_HDDL_DEVICE_SUBCLASS
-*/
+ * @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_HDDL_DEVICE_SUBCLASS
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_SUBCLASS, std::vector<int>);
 
 /**
-* @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_HDDL_MEMORY_TOTAL
-*/
+ * @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_HDDL_MEMORY_TOTAL
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
 
 /**
-* @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_HDDL_DEVICE_MEMORY_USED
-*/
+ * @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_HDDL_DEVICE_MEMORY_USED
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_USED, std::vector<unsigned int>);
 
 /**
-* @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_HDDL_DEVICE_UTILIZATION
-*/
+ * @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_HDDL_DEVICE_UTILIZATION
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_UTILIZATION, std::vector<float>);
 
 /**
-* @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_HDDL_DEVICE_STREAM_ID
-*/
+ * @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_HDDL_DEVICE_STREAM_ID
+ */
 DECLARE_METRIC_KEY(HDDL_STREAM_ID, std::vector<std::string>);
 
 /**
-* @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_HDDL_DEVICE_TAG
-*/
+ * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_HDDL_DEVICE_TAG
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_TAG, std::vector<std::string>);
 
 /**
-* @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_HDDL_GROUP_ID
-*/
+ * @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_HDDL_GROUP_ID
+ */
 DECLARE_METRIC_KEY(HDDL_GROUP_ID, std::vector<int>);
 
 /**
-* @brief  Metric to get a int number of device be using for group, String value is METRIC_HDDL_DEVICE_GROUP_USING_NUM
-*/
+ * @brief  Metric to get a int number of device be using for group, String value is METRIC_HDDL_DEVICE_GROUP_USING_NUM
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_GROUP_USING_NUM, int);
 
 /**
-* @brief  Metric to get a int number of total device, String value is METRIC_HDDL_DEVICE_TOTAL_NUM
-*/
+ * @brief  Metric to get a int number of total device, String value is METRIC_HDDL_DEVICE_TOTAL_NUM
+ */
 DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
 
 }  // namespace Metrics
@@ -151,8 +151,9 @@ DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
  * @brief [Only for HDDLPlugin]
  * Type: A signed int wrapped in a string, default is "0".
  * This config is a sub-config of DEVICE_TAG, and only available when "DEVICE_TAG" is set and "BIND_DEVICE" is "False".
- * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass Scheduler),
- * the device with a larger number has a higher priority, and more inference tasks will be fed to it with priority.
+ * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass
+ * Scheduler), the device with a larger number has a higher priority, and more inference tasks will be fed to it with
+ * priority.
  */
 DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
 
@@ -171,7 +172,7 @@ DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
  * This config gives a "group id" for a certain device when this device has been reserved for certain client, client
  * can use this device grouped by calling this group id while other client can't use this device
  * Each device has their own group id. Device in one group shares same group id.
-  */
+ */
 DECLARE_VPU_CONFIG(HDDL_GROUP_DEVICE);
 
 }  // namespace InferenceEngine

@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <ie_api.h>
-
-#include <tuple>
 #include <memory>
+#include <tuple>
+
+#include "ie_api.h"
 
 #if !(defined(__APPLE__) || defined(_WIN32))
-#include <sched.h>
+#    include <sched.h>
 #endif
 
 namespace InferenceEngine {

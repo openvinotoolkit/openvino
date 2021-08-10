@@ -26,7 +26,8 @@ _IE_SUPPRESS_DEPRECATED_START_GCC
  * @deprecated Use InferenceEngine::InferRequest C++ wrapper
  * @brief This is an interface of asynchronous infer request
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::InferRequest C++ wrapper") IInferRequest : public std::enable_shared_from_this<IInferRequest> {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::InferRequest C++ wrapper") IInferRequest
+    : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
@@ -83,7 +84,10 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
      */
-    virtual StatusCode SetBlob(const char *name, const Blob::Ptr &data, const PreProcessInfo& info, ResponseDesc *resp) noexcept = 0;
+    virtual StatusCode SetBlob(const char* name,
+                               const Blob::Ptr& data,
+                               const PreProcessInfo& info,
+                               ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Gets pre-process for input data
@@ -92,7 +96,8 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
      */
-    virtual StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc *resp) const noexcept = 0;
+    virtual StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc* resp) const
+        noexcept = 0;
     /**
      * @brief Infers specified input(s) in synchronous mode
      *

@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
-#include <ie_iextension.h>
-#include <ie_blob.h>
 #include <string>
+
+#include "cpp/ie_cnn_network.h"
+#include "ie_blob.h"
+#include "ie_iextension.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -20,7 +21,9 @@ namespace details {
  * @param exts vector with extensions
  * @return CNNNetwork
  */
-CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts);
+CNNNetwork ReadNetwork(const std::string& modelPath,
+                       const std::string& binPath,
+                       const std::vector<IExtensionPtr>& exts);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR
