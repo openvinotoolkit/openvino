@@ -5,6 +5,7 @@
 #include <frontend_manager/frontend_exceptions.hpp>
 #include <frontend_manager/frontend_manager.hpp>
 #include <input_model.hpp>
+#include <ngraph/file_util.hpp>
 #include <onnx_frontend/frontend.hpp>
 #include <onnx_import/onnx.hpp>
 
@@ -57,4 +58,21 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) co
 std::string FrontEndONNX::get_name() const
 {
     return "onnx";
+}
+
+bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const
+{
+    if (variants.size() > 0 && is_type<VariantWrapper<std::string>>(variants[0]))
+    {
+        const auto path = as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
+        if (file_util::get_file_ext(path) == ".onnx")
+        {
+            return true;
+        }
+        if (file_util::get_file_ext(path) == ".prototxt")
+        {
+            return true;
+        }
+    }
+    return false;
 }

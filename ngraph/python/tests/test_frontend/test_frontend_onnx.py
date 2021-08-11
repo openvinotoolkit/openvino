@@ -49,6 +49,7 @@ def teardown_module():
 
 def skip_if_onnx_frontend_is_disabled():
     front_ends = fem.get_available_front_ends()
+    print(front_ends)
     if "onnx" not in front_ends:
         pytest.skip()
 
@@ -95,3 +96,12 @@ def test_decode_and_convert():
     b = np.array([[2, 3], [4, 5]], dtype=np.float32)
     expected = np.array([[1.5, 5], [10.5, 18]], dtype=np.float32)
     run_function(decoded_function, a, b, expected=[expected])
+
+
+def test_load_by_model():
+    skip_if_onnx_frontend_is_disabled()
+
+    assert fem.load_by_model(onnx_model_filename)
+    assert fem.load_by_model("test.prototxt")
+    assert not fem.load_by_model("test.xx")
+    assert not fem.load_by_model("onnx.yy")
