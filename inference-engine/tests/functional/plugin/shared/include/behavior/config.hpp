@@ -82,6 +82,16 @@ namespace BehaviorTestsDefinitions {
         ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 
+    TEST_P(CorrectConfigTests, CanUseCache) {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        // Create CNNNetwork from ngrpah::Function
+        InferenceEngine::CNNNetwork cnnNet(function);
+        ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+        ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
+    }
+
     using CorrectSingleOptionCustomValueConfigTests = BehaviorTestsUtils::BehaviorTestsSingleOptionCustom;
 
     TEST_P(CorrectSingleOptionCustomValueConfigTests, CheckCustomValueOfConfig) {
