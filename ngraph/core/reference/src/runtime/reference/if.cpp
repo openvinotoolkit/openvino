@@ -27,14 +27,22 @@ namespace ngraph
                 HostTensorVector inputs_to_body;
                 HostTensorVector outs_from_body;
                 inputs_to_body.resize(input_descs[branch_index].size());
+                auto inputs_size = args.size();
+                auto output_size = out.size();
                 for (const auto& input_desc : input_descs[branch_index])
                 {
+                    NGRAPH_CHECK(inputs_size > input_desc->m_input_index,
+                                 "Incorrect associating! If has not input with id ",
+                                 input_desc->m_input_index);
                     inputs_to_body[input_desc->m_body_parameter_index] =
                         args[input_desc->m_input_index];
                 }
                 reference::function(bodies[branch_index], inputs_to_body, outs_from_body);
                 for (const auto& out_descr : out_descs[branch_index])
                 {
+                    NGRAPH_CHECK(output_size > out_descr->m_output_index,
+                                 "Incorrect associating! If has not output with id ",
+                                 out_descr->m_output_index);
                     auto res = outs_from_body[out_descr->m_body_value_index];
                     out[out_descr->m_output_index]->set_shape(res->get_shape());
                     out[out_descr->m_output_index]->write(res->get_data_ptr(),
