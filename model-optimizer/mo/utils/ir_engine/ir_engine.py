@@ -23,7 +23,6 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=
 # in a safe manner without including unsafe xml.etree.ElementTree
 ElementTree = defuse_stdlib()[ET].ElementTree
 
-
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
         if not xml_tree and not os.path.exists(path_to_xml):
@@ -56,8 +55,7 @@ class IREngine(object):
         self.graph = Graph()
         self.graph.graph['hashes'] = {}
 
-        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get(
-            'version') is not None else None
+        self.graph.graph['ir_version'] = int(xml_root.attrib['version']) if xml_root.attrib.get('version') is not None else None
         self.graph.graph['layout'] = 'NCHW'
         self.graph.name = xml_root.attrib['name'] if xml_root.attrib.get('name') is not None else None
 
@@ -212,11 +210,8 @@ class IREngine(object):
                 new_attrs = self.__normalize_attrs(attr.attrib)
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
-                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(),
-                                                                                         ['offset', 'size'])
-                    new_attrs.update(
-                        self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'],
-                                                 layer[1][0].attrib['precision']))
+                        'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
+                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -427,8 +422,8 @@ class IREngine(object):
         xml_else_body_child = list(layer.iterfind('else_body'))
         assert len(xml_then_body_child) == 1 and len(xml_else_body_child) == 1, "If operation has only one subgraph"
 
-        then_body_ir, then_input_port_map, then_output_port_map, _ =\
-            self.__read_subgraph(layer,layer_attrs, xml_then_body_child, 'then_port_map')
+        then_body_ir, then_input_port_map, then_output_port_map, _ = \
+            self.__read_subgraph(layer, layer_attrs, xml_then_body_child, 'then_port_map')
         layer_attrs.update({'then_graph': then_body_ir})
         layer_attrs.update({'then_input_port_map': then_input_port_map})
         layer_attrs.update({'then_output_port_map': then_output_port_map})

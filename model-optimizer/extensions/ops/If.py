@@ -144,9 +144,9 @@ class If(Op):
         # variable then_contains_fake_outputs/else_contains_fake_outputs contains True value
         # if all outputs from then_body/else_body have shape [0]. It means then_body/else_body does not return data
         # and further shape_inference for this branch is not possible.
-        # TODO: exclude support  fake_outputs from this code when we will support shape_inference with empty tensors
-        then_contains_fake_outputs = False
-        else_contains_fake_outputs = False
+        # TODO: exclude support fake_outputs from this code when we will support shape_inference with empty tensors
+        then_contains_fake_outputs = True
+        else_contains_fake_outputs = True
 
         for then_output_node in then_outputs:
             assert then_output_node.soft_get('type') == 'Result'
@@ -156,8 +156,7 @@ class If(Op):
                 .format(then_output_node.name, port_id)
             outputs_mapping[port_id]['then_graph'] = then_output_node
             then_shape = then_output_node.in_port(0).data.get_shape()
-
-            then_contains_fake_outputs = then_contains_fake_outputs or np.any(then_shape == 0)
+            then_contains_fake_outputs = then_contains_fake_outputs and np.any(then_shape == 0)
 
         for else_output_node in else_outputs:
             assert else_output_node.soft_get('type') == 'Result'
@@ -167,7 +166,7 @@ class If(Op):
                 .format(else_output_node.name, port_id)
             outputs_mapping[port_id]['else_graph'] = else_output_node
             else_shape = else_output_node.in_port(0).data.get_shape()
-            else_contains_fake_outputs = else_contains_fake_outputs or np.any(else_shape == 0)
+            else_contains_fake_outputs = else_contains_fake_outputs and np.any(else_shape == 0)
 
         # use_then_shape is True when else_body or when both bodies do not return data. If use_then_shape is True If's
         # outputs will have the same shapes as then_body results
@@ -240,7 +239,7 @@ class If(Op):
     @staticmethod
     def re_numerate_internal_id_and_get_if_id(if_node):
         """
-            This method is called before IR generation. This method sets internal_layer_id.
+        This method is called before IR generation. This method sets internal_layer_id.
 
         :param if_node: The If node where is necessary to set internal_layer_id in bodies.
         :return: if_node
@@ -285,12 +284,13 @@ class If(Op):
 
     @staticmethod
     def generate_port_map(if_node: Node, condition: bool, dir: str):
-        """ Extract port_map attributes from if_node and its subgraphs attributes.
+        """
+        Extract port_map attributes from if_node and its subgraphs attributes.
 
-            :param if_node: The If node
-            :param condition: the boolean defining a condition (then/else) graph
-            :param dir: the str value defining type (for inputs or for putputs) of port_map
-            :return: port_map -> list of dictionaries with to values(external_port_id or internal_layer_id)
+        :param if_node: The If node
+        :param condition: the boolean defining a condition (then/else) graph
+        :param dir: the str value defining type (for inputs or for putputs) of port_map
+        :return: port_map -> list of dictionaries with to values(external_port_id or internal_layer_id)
         """
         port_map = []
         subgraph = if_node.then_graph if condition else if_node.else_graph
