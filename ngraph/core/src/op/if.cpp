@@ -30,17 +30,27 @@ op::v8::If::If(const Output<Node>& execution_condition)
     set_argument(0, execution_condition);
 }
 
+// This function tries to calculate the output shape of the if operation by two outputs from two
+// subgraphs.
 static ngraph::PartialShape resolve_shape(const ngraph::PartialShape& then_pshape,
                                           const ngraph::PartialShape& else_pshape)
 {
+    // then_pshape - shape of output from then_body
+    // else_pshape - shape of output from else_body
     auto then_rank = then_pshape.rank();
     auto else_rank = else_pshape.rank();
+    // if rangs of shapes are not equal or rang of one of them is dynamic function
+    // return shape with dynamic rank
     if (then_rank.is_dynamic() || else_rank.is_dynamic() ||
         then_rank.get_length() != else_rank.get_length())
     {
         return ngraph::PartialShape::dynamic(ngraph::Rank::dynamic());
     }
     std::vector<Dimension> new_dims;
+
+    // If rangs are equal each dimesion of then_body output is union with each dimension of
+    // else_body
+
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin();
          then_it != then_pshape.cend();
          then_it++, else_it++)

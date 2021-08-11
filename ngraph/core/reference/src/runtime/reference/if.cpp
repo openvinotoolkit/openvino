@@ -4,17 +4,14 @@
 
 #include "ngraph/runtime/reference/if.hpp"
 #include "ngraph/runtime/reference/function.hpp"
+#include "ngraph/op/if.hpp"
+
 namespace ngraph
 {
     namespace runtime
     {
         namespace reference
         {
-            enum if_body_indexes
-            {
-                then_body_index = 0,
-                else_body_index = 1
-            };
             void if_reference(
                 const std::vector<std::shared_ptr<Function>>& bodies,
                 const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
@@ -22,9 +19,10 @@ namespace ngraph
                 const HostTensorVector& out,
                 const HostTensorVector& args)
             {
+                NGRAPH_CHECK(args.size() > 0, "If operation must have input condition value");
                 auto condition_value = args[0]->get_data_ptr<bool>()[0];
-                auto branch_index = (condition_value) ? if_body_indexes::then_body_index
-                                                      : if_body_indexes::else_body_index;
+                auto branch_index = (condition_value) ? op::v8::If::then_body_index
+                                                      : op::v8::If::else_body_index;
                 HostTensorVector inputs_to_body;
                 HostTensorVector outs_from_body;
                 inputs_to_body.resize(input_descs[branch_index].size());
