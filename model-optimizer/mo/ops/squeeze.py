@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, shape_delete, is_fully_defined
 from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -56,6 +56,7 @@ class Squeeze(Op):
                 if output_shape[i] == 1:
                     real_squeeze_dims = np.ma.append(real_squeeze_dims, get_canonical_axis_index(output_shape, i))
 
+        assert is_fully_defined(real_squeeze_dims), 'Squeeze dimension(s) is not defined for op "{}"'.format(node_name)
         output_shape = shape_delete(output_shape, real_squeeze_dims)
         node.out_port(0).data.set_shape(output_shape)
 
