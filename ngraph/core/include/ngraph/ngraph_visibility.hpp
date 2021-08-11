@@ -4,6 +4,8 @@
 
 #include "ngraph/visibility.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 // Now we use the generic helper definitions above to define NGRAPH_API
 // NGRAPH_API is used for the public API symbols. It either DLL imports or DLL exports
 //    (or does nothing for static build)

@@ -21,6 +21,8 @@
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     namespace element

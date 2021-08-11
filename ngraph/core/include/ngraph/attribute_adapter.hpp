@@ -11,6 +11,8 @@
 #include "ngraph/enum_names.hpp"
 #include "ngraph/type.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 ///
 namespace ov
 {

@@ -12,6 +12,8 @@
 #include "ngraph/rank.hpp"
 #include "ngraph/shape.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     namespace op

@@ -12,6 +12,8 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/strides.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// \brief Shape for a tensor.

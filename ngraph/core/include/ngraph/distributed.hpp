@@ -12,6 +12,8 @@
 #include "ngraph/type.hpp"
 #include "ngraph/type/element_type.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     namespace reduction

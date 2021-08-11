@@ -9,6 +9,8 @@
 
 #include <ngraph/ngraph_visibility.hpp>
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// Base error for ngraph runtime errors.

@@ -14,6 +14,8 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     class Node;

@@ -37,6 +37,8 @@
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     template <typename NodeType>

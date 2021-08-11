@@ -10,6 +10,8 @@
 #include "ngraph/node.hpp"
 #include "ngraph/type.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     NGRAPH_API

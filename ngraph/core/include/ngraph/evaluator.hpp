@@ -12,6 +12,8 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// \brief Execute handlers on a subgraph to compute values

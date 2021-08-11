@@ -6,6 +6,8 @@
 
 #include "ngraph/partial_shape.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     template <typename AXIS_VALUES>

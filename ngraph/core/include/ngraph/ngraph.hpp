@@ -82,3 +82,5 @@ namespace ov
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+
+#include "ngraph/ngraph_namespace.hpp"

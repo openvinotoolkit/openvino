@@ -11,6 +11,8 @@
 #include "ngraph/output_vector.hpp"
 #include "ngraph/type.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     class Node;

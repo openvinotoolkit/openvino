@@ -12,6 +12,8 @@
 #include "ngraph/interval.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),

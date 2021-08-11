@@ -11,6 +11,8 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// \brief Coordinates for a tensor element

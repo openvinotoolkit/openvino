@@ -14,6 +14,8 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// Supports three functions, is_type<Type>, as_type<Type>, and as_type_ptr<Type> for type-safe

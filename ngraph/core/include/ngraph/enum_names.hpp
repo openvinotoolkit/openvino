@@ -10,6 +10,8 @@
 
 #include "ngraph/check.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// Uses a pairings defined by EnumTypes::get() to convert between strings

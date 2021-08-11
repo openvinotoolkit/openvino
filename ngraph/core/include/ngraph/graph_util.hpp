@@ -18,6 +18,8 @@
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     namespace descriptor

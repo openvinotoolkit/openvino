@@ -20,6 +20,8 @@
 #include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// A user-defined function.

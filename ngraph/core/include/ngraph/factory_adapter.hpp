@@ -8,6 +8,8 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     template <typename BASE_TYPE>

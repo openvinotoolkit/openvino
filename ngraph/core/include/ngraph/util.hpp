@@ -26,6 +26,8 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/shape.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     class Node;

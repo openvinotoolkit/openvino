@@ -12,6 +12,8 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/variable_context.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     NGRAPH_API

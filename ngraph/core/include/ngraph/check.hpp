@@ -10,6 +10,8 @@
 
 #include "ngraph/except.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     static inline std::ostream& write_all_to_stream(std::ostream& str) { return str; }

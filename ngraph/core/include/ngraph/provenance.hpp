@@ -10,6 +10,8 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     NGRAPH_API

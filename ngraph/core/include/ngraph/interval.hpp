@@ -12,6 +12,8 @@
 
 #include "ngraph/ngraph_visibility.hpp"
 
+#include "ngraph/ngraph_namespace.hpp"
+
 namespace ov
 {
     /// \brief Interval arithmetic
