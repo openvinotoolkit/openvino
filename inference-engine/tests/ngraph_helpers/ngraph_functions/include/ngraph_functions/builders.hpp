@@ -291,6 +291,11 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool normalizeVariance,
                                       double eps);
 
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      const ngraph::AxisSet &axes,
+                                      bool normalizeVariance,
+                                      double eps);
+
 std::shared_ptr<ngraph::Node> makeMVN6(const Output<Node>& in,
                                        const Output<Node>& axesNode,
                                        bool normalizeVariance,
@@ -437,6 +442,10 @@ std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in
 std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
                                              const ngraph::Output<Node> &in1,
                                              ngraph::helpers::ComparisonTypes comparisonType);
+
+std::shared_ptr<ngraph::Node> makeConversion(const ngraph::Output<Node>& in,
+                                             const element::Type& type,
+                                             const ngraph::helpers::ConversionTypes& conversionType);
 
 std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,

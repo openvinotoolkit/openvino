@@ -4,9 +4,9 @@
 
 #include "non_max_suppression_inst.h"
 #include "primitive_inst.h"
-#include "network_impl.h"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
+#include "impls/implementation_map.hpp"
 
 #include <vector>
 #include <queue>
@@ -381,7 +381,7 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
 
     non_max_suppression_impl() : parent(kernel_selector::weights_reorder_params(), "non_max_suppression_impl") {}
 
-    virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) {
+    event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<non_max_suppression>& instance) override {
         for (auto e : event) {
             e->wait();
         }

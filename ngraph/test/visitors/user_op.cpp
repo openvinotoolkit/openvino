@@ -172,7 +172,7 @@ public:
 
     TuringModel get_turing_model() const { return m_turing_model; }
     const element::Type get_element_type() const { return m_element_type; }
-    const element::Type_t get_element_type_t() const { return m_element_type_t; }
+    element::Type_t get_element_type_t() const { return m_element_type_t; }
     const string& get_val_string() const { return m_val_string; }
     bool get_val_bool() const { return m_val_bool; }
     bool get_val_float() const { return m_val_float; }

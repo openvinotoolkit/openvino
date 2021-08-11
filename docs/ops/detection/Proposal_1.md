@@ -141,7 +141,7 @@
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 **Example**
 

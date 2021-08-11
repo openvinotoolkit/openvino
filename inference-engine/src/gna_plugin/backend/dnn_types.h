@@ -227,7 +227,7 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     return r->second;
 }
 
-static std::string OvGnaTypeToString(OvGnaType type) {
+inline std::string OvGnaTypeToString(OvGnaType type) {
     static const std::map<OvGnaType, std::string> typeToString = {
         {OvGnaTypeInt8, "OvGnaTypeInt8"},
         {OvGnaTypeInt16, "OvGnaTypeInt16"},
@@ -241,7 +241,7 @@ static std::string OvGnaTypeToString(OvGnaType type) {
     return r->second;
 }
 
-static std::string OvGnaModeToString(OvGnaMode mode) {
+inline std::string OvGnaModeToString(OvGnaMode mode) {
     static const std::map<OvGnaMode, std::string> modeToString = {
         {OvGnaModeDefault, "OvGnaModeDefault"},
         {OvGnaModeDisabled, "OvGnaModeDisabled"},

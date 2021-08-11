@@ -69,14 +69,14 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *nms_threshold*
 
   * **Description**: threshold to be used in the NMS stage
-  * **Range of values**: floating point values
+  * **Range of values**: floating-point values
   * **Type**: float
   * **Required**: *yes*
 
 * *confidence_threshold*
 
   * **Description**: only consider detections whose confidences are larger than a threshold. If not provided, consider all boxes.
-  * **Range of values**: floating point values
+  * **Range of values**: floating-point values
   * **Type**: float
   * **Default value**: 0
   * **Required**: *no*
@@ -145,7 +145,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 
 **Example**

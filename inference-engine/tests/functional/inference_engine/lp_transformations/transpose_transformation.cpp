@@ -41,7 +41,7 @@ public:
     };
 
     std::vector<int> transposeConstValues;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     Actual actual;
     Expected expected;
 };

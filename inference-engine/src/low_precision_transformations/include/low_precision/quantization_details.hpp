@@ -8,7 +8,7 @@
 #include <ostream>
 #include <vector>
 
-#include <transformations_visibility.hpp>
+#include <low_precision/lpt_visibility.hpp>
 
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -18,7 +18,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API QuantizationDetails {
+class LP_TRANSFORMATIONS_API QuantizationDetails {
 public:
     QuantizationDetails();
     QuantizationDetails(const QuantizationDetails& quantizationDetails);
@@ -27,32 +27,24 @@ public:
             const std::vector<float>& inputLowValues,
             const std::vector<float>& inputHighValues,
             const std::vector<float>& outputLowValues,
-            const std::vector<float>& outputHighValues,
-            const size_t inputIntervalsCount,
-            const size_t outputIntervalsCount,
-            const size_t outputChannelsCount);
+            const std::vector<float>& outputHighValues);
 
     static bool outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize);
 
     static void getInputIntervals(
             std::shared_ptr<opset1::FakeQuantize> quantize,
             std::vector<float>& inputLowValues,
-            std::vector<float>& inputHighValues,
-            size_t& inputIntervalsCount);
+            std::vector<float>& inputHighValues);
 
     static void getOutputIntervals(
             std::shared_ptr<opset1::FakeQuantize> quantize,
             std::vector<float>& outputLowValues,
-            std::vector<float>& outputHighValues,
-            size_t& outputIntervalsCount);
+            std::vector<float>& outputHighValues);
 
     static QuantizationDetails getDetails(std::shared_ptr<opset1::FakeQuantize>);
     bool hasNegativeOutput() const;
     float maxOutput(const size_t channel) const;
     float maxInput(const size_t channel) const;
-
-    float maxOutputHigh() const;
-    float minOutputLow() const;
 
     float getInputLowValue(const size_t channel) const;
     float getInputHighValue(const size_t channel) const;
@@ -66,19 +58,15 @@ public:
     const std::vector<float> inputHighValues;
     const std::vector<float> outputLowValues;
     const std::vector<float> outputHighValues;
-    const size_t inputIntervalsCount;
-    const size_t outputIntervalsCount;
-    const size_t outputChannelsCount;
 
 private:
-    static void validate(std::shared_ptr<Node> constantLayer);
     static std::vector<float> getBlobValue(std::shared_ptr<Node> constantLayer);
 };
 
 inline std::ostream &operator << (std::ostream &os, const QuantizationDetails& value) {
     os << "levels: " << value.levels <<
-       ", input 1/" << value.inputIntervalsCount << ": [" << value.getInputLowValue(0) << " : " << value.getInputHighValue(0) << "], " <<
-       ", output 1/" << value.outputIntervalsCount << ": [" << value.getOutputLowValue(0) << " : " << value.getOutputHighValue(0) << "]";
+       ", input 1/" << value.inputLowValues.size() << ": [" << value.getInputLowValue(0) << " : " << value.getInputHighValue(0) << "], " <<
+       ", output 1/" << value.outputLowValues.size() << ": [" << value.getOutputLowValue(0) << " : " << value.getOutputHighValue(0) << "]";
     return os;
 }
 

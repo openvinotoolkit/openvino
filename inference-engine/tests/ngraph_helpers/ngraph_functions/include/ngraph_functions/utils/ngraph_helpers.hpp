@@ -99,6 +99,7 @@ enum ActivationTypes {
     Clamp,
     Negative,
     Acos,
+    Acosh,
     Asin,
     Asinh,
     Atan,
@@ -145,6 +146,11 @@ enum ComparisonTypes {
     LESS_EQUAL,
     GREATER,
     GREATER_EQUAL
+};
+
+enum ConversionTypes {
+    CONVERT,
+    CONVERT_LIKE
 };
 
 enum LogicalTypes {
