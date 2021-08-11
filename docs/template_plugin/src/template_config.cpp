@@ -23,7 +23,8 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
 
         if (TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) == key) {
             _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value);
-        } else if (streamExecutorConfigKeys.end() != std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
+        } else if (streamExecutorConfigKeys.end() !=
+                   std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             _streamsExecutorConfig.SetConfig(key, value);
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = std::stoi(value);

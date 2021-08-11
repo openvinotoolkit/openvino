@@ -9,7 +9,7 @@ using namespace TemplateExtension;
 //! [op:ctor]
 NGRAPH_RTTI_DEFINITION(TemplateExtension::Operation, "Template", 0);
 
-Operation::Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add): Op({arg}), add(add) {
+Operation::Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add) : Op({arg}), add(add) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]

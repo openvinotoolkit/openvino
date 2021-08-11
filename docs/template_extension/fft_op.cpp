@@ -9,7 +9,7 @@ using namespace TemplateExtension;
 
 constexpr ngraph::NodeTypeInfo FFTOp::type_info;
 
-FFTOp::FFTOp(const ngraph::Output<ngraph::Node>& inp, bool _inverse): Op({inp}) {
+FFTOp::FFTOp(const ngraph::Output<ngraph::Node>& inp, bool _inverse) : Op({inp}) {
     constructor_validate_and_infer_types();
     inverse = _inverse;
 }

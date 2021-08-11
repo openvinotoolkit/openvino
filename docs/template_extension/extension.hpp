@@ -25,7 +25,8 @@ public:
 
     std::map<std::string, ngraph::OpSet> getOpSets() override;
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override;
-    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override;
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node,
+                                                       const std::string& implType) override;
 };
 
 }  // namespace TemplateExtension

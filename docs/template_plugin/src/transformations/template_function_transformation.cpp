@@ -24,7 +24,8 @@ bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Fun
             // Check that input and output shape a fully defined (not dynamic) and number of consumers equal to 1
             Input<Node> input = node->input(0);
             Output<Node> output = node->output(0);
-            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static() && output.get_target_inputs().size() == 1) {
+            if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static() &&
+                output.get_target_inputs().size() == 1) {
                 nodes.push_back(node);
             }
         }
@@ -32,7 +33,8 @@ bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Fun
 
     // Print types and names for collected nodes
     for (auto& node : nodes) {
-        std::cout << "Type: " << node->get_type_info().name << std::endl << "Name: " << node->get_friendly_name() << std::endl;
+        std::cout << "Type: " << node->get_type_info().name << std::endl
+                  << "Name: " << node->get_friendly_name() << std::endl;
     }
 
     // Return false because we didn't change nGraph Function

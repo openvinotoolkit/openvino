@@ -12,7 +12,8 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
 
-ngraph::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap): m_inputInfoMap(inputInfoMap) {}
+ngraph::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap)
+    : m_inputInfoMap(inputInfoMap) {}
 
 bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::AddMeanSubtract::MeanMap meanMap;
@@ -39,10 +40,12 @@ bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Fun
                 has_mean_image = true;
                 if (c == 0) {
                     meanImage = pInfo[c]->meanData;
-                    NGRAPH_CHECK(meanImage->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32,
-                                 "Only InferenceEngine::Precision::FP32 precision is supported for PreProcessChannel::meanData");
+                    NGRAPH_CHECK(
+                        meanImage->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32,
+                        "Only InferenceEngine::Precision::FP32 precision is supported for PreProcessChannel::meanData");
                 } else {
-                    NGRAPH_CHECK(meanImage->getTensorDesc() == pInfo[c]->meanData->getTensorDesc(), "TensorDesc for PreProcessChannel::meanData must be equal");
+                    NGRAPH_CHECK(meanImage->getTensorDesc() == pInfo[c]->meanData->getTensorDesc(),
+                                 "TensorDesc for PreProcessChannel::meanData must be equal");
                 }
             }
         }
@@ -52,7 +55,8 @@ bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Fun
             continue;
         }
 
-        NGRAPH_CHECK(!(has_mean_image && has_scales), "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
+        NGRAPH_CHECK(!(has_mean_image && has_scales),
+                     "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
 
         if (has_scales) {
             ngraph::Shape shape(inputDims.size(), 1);

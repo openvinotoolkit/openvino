@@ -18,8 +18,10 @@ using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
-                                                     const InferenceEngine::InputsDataMap& inputInfoMap, const InferenceEngine::OutputsDataMap& outputsInfoMap,
-                                                     const Configuration& cfg, const Plugin::Ptr& plugin)
+                                                     const InferenceEngine::InputsDataMap& inputInfoMap,
+                                                     const InferenceEngine::OutputsDataMap& outputsInfoMap,
+                                                     const Configuration& cfg,
+                                                     const Plugin::Ptr& plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr),  // Disable default threads creation
       _cfg(cfg),
       _plugin(plugin) {
@@ -40,7 +42,11 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 // ! [executable_network:ctor_cnnnetwork]
 
 // ! [executable_network:ctor_import_stream]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model, const Configuration& cfg, const Plugin::Ptr& plugin): _cfg(cfg), _plugin(plugin) {
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
+                                                     const Configuration& cfg,
+                                                     const Plugin::Ptr& plugin)
+    : _cfg(cfg),
+      _plugin(plugin) {
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -53,7 +59,9 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model, const 
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
         dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {static_cast<std::size_t>(dataSize)}, InferenceEngine::Layout::C));
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                        {static_cast<std::size_t>(dataSize)},
+                                        InferenceEngine::Layout::C));
         dataBlob->allocate();
         model.read(dataBlob->buffer(), dataSize);
     }
@@ -84,7 +92,8 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model, const 
 
 // ! [executable_network:map_graph]
 // forward declaration
-std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function, const InferenceEngine::InputsDataMap& inputInfoMap,
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                   const InferenceEngine::InputsDataMap& inputInfoMap,
                                                    const InferenceEngine::OutputsDataMap& outputsInfoMap);
 
 void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
@@ -117,29 +126,36 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<con
 void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // Default multi-threaded configuration is balanced for throughtput and latency cases and takes into account
     // real hardware cores and NUMA nodes.
-    auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg._streamsExecutorConfig);
+    auto streamsExecutorConfig =
+        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg._streamsExecutorConfig);
     streamsExecutorConfig._name = "TemplateStreamsExecutor";
     // As Inference Engine CPU Streams Executor creates some additional therads
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
     _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
-    // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of inference request pipeline
-    // _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
+    // inference request pipeline _callbackExecutor =
+    // InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
 // ! [executable_network:create_infer_request_impl]
-InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                                                      InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<TemplateInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
+    InferenceEngine::InputsDataMap networkInputs,
+    InferenceEngine::OutputsDataMap networkOutputs) {
+    return std::make_shared<TemplateInferRequest>(networkInputs,
+                                                  networkOutputs,
+                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest), _taskExecutor, _plugin->_waitExecutor,
+    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+                                                       _taskExecutor,
+                                                       _plugin->_waitExecutor,
                                                        _callbackExecutor);
 }
 // ! [executable_network:create_infer_request]
@@ -154,11 +170,16 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const st
 InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string& name) const {
     // TODO: return more supported values for metrics
     if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string> {METRIC_KEY(NETWORK_NAME), METRIC_KEY(SUPPORTED_METRICS),
-                                                                          METRIC_KEY(SUPPORTED_CONFIG_KEYS), METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             std::vector<std::string>{METRIC_KEY(NETWORK_NAME),
+                                                      METRIC_KEY(SUPPORTED_METRICS),
+                                                      METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                                                      METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID), CONFIG_KEY(PERF_COUNT), TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config {}.SupportedKeys();
+        std::vector<std::string> configKeys = {CONFIG_KEY(DEVICE_ID),
+                                               CONFIG_KEY(PERF_COUNT),
+                                               TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configKeys.emplace_back(configKey);
         }

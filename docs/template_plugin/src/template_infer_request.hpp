@@ -26,7 +26,8 @@ class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs,
+    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                         const InferenceEngine::OutputsDataMap& networkOutputs,
                          const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
 
