@@ -14,7 +14,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
     cdef cppclass CExecutableNetwork "InferenceEngine::ExecutableNetwork"
-    
+
     cdef cppclass TBlob[T]:
         ctypedef shared_ptr[TBlob[T]] Ptr
 
@@ -154,7 +154,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
-        map[string, DataPtr] getInputs() except +
         map[string, CDataPtr] getOutputs() except +
         map[string, InputInfo.CPtr] getInputsInfo()
         void exportNetwork(const string & model_file) except +
@@ -166,14 +165,12 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass IENetwork:
         IENetwork() nogil except +
-        IENetwork(object) except +
-        IENetwork(const string &, const string &) except +
+        IENetwork(object) nogil except +
         string name
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
         const map[string, InputInfo.Ptr] getInputsInfo() nogil except +
-        const map[string, DataPtr] getInputs() except +
         map[string, DataPtr] getOutputs() nogil except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
@@ -182,7 +179,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
         void reshape(map[string, vector[size_t]] input_shapes) except +
-        void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +
