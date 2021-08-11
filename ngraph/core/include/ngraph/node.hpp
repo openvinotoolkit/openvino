@@ -36,6 +36,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
+#include "topological_order.hpp"
 
 namespace ngraph {
 template <typename NodeType>
@@ -505,6 +506,11 @@ private:
     std::deque<descriptor::Output> m_outputs;
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+public:
+    Order::Ptr m_order;
+    OrderElement::Ptr m_order_element;
+
+    void init_order();
 };
 
 using NodeTypeInfo = Node::type_info_t;

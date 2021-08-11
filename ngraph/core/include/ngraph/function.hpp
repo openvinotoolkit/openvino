@@ -114,6 +114,7 @@ public:
 
     std::vector<std::shared_ptr<Node>> get_ops() const;
     std::vector<std::shared_ptr<Node>> get_ordered_ops() const;
+    std::vector<std::shared_ptr<Node>> get_cached_ordered_ops() const;
     void map_unordered_ops(std::function<void(Node*)> f) const;
 
     friend std::ostream& operator<<(std::ostream&, const Function&);

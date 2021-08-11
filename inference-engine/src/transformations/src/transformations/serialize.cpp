@@ -421,7 +421,7 @@ const std::unordered_map<ngraph::Node*, int> create_layer_ids(
     const ngraph::Function& f) {
     std::unordered_map<ngraph::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : f.get_ordered_ops()) {
+    for (const auto& node : f.get_cached_ordered_ops()) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
@@ -431,7 +431,7 @@ const std::vector<Edge> create_edge_mapping(
     const std::unordered_map<ngraph::Node*, int>& layer_ids,
     const ngraph::Function& f) {
     std::vector<Edge> edges;
-    for (const auto& node : f.get_ordered_ops()) {
+    for (const auto& node : f.get_cached_ordered_ops()) {
         if (ngraph::op::is_parameter(node)) {
             continue;
         }
@@ -608,7 +608,7 @@ bool has_dynamic_output(std::shared_ptr<Node> n) {
 }
 
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
-    const auto & f_ops = f.get_ordered_ops();
+    const auto & f_ops = f.get_cached_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
             [](std::shared_ptr<Node> results) {
                 return !results->is_dynamic() && !has_dynamic_output(results); })) {
@@ -616,7 +616,7 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
     }
 
     auto f_clone = ngraph::clone_function(f);
-    const auto & f_clone_ops = f_clone->get_ordered_ops();
+    const auto & f_clone_ops = f_clone->get_cached_ordered_ops();
     NGRAPH_CHECK(f_ops.size() == f_clone_ops.size(), "Unexpected get_ordered_ops method behaviour");
 
     for (size_t id = 0; id < f_ops.size(); ++id) {
@@ -688,7 +688,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 
     const bool exec_graph = is_exec_graph(f);
 
-    for (const auto& n : f.get_ordered_ops()) {
+    for (const auto& n : f.get_cached_ordered_ops()) {
         ngraph::Node* node = n.get();
         const std::string & node_type_name{node->get_type_name()};
 
@@ -795,7 +795,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
     for (auto e : edge_mapping) {
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
-            auto type_info = f.get_ordered_ops()[e.to_layer]->get_type_info();
+            auto type_info = f.get_cached_ordered_ops()[e.to_layer]->get_type_info();
             if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
                 continue;
             }

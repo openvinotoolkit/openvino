@@ -23,6 +23,95 @@ using namespace ngraph;
 
 atomic<size_t> Node::m_next_instance_id(0);
 
+void Node::init_order()
+{
+    if(m_order_element)
+    {
+        return;
+    }
+
+    // Get all orders
+    std::vector<std::pair<OrderElement::Ptr, Order::Ptr>> orders;
+    for (auto& input : m_inputs)
+    {
+        input = descriptor::Input(this, input.get_index(), input.get_output());
+        auto node = input.get_output().get_raw_node();
+        orders.emplace_back(node->m_order_element, node->m_order);
+    }
+
+    // Find max order
+    for (const auto & p : orders)
+    {
+        const auto & o = p.second;
+        if (!m_order || o->size() > m_order->size())
+        {
+            m_order = o;
+        }
+    }
+
+    if  (!m_order)
+    {
+        m_order = std::make_shared<Order>();
+    }
+
+    // Find position for new element and orders
+    std::vector<std::pair<int64_t, OrderElement::Ptr>> elements;
+    OrderElement::Ptr max_element;
+    for (auto & p : orders) {
+        if (p.second != m_order) continue;
+
+        if (!p.second->initialization_is_finished())
+        {
+            max_element = p.second->end();
+            break;
+        }
+
+        const auto &el = p.first;
+        if (!el->output /* last element in order */) {
+            max_element = el;
+            break;
+        }
+
+        elements.emplace_back(el->get_id(), el);
+    }
+
+    sort(elements.rbegin(), elements.rend());
+
+    if (!max_element && !elements.empty())
+    {
+        max_element = elements[0].second;
+        if (elements.size() > 1)
+        {
+            assert(elements[0].first > elements[1].first);
+            // TODO: search for max element
+        }
+    }
+
+    assert(orders.empty() || max_element);
+
+    auto el = std::make_shared<OrderElement>(this);
+    if (!max_element)
+    {
+        m_order->push_back(el);
+    }
+    else
+    {
+        m_order->insert_after(max_element, el);
+    }
+    m_order_element = el;
+
+
+    // Insert orders
+    for (auto & p : orders)
+    {
+        const auto & o = p.second;
+        if (o == m_order) continue;
+        // merge orders
+        m_order->insert_after(max_element, o);
+        o->reset(m_order);
+    }
+}
+
 Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
       m_control_dependencies(node.m_control_dependencies)
@@ -44,6 +133,7 @@ Node::Node(const Node& node)
         input = descriptor::Input(this, input.get_index(), input.get_output());
         input.get_output().add_input(&input);
     }
+    init_order();
 }
 
 Node& Node::operator=(const Node& node) {
@@ -66,11 +156,13 @@ Node& Node::operator=(const Node& node) {
 
 Node::Node(size_t output_size) : Node() {
     set_output_size(output_size);
+    init_order();
 }
 
 Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
     set_arguments(arguments);
     set_output_size(output_size);
+    init_order();
 }
 
 Node::~Node() {
@@ -88,6 +180,8 @@ Node::~Node() {
             input.remove_output();
         }
     }
+    m_order->remove(m_order_element);
+    // std::cout << "~Node: " << (size_t)this << std::endl;
 }
 
 std::shared_ptr<Node> Node::copy_with_new_inputs(const OutputVector& inputs) const {
@@ -188,6 +282,7 @@ void Node::set_argument(size_t position, const Output<Node>& argument) {
 
 void Node::constructor_validate_and_infer_types() {
     validate_and_infer_types();
+    init_order();
 }
 
 void Node::set_output_size(size_t n) {
@@ -364,9 +459,11 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement) {
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
 }
 
-Node* Node::get_input_node_ptr(size_t index) const {
-    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
-    return m_inputs[index].get_output().get_node().get();
+Node* Node::get_input_node_ptr(size_t index) const
+{
+    NGRAPH_CHECK(
+        index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    return m_inputs[index].get_output().get_raw_node();
 }
 
 std::shared_ptr<Node> Node::get_input_node_shared_ptr(size_t index) const {

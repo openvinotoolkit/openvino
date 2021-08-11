@@ -70,25 +70,19 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ngraph
 
-bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    // Initialize execution queue with nodes in topological order
-    deque<std::weak_ptr<Node>> nodes_to_run;
-    for (auto& node : f->get_ordered_ops()) {
-        nodes_to_run.emplace_front(node);
-    }
-    return apply_matcher_passes(f, std::move(nodes_to_run));
+bool pass::BackwardGraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
+{
+    return apply_matcher_passes(f, false);
 }
 
-bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    // Initialize execution queue with nodes in topological order
-    deque<std::weak_ptr<Node>> nodes_to_run;
-    for (auto& node : f->get_ordered_ops()) {
-        nodes_to_run.emplace_back(node);
-    }
-    return apply_matcher_passes(f, std::move(nodes_to_run));
+bool pass::GraphRewrite::run_on_function(std::shared_ptr<ngraph::Function> f)
+{
+    return apply_matcher_passes(f, true);
 }
 
-bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std::weak_ptr<Node>> nodes_to_run) {
+bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f,
+                                              bool forward)
+{
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
@@ -136,6 +130,8 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
         // including ones triggered by parent type info.
     }
 
+    deque<std::weak_ptr<Node>> nodes_to_run;
+
     // This lambda preforms execution of particular MatcherPass on given node.
     // It automatically handles nodes registered by MatcherPass during transformation and set
     // transformation callback.
@@ -171,13 +167,26 @@ bool pass::GraphRewrite::apply_matcher_passes(shared_ptr<Function> f, deque<std:
     // list of matchers to run for a node; define here to keep memory allocated
     std::vector<size_t> matcher_passes_to_run;
 
-    while (!nodes_to_run.empty()) {
-        auto weak_node = nodes_to_run.front();
-        nodes_to_run.pop_front();
+    auto order = f->get_parameters()[0]->m_order;
+    order->reindexing();
+    auto el = (forward ? order->begin() : order->end());
 
-        auto node = weak_node.lock();
-        if (!node)
-            continue;
+    while (el || !nodes_to_run.empty())
+    {
+        std::shared_ptr<Node> node;
+        if (!nodes_to_run.empty())
+        {
+            auto weak_node = nodes_to_run.front();
+            nodes_to_run.pop_front();
+            node = weak_node.lock();
+            if (!node)
+                continue;
+        }
+        else
+        {
+            node = el->node->shared_from_this();
+            el = (forward ? el->output : el->input);
+        }
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {

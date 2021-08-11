@@ -35,6 +35,7 @@ public:
     Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
     std::shared_ptr<Node> get_node() const;
+    Node * get_raw_node() const;
     size_t get_index() const {
         return m_index;
     }

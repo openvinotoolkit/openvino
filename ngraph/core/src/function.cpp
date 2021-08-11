@@ -180,6 +180,12 @@ void Function::prerequirements(bool detect_variables, bool detect_parameters) {
         m_variables = auto_detect_variables(ordered_ops);
     else
         check_all_variables_registered(ordered_ops, m_variables);
+
+    // WA to initialize orders
+    for (auto & p : m_parameters)
+    {
+        p->m_order->finish_initialization();
+    }
 }
 
 void Function::validate_nodes_and_infer_types() const {
@@ -239,7 +245,23 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const {
     return m_topological_sorter(nodes);
 }
 
-void Function::map_unordered_ops(std::function<void(Node*)> f) const {
+std::vector<shared_ptr<Node>> Function::get_cached_ordered_ops() const {
+    auto tmp = m_parameters[0]->m_order;
+
+    NodeVector res;
+    res.reserve(tmp->size());
+
+    tmp->reindexing();
+    auto el = tmp->begin();
+    while (el) {
+        res.push_back(el->node->shared_from_this());
+        el = el->output;
+    }
+    return res;
+}
+
+void Function::map_unordered_ops(std::function<void(Node*)> f) const
+{
     std::unordered_set<Node*> unordered_ops;
     std::stack<Node*, std::vector<Node*>> remaining_ops;
     for (auto& r : get_results()) {

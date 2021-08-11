@@ -11,6 +11,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
+<<<<<<< HEAD
 namespace ngraph {
 using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
 using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
@@ -208,7 +209,7 @@ public:
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;
 
 protected:
-    bool apply_matcher_passes(std::shared_ptr<Function> f, std::deque<std::weak_ptr<Node>> nodes_to_run);
+    bool apply_matcher_passes(std::shared_ptr<Function> f, bool);
 
     bool m_enable_shape_inference = false;
 
