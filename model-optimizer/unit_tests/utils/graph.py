@@ -7,7 +7,7 @@ from copy import deepcopy
 import networkx as nx
 
 from extensions.ops.parameter import Parameter
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
 from mo.ops.const import Const
@@ -274,7 +274,7 @@ regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwar
 valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
                                           'shape': int64_array(value.shape) if value is not None else None}}
 shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
-                                          'shape': int64_array(shape) if shape is not None else None}}
+                                          'shape': shape_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
 
 shaped_parameter = lambda name, shape, kwargs={}: {**regular_op(name, {'op': 'Parameter', 'type': 'Parameter',
@@ -295,7 +295,7 @@ const = lambda name, value, kwargs={}: {name: {'kind': 'op', 'type': 'Const', 'o
 
 fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
                                                     'value': None, 'infer': Const.infer, **kwargs,
-                                                    'shape': int64_array(shape) if shape is not None else None}}
+                                                    'shape': shape_array(shape) if shape is not None else None}}
 
 shaped_const_with_data = lambda name, shape, kwargs={}: {**fake_const(name, shape, kwargs),
                                                          **shaped_data(name + '_d', shape)}

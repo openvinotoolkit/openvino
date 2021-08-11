@@ -120,7 +120,6 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         if begin is not None:
             slice_rank = len(begin)
         else:
-            # TODO check that this is correct
             slice_rank = input_rank + np.count_nonzero(node.new_axis_mask) - np.count_nonzero(node.shrink_axis_mask)
 
         StridedSlice.align_mask_with_slice_rank(node, slice_rank)  # if StridedSlice is created after partial_infer
