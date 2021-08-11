@@ -564,10 +564,10 @@ def test_is_equal_data():
     assert place4.is_equal_data(place5)
 
     place6 = model.get_place_by_tensor_name(tensorName="out4").get_input_port(inputPortIndex=1)
-    place6.is_equal_data(place5)
+    assert place6.is_equal_data(place5)
 
     place7 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    place7.is_equal_data(place7)
+    assert place7.is_equal_data(place7)
 
     place8 = model.get_place_by_tensor_name(tensorName="out1")
     place9 = model.get_place_by_tensor_name(tensorName="out2")
