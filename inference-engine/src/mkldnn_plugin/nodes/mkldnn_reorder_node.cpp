@@ -133,11 +133,12 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // split group dimension in separate shape dimension. IE use OIHW, but mkldnn expect GOIHW.
         // So we will perform implicit reshape to dst shape.
         //
-        // MKLDNN doesn't support direct reorders from planar data formats to grouped weights formats.
-        // Code block below tries to detect such cases and reinterpret data planar formats (e.g. nchw)
-        // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
+        // MKLDNN doesn't support direct reorders for tensors of different rank. The code below tries to
+        // perform such conversion if the source tensor can be reshaped to the destination rank. This is
+        // useful in situations when rank in IR does not much rank that is required by the oneDNN primitive,
+        // but the input tensor can be reshaped (e.g. weights for grouped convolutions, biases etc.)
         if (src_blocked->GetDesc().hasLayoutType(LayoutType::ncsp) &&
-            src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
+            src_blocked->GetDims().size() != dst_blocked->GetDims().size()) {
             const auto newDims = dst_blocked->GetDims();
             const auto newFormat = MKLDNNMemory::GetPlainFormatByRank(newDims.size());
 
