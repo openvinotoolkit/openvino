@@ -4,7 +4,10 @@
 
 #include "fileutils.hpp"
 
-void ArkFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, uint32_t* ptrNumArrays, uint32_t* ptrNumMemoryBytes) {
+void ArkFile::GetFileInfo(const char* fileName,
+                          uint32_t numArrayToFindSize,
+                          uint32_t* ptrNumArrays,
+                          uint32_t* ptrNumMemoryBytes) {
     uint32_t numArrays = 0;
     uint32_t numMemoryBytes = 0;
 
@@ -40,8 +43,13 @@ void ArkFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, uin
         *ptrNumMemoryBytes = numMemoryBytes;
 }
 
-void ArkFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows,
-                       uint32_t* ptrNumColumns, uint32_t* ptrNumBytesPerElement) {
+void ArkFile::LoadFile(const char* fileName,
+                       uint32_t arrayIndex,
+                       std::string& ptrName,
+                       std::vector<uint8_t>& memory,
+                       uint32_t* ptrNumRows,
+                       uint32_t* ptrNumColumns,
+                       uint32_t* ptrNumBytesPerElement) {
     std::ifstream in_file(fileName, std::ios::binary);
     if (in_file.good()) {
         uint32_t i = 0;
@@ -64,7 +72,8 @@ void ArkFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& p
             std::getline(in_file, ptrName, '\0');  // read variable length name followed by space and NUL
             std::getline(in_file, line, '\4');     // read "BFM" followed by space and control-D
             if (line.compare("BFM ") != 0) {
-                throw std::runtime_error(std::string("Cannot find array specifier in file %s in LoadFile()!\n") + fileName);
+                throw std::runtime_error(std::string("Cannot find array specifier in file %s in LoadFile()!\n") +
+                                         fileName);
             }
             in_file.read(reinterpret_cast<char*>(ptrNumRows), sizeof(uint32_t));     // read number of rows
             std::getline(in_file, line, '\4');                                       // read control-D
@@ -80,7 +89,12 @@ void ArkFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& p
     *ptrNumBytesPerElement = sizeof(float);
 }
 
-void ArkFile::SaveFile(const char* fileName, bool shouldAppend, std::string name, void* ptrMemory, uint32_t numRows, uint32_t numColumns) {
+void ArkFile::SaveFile(const char* fileName,
+                       bool shouldAppend,
+                       std::string name,
+                       void* ptrMemory,
+                       uint32_t numRows,
+                       uint32_t numColumns) {
     std::ios_base::openmode mode = std::ios::binary;
     if (shouldAppend) {
         mode |= std::ios::app;
@@ -101,7 +115,10 @@ void ArkFile::SaveFile(const char* fileName, bool shouldAppend, std::string name
     }
 }
 
-void NumpyFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, uint32_t* ptrNumArrays, uint32_t* ptrNumMemoryBytes) {
+void NumpyFile::GetFileInfo(const char* fileName,
+                            uint32_t numArrayToFindSize,
+                            uint32_t* ptrNumArrays,
+                            uint32_t* ptrNumMemoryBytes) {
     uint32_t numArrays = 0;
     uint32_t numMemoryBytes = 0;
 
@@ -122,8 +139,13 @@ void NumpyFile::GetFileInfo(const char* fileName, uint32_t numArrayToFindSize, u
     }
 }
 
-void NumpyFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string& ptrName, std::vector<uint8_t>& memory, uint32_t* ptrNumRows,
-                         uint32_t* ptrNumColumns, uint32_t* ptrNumBytesPerElement) {
+void NumpyFile::LoadFile(const char* fileName,
+                         uint32_t arrayIndex,
+                         std::string& ptrName,
+                         std::vector<uint8_t>& memory,
+                         uint32_t* ptrNumRows,
+                         uint32_t* ptrNumColumns,
+                         uint32_t* ptrNumBytesPerElement) {
     cnpy::npz_t my_npz1 = cnpy::npz_load(fileName);
     auto it = my_npz1.begin();
     std::advance(it, arrayIndex);
@@ -143,9 +165,14 @@ void NumpyFile::LoadFile(const char* fileName, uint32_t arrayIndex, std::string&
     }
 }
 
-void NumpyFile::SaveFile(const char* fileName, bool shouldAppend, std::string name, void* ptrMemory, uint32_t numRows, uint32_t numColumns) {
+void NumpyFile::SaveFile(const char* fileName,
+                         bool shouldAppend,
+                         std::string name,
+                         void* ptrMemory,
+                         uint32_t numRows,
+                         uint32_t numColumns) {
     std::string mode;
     shouldAppend ? mode = "a" : mode = "w";
-    std::vector<size_t> shape {numRows, numColumns};
+    std::vector<size_t> shape{numRows, numColumns};
     cnpy::npz_save(fileName, name, reinterpret_cast<float*>(ptrMemory), shape, mode);
 }

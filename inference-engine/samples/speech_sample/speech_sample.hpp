@@ -14,24 +14,27 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char input_message[] = "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
+static const char input_message[] =
+    "Required. Paths to input files. Example of usage: <file1.ark,file2.ark> or <file.ark> or <file.npz>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning cnn calculation to device
-static const char target_device_message[] = "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
-                                            "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
-                                            "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
-                                            " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
-                                            "The sample will look for a suitable plugin for device specified.";
+static const char target_device_message[] =
+    "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+    "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
+    "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
+    " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
+    "The sample will look for a suitable plugin for device specified.";
 
 /// @brief message for execution target
-static const char execution_target_message[] = "Optional. Specify GNA execution target generation. "
-                                               "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
-                                               "By default, generation corresponds to the GNA HW available in the system "
-                                               "or the latest fully supported generation by the software. "
-                                               "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
+static const char execution_target_message[] =
+    "Optional. Specify GNA execution target generation. "
+    "May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. "
+    "By default, generation corresponds to the GNA HW available in the system "
+    "or the latest fully supported generation by the software. "
+    "See the GNA Plugin's GNA_EXEC_TARGET config option description.";
 
 /// @brief message for execution target
 static const char compile_target_message[] = "Optional. Specify GNA compile target generation. "
@@ -48,34 +51,41 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] = "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
+static const char output_message[] =
+    "Optional. Output file name to save scores. Example of usage: <output.ark> or <output.npz>";
 
 /// @brief message for reference score file argument
-static const char reference_score_message[] = "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
+static const char reference_score_message[] =
+    "Optional. Read reference score file and compare scores. Example of usage: <reference.ark> or <reference.npz>";
 
 /// @brief message for read GNA model argument
-static const char read_gna_model_message[] = "Read GNA model from file using path/filename provided (required if -m is missing).";
+static const char read_gna_model_message[] =
+    "Read GNA model from file using path/filename provided (required if -m is missing).";
 
 /// @brief message for write GNA model argument
 static const char write_gna_model_message[] = "Optional. Write GNA model to file using path/filename provided.";
 
 /// @brief message for write GNA embedded model argument
-static const char write_embedded_model_message[] = "Optional. Write GNA embedded model to file using path/filename provided.";
+static const char write_embedded_model_message[] =
+    "Optional. Write GNA embedded model to file using path/filename provided.";
 
 /// @brief message for write GNA embedded model generation argument
-static const char write_embedded_model_generation_message[] = "Optional. GNA generation configuration string for embedded export."
-                                                              "Can be GNA1 (default) or GNA3.";
+static const char write_embedded_model_generation_message[] =
+    "Optional. GNA generation configuration string for embedded export."
+    "Can be GNA1 (default) or GNA3.";
 
 /// @brief message for quantization argument
-static const char quantization_message[] = "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
+static const char quantization_message[] =
+    "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
 
 /// @brief message for quantization bits argument
 static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
-static const char scale_factor_message[] = "Optional. User-specified input scale factor for quantization (use with -q user). "
-                                           "If the network contains multiple inputs, provide scale factors by separating them with "
-                                           "commas.";
+static const char scale_factor_message[] =
+    "Optional. User-specified input scale factor for quantization (use with -q user). "
+    "If the network contains multiple inputs, provide scale factors by separating them with "
+    "commas.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
@@ -85,14 +95,16 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 " inference requests on the GNA.";
 
 /// @brief message for left context window argument
-static const char context_window_message_l[] = "Optional. Number of frames for left context windows (default is 0). "
-                                               "Works only with context window networks."
-                                               " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
+static const char context_window_message_l[] =
+    "Optional. Number of frames for left context windows (default is 0). "
+    "Works only with context window networks."
+    " If you use the cw_l or cw_r flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for right context window argument
-static const char context_window_message_r[] = "Optional. Number of frames for right context windows (default is 0). "
-                                               "Works only with context window networks."
-                                               " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
+static const char context_window_message_r[] =
+    "Optional. Number of frames for right context windows (default is 0). "
+    "Works only with context window networks."
+    " If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.";
 
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. "

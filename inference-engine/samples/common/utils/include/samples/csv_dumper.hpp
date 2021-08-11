@@ -36,7 +36,7 @@ public:
      * @param enabled - True if dumping is enabled by default.
      * @param name - name of file to dump to. File won't be created if first parameter is false.
      */
-    explicit CsvDumper(bool enabled = true, const std::string& name = ""): canDump(enabled) {
+    explicit CsvDumper(bool enabled = true, const std::string& name = "") : canDump(enabled) {
         if (!canDump) {
             return;
         }

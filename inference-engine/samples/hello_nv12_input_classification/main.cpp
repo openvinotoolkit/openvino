@@ -16,9 +16,9 @@
 #include <utility>
 #include <vector>
 #ifdef _WIN32
-    #include <samples/os/windows/w_dirent.h>
+#    include <samples/os/windows/w_dirent.h>
 #else
-    #include <dirent.h>
+#    include <dirent.h>
 #endif
 
 using namespace InferenceEngine;
@@ -147,8 +147,12 @@ std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, 
     // logical height
 
     // Create tensor descriptors for Y and UV blobs
-    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8, {1, 1, height, width}, InferenceEngine::Layout::NHWC);
-    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8, {1, 2, height / 2, width / 2}, InferenceEngine::Layout::NHWC);
+    const InferenceEngine::TensorDesc y_plane_desc(InferenceEngine::Precision::U8,
+                                                   {1, 1, height, width},
+                                                   InferenceEngine::Layout::NHWC);
+    const InferenceEngine::TensorDesc uv_plane_desc(InferenceEngine::Precision::U8,
+                                                    {1, 2, height / 2, width / 2},
+                                                    InferenceEngine::Layout::NHWC);
     const size_t offset = width * height;
 
     std::vector<Blob::Ptr> blobs;
@@ -177,13 +181,15 @@ std::vector<Blob::Ptr> readInputBlobs(std::vector<UString>& data, size_t width, 
 bool isBatchedBlobSupported(const Core& ie, const std::string& device_name) {
     const std::vector<std::string> supported_metrics = ie.GetMetric(device_name, METRIC_KEY(SUPPORTED_METRICS));
 
-    if (std::find(supported_metrics.begin(), supported_metrics.end(), METRIC_KEY(OPTIMIZATION_CAPABILITIES)) == supported_metrics.end()) {
+    if (std::find(supported_metrics.begin(), supported_metrics.end(), METRIC_KEY(OPTIMIZATION_CAPABILITIES)) ==
+        supported_metrics.end()) {
         return false;
     }
 
     const std::vector<std::string> optimization_caps = ie.GetMetric(device_name, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
 
-    return std::find(optimization_caps.begin(), optimization_caps.end(), METRIC_VALUE(BATCHED_BLOB)) != optimization_caps.end();
+    return std::find(optimization_caps.begin(), optimization_caps.end(), METRIC_VALUE(BATCHED_BLOB)) !=
+           optimization_caps.end();
 }
 
 /**
@@ -194,15 +200,16 @@ int main(int argc, char* argv[]) {
         // ------------------------------ Parsing and validation input
         // arguments------------------------------
         if (argc != 5) {
-            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>" << std::endl;
+            std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image(s)> <image_size> <device_name>"
+                      << std::endl;
             return EXIT_FAILURE;
         }
 
-        const std::string input_model {argv[1]};
-        const std::string input_image_path {argv[2]};
+        const std::string input_model{argv[1]};
+        const std::string input_image_path{argv[2]};
         size_t input_width = 0, input_height = 0;
         std::tie(input_width, input_height) = parseImageSize(argv[3]);
-        const std::string device_name {argv[4]};
+        const std::string device_name{argv[4]};
         // -----------------------------------------------------------------------------------------------------
 
         // ------------------------------ Read image names

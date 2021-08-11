@@ -29,9 +29,13 @@ public:
      * @param _total - maximum value that is correspondent to 100%
      * @param _detalization - number of symbols(.) to use to represent progress
      */
-    explicit ConsoleProgress(size_t _total, bool _stream_output = false, size_t _percent_to_update = DEFAULT_PERCENT_TO_UPDATE_PROGRESS,
+    explicit ConsoleProgress(size_t _total,
+                             bool _stream_output = false,
+                             size_t _percent_to_update = DEFAULT_PERCENT_TO_UPDATE_PROGRESS,
                              size_t _detalization = DEFAULT_DETALIZATION)
-        : total(_total), detalization(_detalization), percent_to_update(_percent_to_update) {
+        : total(_total),
+          detalization(_detalization),
+          percent_to_update(_percent_to_update) {
         stream_output = _stream_output;
         if (total == 0) {
             total = 1;

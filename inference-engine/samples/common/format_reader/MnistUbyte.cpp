@@ -42,7 +42,8 @@ MnistUbyte::MnistUbyte(const std::string& filename) {
     n_cols = reverseInt(n_cols);
     _width = (size_t)n_cols;
     if (number_of_images > 1) {
-        std::cout << "[MNIST] Warning: number_of_images  in mnist file equals " << number_of_images << ". Only a first image will be read." << std::endl;
+        std::cout << "[MNIST] Warning: number_of_images  in mnist file equals " << number_of_images
+                  << ". Only a first image will be read." << std::endl;
     }
 
     size_t size = _width * _height * 1;

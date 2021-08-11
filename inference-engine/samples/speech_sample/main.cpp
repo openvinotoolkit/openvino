@@ -152,7 +152,11 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
  * @param numColumns - number columns in score error arrays
  * @return none.
  */
-void CompareScores(float* ptrScoreArray, void* ptrRefScoreArray, score_error_t* scoreError, uint32_t numRows, uint32_t numColumns) {
+void CompareScores(float* ptrScoreArray,
+                   void* ptrRefScoreArray,
+                   score_error_t* scoreError,
+                   uint32_t numRows,
+                   uint32_t numColumns) {
     uint32_t numErrors = 0;
 
     ClearScoreError(scoreError);
@@ -194,31 +198,32 @@ void CompareScores(float* ptrScoreArray, void* ptrRefScoreArray, score_error_t* 
  * @return error
  */
 float StdDevError(score_error_t error) {
-    return (sqrt(error.sumSquaredError / error.numScores - (error.sumError / error.numScores) * (error.sumError / error.numScores)));
+    return (sqrt(error.sumSquaredError / error.numScores -
+                 (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-    #ifdef _WIN32
-        #include <intrin.h>
-        #include <windows.h>
-    #else
+#    ifdef _WIN32
+#        include <intrin.h>
+#        include <windows.h>
+#    else
 
-        #include <cpuid.h>
+#        include <cpuid.h>
 
-    #endif
+#    endif
 
 inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx, unsigned int* edx) {
     size_t level = *eax;
-    #ifdef _WIN32
+#    ifdef _WIN32
     int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
     __cpuid(regs, level);
     *eax = static_cast<uint32_t>(regs[0]);
     *ebx = static_cast<uint32_t>(regs[1]);
     *ecx = static_cast<uint32_t>(regs[2]);
     *edx = static_cast<uint32_t>(regs[3]);
-    #else
+#    else
     __get_cpuid(level, eax, ebx, ecx, edx);
-    #endif
+#    endif
 }
 
 /**
@@ -295,8 +300,12 @@ void printReferenceCompareResults(score_error_t const& totalError, size_t frames
  * @param numberOfFramesOnHw number of frames delivered to GNA HW
  * @return none.
  */
-void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& utterancePerfMap, size_t numberOfFrames,
-                              std::ostream& stream, std::string fullDeviceName, const uint64_t numberOfFramesOnHw) {
+void printPerformanceCounters(
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& utterancePerfMap,
+    size_t numberOfFrames,
+    std::ostream& stream,
+    std::string fullDeviceName,
+    const uint64_t numberOfFramesOnHw) {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     stream << std::endl << "Performance counts:" << std::endl;
     stream << std::setw(10) << std::right << ""
@@ -340,7 +349,8 @@ void printPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEn
  * @param perfCounters reference to a map to save performance counters
  * @return none.
  */
-void getPerformanceCounters(InferenceEngine::InferRequest& request, std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfCounters) {
+void getPerformanceCounters(InferenceEngine::InferRequest& request,
+                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfCounters) {
     auto retPerfCounters = request.GetPerformanceCounts();
 
     for (const auto& pair : retPerfCounters) {
@@ -356,11 +366,13 @@ void getPerformanceCounters(InferenceEngine::InferRequest& request, std::map<std
  * @return none.
  */
 void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const& perfCounters,
-                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters, uint64_t& totalRunsOnHw) {
+                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& totalPerfCounters,
+                            uint64_t& totalRunsOnHw) {
     auto runOnHw = false;
     for (const auto& pair : perfCounters) {
         totalPerfCounters[pair.first].realTime_uSec += pair.second.realTime_uSec;
-        runOnHw |= pair.second.realTime_uSec > 0;  // if realTime is above zero, that means that a primitive was executed on the device
+        runOnHw |= pair.second.realTime_uSec >
+                   0;  // if realTime is above zero, that means that a primitive was executed on the device
     }
     totalRunsOnHw += runOnHw;
 }
@@ -380,7 +392,8 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
         while (getline(stream, outStr, ',')) {
             auto floatScaleFactor = std::stof(outStr);
             if (floatScaleFactor <= 0.0f) {
-                throw std::logic_error("Scale factor for input #" + std::to_string(i) + " (counting from zero) is out of range (must be positive).");
+                throw std::logic_error("Scale factor for input #" + std::to_string(i) +
+                                       " (counting from zero) is out of range (must be positive).");
             }
             scaleFactorInput.push_back(outStr);
             i++;
@@ -509,7 +522,8 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
  */
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Get Inference Engine version ------------------------------------------------------
+        // ------------------------------ Get Inference Engine version
+        // ------------------------------------------------------
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
@@ -546,7 +560,8 @@ int main(int argc, char* argv[]) {
                 if (numUtterances == 0) {
                     numUtterances = currentNumUtterances;
                 } else if (currentNumUtterances != numUtterances) {
-                    throw std::logic_error("Incorrect input files. Number of utterance must be the same for all input files");
+                    throw std::logic_error(
+                        "Incorrect input files. Number of utterance must be the same for all input files");
                 }
                 numBytesThisUtterance.push_back(currentNumBytesThisUtterance);
             }
@@ -574,7 +589,8 @@ int main(int argc, char* argv[]) {
         std::cout << ie.GetVersions(deviceStr) << std::endl;
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files)
+        // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin
+        // files)
         slog::info << "Loading network files:" << slog::endl << FLAGS_m << slog::endl;
 
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t)FLAGS_bs;
@@ -586,7 +602,8 @@ int main(int argc, char* argv[]) {
             // -------------------------------------------------------------------------------------------------
 
             // --------------------------- Set batch size ---------------------------------------------------
-            /** Set batch size.  Unlike in imaging, batching in time (rather than space) is done for speech recognition. **/
+            /** Set batch size.  Unlike in imaging, batching in time (rather than space) is done for speech recognition.
+             * **/
             network.setBatchSize(batchSize);
             slog::info << "Batch size is " << std::to_string(network.getBatchSize()) << slog::endl;
         }
@@ -598,8 +615,10 @@ int main(int argc, char* argv[]) {
         std::map<std::string, std::string> gnaPluginConfig;
         std::map<std::string, std::string> genericPluginConfig;
         if (useGna) {
-            std::string gnaDevice = useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
-            gnaPluginConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] = gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
+            std::string gnaDevice =
+                useHetero ? FLAGS_d.substr(FLAGS_d.find("GNA"), FLAGS_d.find(",") - FLAGS_d.find("GNA")) : FLAGS_d;
+            gnaPluginConfig[GNAConfigParams::KEY_GNA_DEVICE_MODE] =
+                gnaDevice.find("_") == std::string::npos ? "GNA_AUTO" : gnaDevice;
         }
 
         if (FLAGS_pc) {
@@ -608,18 +627,22 @@ int main(int argc, char* argv[]) {
 
         if (FLAGS_q.compare("user") == 0) {
             if (!FLAGS_rg.empty()) {
-                slog::warn << "Custom scale factor will be ignored - using scale factor from provided imported gna model: " << FLAGS_rg << slog::endl;
+                slog::warn
+                    << "Custom scale factor will be ignored - using scale factor from provided imported gna model: "
+                    << FLAGS_rg << slog::endl;
             } else {
                 auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
                 if (numInputFiles != scaleFactorInput.size()) {
-                    std::string errMessage("Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
-                                           " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
+                    std::string errMessage(
+                        "Incorrect command line for multiple inputs: " + std::to_string(scaleFactorInput.size()) +
+                        " scale factors provided for " + std::to_string(numInputFiles) + " input files.");
                     throw std::logic_error(errMessage);
                 }
 
                 for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
                     slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                    std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                    std::string scaleFactorConfigKey =
+                        GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
                     gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
                 }
             }
@@ -635,10 +658,19 @@ int main(int argc, char* argv[]) {
                     uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
                     file->GetFileInfo(inputFileName, 0, &numArrays, &numBytes);
                     ptrFeatures.resize(numBytes);
-                    file->LoadFile(inputFileName, 0, name, ptrFeatures, &numFrames, &numFrameElements, &numBytesPerElement);
-                    auto floatScaleFactor = ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
-                    slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance." << slog::endl;
-                    std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                    file->LoadFile(inputFileName,
+                                   0,
+                                   name,
+                                   ptrFeatures,
+                                   &numFrames,
+                                   &numFrameElements,
+                                   &numBytesPerElement);
+                    auto floatScaleFactor =
+                        ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
+                    slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
+                               << slog::endl;
+                    std::string scaleFactorConfigKey =
+                        GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
                     gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
                 }
             }
@@ -652,7 +684,8 @@ int main(int argc, char* argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_EXEC_TARGET] = FLAGS_exec_target;
         gnaPluginConfig[GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
-        gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
+        gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
+            std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
@@ -678,7 +711,8 @@ int main(int argc, char* argv[]) {
             for (const auto& outBlobName : output_names) {
                 int pos_layer = outBlobName.rfind(":");
                 if (pos_layer == -1) {
-                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) + std::string(" doesn't have a port"));
+                    throw std::logic_error(std::string("Output ") + std::string(outBlobName) +
+                                           std::string(" doesn't have a port"));
                 }
                 outputs.push_back(outBlobName.substr(0, pos_layer));
                 try {
@@ -728,8 +762,9 @@ int main(int argc, char* argv[]) {
         }
         // ---------------------------------------------------------------------------------------------------------
 
-        // --------------------------- Step 3. Configure input & output --------------------------------------------------
-        // This step executed after creating infer request to check input/output layers mentioned via -iname and -oname args
+        // --------------------------- Step 3. Configure input & output
+        // -------------------------------------------------- This step executed after creating infer request to check
+        // input/output layers mentioned via -iname and -oname args
         // --------------------------- Prepare input blobs -----------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
@@ -741,8 +776,8 @@ int main(int argc, char* argv[]) {
             std::vector<std::string> inputNameBlobs = ConvertStrToVector(FLAGS_iname);
             if (inputNameBlobs.size() != cInputInfo.size()) {
                 std::string errMessage(std::string("Number of network inputs ( ") + std::to_string(cInputInfo.size()) +
-                                       " ) is not equal to the number of inputs entered in the -iname argument ( " + std::to_string(inputNameBlobs.size()) +
-                                       " ).");
+                                       " ) is not equal to the number of inputs entered in the -iname argument ( " +
+                                       std::to_string(inputNameBlobs.size()) + " ).");
                 throw std::logic_error(errMessage);
             }
             for (const auto& input : inputNameBlobs) {
@@ -842,9 +877,12 @@ int main(int argc, char* argv[]) {
                 uint32_t numFrames(0), n(0);
                 std::vector<uint32_t> numFrameElementsInput;
 
-                uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0), numBytesReferenceScoreThisUtterance(0);
-                auto dims = outputs.empty() ? cOutputInfo.rbegin()->second->getDims() : cOutputInfo[outputs[next_output]]->getDims();
-                const auto numScoresPerFrame = std::accumulate(std::begin(dims), std::end(dims), size_t {1}, std::multiplies<size_t>());
+                uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
+                    numBytesReferenceScoreThisUtterance(0);
+                auto dims = outputs.empty() ? cOutputInfo.rbegin()->second->getDims()
+                                            : cOutputInfo[outputs[next_output]]->getDims();
+                const auto numScoresPerFrame =
+                    std::accumulate(std::begin(dims), std::end(dims), size_t{1}, std::multiplies<size_t>());
 
                 slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
 
@@ -856,13 +894,18 @@ int main(int argc, char* argv[]) {
                     uint32_t currentNumFrames(0), currentNumFrameElementsInput(0), currentNumBytesPerElementInput(0);
                     file->GetFileInfo(inputFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
                     ptrUtterance.resize(numBytesThisUtterance[i]);
-                    file->LoadFile(inputFilename, utteranceIndex, uttName, ptrUtterance, &currentNumFrames, &currentNumFrameElementsInput,
+                    file->LoadFile(inputFilename,
+                                   utteranceIndex,
+                                   uttName,
+                                   ptrUtterance,
+                                   &currentNumFrames,
+                                   &currentNumFrameElementsInput,
                                    &currentNumBytesPerElementInput);
                     if (numFrames == 0) {
                         numFrames = currentNumFrames;
                     } else if (numFrames != currentNumFrames) {
-                        std::string errMessage("Number of frames in input files is different: " + std::to_string(numFrames) + " and " +
-                                               std::to_string(currentNumFrames));
+                        std::string errMessage("Number of frames in input files is different: " +
+                                               std::to_string(numFrames) + " and " + std::to_string(currentNumFrames));
                         throw std::logic_error(errMessage);
                     }
 
@@ -873,7 +916,8 @@ int main(int argc, char* argv[]) {
                 int i = 0;
                 for (auto& ptrInputBlob : ptrInputBlobs) {
                     if (ptrInputBlob->size() != numFrameElementsInput[i++] * batchSize) {
-                        throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) + ") mismatch to input file size (" +
+                        throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) +
+                                               ") mismatch to input file size (" +
                                                std::to_string(numFrameElementsInput[i - 1] * batchSize) + ")");
                     }
                 }
@@ -891,10 +935,18 @@ int main(int argc, char* argv[]) {
                         throw std::logic_error("Invalid Reference Scores file");
                     }
                     std::string refUtteranceName;
-                    fileReferenceScores->GetFileInfo(reference_name_files[next_output].c_str(), utteranceIndex, &n, &numBytesReferenceScoreThisUtterance);
+                    fileReferenceScores->GetFileInfo(reference_name_files[next_output].c_str(),
+                                                     utteranceIndex,
+                                                     &n,
+                                                     &numBytesReferenceScoreThisUtterance);
                     ptrReferenceScores.resize(numBytesReferenceScoreThisUtterance);
-                    fileReferenceScores->LoadFile(reference_name_files[next_output].c_str(), utteranceIndex, refUtteranceName, ptrReferenceScores,
-                                                  &numFramesReference, &numFrameElementsReference, &numBytesPerElementReference);
+                    fileReferenceScores->LoadFile(reference_name_files[next_output].c_str(),
+                                                  utteranceIndex,
+                                                  refUtteranceName,
+                                                  ptrReferenceScores,
+                                                  &numFramesReference,
+                                                  &numFrameElementsReference,
+                                                  &numBytesPerElementReference);
                 }
 
                 double totalTime = 0.0;
@@ -914,7 +966,7 @@ int main(int argc, char* argv[]) {
                 size_t frameIndex = 0;
                 uint32_t numFramesFile = numFrames;
                 numFrames += FLAGS_cw_l + FLAGS_cw_r;
-                uint32_t numFramesThisBatch {batchSize};
+                uint32_t numFramesThisBatch{batchSize};
 
                 auto t0 = Time::now();
                 auto t1 = t0;
@@ -934,11 +986,13 @@ int main(int argc, char* argv[]) {
                         if (frameIndex == numFrames) {
                             numFramesThisBatch = 1;
                         } else {
-                            numFramesThisBatch = (numFrames - frameIndex < batchSize) ? (numFrames - frameIndex) : batchSize;
+                            numFramesThisBatch =
+                                (numFrames - frameIndex < batchSize) ? (numFrames - frameIndex) : batchSize;
                         }
                         /* waits until inference result becomes available */
                         if (inferRequest.frameIndex != -1) {
-                            StatusCode code = inferRequest.inferRequest.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
+                            StatusCode code =
+                                inferRequest.inferRequest.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
 
                             if (code != StatusCode::OK) {
                                 if (!useHetero)
@@ -946,23 +1000,27 @@ int main(int argc, char* argv[]) {
                                 if (code != StatusCode::INFER_NOT_STARTED)
                                     continue;
                             }
-                            // --------------------------- Step 8. Process output part 1 -------------------------------------------------------
+                            // --------------------------- Step 8. Process output part 1
+                            // -------------------------------------------------------
                             ConstOutputsDataMap newOutputInfo;
                             if (inferRequest.frameIndex >= 0) {
                                 if (!FLAGS_o.empty()) {
                                     /* Prepare output data for save to file in future */
-                                    outputFrame = &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
+                                    outputFrame = &ptrScores.front() +
+                                                  numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
                                     if (!outputs.empty()) {
                                         newOutputInfo[outputs[next_output]] = cOutputInfo[outputs[next_output]];
                                     } else {
                                         newOutputInfo = cOutputInfo;
                                     }
-                                    Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
+                                    Blob::Ptr outputBlob =
+                                        inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
                                     MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
 
                                     if (!moutput) {
-                                        throw std::logic_error("We expect output to be inherited from MemoryBlob, "
-                                                               "but in fact we were not able to cast output to MemoryBlob");
+                                        throw std::logic_error(
+                                            "We expect output to be inherited from MemoryBlob, "
+                                            "but in fact we were not able to cast output to MemoryBlob");
                                     }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
@@ -976,17 +1034,23 @@ int main(int argc, char* argv[]) {
                                     } else {
                                         newOutputInfo = cOutputInfo;
                                     }
-                                    Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
+                                    Blob::Ptr outputBlob =
+                                        inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
                                     MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
                                     if (!moutput) {
-                                        throw std::logic_error("We expect output to be inherited from MemoryBlob, "
-                                                               "but in fact we were not able to cast output to MemoryBlob");
+                                        throw std::logic_error(
+                                            "We expect output to be inherited from MemoryBlob, "
+                                            "but in fact we were not able to cast output to MemoryBlob");
                                     }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
-                                    CompareScores(moutputHolder.as<float*>(),
-                                                  &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference * numBytesPerElementReference],
-                                                  &frameError, inferRequest.numFramesThisBatch, numFrameElementsReference);
+                                    CompareScores(
+                                        moutputHolder.as<float*>(),
+                                        &ptrReferenceScores[inferRequest.frameIndex * numFrameElementsReference *
+                                                            numBytesPerElementReference],
+                                        &frameError,
+                                        inferRequest.numFramesThisBatch,
+                                        numFrameElementsReference);
                                     UpdateScoreError(&frameError, &totalError);
                                 }
                                 if (FLAGS_pc) {
@@ -1004,7 +1068,8 @@ int main(int argc, char* argv[]) {
                             continue;
                         }
 
-                        // --------------------------- Step 6. Prepare input --------------------------------------------------------
+                        // --------------------------- Step 6. Prepare input
+                        // --------------------------------------------------------
                         ptrInputBlobs.clear();
                         if (FLAGS_iname.empty()) {
                             for (auto& input : cInputInfo) {
@@ -1026,7 +1091,8 @@ int main(int argc, char* argv[]) {
                         for (size_t i = 0; i < numInputFiles; ++i) {
                             MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
                             if (!minput) {
-                                std::string errMessage("We expect ptrInputBlobs[" + std::to_string(i) + "] to be inherited from MemoryBlob, " +
+                                std::string errMessage("We expect ptrInputBlobs[" + std::to_string(i) +
+                                                       "] to be inherited from MemoryBlob, " +
                                                        "but in fact we were not able to cast input blob to MemoryBlob");
                                 throw std::logic_error(errMessage);
                             }
@@ -1050,8 +1116,9 @@ int main(int argc, char* argv[]) {
                                 if (idx > 0 && idx < static_cast<int>(numFramesFile)) {
                                     inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
                                 } else if (idx >= static_cast<int>(numFramesFile)) {
-                                    inputFrame[j] =
-                                        &ptrUtterances[j].front() + (numFramesFile - 1) * sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
+                                    inputFrame[j] = &ptrUtterances[j].front() + (numFramesFile - 1) * sizeof(float) *
+                                                                                    numFrameElementsInput[j] *
+                                                                                    numFramesThisBatch;
                                 } else if (idx <= 0) {
                                     inputFrame[j] = &ptrUtterances[j].front();
                                 }
@@ -1079,7 +1146,8 @@ int main(int argc, char* argv[]) {
                 }
                 // -----------------------------------------------------------------------------------------------------
 
-                // --------------------------- Step 8. Process output part 2 -------------------------------------------------------
+                // --------------------------- Step 8. Process output part 2
+                // -------------------------------------------------------
 
                 if (!FLAGS_o.empty()) {
                     auto exOutputScoresFile = fileExt(FLAGS_o);
@@ -1092,16 +1160,26 @@ int main(int argc, char* argv[]) {
                     }
                     /* Save output data to file */
                     bool shouldAppend = (utteranceIndex == 0) ? false : true;
-                    fileOutput->SaveFile(output_name_files[next_output].c_str(), shouldAppend, uttName, &ptrScores.front(), numFramesFile, numScoresPerFrame);
+                    fileOutput->SaveFile(output_name_files[next_output].c_str(),
+                                         shouldAppend,
+                                         uttName,
+                                         &ptrScores.front(),
+                                         numFramesFile,
+                                         numScoresPerFrame);
                 }
 
                 /** Show performance results **/
                 std::cout << "Total time in Infer (HW and SW):\t" << totalTime << " ms" << std::endl;
                 std::cout << "Frames in utterance:\t\t\t" << numFrames << " frames" << std::endl;
-                std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms" << std::endl;
+                std::cout << "Average Infer time per frame:\t\t" << totalTime / static_cast<double>(numFrames) << " ms"
+                          << std::endl;
                 if (FLAGS_pc) {
                     // print performance results
-                    printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d), totalNumberOfRunsOnHw);
+                    printPerformanceCounters(utterancePerfMap,
+                                             frameIndex,
+                                             std::cout,
+                                             getFullDeviceName(ie, FLAGS_d),
+                                             totalNumberOfRunsOnHw);
                 }
                 if (!FLAGS_r.empty()) {
                     // print statistical score error
