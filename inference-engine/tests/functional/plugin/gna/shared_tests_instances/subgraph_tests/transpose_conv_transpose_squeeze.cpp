@@ -5,7 +5,7 @@
 #include <vector>
 #include <gna/gna_config.hpp>
 
-#include "subgraph_tests/transpose_conv_transpose.hpp"
+#include "subgraph_tests/transpose_conv_transpose_squeeze.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace SubgraphTestsDefinitions;

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/transpose_conv_transpose.hpp"
+#include "shared_test_classes/subgraph/transpose_conv_transpose_squeeze.hpp"
 
 namespace SubgraphTestsDefinitions {
 
