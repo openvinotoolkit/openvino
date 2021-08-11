@@ -5,7 +5,8 @@ from typing import List, Tuple
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import get_shape_from_slice, dynamic_dimension, dynamic_dimension_value, \
+    is_dynamic_slice
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.utils import array_to_str
@@ -49,7 +50,8 @@ class StridedSlice(Op):
         data_value = node.in_port(0).data.get_value()
         slices = StridedSlice.get_slices(node, data_shape)
 
-        if data_value is not None and dynamic_dimension_value not in slices:
+        if data_value is not None and dynamic_dimension_value not in slices and \
+                all(not is_dynamic_slice(s) for s in slices):
             node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
             node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))

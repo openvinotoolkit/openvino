@@ -3,7 +3,8 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import get_shape_from_slice, shape_array, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import get_shape_from_slice, shape_array, dynamic_dimension_value, \
+    dynamic_dimension, is_dynamic_slice
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -139,7 +140,7 @@ class Slice(Op):
         for i in range(len(axes)):
             # Ranged for output value for specified axis
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
-        if input_value is None:
+        if input_value is None or any(is_dynamic_slice(s) for s in slice_idx):
             output_shape = get_shape_from_slice(input_shape, slice_idx)
             if np.ma.any(output_shape <= 0):
                 raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))

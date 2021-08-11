@@ -3,7 +3,7 @@
 
 import unittest
 
-import numpy.testing as npt
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
@@ -45,7 +45,7 @@ class TestStridedSliceInfer(unittest.TestCase):
         node = Node(graph, 'sslice')
         StridedSlice.infer(node)
         res = node.out_port(0).data.get_shape() if is_shape else node.out_port(0).data.get_value()
-        npt.assert_array_equal(res, ref_res)
+        self.assertTrue(np.ma.allequal(res, ref_res))
 
     def test_slice_infer_value_1( self,  # out = inp[:4:1]
                                   inp=(1, 34, 34, 62), ref_res=(1, 34, 34, 62), is_shape=False,

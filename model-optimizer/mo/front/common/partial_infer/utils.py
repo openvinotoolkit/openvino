@@ -222,8 +222,8 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
         if s is dynamic_dimension or s == dynamic_dimension_value:
             output_shape.append(dynamic_dimension_value)
             in_idx += 1
-        elif isinstance(s, slice):
-            if input_shape[in_idx] is not dynamic_dimension:
+        elif isinstance(s, slice) or is_dynamic_slice(s):
+            if input_shape[in_idx] is not dynamic_dimension and not is_dynamic_slice(s):
                 output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
             else:
                 output_shape.append(dynamic_dimension_value)
@@ -241,3 +241,16 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
     return shape_array(output_shape)
+
+
+def is_dynamic_slice(s: [slice, int, None]):
+    """
+    The function checks that the specified slice produces dynamic value.
+    :param s: slice object
+    :return: the result of the check
+    """
+    if s is None or s is ...:
+        return False
+    if isinstance(s, (int, np.int64, np.int32)):
+        return False
+    return s.start is dynamic_dimension or s.stop is dynamic_dimension or s.step is dynamic_dimension
