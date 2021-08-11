@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
  * @brief Converts Gather indices to unsigned if indices are from NMS selected indices output.
  * NMS returns -1 for not selected boxes, old version of Gather fill corresponding
  * output for such indices with zero.
- * But new * Gather-8 has support of negative indices indicating count from the end.
+ * But new Gather-8 has support of negative indices indicating counting from the end.
  * In order to keep such behaviour (until dynamism is not supported) instead of -1 new
  * Gather-8 will accept UINT32_MAX which is always outside of the bounds
  * and corresponding output for such indices in gather always will be filled with zeros.

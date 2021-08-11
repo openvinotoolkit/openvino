@@ -38,9 +38,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_1) {
 
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::VisualizeTree>("before.png");
         manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
-        manager.register_pass<pass::VisualizeTree>("after.png");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

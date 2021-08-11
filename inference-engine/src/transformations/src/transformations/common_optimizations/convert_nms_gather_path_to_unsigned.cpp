@@ -92,10 +92,7 @@ public:
         auto node_pattern = pattern::wrap_type<op::util::GatherBase>();
 
         matcher_pass_callback callback = [=](pattern::Matcher &m) {
-            auto gather = dynamic_pointer_cast<op::util::GatherBase>(m.get_match_root());
-            if (!gather)
-                return false;
-
+            auto gather = m.get_match_root();
             auto indices = gather->input_value(1);
 
             const auto& rt_info = indices.get_node()->get_rt_info();
@@ -123,8 +120,6 @@ public:
 NGRAPH_RTTI_DEFINITION(UpdateConvertGather, "UpdateConvertGather", 0);
 
 pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    MATCHER_SCOPE(ConvertToUnsignedNmsGather);
-
     add_matcher<InitNMSPath>();
     add_matcher<PropagateNMSPath>();
     add_matcher<UpdateConvertGather>();
