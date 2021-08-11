@@ -66,6 +66,7 @@
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/decompose_2d_conv.hpp"
 #include "transformations/convert_padded2valid_conv.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -712,6 +713,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
