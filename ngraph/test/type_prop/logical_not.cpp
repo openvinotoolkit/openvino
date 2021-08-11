@@ -31,7 +31,6 @@ TEST(type_prop, logical_not_i64)
 TEST(type_prop, logical_not_u32)
 {
     type_check(element::u32);
-
 }
 
 TEST(type_prop, logical_not_u64)
