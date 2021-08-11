@@ -29,26 +29,25 @@ def print_alike(arr):
             line += end
             #print(line)
             return line
-            
+    # print(print_array(arr, "}"))
 
-    print(print_array(arr, "}"))
 
 def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)      
 
-    print("\n\n------------- %s -----------\n" % (name))
+    # print("\n\n------------- %s -----------\n" % (name))
     for i, input in enumerate(inputs):
-        print("INPUT %s :" % (feedkeys[i]), input.shape, input.dtype, "\n")
-        print_alike(input)
+        # print("INPUT %s :" % (feedkeys[i]), input.shape, input.dtype, "\n")
+        # print_alike(input)
         np.save(os.path.join(model_dir, "input{}".format(i)), input)
         np.save(os.path.join(model_dir, "input{}.{}.{}".format(i, feedkeys[i], input.dtype)), input)
-    print("\n")
+    # print("\n")
 
     for i, output in enumerate(outputs):
-        print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
-        print_alike(output)
+        # print("OUTPUT %s :" % (fetchlist[i]),output.shape, output.dtype, "\n")
+        # print_alike(output)
         np.save(os.path.join(model_dir, "output{}".format(i)), output)     
 
     # composited model + scattered model
@@ -77,4 +76,3 @@ if __name__ == "__main__":
         [1, 2, 3],
         [4, 5, 6]
     ]]]).astype(np.float32)
-    print_alike(x)  
