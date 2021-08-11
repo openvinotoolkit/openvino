@@ -97,16 +97,29 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 
 
 def prepare_ir(argv: argparse.Namespace):
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
-
     fem = argv.feManager
-    new_front_ends = []
-    if fem is not None:  # in future, check of 'use_legacy_frontend' in argv can be added here
-        new_front_ends = fem.get_available_front_ends()
+    available_moc_front_ends = []
+    moc_front_end = None
+
+    # TODO: in future, check of 'use_legacy_frontend' in argv can be added here (issue 61973)
+    force_use_legacy_frontend = False
+
+    if fem and not force_use_legacy_frontend:
+        available_moc_front_ends = fem.get_available_front_ends()
+        if argv.input_model:
+            if not argv.framework:
+                moc_front_end = fem.load_by_model(argv.input_model)
+                if moc_front_end:
+                    argv.framework = moc_front_end.get_name()
+            elif argv.framework in available_moc_front_ends:
+                moc_front_end = fem.load_by_framework(argv.framework)
+
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
+        deduce_framework_by_namespace(argv) if not moc_front_end else [False, False, False, False, False]
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
         frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
-        frameworks = list(set(frameworks + new_front_ends))
+        frameworks = list(set(frameworks + available_moc_front_ends))
         if argv.framework not in frameworks:
             raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
@@ -173,7 +186,7 @@ def prepare_ir(argv: argparse.Namespace):
     if argv.legacy_ir_generation and len(argv.transform) != 0:
         raise Error("--legacy_ir_generation and --transform keys can not be used at the same time.")
 
-    use_legacy_fe = argv.framework not in new_front_ends
+    use_legacy_fe = argv.framework not in available_moc_front_ends
     # For C++ frontends there is no specific python installation requirements, thus check only generic ones
     ret_code = check_requirements(framework=argv.framework if use_legacy_fe else None)
     if ret_code:
@@ -258,7 +271,7 @@ def prepare_ir(argv: argparse.Namespace):
         send_framework_info('kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx:  # in future check of 'use_legacy_frontend' can be added here
+    elif is_onnx:
         send_framework_info('onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
@@ -266,11 +279,10 @@ def prepare_ir(argv: argparse.Namespace):
     graph = None
     ngraph_function = None
 
-    # In future check of use_legacy_frontend option can be added here
-    if argv.feManager is None or argv.framework not in new_front_ends:
+    if argv.framework not in available_moc_front_ends:
         graph = unified_pipeline(argv)
     else:
-        ngraph_function = moc_pipeline(argv)
+        ngraph_function = moc_pipeline(argv, moc_front_end)
     return graph, ngraph_function
 
 
@@ -389,7 +401,6 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
         argv = cli_parser.parse_args()
         send_params_info(argv, cli_parser)
-
         if framework:
             argv.framework = framework
         argv.feManager = fem
@@ -435,5 +446,5 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
 if __name__ == "__main__":
     from mo.utils.cli_parser import get_all_cli_parser
-    fem = FrontEndManager()
-    sys.exit(main(get_all_cli_parser(fem), fem, None))
+    fe_manager = FrontEndManager()
+    sys.exit(main(get_all_cli_parser(fe_manager), fe_manager, None))

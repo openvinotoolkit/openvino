@@ -3,11 +3,11 @@
 //
 
 #include <dlfcn.h>
+
 #include <iostream>
 
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
-#include <iostream>
 
 namespace InferenceEngine {
 namespace details {
@@ -25,8 +25,7 @@ public:
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {
-    }
+    explicit Impl(const wchar_t* pluginName) : Impl(FileUtils::wStringtoMBCSstringChar(pluginName).c_str()) {}
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     ~Impl() {
@@ -46,8 +45,7 @@ public:
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)
-            IE_THROW(NotFound)
-                << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
+            IE_THROW(NotFound) << "dlSym cannot locate method '" << symbolName << "': " << dlerror();
         return procAddr;
     }
 };
@@ -58,7 +56,7 @@ SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) {
 }
 #endif
 
-SharedObjectLoader::SharedObjectLoader(const char * pluginName) {
+SharedObjectLoader::SharedObjectLoader(const char* pluginName) {
     _impl.reset(new Impl(pluginName));
 }
 
