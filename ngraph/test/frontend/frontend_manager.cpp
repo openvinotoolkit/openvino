@@ -59,6 +59,9 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd)
     FrontEndManager fem;
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
+    FrontEnd::Ptr fe;
+    ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    ASSERT_EQ(fe->get_name(), "mock1");
     set_test_env("OV_FRONTEND_PATH", "");
 }
 
@@ -77,6 +80,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd)
     ASSERT_ANY_THROW(fe->convert_partially(nullptr));
     ASSERT_ANY_THROW(fe->decode(nullptr));
     ASSERT_ANY_THROW(fe->normalize(nullptr));
+    ASSERT_EQ(fe->get_name(), std::string());
 }
 
 TEST(FrontEndManagerTest, testDefaultInputModel)
